@@ -19,12 +19,7 @@ class Test3DMatPlugin(unittest.TestCase):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
 
-        #sys.argv[1:] = ['aa', 'bb']
-        #self.opts = parser.parse_args(['--order', 'none'])
-        #self.opts = parser.parse_args(['--of', 'nifti', '--sort', 'tag'])
-        #self.opts = parser.parse_args(['--of', 'nifti'])
         self.opts = parser.parse_args(['--of', 'mat', '--serdes', '1'])
-        #self.opts = parser.parse_args([])
 
         plugins = imagedata.formats.get_plugins_list()
         self.dicom_plugin = None
@@ -32,15 +27,15 @@ class Test3DMatPlugin(unittest.TestCase):
             if ptype == 'dicom': self.dicom_plugin = pclass
         self.assertIsNotNone(pclass)
 
-    #def tearDown(self):
-    #    try:
-    #        shutil.rmtree('ttb3d')
-    #    except FileNotFoundError:
-    #        pass
-    #    try:
-    #        shutil.rmtree('ttb4d')
-    #    except FileNotFoundError:
-    #        pass
+    def tearDown(self):
+        try:
+            shutil.rmtree('ttm3d')
+        except FileNotFoundError:
+            pass
+        try:
+            shutil.rmtree('ttm4d')
+        except FileNotFoundError:
+            pass
 
     #@unittest.skip("skipping test_read_3d_mat")
     def test_write_3d_mat(self):
@@ -87,7 +82,6 @@ class Test3DMatPlugin(unittest.TestCase):
         np.testing.assert_array_almost_equal(si1, si3, decimal=4)
         logging.debug('test_write_3d_mat: si3.slices {}'.format(si3.slices))
         logging.debug('test_write_3d_mat: si3 {} {} {}'.format(type(si3), si3.dtype, si3.shape))
-        #si3.write('ttm3d/mat', 'Image_%05d.real', formats=['mat'], opts=self.opts)
 
         s3 = si1-si2
         s3.write('ttm3d/diff', 'Image_%05d.mat', formats=['mat'], opts=self.opts)
@@ -97,12 +91,7 @@ class Test4DMatPlugin(unittest.TestCase):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
 
-        #sys.argv[1:] = ['aa', 'bb']
-        #self.opts = parser.parse_args(['--order', 'none'])
-        #self.opts = parser.parse_args(['--of', 'nifti', '--sort', 'tag'])
-        #self.opts = parser.parse_args(['--of', 'nifti'])
         self.opts = parser.parse_args(['--of', 'mat'])
-        #self.opts = parser.parse_args([])
 
         plugins = imagedata.formats.get_plugins_list()
         self.dicom_plugin = None
@@ -110,15 +99,15 @@ class Test4DMatPlugin(unittest.TestCase):
             if ptype == 'dicom': self.dicom_plugin = pclass
         self.assertIsNotNone(pclass)
 
-    #def tearDown(self):
-    #    try:
-    #        shutil.rmtree('ttb3d')
-    #    except FileNotFoundError:
-    #        pass
-    #    try:
-    #        shutil.rmtree('ttb4d')
-    #    except FileNotFoundError:
-    #        pass
+    def tearDown(self):
+        try:
+            shutil.rmtree('ttm3d')
+        except FileNotFoundError:
+            pass
+        try:
+            shutil.rmtree('ttm4d')
+        except FileNotFoundError:
+            pass
 
     #@unittest.skip("skipping test_write_4d_mat")
     def test_write_4d_mat(self):
@@ -130,22 +119,6 @@ class Test4DMatPlugin(unittest.TestCase):
                 self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (8, 30, 192, 192))
-        #np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
-
-        #log.debug("test_write_4d_itk: sliceLocations {}".format(
-        #    hdr.sliceLocations))
-        #log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
-        #log.debug("test_write_4d_itk: spacing {}".format(hdr.spacing))
-        #log.debug("test_write_4d_itk: imagePositions {}".format(
-        #    hdr.imagePositions))
-        #log.debug("test_write_4d_itk: orientation {}".format(hdr.orientation))
-
-        #si1.sort_on = imagedata.formats.SORT_ON_SLICE
-        #si1.sort_on = imagedata.formats.SORT_ON_TAG
-        #log.debug("test_write_4d_mat: si1.sort_on {}".format(
-        #    imagedata.formats.sort_on_to_str(si1.sort_on)))
-        #si1.output_dir = 'single'
-        #si1.output_dir = 'multi'
         try:
             shutil.rmtree('ttm4d')
         except FileNotFoundError:
