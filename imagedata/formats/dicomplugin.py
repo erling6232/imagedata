@@ -499,6 +499,7 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber = 0
 
+        save_shape = si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -526,6 +527,7 @@ class DICOMPlugin(AbstractPlugin):
                 os.makedirs(dirname)
             self.write_slice(0, slice, si, dirname, filename, ifile)
             ifile += 1
+        si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
         """Write 4D Series image as DICOM files
@@ -555,7 +557,7 @@ class DICOMPlugin(AbstractPlugin):
             self.output_dir = opts.output_dir
 
         self.instanceNumber = 0
-
+        save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
             si.shape = (1,) + si.shape
@@ -618,6 +620,7 @@ class DICOMPlugin(AbstractPlugin):
                         filename = filename_template % (ifile)
                     self.write_slice(tag, slice, si, dirn, filename, ifile)
                     ifile += 1
+        si.shape = save_shape
 
     def write_slice(self, tag, slice, si, dirname, filename, ifile):
         """Write single slice to DICOM file

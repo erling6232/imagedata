@@ -456,6 +456,7 @@ class NiftiPlugin(AbstractPlugin):
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        save_shape = si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -490,7 +491,7 @@ class NiftiPlugin(AbstractPlugin):
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.nii.gz'
         img.to_filename(os.path.join(dirname, filename))
-        return
+        si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
         """Write 4D numpy image as Nifti file
@@ -519,6 +520,7 @@ class NiftiPlugin(AbstractPlugin):
         self.orientation          = si.orientation
         self.tags                 = si.tags
 
+        save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
             si.shape = (1,) + si.shape
@@ -559,7 +561,7 @@ class NiftiPlugin(AbstractPlugin):
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.nii.gz'
         img.to_filename(os.path.join(dirname, filename))
-        return
+        si.shape = save_shape
 
     def copy(self, other=None):
         if other is None: other = NiftiPlugin()

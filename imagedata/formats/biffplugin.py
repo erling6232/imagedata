@@ -176,6 +176,7 @@ class BiffPlugin(AbstractPlugin):
         self.output_dir           = opts.output_dir
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        save_shape = si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -218,6 +219,7 @@ class BiffPlugin(AbstractPlugin):
         logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
         self.Iwrite_text()
         self.Iclose_image()
+        si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
         """Write 4D numpy image as Xite biff file
@@ -236,7 +238,7 @@ class BiffPlugin(AbstractPlugin):
         self.slices               = si.slices
         self.tags                 = si.tags
         self.output_dir           = opts.output_dir
-
+        save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
             si.shape = (1,) + si.shape
@@ -328,6 +330,7 @@ class BiffPlugin(AbstractPlugin):
                     logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
                     self.Iwrite_text()
                     self.Iclose_image()
+        si.shape = save_shape
 
 
     def dtype_from_biff(self, pixtyp):

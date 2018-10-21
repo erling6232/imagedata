@@ -303,6 +303,7 @@ class ITKPlugin(AbstractPlugin):
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        save_shape = si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -320,6 +321,7 @@ class ITKPlugin(AbstractPlugin):
             filename = filename_template
         filename = os.path.join(dirname, filename)
         self.write_numpy_itk(si[0,...], filename)
+        si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
         """Write 4D numpy image as ITK files
@@ -345,6 +347,7 @@ class ITKPlugin(AbstractPlugin):
         self.orientation          = si.orientation
         self.tags                 = si.tags
 
+        save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
             si.shape = (1,) + si.shape
@@ -375,6 +378,7 @@ class ITKPlugin(AbstractPlugin):
                 filename = filename_template % (tag)
                 filename = os.path.join(dirname, filename)
                 self.write_numpy_itk(si[tag,...], filename)
+        si.shape = save_shape
 
     def write_numpy_itk(self, si, filename):
         """Write single volume to file
@@ -610,19 +614,21 @@ class ITKPlugin(AbstractPlugin):
             raise(NotImplementedError, 'The python wrappers of ITK define no template class for this data type.')
 
     def reverse_3d_shape(self, shape):
-        if len(shape) == 4:
-            t,slices,rows,columns = shape
-        else:
-            slices,rows,columns = shape
-        return((columns,rows,slices))
+        #if len(shape) == 4:
+        #    t,slices,rows,columns = shape
+        #else:
+        #    slices,rows,columns = shape
+        #return((columns,rows,slices))
+        return tuple(reversed(shape))
 
     def reverse_4d_shape(self, shape):
-        if len(shape) == 4:
-            t,slices,rows,columns = shape
-        else:
-            slices,rows,columns = shape
-            t = 1
-        return((columns,rows,slices,t))
+        #if len(shape) == 4:
+        #    t,slices,rows,columns = shape
+        #else:
+        #    slices,rows,columns = shape
+        #    t = 1
+        #return((columns,rows,slices,t))
+        return tuple(reversed(shape))
 
     def reorder_3d_data(self, data):
         # Reorder data
