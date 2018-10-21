@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 
-#from distutils.core import setup
 from setuptools import setup, find_packages
+
+pkg_vars  = {}
+
+with open("imagedata/_version.py") as fp:
+    exec(fp.read(), pkg_vars)
 
 setup(name = 'imagedata',
     #packages = ['imagedata'],
     packages = find_packages(exclude=["contrib", "docs", "tests*"]),
-    version = '1.1.5a13',
+    #version = '1.1.6a0',
+    version = pkg_vars['__version__'],
     description = 'Read/write medical image data',
     author = 'Erling Andersen',
     author_email = 'Erling.Andersen@Helse-Bergen.NO',
