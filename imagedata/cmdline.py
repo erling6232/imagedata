@@ -8,6 +8,7 @@ import sys
 import os.path
 import argparse
 import logging
+import imagedata
 import imagedata.formats
 
 class CommaSepAction(argparse.Action):
@@ -64,8 +65,8 @@ class DtypeAction(argparse.Action):
 
 def add_argparse_options(parser):
     parser.add_argument('--of', dest="output_format", action=OutputFormatAction,
-        help="Output format [dicom|vti|itk|nifti|biff] (default: dicom). Replaces %%p in output path.",
-        choices=['dicom', 'vti', 'itk', 'nifti', 'biff'],
+        help="Output format [dicom|itk|nifti|biff|mat] (default: dicom). Replaces %%p in output path.",
+        choices=['dicom', 'itk', 'nifti', 'biff', 'mat'],
         default=[])
     parser.add_argument('--sort', dest="output_sort", action=SortOnAction,
         help="Sort output file on slice or input order 'tag' (default: slice)",
@@ -126,7 +127,7 @@ def add_argparse_options(parser):
     parser.add_argument('-V', '--version',
         help='Show program version',
         action='version',
-        version='%(pros)s {}'.format(__version__))
+        version='{} {}'.format(sys.argv[0], imagedata.__version__))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
