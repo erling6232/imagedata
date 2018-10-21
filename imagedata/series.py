@@ -94,7 +94,7 @@ class Series(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj) -> None:
-        logging.debug("Series.__array_finalize__: entered obj: {}".format(type(obj)))
+        #logging.debug("Series.__array_finalize__: entered obj: {}".format(type(obj)))
         # ``self`` is a new object resulting from
         # ndarray.__new__(Series, ...), therefore it only has
         # attributes that the ndarray.__new__ constructor gave it -
@@ -117,14 +117,14 @@ class Series(np.ndarray):
         # that we set the default value for 'input_order', because this
         # method sees all creation of default objects - with the
         # Series.__new__ constructor, but also with arr.view(Series).
-        logging.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
+        #logging.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
 
         if issubclass(type(obj), Series):
             # Copy attributes from obj to newly created self
-            logging.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
+            #logging.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             self.__dict__ = obj.__dict__.copy()  # carry forward attributes
         else:
-            logging.debug('Series.__array_finalize__: init attributes')
+            #logging.debug('Series.__array_finalize__: init attributes')
             self.__init_attributes(self)
 
         # We do not need to return anything
