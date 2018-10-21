@@ -203,22 +203,22 @@ class Series(np.ndarray):
                 except:
                     pass
 
-        logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))
+        #logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))
         slicing = False
         if isinstance(self, Series):
             # Calculate slice range
             spec = {}
-            logging.debug('Series.__getitem__: self.shape {}'.format(self.shape))
+            #logging.debug('Series.__getitem__: self.shape {}'.format(self.shape))
             for i in range(4): # Loop over tag,z,y,x regardless of array shape
                 spec[i] = (0, None, 1) # Initial start,stop,step
             for i in range(self.ndim-1,-1,-1): # Loop over actual array shape
                 spec[4-self.ndim+i] = (0, self.shape[i], 1) # Initial start,stop,step
-            logging.debug('Series.__getitem__: spec {}'.format(spec))
+            #logging.debug('Series.__getitem__: spec {}'.format(spec))
             if isinstance(item, tuple):
                 items = item
             else:
                 items = (item,)
-            logging.debug('Series.__getitem__: items type {}: {}'.format(type(items),item))
+            #logging.debug('Series.__getitem__: items type {}: {}'.format(type(items),item))
             for i in range(min(self.ndim,len(items))):
                 if type(items[i]) == Ellipsis: break
                 if isinstance(items[i], slice):
@@ -231,10 +231,10 @@ class Series(np.ndarray):
                     spec[i] = (start,stop,step)
                     slicing = True
             if slicing:
-                logging.debug('Series.__getitem__: tag slice: {}'.format(spec[0]))
-                logging.debug('Series.__getitem__: z   slice: {}'.format(spec[1]))
-                logging.debug('Series.__getitem__: y   slice: {}'.format(spec[2]))
-                logging.debug('Series.__getitem__: x   slice: {}'.format(spec[3]))
+                #logging.debug('Series.__getitem__: tag slice: {}'.format(spec[0]))
+                #logging.debug('Series.__getitem__: z   slice: {}'.format(spec[1]))
+                #logging.debug('Series.__getitem__: y   slice: {}'.format(spec[2]))
+                #logging.debug('Series.__getitem__: x   slice: {}'.format(spec[3]))
 
                 todo = []
                 # Select slice of sliceLocations
