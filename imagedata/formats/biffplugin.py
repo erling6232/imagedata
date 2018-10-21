@@ -36,6 +36,11 @@ class NoBands(Exception):
     """
     pass
 
+class BadShapeGiven(Exception):
+    """Thrown when input_shape is not like (t)x(z).
+    """
+    pass
+
 class BiffPlugin(AbstractPlugin):
     """Read/write Xite biff files."""
 
