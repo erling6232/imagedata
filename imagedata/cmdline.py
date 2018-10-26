@@ -73,8 +73,8 @@ def add_argparse_options(parser):
         choices=['slice', 'tag'], default=imagedata.formats.SORT_ON_SLICE)
     parser.add_argument('--order', dest="input_order",
         action=InputOrderAction,
-        help="How to sort input file (time, b-value, fa) (default: none)",
-        choices=['none', 'time', 'b', 'fa', 'faulty'],
+        help="How to sort input file (time, b-value, fa, te) (default: none)",
+        choices=['none', 'time', 'b', 'fa', 'te', 'faulty'],
         default=imagedata.formats.INPUT_ORDER_NONE)
     # readdata.str_to_dtype() will convert choice to numpy dtype
     parser.add_argument('--dtype', action=DtypeAction,

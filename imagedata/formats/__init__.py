@@ -22,7 +22,7 @@ INPUT_ORDER_B,
 INPUT_ORDER_FA,
 INPUT_ORDER_TE,
 INPUT_ORDER_FAULTY)      = range(5)
-input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_FAULTY}
+input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
 class NotImageError(Exception): pass
 class EmptyImageError(Exception): pass
@@ -79,6 +79,8 @@ def input_order_to_str(input_order):
         return("INPUT_ORDER_B")
     elif input_order == INPUT_ORDER_FA:
         return("INPUT_ORDER_FA")
+    elif input_order == INPUT_ORDER_TE:
+        return("INPUT_ORDER_TE")
     elif input_order == INPUT_ORDER_FAULTY:
         return("INPUT_ORDER_FAULTY")
     else:
@@ -93,6 +95,8 @@ def input_order_to_dirname_str(input_order):
         return("b")
     elif input_order == INPUT_ORDER_FA:
         return("fa")
+    elif input_order == INPUT_ORDER_TE:
+        return("te")
     elif input_order == INPUT_ORDER_FAULTY:
         return("faulty")
     else:
@@ -107,6 +111,8 @@ def str_to_input_order(str):
         return INPUT_ORDER_B
     elif str == "fa":
         return INPUT_ORDER_FA
+    elif str == "te":
+        return INPUT_ORDER_TE
     elif str == "faulty":
         return INPUT_ORDER_FAULTY
     else:
