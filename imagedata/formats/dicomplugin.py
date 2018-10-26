@@ -857,6 +857,8 @@ class DICOMPlugin(AbstractPlugin):
             return value
         elif input_order == imagedata.formats.INPUT_ORDER_FA:
             return float(im.FlipAngle)
+        elif input_order == imagedata.formats.INPUT_ORDER_TE:
+            return float(im.EchoTime)
         else:
             raise(UnknownTag("Unknown numerical input_order {}.".format(imagedata.formats.input_order_to_str(input_order))))
 
