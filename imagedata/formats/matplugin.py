@@ -83,9 +83,10 @@ class MatPlugin(AbstractPlugin):
         url = urls[0]
         logging.debug("matplugin.read: url: {} {}".format(type(url), url))
         with fs.open_fs(url) as archive:
-            if files is None:
-                files = archive.walk.files()
-            for path in files:
+            scan_files = files
+            if scan_files is None:
+                scan_files = archive.walk.files()
+            for path in sorted(scan_files):
                 logging.debug("matplugin.read filehandle {}".format(path))
                 if archive.hassyspath(path):
                     filename = archive.getsyspath(path)
@@ -127,6 +128,7 @@ class MatPlugin(AbstractPlugin):
 
                 except imagedata.formats.NotImageError:
                     raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(path))
+
         logging.debug('MatPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
 
@@ -222,7 +224,7 @@ class MatPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts.output_sort)))
+            imagedata.formats.sort_on_to_str(opts['output_sort'])))
 
         steps  = si.shape[0]
         slices = si.shape[1]
@@ -241,11 +243,25 @@ class MatPlugin(AbstractPlugin):
         si.shape = save_shape
 
     def dicom_to_mat(self, data):
-        # Reorder data from DICOM to MAT order
-        # DICOM order: data[tags,slices,rows,columns]
-        # MAT order:   mat[columns,rows,slices,tags]
+        """Reorder data from DICOM to MAT order
+        4D:
+        DICOM order: data[tags,slices,rows,columns]
+        MAT order:   mat[rows,columns,slices,tags]
 
-        newshape = tuple(reversed(data.shape))
+        3D:
+        DICOM order: data[slices,rows,columns]
+        MAT order:   mat [rows,columns,slices]
+
+        Notice that rows and columns are not swapped.
+        """
+
+        #newshape = tuple(reversed(data.shape))
+        if data.ndim == 4:
+            tags,slices,rows,columns = data.shape
+            newshape = (rows,columns,slices,tags)
+        elif data.ndim == 3:
+            slices,rows,columns = data.shape
+            newshape = (rows,columns,slices)
         si = np.zeros(newshape, data.dtype)
 
         logging.info("From shape: {}".format(data.shape))

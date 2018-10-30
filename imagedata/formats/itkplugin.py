@@ -75,12 +75,13 @@ class ITKPlugin(AbstractPlugin):
         nt = 0
         # Scan filelist to determine data size
         url = urls[0]
-        logging.debug("itkplugin.read: url: {} {}".format(type(url), url))
+        logging.debug("itkplugin.read: peek url: {} {}".format(type(url), url))
         with fs.open_fs(url) as archive:
-            if files is None:
-                files = archive.walk.files()
-            for path in files:
-                logging.debug("itkplugin.read filehandle {}".format(path))
+            scan_files = files
+            if scan_files is None:
+                scan_files = archive.walk.files()
+            for path in sorted(scan_files):
+                logging.debug("itkplugin.read peek filehandle {}".format(path))
                 if archive.hassyspath(path):
                     filename = archive.getsyspath(path)
                     tmp_fs = None
@@ -89,7 +90,7 @@ class ITKPlugin(AbstractPlugin):
                     tmp_fs = fs.tempfs.TempFS()
                     fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
                     filename = tmp_fs.getsyspath(os.path.basename(path))
-                logging.debug("itkplugin.read load filename {}".format(filename))
+                logging.debug("itkplugin.read peek filename {}".format(filename))
                 try:
                     imagetype = itk.Image[itk.F, 3]
                     reader = itk.ImageFileReader[imagetype].New()
@@ -147,14 +148,18 @@ class ITKPlugin(AbstractPlugin):
         hdr['tags'] = tags
 
         # Read data
-        si = np.zeros([nt,nz,ny,nx], np.float)
+        if nt == 1:
+            si = np.zeros([nz,ny,nx], np.float32)
+        else:
+            si = np.zeros([nt,nz,ny,nx], np.float32)
         i=0
         for url in urls:
             logging.debug("itkplugin:read: url: {} {}".format(type(url), url))
             with fs.open_fs(url) as archive:
-                if files is None:
-                    files = archive.walk.files()
-                for path in files:
+                scan_files = files
+                if scan_files is None:
+                    scan_files = archive.walk.files()
+                for path in sorted(scan_files):
                     logging.debug("itkplugin::read filehandle {}".format(path))
                     if archive.hassyspath(path):
                         filename = archive.getsyspath(path)
@@ -179,7 +184,11 @@ class ITKPlugin(AbstractPlugin):
                         logging.info("Data shape read ITK: {}".format(img.shape))
                         nz, ny, nx = img.shape
                         logging.debug("read: si.shape {} img.shape{}".format(si.shape, img.shape))
-                        si[i,:,:,:] = img[:,:,:]
+                        if si.ndim == 3:
+                            si[:,:,:] = img[:,:,:]
+                            #si = img.copy()
+                        else:
+                            si[i,:,:,:] = img[:,:,:]
                         i+=1
                     except imagedata.formats.NotImageError:
                         raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(path))
@@ -356,7 +365,7 @@ class ITKPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts.output_sort)))
+            imagedata.formats.sort_on_to_str(opts['output_sort'])))
 
         steps  = si.shape[0]
         slices = si.shape[1]
@@ -368,7 +377,9 @@ class ITKPlugin(AbstractPlugin):
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
 
-        if opts.output_sort == imagedata.formats.SORT_ON_TAG:
+        logging.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
+            si[0,0,0,0]))
+        if opts['output_sort'] == imagedata.formats.SORT_ON_TAG:
             for slice in range(slices):
                 filename = filename_template % (slice)
                 filename = os.path.join(dirname, filename)
@@ -398,8 +409,8 @@ class ITKPlugin(AbstractPlugin):
         if si.ndim != 3:
             raise ValueError("write_numpy_itk: input dimension %d is not 3D." % si.ndim)
         if np.issubdtype(si.dtype, np.floating):
-            #arr=np.float32(np.nan_to_num(si))
-            arr=np.nan_to_num(si)
+            arr=np.float32(np.nan_to_num(si))
+            #arr=np.nan_to_num(si)
         else:
             arr=si.copy()
         if arr.dtype == np.int32:
@@ -544,7 +555,8 @@ class ITKPlugin(AbstractPlugin):
 
         dz, dy, dx = self.spacing
         dx=float(dx); dy=float(dy); dz=float(dz)
-        image.SetSpacing([dx, dy, dz]) # Swap dx,dy because image is transposed
+        #image.SetSpacing([dx, dy, dz]) # Swap dx,dy because image is transposed
+        image.SetSpacing([dy, dx, dz]) # Swap dx,dy because image is transposed
 
         return image
 

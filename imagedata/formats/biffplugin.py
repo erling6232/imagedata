@@ -90,9 +90,10 @@ class BiffPlugin(AbstractPlugin):
         url = urls[0]
         logging.debug("biffplugin.read: url: {} {}".format(type(url), url))
         with fs.open_fs(url) as archive:
-            if files is None:
-                files = archive.walk.files()
-            for path in files:
+            scan_files = files
+            if scan_files is None:
+                scan_files = archive.walk.files()
+            for path in scan_files:
                 logging.debug("biffplugin.read filehandle {}".format(path))
                 if archive.hassyspath(path):
                     filename = archive.getsyspath(path)
@@ -113,13 +114,13 @@ class BiffPlugin(AbstractPlugin):
                 ny = self.Iysize()
                 nx = self.Ixsize()
                 logging.debug("biffplugin.read ny {} nx {}".format(ny,nx))
-                if 'input_shape' in opts and opts.input_shape:
-                    nt,delim,nz = opts.input_shape.partition('x')
+                if 'input_shape' in opts and opts['input_shape']:
+                    nt,delim,nz = opts['input_shape'].partition('x')
                     if len(nz) == 0:
-                        raise BadShapeGiven('input_shape {} is not like (t)x(z)'.format(opts.input_shape))
+                        raise BadShapeGiven('input_shape {} is not like (t)x(z)'.format(opts['input_shape']))
                     nt,nz = (int(nt), int(nz))
                     if nt*nz != self.nbands:
-                        raise BadShapeGiven('input_shape {} does not match {} bands'.format(opts.input_shape, self.nbands))
+                        raise BadShapeGiven('input_shape {} does not match {} bands'.format(opts['input_shape'], self.nbands))
                 else:
                     # Assume the bands are slices
                     nt,nz = (1,self.nbands)
@@ -130,13 +131,13 @@ class BiffPlugin(AbstractPlugin):
                     dfloat = np.float64
                 si = np.zeros([nt,nz,ny,nx], dtype)
                 iband = 0 # Band numbers start from zero
-                if 'input_sort' in opts and opts.input_sort == imagedata.formats.SORT_ON_TAG:
+                if 'input_sort' in opts and opts['input_sort'] == imagedata.formats.SORT_ON_TAG:
                     hdr['input_sort'] = imagedata.formats.SORT_ON_TAG
                     for slice in range(nz):
                         for tag in range(nt):
                             si[tag,slice,:,:] = self.Iread_band(iband)
                             iband += 1
-                else: # opts.input_sort == imagedata.formats.SORT_ON_SLICE:
+                else: # opts['input_sort'] == imagedata.formats.SORT_ON_SLICE:
                     hdr['input_sort'] = imagedata.formats.SORT_ON_SLICE
                     for tag in range(nt):
                         for slice in range(nz):
@@ -144,9 +145,9 @@ class BiffPlugin(AbstractPlugin):
                             if tag==0 and slice==0:
                                 logging.debug('BiffPlugin.read: si(0) {}'.format(si[0,0,0,:4]))
                             iband += 1
-        # Overcome a problem where the first pixel is set to some arbitrary number
-        #si[0,0,0,0] = 0
-        logging.debug('BiffPlugin.read: si(0) {}'.format(si[0,0,0,0]))
+        # Simplify shape when nt == 1
+        if nt == 1:
+            si.shape = si.shape[1:]
 
         logging.debug('BiffPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
@@ -175,10 +176,12 @@ class BiffPlugin(AbstractPlugin):
         """
 
         logging.debug('BiffPlugin.write_3d_series: si {}'.format(type(si)))
-        logging.debug('BiffPlugin.write_3d_series: si {}'.format(si.__dict__))
+        #logging.debug('BiffPlugin.write_3d_series: si {}'.format(si.__dict__))
         self.slices               = si.slices
         self.tags                 = si.tags
-        self.output_dir           = opts.output_dir
+        self.output_dir           = 'single'
+        if 'output_dir' in opts:
+            self.output_dir       = opts['output_dir']
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
@@ -207,8 +210,8 @@ class BiffPlugin(AbstractPlugin):
         self.pixtyp = self.pixtyp_from_dtype(self.arr.dtype)
 
         try:
-            if opts.serdes is not None:
-                self.descr = opts.serdes
+            if opts['serdes'] is not None:
+                self.descr = opts['serdes']
             else:
                 self.descr = ''
         except:
@@ -242,7 +245,10 @@ class BiffPlugin(AbstractPlugin):
 
         self.slices               = si.slices
         self.tags                 = si.tags
-        self.output_dir           = opts.output_dir
+        self.output_dir           = 'single'
+        if 'output_dir' in opts:
+            self.output_dir       = opts['output_dir']
+
         save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
@@ -252,7 +258,7 @@ class BiffPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts.output_sort)))
+            imagedata.formats.sort_on_to_str(opts['output_sort'])))
 
         logging.debug("write_4d_numpy: si.tags {} si.slices {}".format(len(si.tags[0]), si.slices))
         steps,slices,ny,nx = si.shape[:]
@@ -264,10 +270,10 @@ class BiffPlugin(AbstractPlugin):
         if not os.path.isdir(dirname):
             os.makedirs(dirname)
         
-        if 'output_sort' not in opts or opts.output_sort is None:
+        if 'output_sort' not in opts or opts['output_sort'] is None:
             self.output_sort = si.input_sort
         else:
-            self.output_sort = opts.output_sort
+            self.output_sort = opts['output_sort']
 
         if np.issubdtype(si.dtype, np.floating):
             self.arr=np.nan_to_num(si)
@@ -276,8 +282,8 @@ class BiffPlugin(AbstractPlugin):
         self.pixtyp = self.pixtyp_from_dtype(self.arr.dtype)
 
         try:
-            if opts.serdes is not None:
-                self.descr = opts.serdes
+            if opts['serdes'] is not None:
+                self.descr = opts['serdes']
             else:
                 self.descr = ''
         except:

@@ -73,9 +73,10 @@ class NiftiPlugin(AbstractPlugin):
         for url in urls:
             logging.debug("niftiplugin:read: url: {} {}".format(type(url), url))
             with fs.open_fs(url) as archive:
-                if files is None:
-                    files = archive.walk.files()
-                for path in files:
+                scan_files = files
+                if scan_files is None:
+                    scan_files = archive.walk.files()
+                for path in sorted(scan_files):
                     logging.debug("niftiplugin::read filehandle {}".format(path))
                     #TODO: Read nifti directly from open file object
                     #      Should be able to do something like:
@@ -137,10 +138,10 @@ class NiftiPlugin(AbstractPlugin):
             # 3D
             ny,nx,nz = self.NiftiHeader.get_data_shape()
             logging.info("Data shape: %dx%dx%d" % (nx,ny,nz))
-            si = np.zeros([1,nz,nx,ny], dtype)
-            self.shape = (1,nz,nx,ny)
+            si = np.zeros([nz,nx,ny], dtype)
+            self.shape = (nz,nx,ny)
             for z in range(nz):
-                si[0,z,:,:] = np.fliplr(data[:,:,z]).T
+                si[z,:,:] = np.fliplr(data[:,:,z]).T
 
         dim_info = self.NiftiHeader.get_dim_info()
         #qform = self.NiftiHeader.get_qform()
@@ -529,12 +530,12 @@ class NiftiPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts.output_sort)))
+            imagedata.formats.sort_on_to_str(opts['output_sort'])))
 
         steps  = si.shape[0]
         slices = si.shape[1]
-        if steps != len(si.tags):
-            raise ValueError("write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags), steps))
+        if steps != len(si.tags[0]):
+            raise ValueError("write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]), steps))
         if slices != si.slices:
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
@@ -542,7 +543,8 @@ class NiftiPlugin(AbstractPlugin):
         shape = fsi.shape
 
         #qform = self.affine_to_nifti(shape)
-        qform = self.getQform()
+        #qform = self.getQform()
+        qform = self.getQformFromTransformationMatrix(shape)
         NiftiHeader = nibabel.Nifti1Header()
         NiftiHeader.set_dim_info(freq=0, phase=1, slice=2)
         NiftiHeader.set_data_shape(shape)

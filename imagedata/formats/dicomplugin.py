@@ -163,7 +163,7 @@ class DICOMPlugin(AbstractPlugin):
             spacing
             orientation
             imagePositions
-        - si[tag,slice,rows,columns]: numpy array
+        - si[tag,slice,rows,columns]: multi-dimensional numpy array
         """
 
         self.input_order = input_order
@@ -189,7 +189,7 @@ class DICOMPlugin(AbstractPlugin):
 
         logging.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_name("SOPClassUID"))))
         logging.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_name("TransferSyntaxUID"))))
-        if 'headers_only' in opts and opts.headers_only: return hdr,None
+        if 'headers_only' in opts and opts['headers_only']: return hdr,None
 
         # Load DICOM image data
         si = np.zeros(shape, matrix_dtype)
@@ -203,6 +203,9 @@ class DICOMPlugin(AbstractPlugin):
                     if im.NumberOfFrames == 1: idx = (idx, slice)
                 else:
                     idx = (idx, slice)
+                # Simplify index when image is 3D, remove tag index
+                if si.ndim == 3:
+                    idx = idx[1:]
                 #im=pydicom.read_file(fname)
                 if open_url != url:
                     archive = fs.open_fs(url)
@@ -244,7 +247,7 @@ class DICOMPlugin(AbstractPlugin):
                     logging.warning("Cannot read pixel data: {}".format(e))
                     raise
 
-        if 'correct_acq' in opts and opts.correct_acq:
+        if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr,si)
 
         # Add any DICOM template
@@ -288,7 +291,7 @@ class DICOMPlugin(AbstractPlugin):
 
         return hdr,shape
 
-    def get_dicom_headers(self, urls, files, input_order, opt={}):
+    def get_dicom_headers(self, urls, files, input_order, opts=None):
         """Get DICOM headers.
 
         Input:
@@ -297,11 +300,14 @@ class DICOMPlugin(AbstractPlugin):
          - files: list of files inside a single url.
              = None: No files given
          - input_order: Determine how to sort the input images
-         - opt: options (dict)
+         - opts: options (dict)
         Output:
          - hdr dict
          - shape
         """
+
+        self.default_opts(opts)
+
         if len(urls) > 1 and files is not None:
             raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
         imageDict = {}
@@ -309,23 +315,24 @@ class DICOMPlugin(AbstractPlugin):
         for url in urls:
             logging.debug("get_dicom_headers: url: {} {}".format(type(url), url))
             with fs.open_fs(url) as archive:
-                if files is None:
-                    files = archive.walk.files()
-                for path in files:
+                scan_files = files
+                if scan_files is None:
+                    scan_files = archive.walk.files()
+                for path in sorted(scan_files):
                     if os.path.basename(path) == "DICOMDIR": continue
                     with archive.open(path, mode="rb") as f:
                         #logging.debug("get_dicom_headers: calling self.process_member({})".format(path))
-                        self.process_member(imageDict, url, path, f, opt)
-        return self.sort_images(imageDict, input_order, opt)
+                        self.process_member(imageDict, url, path, f, opts)
+        return self.sort_images(imageDict, input_order, opts)
 
-    def sort_images(self, headerDict, input_order, opt):
+    def sort_images(self, headerDict, input_order, opts):
         """Sort DICOM images.
 
         Input:
         - self: DICOMPlugin instance
         - headerDict: dict where sliceLocations are keys
         - input_order: determine how to sort the input images
-        - opt: options (dict)
+        - opts: options (dict)
         Output:
         - hdr dict
             input_format
@@ -352,7 +359,7 @@ class DICOMPlugin(AbstractPlugin):
             count[islice] += len(headerDict[sloc])
             islice += 1
         logging.debug("sort_images: tags per slice: {}".format(count))
-        if min(count) != max(count) and 'AcceptUnevenSlices' not in opt.input_options:
+        if min(count) != max(count) and 'AcceptUnevenSlices' not in opts['input_options']:
             logging.error("sort_images: tags per slice: {}".format(count))
             raise UnevenSlicesError("Different number of images in each slice.")
 
@@ -366,8 +373,8 @@ class DICOMPlugin(AbstractPlugin):
                 if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
                     tag = i
                 else:
-                    tag = self.get_tag(im, input_order, opt)
-                if tag not in tagList[islice] or 'AcceptDuplicateTag' in opt.input_options:
+                    tag = self.get_tag(im, input_order, opts)
+                if tag not in tagList[islice] or 'AcceptDuplicateTag' in opts['input_options']:
                     tagList[islice].append(tag)
                 else:
                     print("WARNING: Duplicate tag", tag)
@@ -387,7 +394,7 @@ class DICOMPlugin(AbstractPlugin):
                 if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
                     tag = i
                 else:
-                    tag = self.get_tag(im, input_order, opt)
+                    tag = self.get_tag(im, input_order, opts)
                 idx = tagList[islice].index(tag)
                 #sorted_headers[islice].insert(idx, (tag, (url,fname), im))
                 sorted_headers[islice][idx] = (tag, (url,fname), im)
@@ -403,10 +410,13 @@ class DICOMPlugin(AbstractPlugin):
         hdr['tags'] = tagList
         nz = len(headerDict)
         if frames is not None and frames > 1: nz = frames
-        shape = ((len(tagList[0]), nz, rows, columns))
+        if len(tagList[0]) > 1:
+            shape = ((len(tagList[0]), nz, rows, columns))
+        else:
+            shape = (nz, rows, columns)
         return hdr,shape
 
-    def process_member(self, imageDict, url, member_name, member, opt):
+    def process_member(self, imageDict, url, member_name, member, opts):
         import traceback
         try:
             im=pydicom.filereader.dcmread(member, stop_before_pixels=True)
@@ -415,10 +425,10 @@ class DICOMPlugin(AbstractPlugin):
             #logging.info("process_member: Could not read {}".format(member_name))
             return
 
-        if 'input_serinsuid' in opt and opt.input_serinsuid:
-            if im.SeriesInstanceUID != opt.input_serinsuid: return
-        if 'input_echo' in opt and opt.input_echo:
-            if int(im.EchoNumbers) != int(opt.input_echo): return
+        if 'input_serinsuid' in opts and opts['input_serinsuid']:
+            if im.SeriesInstanceUID != opts['input_serinsuid']: return
+        if 'input_echo' in opts and opts['input_echo']:
+            if int(im.EchoNumbers) != int(opts['input_echo']): return
 
         try:
             sloc=im.SliceLocation
@@ -486,6 +496,13 @@ class DICOMPlugin(AbstractPlugin):
             raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
         return timesteps.max()
 
+    def default_opts(self, opts):
+        """Make sure that required options are set.
+        """
+
+        if 'input_options' not in opts:
+            opts['input_options'] = {}
+
     def write_3d_numpy(self, si, dirname, filename_template, opts):
         """Write 3D Series image as DICOM files
 
@@ -542,8 +559,8 @@ class DICOMPlugin(AbstractPlugin):
         - si.series_number is inserted into each dicom object
         - si.series_description is inserted into each dicom object
         - si.image_type: Dicom image type attribute
-        - opts.output_sort: Which tag will sort the output images (slice or tag)
-        - opts.output_dir: Store all images in a single or multiple directories
+        - opts['output_sort']: Which tag will sort the output images (slice or tag)
+        - opts['output_dir']: Store all images in a single or multiple directories
         """
 
         self.DicomHeaderDict = si.DicomHeaderDict
@@ -551,10 +568,10 @@ class DICOMPlugin(AbstractPlugin):
         # Defaults
         self.output_sort = imagedata.formats.SORT_ON_SLICE
         if 'output_sort' in opts:
-            self.output_sort = opts.output_sort
+            self.output_sort = opts['output_sort']
         self.output_dir = 'single'
         if 'output_dir' in opts:
-            self.output_dir = opts.output_dir
+            self.output_dir = opts['output_dir']
 
         self.instanceNumber = 0
         save_shape = si.shape
@@ -827,16 +844,17 @@ class DICOMPlugin(AbstractPlugin):
     #    if other is None: other = DICOMPlugin()
     #    return AbstractPlugin.copy(self, other=other)
 
-    def get_tag(self, im, input_order, opt):
+    def get_tag(self, im, input_order, opts):
         if input_order is None:
             return 0
         if input_order == imagedata.formats.INPUT_ORDER_NONE:
             return 0
         elif input_order == imagedata.formats.INPUT_ORDER_TIME:
             #return im.AcquisitionTime
-            if 'TriggerTime' in opt.input_options:
+            assert 'input_options' in opts, 'No input_options in opts'
+            if 'TriggerTime' in opts['input_options']:
                 return(float(im.TriggerTime))
-            elif 'InstanceNumber' in opt.input_options:
+            elif 'InstanceNumber' in opts['input_options']:
                 return(float(im.InstanceNumber))
             else:
                 if '.' in im.AcquisitionTime:
