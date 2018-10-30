@@ -33,6 +33,9 @@ def dump():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    #if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
     print("Output format: %s, %s, in %s directory." % (args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
@@ -117,6 +120,9 @@ def calculator():
     parser.add_argument("expression", help="Expression")
     parser.add_argument("indirs", help="Input arguments", nargs="+")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    #if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
     # Verify non-existing output directory, create
     if os.path.isdir(args.outdir):
@@ -169,6 +175,9 @@ def statistics():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    #if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
 
     try:
@@ -189,6 +198,9 @@ def timeline():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    #if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
 
     try:
@@ -210,6 +222,9 @@ def conversion():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    #if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
     print("Output format: %s, %s, in %s directory." % (args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
