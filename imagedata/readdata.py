@@ -8,6 +8,7 @@
 import os.path
 import logging
 import mimetypes
+import argparse
 import urllib.parse
 import numpy as np
 import imagedata.formats
@@ -22,7 +23,7 @@ def read(urls, order=None, opts=None):
     Input:
     - urls: list of urls or url to read (list of str, or str)
     - order: determine how to sort the images (default: auto-detect)
-    - opts: input options (dict)
+    - opts: input options (argparse.Namespace or dict)
     Output:
     - hdr: header instance
     - si[tag,slice,rows,columns]: numpy array
@@ -34,29 +35,37 @@ def read(urls, order=None, opts=None):
         raise ValueError("No URL(s) where given")
     logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
 
-    if opts is None: opts = {}
+    # Let in_opts be a dict from opts
+    if opts is None:
+        in_opts = {}
+    elif issubclass(type(opts),dict):
+        in_opts = opts
+    elif issubclass(type(opts), argparse.Namespace):
+        in_opts = vars(opts)
+    else:
+        raise UnknownOptionType('Unknown opts type ({})'.format(type(opts)))
 
     # Let the calling party override a default input order
     input_order = imagedata.formats.INPUT_ORDER_NONE
-    if 'input_order' in opts: input_order = opts.input_order
+    if 'input_order' in in_opts: input_order = in_opts['input_order']
     if order is not None: input_order = order
     logging.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
 
     # Pre-fill DICOM template
     pre_hdr = None
-    if 'template' in opts and opts.template:
-        logging.debug("readdata.read template {}".format(opts.template))
-        template_transport,template_urls,template_files = sanitize_urls(opts.template)
+    if 'template' in in_opts and in_opts['template']:
+        logging.debug("readdata.read template {}".format(in_opts['template']))
+        template_transport,template_urls,template_files = sanitize_urls(in_opts['template'])
         reader = imagedata.formats.find_plugin('dicom')
-        pre_hdr,_ = reader.read_headers(template_urls, template_files, input_order, opts)
+        pre_hdr,_ = reader.read_headers(template_urls, template_files, input_order, in_opts)
 
         # Pre-fill DICOM geometry
         geom_hdr = None
-        if 'geometry' in opts and opts.geometry:
-            logging.debug("readdata.read geometry {}".format(opts.geometry))
-            geometry_transport,geometry_urls,geometry_files = sanitize_urls(opts.geometry)
+        if 'geometry' in in_opts and in_opts['geometry']:
+            logging.debug("readdata.read geometry {}".format(in_opts['geometry']))
+            geometry_transport,geometry_urls,geometry_files = sanitize_urls(in_opts['geometry'])
             reader = imagedata.formats.find_plugin('dicom')
-            geom_hdr,_ = reader.read_headers(geometry_urls, geometry_files, input_order, opts)
+            geom_hdr,_ = reader.read_headers(geometry_urls, geometry_files, input_order, in_opts)
             add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
@@ -66,7 +75,7 @@ def read(urls, order=None, opts=None):
         logging.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
         try:
-            hdr, si = reader.read(my_urls, files, pre_hdr, input_order, opts)
+            hdr, si = reader.read(my_urls, files, pre_hdr, input_order, in_opts)
             #logging.debug("reader.read: hdr.imageType: {}".format(hdr['imageType']))
 
             return hdr, si
@@ -105,24 +114,33 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
     - si[tag,slice,rows,columns]: Series array
     - dirname_template: output directory name
     - filename_template: template including %d for image number
-    - opts: Output options (dict)
+    - opts: Output options (argparse.Namespace or dict)
     - formats: list of output formats, overriding opts.output_format (list or
       str)
     """
 
     #logging.debug("write: dir(si): {}".format(dir(si)))
 
-    if opts is None: opts = {}
-    if 'sernum' in opts and opts.sernum: si.seriesNumber = opts.sernum
-    if 'serdes' in opts and opts.serdes: si.seriesDescription = opts.serdes
-    if 'imageType' in opts and opts.imageType: si.imageType = opts.imageType
-    if 'frame' in opts and opts.frame: si.frameOfReferenceUID = opts.frame
+    # Let out_opts be a dict from opts
+    if opts is None:
+        out_opts = {}
+    elif issubclass(type(opts),dict):
+        out_opts = out_opts
+    elif issubclass(type(opts), argparse.Namespace):
+        out_opts = vars(opts)
+    else:
+        raise UnknownOptionType('Unknown opts type ({})'.format(type(opts)))
+
+    if 'sernum' in out_opts and out_opts['sernum']: si.seriesNumber = out_opts['sernum']
+    if 'serdes' in out_opts and out_opts['serdes']: si.seriesDescription = out_opts['serdes']
+    if 'imageType' in out_opts and out_opts['imageType']: si.imageType = out_opts['imageType']
+    if 'frame' in out_opts and out_opts['frame']: si.frameOfReferenceUID = out_opts['frame']
 
     # Default output format is input format
     output_formats = [si.input_format]
     logging.debug("Default    output format : {}".format(output_formats))
     logging.debug("Overriding output formats: {}".format(formats))
-    logging.debug("Options: {}".format(opts))
+    logging.debug("Options: {}".format(out_opts))
     if formats is not None:
         if isinstance(formats, list):
             output_formats = formats
@@ -130,17 +148,17 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
             output_formats = [formats]
         else:
             raise TypeError("List of output format is not list() ({})".format(type(formats)))
-    elif 'output_format' in opts and len(opts.output_format):
-        output_formats = opts.output_format
+    elif 'output_format' in out_opts and len(out_opts['output_format']):
+        output_formats = out_opts['output_format']
     logging.info("Output formats: {}".format(output_formats))
 
     # Determine output dtype
     write_si = si
-    if 'dtype' in opts and opts.dtype is not None:
-        #if str_to_dtype(opts.dtype) != si.dtype:
-        if opts.dtype != si.dtype:
-            #write_si = si.astype(str_to_dtype(opts.dtype))
-            write_si = si.astype(opts.dtype)
+    if 'dtype' in out_opts and out_opts['dtype'] is not None:
+        #if str_to_dtype(out_opts['dtype']) != si.dtype:
+        if out_opts['dtype'] != si.dtype:
+            #write_si = si.astype(str_to_dtype(out_opts['dtype']))
+            write_si = si.astype(out_opts['dtype'])
     #logging.debug("write: dir(write_si): {}".format(dir(write_si)))
 
     # Call plugin writers in turn to store the data
@@ -155,10 +173,10 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
             dirname = dirname_template.replace('%p', ptype)
             if write_si.ndim == 4 and write_si.shape[0] > 1:
                 # 4D data
-                writer.write_4d_numpy(write_si, dirname, filename_template, opts)
+                writer.write_4d_numpy(write_si, dirname, filename_template, out_opts)
             elif write_si.ndim >= 3:
                 # 3D data
-                writer.write_3d_numpy(write_si, dirname, filename_template, opts)
+                writer.write_3d_numpy(write_si, dirname, filename_template, out_opts)
             else:
                 raise ValueError("Don't know how to write image of shape {}".format(write_si.shape))
             written = True
