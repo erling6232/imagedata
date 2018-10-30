@@ -12,7 +12,7 @@ def compare_headers(self, hdr, newhdr):
     self.assertEqual(hdr.url, newhdr.url)
     self.assertEqual(hdr.input_order, newhdr.input_order)
     #self.assertEqual(hdr.sort_on, newhdr.sort_on)
-    np.testing.assert_array_equal(hdr.spacing, newhdr.spacing)
+    np.testing.assert_array_almost_equal(hdr.spacing, newhdr.spacing, decimal=4)
     logging.debug('compare_headers:    hdr.orientation={}'.format(hdr.orientation))
     logging.debug('compare_headers: newhdr.orientation={}'.format(newhdr.orientation))
     np.testing.assert_array_almost_equal(hdr.orientation, newhdr.orientation,
