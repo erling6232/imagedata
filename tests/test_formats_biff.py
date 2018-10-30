@@ -56,41 +56,74 @@ class Test3DBiffPlugin(unittest.TestCase):
         logging.debug('test_read_3d_biff: si1.slices {}'.format(si1.slices))
 
         si1.spacing = (5, 0.41015625, 0.41015625)
-        for slice in range(si1.shape[1]):
+        for slice in range(si1.shape[0]):
             si1.imagePositions = {
                 slice:
                         np.array([slice,1,0])
             }
         si1.orientation=np.array([1, 0, 0, 0, 1, 0])
-        logging.debug('test_write_3d_biff: si1.tags {}'.format(si1.tags))
+        logging.debug('test_read_3d_biff: si1.tags {}'.format(si1.tags))
         si1.write('ttb3d/biff', 'Image_%05d', formats=['biff'], opts=self.opts)
-        logging.debug('test_write_3d_biff: si1 {} {} {}'.format(si1.dtype, si1.min(), si1.max()))
+        logging.debug('test_read_3d_biff: si1 {} {} {}'.format(si1.dtype, si1.min(), si1.max()))
 
         si2 = Series(
                 'ttb3d/biff/Image_00000.biff',
                 0,
                 self.opts)
-        logging.debug('test_write_3d_biff: si2 {} {} {}'.format(si2.dtype, si2.min(), si2.max()))
+        logging.debug('test_read_3d_biff: si2 {} {} {}'.format(si2.dtype, si2.min(), si2.max()))
 
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
 
-        logging.debug('test_write_3d_biff: Get si1.slices {}'.format(si1.slices))
-        logging.debug('test_write_3d_biff: Set s3')
+        logging.debug('test_read_3d_biff: Get si1.slices {}'.format(si1.slices))
+        logging.debug('test_read_3d_biff: Set s3')
         s3 = si1.astype(np.float64)
-        logging.debug('test_write_3d_biff: s3 {} {} {} {}'.format(type(s3),
+        logging.debug('test_read_3d_biff: s3 {} {} {} {}'.format(type(s3),
             issubclass(type(s3), Series), s3.dtype, s3.shape))
-        logging.debug('test_write_3d_biff: s3 {} {} {}'.format(s3.dtype,
+        logging.debug('test_read_3d_biff: s3 {} {} {}'.format(s3.dtype,
             s3.min(), s3.max()))
-        logging.debug('test_write_3d_biff: s3.slices {}'.format(s3.slices))
+        logging.debug('test_read_3d_biff: s3.slices {}'.format(s3.slices))
         si3 = Series(s3)
         np.testing.assert_array_almost_equal(si1, si3, decimal=4)
-        logging.debug('test_write_3d_biff: si3.slices {}'.format(si3.slices))
-        logging.debug('test_write_3d_biff: si3 {} {} {}'.format(type(si3), si3.dtype, si3.shape))
+        logging.debug('test_read_3d_biff: si3.slices {}'.format(si3.slices))
+        logging.debug('test_read_3d_biff: si3 {} {} {}'.format(type(si3), si3.dtype, si3.shape))
         si3.write('ttb3d/biff', 'Image_%05d.real', formats=['biff'], opts=self.opts)
 
         s3 = si1-si2
         s3.write('ttb3d/diff', 'Image_%05d.mha', formats=['itk'], opts=self.opts)
+
+    #@unittest.skip("skipping test_read_3d_biff_no_opt")
+    def test_read_3d_biff_no_opt(self):
+        log = logging.getLogger("TestWritePluginITK.test_read_3d_biff_no_opt")
+        log.debug("test_read_3d_biff_no_opt")
+        try:
+            shutil.rmtree('ttb3d')
+        except FileNotFoundError:
+            pass
+        try:
+            si1 = Series(
+                'tests/dicom/NYRE_151204_T1/_fl3d1_0005')
+        except Exception as e:
+            logging.debug('test_read_3d_biff: read si1 exception {}'.format(e))
+        logging.debug('test_read_3d_biff: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
+        logging.debug('test_read_3d_biff: si1.slices {}'.format(si1.slices))
+
+    #@unittest.skip("skipping test_write_3d_biff_no_opt")
+    def test_write_3d_biff_no_opt(self):
+        log = logging.getLogger("TestWritePluginITK.test_write_3d_biff_no_opt")
+        log.debug("test_write_3d_biff_no_opt")
+        try:
+            shutil.rmtree('ttb3d')
+        except FileNotFoundError:
+            pass
+        try:
+            si1 = Series(
+                'tests/dicom/NYRE_151204_T1/_fl3d1_0005')
+        except Exception as e:
+            logging.debug('test_read_3d_biff: read si1 exception {}'.format(e))
+        logging.debug('test_read_3d_biff: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
+        logging.debug('test_read_3d_biff: si1.slices {}'.format(si1.slices))
+        si1.write('ttb3d/biff', 'Image_%05d', formats=['biff'])
 
 class Test4DBiffPlugin(unittest.TestCase):
     def setUp(self):

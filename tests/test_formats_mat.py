@@ -37,6 +37,41 @@ class Test3DMatPlugin(unittest.TestCase):
         except FileNotFoundError:
             pass
 
+    #@unittest.skip("skipping test_read_3d_mat_no_opt")
+    def test_read_3d_mat_no_opt(self):
+        log = logging.getLogger("Test3DMatPlugin.test_read_3d_mat_no_opt")
+        log.debug("test_read_3d_mat_no_opt")
+        try:
+            shutil.rmtree('ttm3d')
+        except FileNotFoundError:
+            pass
+        try:
+            si1 = Series(
+                'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
+                0,
+                self.opts)
+        except Exception as e:
+            logging.debug('test_read_3d_mat_no_opt: read si1 exception {}'.format(e))
+        si1.write('ttm3d/mat', 'Image_%05d', formats=['mat'], opts=self.opts)
+        si2 = Series('ttm3d/mat/Image_00000.mat')
+
+    #@unittest.skip("skipping test_write_3d_mat_no_opt")
+    def test_write_3d_mat_no_opt(self):
+        log = logging.getLogger("Test3DMatPlugin.test_write_3d_mat_no_opt")
+        log.debug("test_write_3d_mat_no_opt")
+        try:
+            shutil.rmtree('ttm3d')
+        except FileNotFoundError:
+            pass
+        try:
+            si1 = Series(
+                'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
+                0,
+                self.opts)
+        except Exception as e:
+            logging.debug('test_write_3d_mat_no_opt: read si1 exception {}'.format(e))
+        si1.write('ttm3d/mat', 'Image_%05d', formats=['mat'])
+
     #@unittest.skip("skipping test_read_3d_mat")
     def test_write_3d_mat(self):
         log = logging.getLogger("Test3DMatPlugin.test_write_3d_mat")
@@ -52,7 +87,7 @@ class Test3DMatPlugin(unittest.TestCase):
                 self.opts)
         except Exception as e:
             logging.debug('test_write_3d_mat: read si1 exception {}'.format(e))
-        si1.shape = si1.shape[1:]
+        #si1.shape = si1.shape[1:]
         logging.debug('test_write_3d_mat: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_write_3d_mat: si1.shape {}, si1.slices {}'.format(si1.shape, si1.slices))
 
