@@ -7,10 +7,14 @@ pkg_vars  = {}
 with open("imagedata/_version.py") as fp:
     exec(fp.read(), pkg_vars)
 
+here = path.abspath(path.dirname(__file__))
+
+# Get the long description from the README file
+with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+    long_description = f.read()
+
 setup(name = 'imagedata',
-    #packages = ['imagedata'],
-    packages = find_packages(exclude=["contrib", "docs", "tests*"]),
-    #version = '1.1.6a0',
+    packages = find_packages(exclude=['contrib', 'docs', 'tests*']),
     version = pkg_vars['__version__'],
     description = 'Read/write medical image data',
     author = 'Erling Andersen',
@@ -40,22 +44,20 @@ setup(name = 'imagedata',
         'scandir',
         'pathfinder',
     ],
+    python_requires='>=3, <4',
     tests_require = ['tests'],
-    long_description = """\
-    # imagedata
-
-    Read/write medical image data.
-
-    Python library to read and write image data into numpy arrays.
-
-    Handles geometry information between the formats.
-
-    The following formats are included:
-    * DICOM
-    * Nifti
-    * ITK (MetaIO)
-    """
-    ,
+    long_description = long_description,
+    # Denotes that our long_description is in Markdown; valid values are
+    # text/plain, text/x-rst, and text/markdown
+    #
+    # Optional if long_description is written in reStructuredText (rst) but
+    # required for plain-text or Markdown; if unspecified, "applications should
+    # attempt to render [the long_description] as text/x-rst; charset=UTF-8 and
+    # fall back to text/plain if it is not valid rst" (see link below)
+    #
+    # This field corresponds to the "Description-Content-Type" metadata field:
+    # https://packaging.python.org/specifications/core-metadata/#description-content-type-optional
+    long_description_content_type='text/markdown',
     entry_points={
         'console_scripts': [
             'image_calculator = imagedata.image_data:calculator',
