@@ -37,9 +37,15 @@ class ITKPlugin(AbstractPlugin):
     version = "1.0.0"
     url = "www.helse-bergen.no"
 
-    def __init__(self):
+    def __init__(self, name=None, description=None,
+                 authors=None, version=None, url=None):
+        if name        is not None: self.name        = name
+        if description is not None: self.description = description
+        if authors     is not None: self.authors     = authors
+        if version     is not None: self.version     = version
+        if url         is not None: self.url         = url
         super(ITKPlugin, self).__init__(self.name, self.description,
-            self.authors, self.version, self.url)
+              self.authors, self.version, self.url)
 
     def read(self, urls, files, pre_hdr, input_order, opts):
         """Read image data
