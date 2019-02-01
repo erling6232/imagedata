@@ -7,10 +7,10 @@ pkg_vars  = {}
 with open("imagedata/_version.py") as fp:
     exec(fp.read(), pkg_vars)
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name = 'imagedata',
