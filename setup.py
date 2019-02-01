@@ -45,7 +45,7 @@ setup(name = 'imagedata',
         'scandir',
         'pathfinder',
     ],
-    python_requires='>=3, <4',
+    python_requires='>=3, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, <4',
     tests_require = ['tests'],
     long_description = long_description,
     # Denotes that our long_description is in Markdown; valid values are
