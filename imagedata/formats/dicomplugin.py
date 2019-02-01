@@ -30,7 +30,7 @@ class DICOMPlugin(AbstractPlugin):
     name = "dicom"
     description = "Read and write DICOM files."
     authors = "Erling Andersen"
-    version = "1.1.0"
+    version = "1.1.1"
     url = "www.helse-bergen.no"
 
     root="2.16.578.1.37.1.1.4"
@@ -705,6 +705,8 @@ class DICOMPlugin(AbstractPlugin):
         ds.LargestPixelValueInSeries  = self.largestPixelValueInSeries.astype('uint16')
         ds[0x0028,0x0108].VR='US'
         ds[0x0028,0x0109].VR='US'
+        ds.WindowCenter = self.center
+        ds.WindowWidth  = self.width
         if np.issubdtype(safe_si.dtype, np.floating):
             ds.SmallestImagePixelValue    = ((safe_si[tag,slice].min()-self.b)/self.a).astype('uint16')
             ds.LargestImagePixelValue     = ((safe_si[tag,slice].max()-self.b)/self.a).astype('uint16')
@@ -804,6 +806,12 @@ class DICOMPlugin(AbstractPlugin):
         x in 0:65535 correspond to y in ymin:ymax
         2^16 = 65536 possible steps in 16 bits dicom
         """
+        # Window center/width
+        ymin = np.nanmin(arr)
+        ymax = np.nanmax(arr)
+        self.center = (ymax-ymin)/2
+        self.width  = max(1, ymax-ymin)
+        # y = ax + b, 
         if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_):
             # No need to rescale
             self.a = None
@@ -813,8 +821,6 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Other high precision data type, like float
             # Must rescale data
-            ymin = np.nanmin(arr)
-            ymax = np.nanmax(arr)
             self.b = ymin
             if math.fabs(ymax-ymin) >1e-6:
                 self.a = (ymax-ymin)/65535.
