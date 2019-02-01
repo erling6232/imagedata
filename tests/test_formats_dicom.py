@@ -90,7 +90,8 @@ class TestDicomPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_write_dicom_4D")
     def test_write_dicom_4D(self):
         si = Series(
-                'tests/dicom/NYRE_151204_T1',
+                #'tests/dicom/NYRE_151204_T1',
+                'tests/dicom/dynamic',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         #si.sort_on = imagedata.formats.SORT_ON_SLICE
