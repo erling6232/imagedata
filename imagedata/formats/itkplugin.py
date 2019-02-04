@@ -94,6 +94,8 @@ class ITKPlugin(AbstractPlugin):
                     tmp_fs = fs.tempfs.TempFS()
                     fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
                     filename = tmp_fs.getsyspath(os.path.basename(path))
+                if filename.endswith('.raw'):
+                    continue
                 logging.debug("itkplugin.read peek filename {}".format(filename))
                 try:
                     imagetype = itk.Image[itk.F, 3]
@@ -173,6 +175,8 @@ class ITKPlugin(AbstractPlugin):
                         tmp_fs = fs.tempfs.TempFS()
                         fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
                         filename = tmp_fs.getsyspath(os.path.basename(path))
+                    if filename.endswith('.raw'):
+                        continue
                     logging.debug("itkplugin::read load filename {}".format(filename))
                     try:
                         #TODO: Read ITK file directly from open file object
