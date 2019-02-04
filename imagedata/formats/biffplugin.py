@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Read/Write image files using Xite (biff format)
 """
 

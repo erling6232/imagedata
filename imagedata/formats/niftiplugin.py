@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Read/Write Nifti-1 files
 """
 

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """This module provides plugins for various imaging formats.
 
 Standard plugins provides support for DICOM and Nifti image file formats.
@@ -221,7 +219,3 @@ def find_plugin(ftype):
     raise FormatPluginNotFound("Plugin for format {} not found.".format(ftype))
 
 plugins = load_plugins()
-
-if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
