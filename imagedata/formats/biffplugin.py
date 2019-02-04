@@ -7,11 +7,10 @@
 # Bergen, Norway
 
 import os.path
-import sys
 import logging
 import struct
-import fs
 import numpy as np
+import fs
 
 import imagedata.formats
 from imagedata.formats.abstractplugin import AbstractPlugin
@@ -56,6 +55,36 @@ class BiffPlugin(AbstractPlugin):
 
 
     def __init__(self):
+        self.pt = None
+        self.xsz = None
+        self.ysz = None
+        self.xst = None
+        self.yst = None
+        self.xmg = None
+        self.ymg = None
+        self.col = None
+        self.output_sort = None
+        self.output_dir = 'single'
+        self.f = None
+        self.descr = ''
+        self.bands = {}
+        self.tags = None
+        self.status = None
+        self.ninfoblks = None
+        self.nbandblks = None
+        self.ntextblks = None
+        self.nblocks = None
+        self.textbufblks = 0
+        self.nchars = 0
+        self.nbands = 0
+        self.param = [0, 0, 0, 0, 0, 0, 0, 0]
+        self.pixtyp = None
+        self.title = None
+        self.little_endian = None
+        self.pos = 0
+        self.text = None
+        self.slices = None
+        self.arr = None
         super(BiffPlugin, self).__init__(self.name, self.description,
               self.authors, self.version, self.url)
 
@@ -78,7 +107,7 @@ class BiffPlugin(AbstractPlugin):
             tags
         - si[tag,slice,rows,columns]: numpy array
         """
-        
+
         hdr = {}
         hdr['input_format'] = self.name
         hdr['input_order'] = input_order
@@ -105,14 +134,14 @@ class BiffPlugin(AbstractPlugin):
                     filename = tmp_fs.getsyspath(os.path.basename(path))
                 logging.debug("biffplugin.read load filename {}".format(filename))
                 try:
-                    self.Iopen_image(filename, 'r')
+                    self._open_image(filename, 'r')
                 except:
                     raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(path))
                 logging.debug("biffplugin.read img")
                 if self.nbands == 0:
                     raise imagedata.formats.EmptyImageError('{} has no image'.format(path))
-                ny = self.Iysize()
-                nx = self.Ixsize()
+                ny = self._y_size()
+                nx = self._x_size()
                 logging.debug("biffplugin.read ny {} nx {}".format(ny,nx))
                 if 'input_shape' in opts and opts['input_shape']:
                     nt,delim,nz = opts['input_shape'].partition('x')
@@ -124,7 +153,7 @@ class BiffPlugin(AbstractPlugin):
                 else:
                     # Assume the bands are slices
                     nt,nz = (1,self.nbands)
-                dtype,dformat = self.dtype_from_biff(self.Ipixtyp())
+                dtype,dformat = self.dtype_from_biff(self._pixel_type())
                 if dtype == np.complex64:
                     dfloat = np.float32
                 elif dtype == np.complex128:
@@ -135,13 +164,13 @@ class BiffPlugin(AbstractPlugin):
                     hdr['input_sort'] = imagedata.formats.SORT_ON_TAG
                     for slice in range(nz):
                         for tag in range(nt):
-                            si[tag,slice,:,:] = self.Iread_band(iband)
+                            si[tag,slice,:,:] = self._read_band(iband)
                             iband += 1
                 else: # opts['input_sort'] == imagedata.formats.SORT_ON_SLICE:
                     hdr['input_sort'] = imagedata.formats.SORT_ON_SLICE
                     for tag in range(nt):
                         for slice in range(nz):
-                            si[tag,slice,:,:] = self.Iread_band(iband)
+                            si[tag,slice,:,:] = self._read_band(iband)
                             if tag==0 and slice==0:
                                 logging.debug('BiffPlugin.read: si(0) {}'.format(si[0,0,0,:4]))
                             iband += 1
@@ -217,16 +246,16 @@ class BiffPlugin(AbstractPlugin):
         except:
             self.descr = ''
 
-        self.Iset_text('')
-        self.Iopen_image(filename, 'w')
+        self._set_text('')
+        self._open_image(filename, 'w')
 
         iband = 0
         for slice in range(slices):
-            self.Iwrite_band(iband, self.arr[0,slice])
+            self._write_band(iband, self.arr[0,slice])
             iband += 1
         logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
-        self.Iwrite_text()
-        self.Iclose_image()
+        self._write_text()
+        self._close_image()
         si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
@@ -295,52 +324,52 @@ class BiffPlugin(AbstractPlugin):
             except TypeError:
                 filename = filename_template
             filename = os.path.join(dirname, filename)
-            self.Iset_text('')
-            self.Iopen_image(filename, 'w')
+            self._set_text('')
+            self._open_image(filename, 'w')
             iband = 0
             if self.output_sort == imagedata.formats.SORT_ON_TAG:
                 for slice in range(slices):
                     for tag in range(steps):
-                        self.Iwrite_band(iband, self.arr[tag,slice])
+                        self._write_band(iband, self.arr[tag,slice])
                         iband += 1
             else: # default: imagedata.formats.SORT_ON_SLICE:
                 for tag in range(steps):
                     for slice in range(slices):
-                        self.Iwrite_band(iband, self.arr[tag,slice])
+                        self._write_band(iband, self.arr[tag,slice])
                         iband += 1
             logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-            self.Iwrite_text()
-            self.Iclose_image()
+            self._write_text()
+            self._close_image()
         else: # self.output_dir == 'multi'
             if self.output_sort == imagedata.formats.SORT_ON_TAG:
                 digits = len("{}".format(slices))
                 for slice in range(slices):
                     filename="slice{0:0{1}}".format(slice, digits)
                     filename = os.path.join(dirname, filename)
-                    self.Iset_text('')
-                    self.Iopen_image(filename, 'w')
+                    self._set_text('')
+                    self._open_image(filename, 'w')
                     iband = 0
                     for tag in range(steps):
-                        self.Iwrite_band(iband, self.arr[tag,slice])
+                        self._write_band(iband, self.arr[tag,slice])
                         iband += 1
                     logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-                    self.Iwrite_text()
-                    self.Iclose_image()
+                    self._write_text()
+                    self._close_image()
             else: # self.output_sort == imagedata.formats.SORT_ON_SLICE:
                 digits = len("{}".format(steps))
                 for tag in range(steps):
                     filename="{0}{1:0{2}}".format(imagedata.formats.input_order_to_dirname_str(si.input_order),
                                                   tag, digits)
                     filename = os.path.join(dirname, filename)
-                    self.Iset_text('')
-                    self.Iopen_image(filename, 'w')
+                    self._set_text('')
+                    self._open_image(filename, 'w')
                     iband = 0
                     for slice in range(slices):
-                        self.Iwrite_band(iband, self.arr[tag,slice])
+                        self._write_band(iband, self.arr[tag,slice])
                         iband += 1
                     logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-                    self.Iwrite_text()
-                    self.Iclose_image()
+                    self._write_text()
+                    self._close_image()
         si.shape = save_shape
 
 
@@ -414,7 +443,7 @@ class BiffPlugin(AbstractPlugin):
         else:
             raise PixelTypeNotSupported("NumPy dtype {} not supported in Xite.".format(dtype))
 
-    def Iopen_image(self, filename, mode):
+    def _open_image(self, filename, mode):
         """Open the file 'filename' with 'mode' access, and
         connect it to self image
 
@@ -429,20 +458,20 @@ class BiffPlugin(AbstractPlugin):
         self.status = None
         if mode == 'r':
             self.f = open(filename, 'rb')
-            self.Iread_info()
+            self._read_info()
             self.status = 'read'
         elif mode == 'w':
             if len(os.path.splitext(filename)[1]) == 0:
                 filename = filename + '.biff'
             self.f = open(filename, 'wb')
-            self.Iset_info()
+            self._set_info()
             self.status = 'write'
         else:
             raise ValueError('Unknown access mode "{}"'.format(mode))
 
-    def Iread_info(self):
+    def _read_info(self):
         """Initiate image info field with data from file.
-        Called by Iopen_image when image is opened
+        Called by _open_image when image is opened
         with readonly or readwrite access.
 
         Input:
@@ -453,9 +482,9 @@ class BiffPlugin(AbstractPlugin):
         """
         header = self.f.read(96)
         magic = header[:4]
-        #logging.debug('Iread_info: magic {}'.format(magic))
+        #logging.debug('_read_info: magic {}'.format(magic))
         if magic != b'BIFF':
-            logging.debug('Iread_info: magic {} giving up'.format(magic))
+            logging.debug('_read_info: magic {} giving up'.format(magic))
             raise ImageTypeError('File is not BIFF format')
         self.param = [0,0,0,0,0,0,0,0]
         try:
@@ -466,21 +495,21 @@ class BiffPlugin(AbstractPlugin):
                 self.param[4], self.param[5], self.param[6], self.param[7], 
                 nfreechars, self.nbands) = struct.unpack('>4s4s4i32s10i', header)
         except Exception as e:
-            logging.debug('Iread_info: exception\n{}'.format(e))
+            logging.debug('_read_info: exception\n{}'.format(e))
             raise ImageTypeError('{}'.format(e))
         self.col = col == b'C'
-        logging.debug('Iread_info: magic {} colour {}'.format(magic, self.col))
-        logging.debug('Iread_info: ninfoblks {} nbandblks {} ntextblks {} nblocks {}'.format(self.ninfoblks, self.nbandblks, self.ntextblks, self.nblocks))
+        logging.debug('_read_info: magic {} colour {}'.format(magic, self.col))
+        logging.debug('_read_info: ninfoblks {} nbandblks {} ntextblks {} nblocks {}'.format(self.ninfoblks, self.nbandblks, self.ntextblks, self.nblocks))
         self.title = title.decode('utf-8')
-        logging.debug('Iread_info: self.title {}'.format(self.title))
-        logging.debug('Iread_info: self.param {}'.format(self.param))
+        logging.debug('_read_info: self.title {}'.format(self.title))
+        logging.debug('_read_info: self.param {}'.format(self.param))
         self.nchars = self.ntextblks * 512 - nfreechars
-        logging.debug('Iread_info: nfreechars {} self.nchars {}'.format(nfreechars, self.nchars))
+        logging.debug('_read_info: nfreechars {} self.nchars {}'.format(nfreechars, self.nchars))
         # Initiate character position to 0
         self.pos = 0
         self.text = None
         self.textbufblks = 0
-        logging.debug('Iread_info: self.nbands {}'.format(self.nbands))
+        logging.debug('_read_info: self.nbands {}'.format(self.nbands))
 
         self.bands = {}
         # Read data concerning each band
@@ -490,21 +519,21 @@ class BiffPlugin(AbstractPlugin):
                 (self.pt, self.xsz, self.ysz, self.xst, self.yst, self.xmg,
                     self.ymg, _) = struct.unpack('>8i', band_header)
             except Exception as e:
-                logging.debug('Iread_info: exception\n{}'.format(e))
+                logging.debug('_read_info: exception\n{}'.format(e))
                 raise ImageTypeError('{}'.format(e))
             pt = self.pt &  self.Ipixtyp_mask
             self.little_endian = (self.pt & self.Ilittle_endian_mask) != 0
             #logging.debug('Band {} pt {} xsz {} ysz {} xst {} yst {} xmg {} ymg {} little {}'.format(bandnr, pt, self.xsz, self.ysz,
             #            self.xst, self.yst, self.xmg, self.ymg, self.little_endian))
 
-            self.bands[bandnr] = self.Init_band(self.pt | (self.col * self.Icolor_mask), self.xsz, self.ysz)
+            self.bands[bandnr] = self._init_band(self.pt | (self.col * self.Icolor_mask), self.xsz, self.ysz)
         # Skip file to beginning of next 512 bytes block
         rest = 0 - 96 - self.nbands*32;
         while rest < 0: rest += 512
-        #logging.debug('Iread_info: skipping {} bytes'.format(rest))
+        #logging.debug('_read_info: skipping {} bytes'.format(rest))
         _ = self.f.read(rest)
 
-    def Init_band(self, pt, xsize, ysize):
+    def _init_band(self, pt, xsize, ysize):
         """Create an "absent" band. Storage for pixels will
         not be allocated, but the band info field will
         be allocated and initialized
@@ -528,10 +557,10 @@ class BiffPlugin(AbstractPlugin):
         binfo['roi_ystart'] = 1;
         return binfo
         
-    def Iread_band(self, bandnr):
+    def _read_band(self, bandnr):
         """read BIFF band from file
 
-        Iread_band reads band number 'bandnr' from file into self image.
+        _read_band reads band number 'bandnr' from file into self image.
         The byte order of the stored band is compared to the byte
         order of the host computer. If they don't match, the
         bytes are swapped after reading.
@@ -540,7 +569,7 @@ class BiffPlugin(AbstractPlugin):
         - bandnr : band number to read
         """
 
-        #logging.debug('Iread_band: band {}'.format(bandnr))
+        #logging.debug('_read_band: band {}'.format(bandnr))
         if bandnr < 0 or bandnr >= self.nbands:
             raise ValueError("Band number {} is out of range (0..{}".format(bandnr,
                 self.nbands-1))
@@ -551,17 +580,17 @@ class BiffPlugin(AbstractPlugin):
             start += self.num_blocks_band(bn) * 512
 
         # Set file pointer to start of band
-        #logging.debug('Iread_band: seek file at {}'.format(start))
+        #logging.debug('_read_band: seek file at {}'.format(start))
         try:
             self.f.seek(start)
         except Exception as e:
-            logging.debug('Iread_band: seek file: {}'.format(e))
+            logging.debug('_read_band: seek file: {}'.format(e))
             raise
 
         # Create band
-        #logging.debug('Iread_band: create band {}'.format(bandnr))
+        #logging.debug('_read_band: create band {}'.format(bandnr))
         if bandnr not in self.bands:
-            logging.debug('Iread_band: self.bands.keys()={}'.format(self.bands.keys()))
+            logging.debug('_read_band: self.bands.keys()={}'.format(self.bands.keys()))
             raise ValueError('Band {} is not in self.bands'.format(bandnr))
         binfo = self.bands[bandnr]
         pt = binfo['pixtyp'] & self.Ipixtyp_mask
@@ -573,17 +602,17 @@ class BiffPlugin(AbstractPlugin):
         band = np.empty([binfo['ysize'], binfo['xsize']], dtype=dtype)
 
         # Determine endian-ness of system and input file
-        if self.Ipixsize(binfo['pixtyp']) // 8 > 1:
+        if self._pixel_size(binfo['pixtyp']) // 8 > 1:
             endian = '<'
-            #logging.debug('Iread_band: little-endian input file')
+            #logging.debug('_read_band: little-endian input file')
         else:
             endian = '>'
-            #logging.debug('Iread_band: big-endian input file')
+            #logging.debug('_read_band: big-endian input file')
         binfo['status'] == 'normal'
 
         # Read the band
         ny,nx = binfo['ysize'], binfo['xsize']
-        buffer = self.f.read(self.Ibandsize(bandnr))
+        buffer = self.f.read(self._band_size(bandnr))
         if len(dformat) == 2:
             # Unpack as floats, then view as complex
             arr = np.asarray(struct.unpack(endian+str(2*ny*nx)+dformat[0],buffer), dtype=dfloat)
@@ -593,33 +622,33 @@ class BiffPlugin(AbstractPlugin):
                 struct.unpack(endian+str(ny*nx)+dformat[0],buffer), dtype=dtype).reshape(band.shape)
         return band
 
-    def Ibandsize(self, bn):
+    def _band_size(self, bn):
         """Return BIFF band size in bytes"""
 
         if bn is None: return None
         binfo = self.bands[bn]
-        bitsize = self.Ipixsize(binfo['pixtyp']) * binfo['xsize'] * binfo['ysize']
+        bitsize = self._pixel_size(binfo['pixtyp']) * binfo['xsize'] * binfo['ysize']
         return (bitsize+7) // 8
 
-    def Ipixsize(self, pixtyp):
+    def _pixel_size(self, pixtyp):
         """Return the BIFF pixel size in bits"""
 
         pt = pixtyp & self.Ipixtyp_mask
         dtype,_ = self.dtype_from_biff(pt)
         arr = np.array(0, dtype=dtype)
-        #logging.debug('Ipixsize: for {} ({}) is size {} bits'.format(pt, pixtyp, arr.dtype.itemsize * 8))
+        #logging.debug('_pixel_size: for {} ({}) is size {} bits'.format(pt, pixtyp, arr.dtype.itemsize * 8))
         return arr.dtype.itemsize * 8
 
-    def Iendian(self, bandnr):
+    def _endian(self, bandnr):
         binfo = self.bands[bandnr]
         if binfo['pixtyp'] & self.Ilittle_endian_mask:
-            logging.debug('Iendian: little')
+            logging.debug('_endian: little')
             return 'little'
         else:
-            logging.debug('Iendian: big')
+            logging.debug('_endian: big')
             return 'big'
 
-    def Iysize(self):
+    def _y_size(self):
         if self.nbands < 1:
             raise NoBands('No bands')
         ysize = self.bands[0]['ysize']
@@ -628,7 +657,7 @@ class BiffPlugin(AbstractPlugin):
                 raise VaryingImageSize('Varying ysize of the bands not supported.')
         return ysize
 
-    def Ixsize(self):
+    def _x_size(self):
         if self.nbands < 1:
             raise NoBands('No bands')
         xsize = self.bands[0]['xsize']
@@ -637,7 +666,7 @@ class BiffPlugin(AbstractPlugin):
                 raise VaryingImageSize('Varying xsize of the bands not supported.')
         return xsize
 
-    def Ipixtyp(self):
+    def _pixel_type(self):
         if self.nbands < 1:
             raise NoBands('No bands')
         pixtyp = self.bands[0]['pixtyp']
@@ -647,9 +676,9 @@ class BiffPlugin(AbstractPlugin):
         return pixtyp
 
     def num_blocks_band(self, bn):
-        return (self.Ibandsize(bn) + 511) // 512
+        return (self._band_size(bn) + 511) // 512
 
-    def Iset_info(self):
+    def _set_info(self):
         """Write BIFF image header
         """
         format_image = '>4s4s4i32s10i'
@@ -665,21 +694,21 @@ class BiffPlugin(AbstractPlugin):
                 self.nbands = len(self.tags[0])
             else: # self.output_sort == imagedata.formats.SORT_ON_SLICE:
                 self.nbands = self.slices
-        #logging.debug('Iset_info: self.nbands {}'.format(self.nbands))
+        #logging.debug('_set_info: self.nbands {}'.format(self.nbands))
         self.bands = {}
         for bandnr in range(self.nbands):
             pt = self.pixtyp &  self.Ipixtyp_mask
             ysz,xsz = self.arr.shape[2:]
-            self.bands[bandnr] = self.Init_band(pt, xsz, ysz)
+            self.bands[bandnr] = self._init_band(pt, xsz, ysz)
 
         # Calculate BIFF image header
         self.ntextblks = len(self.text) // 512
         self.nblocks = 0 # Not implemented
         title = self.descr.encode('utf-8')
-        #logging.debug('Iset_info: title {}'.format(title))
+        #logging.debug('_set_info: title {}'.format(title))
         self.param = [0,0,0,0,0,0,0,0]
         nfreechars = self.ntextblks * 512 - len(self.text)
-        #logging.debug('Iset_info: nfreechars {} self.nchars {}'.format(nfreechars, len(self.text)))
+        #logging.debug('_set_info: nfreechars {} self.nchars {}'.format(nfreechars, len(self.text)))
 
         # 13 bands in first block, 16 in later ones
         self.ninfoblks = (((self.nbands + 2) // 16) + 1)
@@ -687,7 +716,7 @@ class BiffPlugin(AbstractPlugin):
         for bandnr in range(self.nbands):
             size += self.num_blocks_band(bandnr)
         self.nbandblks = size
-        #logging.debug('Iset_info: ninfoblks {} nbandblks {} ntextblks {} nblocks {}'.format(self.ninfoblks, self.nbandblks, self.ntextblks, self.nblocks))
+        #logging.debug('_set_info: ninfoblks {} nbandblks {} ntextblks {} nblocks {}'.format(self.ninfoblks, self.nbandblks, self.ntextblks, self.nblocks))
 
         # Write BIFF image header
         try:
@@ -701,7 +730,7 @@ class BiffPlugin(AbstractPlugin):
                     nfreechars, self.nbands)
                 )
         except Exception as e:
-            logging.debug('Iset_info: exception\n{}'.format(e))
+            logging.debug('_set_info: exception\n{}'.format(e))
             raise ImageTypeError('{}'.format(e))
 
         # Write data concerning each band
@@ -720,16 +749,18 @@ class BiffPlugin(AbstractPlugin):
                         xst, yst, xmg, ymg, dummy)
                     )
             except Exception as e:
-                logging.debug('Iset_info: exception\n{}'.format(e))
+                logging.debug('_set_info: exception\n%s' % e)
                 raise ImageTypeError('{}'.format(e))
 
         # Skip file to beginning of next 512 bytes block
         rest = 0 - struct.calcsize(format_image) - self.nbands*struct.calcsize(format_band)
-        while rest < 0: rest += 512
-        #logging.debug('Iset_info: skipping {} bytes'.format(rest))
+        while rest < 0:
+            rest += 512
+        #logging.debug('_set_info: skipping {} bytes'.format(rest))
         self.f.write(rest * b'\x00')
 
-    def Imake_image(self, nbands, title, pt, xsize, ysize):
+    # pylint: disable=too-many-arguments
+    def _make_image(self, nbands, title, pt, xsize, ysize):
         """Create the whole BIFF image data structure, with 'nbands'
         bands, 'title' as title, every band of horizontal
         size 'xsize', vertical size 'ysize', and pixel type
@@ -739,10 +770,10 @@ class BiffPlugin(AbstractPlugin):
         """
         pass
 
-    def Iset_text(self, txt):
+    def _set_text(self, txt):
         self.text = txt
 
-    def Iwrite_text(self):
+    def _write_text(self):
         """Write text field from BIFF image to file
 
         Input:
@@ -750,14 +781,15 @@ class BiffPlugin(AbstractPlugin):
         """
         self.f.write(self.text.encode('utf-8'))
         rest = 512 - len(self.text.encode('utf-8'))
-        while rest < 0: rest += 512
-        logging.debug('Iwrite_text: skipping {} bytes'.format(rest))
+        while rest < 0:
+            rest += 512
+        logging.debug('_write_text: skipping %d bytes' % rest)
         self.f.write(rest * b'\x00')
 
-    def Iclose_image(self):
+    def _close_image(self):
         self.f.close()
 
-    def Iwrite_band(self, bandnr, arr):
+    def _write_band(self, bandnr, arr):
         """Write a BIFF band to file
 
         Input:
@@ -768,8 +800,8 @@ class BiffPlugin(AbstractPlugin):
         binfo = self.bands[bandnr]
 
         start = self.ninfoblks * 512
-        for bn in range(bandnr):
-            start += self.num_blocks_band(bn) * 512
+        for band_number in range(bandnr):
+            start += self.num_blocks_band(band_number) * 512
 
         self.f.seek(start)
 
@@ -796,5 +828,5 @@ class BiffPlugin(AbstractPlugin):
 
         rest = struct.calcsize(endian+str(n)+dformat[0]) % 512
         if rest != 0:
-            logging.debug('Iwrite_band: filling {} bytes'.format(512-rest))
+            logging.debug('_write_band: filling %d bytes' % 512-rest)
             self.f.write((512-rest) * b'\x00')
