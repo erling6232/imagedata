@@ -8,6 +8,7 @@ Python library to read and write image data into numpy arrays.
 Handles geometry information between the formats.
 
 The following formats are included:
+
 * DICOM
 * Nifti
 * ITK (MetaIO)
