@@ -243,24 +243,26 @@ class Series(np.ndarray):
                 #logging.debug('Series.__getitem__: y   slice: {}'.format(spec[-2]))
                 #logging.debug('Series.__getitem__: x   slice: {}'.format(spec[-1]))
 
+                it = len(spec)-4
+                iz = len(spec)-3
                 # Slice step should be one
                 if self.ndim > 2:
-                    if spec[-3][2] != 1:
+                    if spec[iz][2] != 1:
                         raise IndexError('Step size in slice = {} not implemented. Must be +-1.'.format(
-                            spec[-3][2]))
+                            spec[iz][2]))
 
                 # Tag step should be one
                 if self.ndim > 3:
-                    if spec[-4][2] != 1:
+                    if spec[it][2] != 1:
                         raise IndexError('Step size in tag = {} not implemented. Must be +-1.'.format(
-                            spec[-4][2]))
+                            spec[it][2]))
 
                 todo = []
                 # Select slice of sliceLocations
-                sloc = self.__get_sliceLocations(spec[-3])
+                sloc = self.__get_sliceLocations(spec[iz])
                 todo.append(('sliceLocations', sloc))
                 # Select slice of imagePositions
-                ipp = self.__get_imagePositions(spec[-3])
+                ipp = self.__get_imagePositions(spec[iz])
                 todo.append(('imagePositions', None)) # Wipe existing positions
                 todo.append(('imagePositions', ipp))
                 # Select slice of DicomHeaderDict
@@ -334,14 +336,16 @@ class Series(np.ndarray):
         return ipp
 
     def __get_DicomHeaderDict(self, specs):
+        it = len(specs)-4
+        iz = len(specs)-3
         # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
         z_stop = 0
-        if specs[-3][1] is not None: z_stop = specs[-3][1]
+        if specs[iz][1] is not None: z_stop = specs[iz][1]
         tag_stop = 0; tags = 1
-        if specs[-4][1] is not None: tag_stop = specs[-4][1]
-        if self.ndim > 3: tags = self.shape[-4]
-        count_tags   = tag_stop - specs[-4][0]
-        count_slices = z_stop - specs[-3][0]
+        if specs[it][1] is not None: tag_stop = specs[it][1]
+        if self.ndim > 3: tags = self.shape[it]
+        count_tags   = tag_stop - specs[it][0]
+        count_slices = z_stop - specs[iz][0]
         if self.ndim > 2 and count_slices > self.slices:
             raise IndexError(
                 'Too few sliceLocations={} in template for {} slices. Giving up!'.format(
@@ -358,26 +362,28 @@ class Series(np.ndarray):
             return tmpl_hdr
         hdr = {}
         j = 0
-        logging.debug('__get_DicomHeaderDict: slice start,stop={},{}'.format(specs[-3][0], z_stop))
-        logging.debug('__get_DicomHeaderDict: tag start,stop={},{}'.format(specs[-4][0], tag_stop))
-        for i in range(specs[-3][0], z_stop):
+        logging.debug('__get_DicomHeaderDict: slice start,stop={},{}'.format(specs[iz][0], z_stop))
+        logging.debug('__get_DicomHeaderDict: tag start,stop={},{}'.format(specs[it][0], tag_stop))
+        for i in range(specs[iz][0], z_stop):
             hdr[j] = [False for x in range(count_tags)]
             n = 0
-            for m in range(specs[-4][0], tag_stop):
+            for m in range(specs[it][0], tag_stop):
                 hdr[j][n] = tmpl_hdr[i][m]
                 n += 1
             j += 1
         return hdr
 
     def __get_tags(self, specs):
+        it = len(specs)-4
+        iz = len(specs)-3
         # tags: dict[slice] is np.array(tags)
         z_stop = 0
-        if specs[-3][1] is not None: z_stop = specs[-3][1]
+        if specs[iz][1] is not None: z_stop = specs[iz][1]
         tag_stop = 0; tags = 1
-        if specs[-4][1] is not None: tag_stop = specs[-4][1]
-        if self.ndim > 3: tags = self.shape[-4]
-        count_tags   = tag_stop - specs[-4][0]
-        count_slices = z_stop - specs[-3][0]
+        if specs[it][1] is not None: tag_stop = specs[it][1]
+        if self.ndim > 3: tags = self.shape[it]
+        count_tags   = tag_stop - specs[it][0]
+        count_slices = z_stop - specs[iz][0]
         if self.ndim > 2 and count_slices > self.slices:
             raise IndexError(
                 'Too few sliceLocations={} in template for {} slices. Giving up!'.format(
@@ -394,12 +400,12 @@ class Series(np.ndarray):
             return tmpl_tags
         new_tags = {}
         j = 0
-        logging.debug('__get_tags: slice start,stop={},{}'.format(specs[-3][0], z_stop))
-        logging.debug('__get_tags: tag start,stop={},{}'.format(specs[-4][0], tag_stop))
-        for i in range(specs[-3][0], z_stop):
+        logging.debug('__get_tags: slice start,stop={},{}'.format(specs[iz][0], z_stop))
+        logging.debug('__get_tags: tag start,stop={},{}'.format(specs[it][0], tag_stop))
+        for i in range(specs[iz][0], z_stop):
             new_tags[j] = [False for x in range(count_tags)]
             n = 0
-            for m in range(specs[-4][0], tag_stop):
+            for m in range(specs[it][0], tag_stop):
                 new_tags[j][n] = tmpl_tags[i][m]
                 n += 1
             j += 1
