@@ -6,7 +6,9 @@
 import os.path
 import sys
 import logging
+import mimetypes
 import fs
+import fs.tempfs
 import itk
 import numpy as np
 import scipy
@@ -45,13 +47,11 @@ class ITKPlugin(AbstractPlugin):
         super(ITKPlugin, self).__init__(self.name, self.description,
               self.authors, self.version, self.url)
 
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
         Input:
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: Pre-filled header dict. Might be None
         - input_order
         - opts: Input options (dict)
@@ -72,48 +72,44 @@ class ITKPlugin(AbstractPlugin):
         hdr['input_format'] = self.name
         hdr['input_order'] = input_order
 
-        # if len(filelist) > 1: raise ValueError("What to do with multiple input files?")
-        #if len(filelist) > 1: raise imagedata.formats.NotImageError('%s does not look like a ITK file.' % filelist[0])
-        if len(urls) > 1 and files is not None:
-            raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
+        #if len(urls) > 1 and files is not None:
+        if len(sources) > 1:
+            raise FilesGivenForMultipleURLs("Handle multiple inputs are not"
+                "implemented.")
         nt = 0
         # Scan filelist to determine data size
-        url = urls[0]
-        logging.debug("itkplugin.read: peek url: {} {}".format(type(url), url))
-        with fs.open_fs(url) as archive:
-            scan_files = files
-            if scan_files is None:
-                scan_files = archive.walk.files()
-            for path in sorted(scan_files):
-                logging.debug("itkplugin.read peek filehandle {}".format(path))
-                if archive.hassyspath(path):
-                    filename = archive.getsyspath(path)
-                    tmp_fs = None
-                else:
-                    # Copy file to a local instance
-                    tmp_fs = fs.tempfs.TempFS()
-                    fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
-                    filename = tmp_fs.getsyspath(os.path.basename(path))
-                if filename.endswith('.raw'):
-                    continue
-                logging.debug("itkplugin.read peek filename {}".format(filename))
-                try:
-                    imagetype = itk.Image[itk.F, 3]
-                    reader = itk.ImageFileReader[imagetype].New()
-                    reader.SetFileName(filename)
-                    reader.Update()
+        source = sources[0]
+        archive = source['archive']
+        scan_files = source['files']
+        logging.debug("itkplugin.read: archive type: %s" % archive.name)
+        if scan_files is None or len(scan_files) == 0:
+            scan_files = archive.getnames()
+        logging.debug("itkplugin.read: files: {}".format(scan_files))
+        for f in archive.getmembers(scan_files):
+            logging.debug("itkplugin.read peek f {}".format(f))
+            filename = archive.to_localfile(f)
+            if filename.endswith('.raw'):
+                continue
+            logging.debug("itkplugin.read peek filename {}".format(filename))
+            try:
+                imagetype = itk.Image[itk.F, 3]
+                reader = itk.ImageFileReader[imagetype].New()
+                reader.SetFileName(filename)
+                reader.Update()
 
-                    img = itk.GetArrayFromImage(reader.GetOutput())
-                    logging.info("Data shape read ITK: {}".format(img.shape))
-                    nz, ny, nx = img.shape
+                img = itk.GetArrayFromImage(reader.GetOutput())
+                logging.info("Data shape read ITK: {}".format(img.shape))
+                nz, ny, nx = img.shape
 
-                    o = reader.GetOutput()
-                    spacing   = o.GetSpacing()
-                    origin    = o.GetOrigin()
-                    direction = o.GetDirection()
-                    nt += 1
-                except imagedata.formats.NotImageError:
-                    raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(path))
+                o = reader.GetOutput()
+                spacing   = o.GetSpacing()
+                origin    = o.GetOrigin()
+                direction = o.GetDirection()
+                nt += 1
+            except imagedata.formats.NotImageError as e:
+                logging.error('itkplugin.read: inner exception {}'.format(e))
+                raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+
         logging.debug('ITKPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
 
@@ -159,47 +155,36 @@ class ITKPlugin(AbstractPlugin):
         else:
             si = np.zeros([nt,nz,ny,nx], np.float32)
         i=0
-        for url in urls:
-            logging.debug("itkplugin:read: url: {} {}".format(type(url), url))
-            with fs.open_fs(url) as archive:
-                scan_files = files
-                if scan_files is None:
-                    scan_files = archive.walk.files()
-                for path in sorted(scan_files):
-                    logging.debug("itkplugin::read filehandle {}".format(path))
-                    if archive.hassyspath(path):
-                        filename = archive.getsyspath(path)
-                        tmp_fs = None
-                    else:
-                        # Copy file to a local instance
-                        tmp_fs = fs.tempfs.TempFS()
-                        fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
-                        filename = tmp_fs.getsyspath(os.path.basename(path))
-                    if filename.endswith('.raw'):
-                        continue
-                    logging.debug("itkplugin::read load filename {}".format(filename))
-                    try:
-                        #TODO: Read ITK file directly from open file object
-                        #      Should be able to do something like:
-                        # with archive.getmember(fh) as member:
-                        #     reader.SetFileObject(member)
-                        imagetype = itk.Image[itk.F, 3]
-                        reader = itk.ImageFileReader[imagetype].New()
-                        reader.SetFileName(filename)
-                        reader.Update()
+        for f in archive.getmembers(scan_files):
+            logging.debug("itkplugin::read filehandle {}".format(f))
+            filename = archive.to_localfile(f)
+            if filename.endswith('.raw'):
+                continue
+            logging.debug("itkplugin::read load filename {}".format(filename))
+            try:
+                #TODO: Read ITK file directly from open file object
+                #      Should be able to do something like:
+                # with archive.getmember(fh) as member:
+                #     reader.SetFileObject(member)
+                imagetype = itk.Image[itk.F, 3]
+                reader = itk.ImageFileReader[imagetype].New()
+                reader.SetFileName(filename)
+                reader.Update()
 
-                        img = itk.GetArrayFromImage(reader.GetOutput())
-                        logging.info("Data shape read ITK: {}".format(img.shape))
-                        nz, ny, nx = img.shape
-                        logging.debug("read: si.shape {} img.shape{}".format(si.shape, img.shape))
-                        if si.ndim == 3:
-                            si[:,:,:] = img[:,:,:]
-                            #si = img.copy()
-                        else:
-                            si[i,:,:,:] = img[:,:,:]
-                        i+=1
-                    except imagedata.formats.NotImageError:
-                        raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(path))
+                img = itk.GetArrayFromImage(reader.GetOutput())
+                logging.info("Data shape read ITK: {}".format(img.shape))
+                nz, ny, nx = img.shape
+                logging.debug("read: si.shape {} img.shape{}".format(si.shape, img.shape))
+                if si.ndim == 3:
+                    si[:,:,:] = img[:,:,:]
+                    #si = img.copy()
+                else:
+                    si[i,:,:,:] = img[:,:,:]
+                i+=1
+            except imagedata.formats.NotImageError:
+                raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+            except Exception as e:
+                logging.error('itkplugin.read: read exception {} {}'.format(e, f))
 
         logging.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
 

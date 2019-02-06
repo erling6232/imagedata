@@ -79,13 +79,11 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         return self.__url
 
     @abstractmethod
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
         Input:
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: DICOM template
         - input_order: sort order
         - opts: Input options (dict)

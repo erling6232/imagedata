@@ -136,14 +136,12 @@ class DICOMPlugin(AbstractPlugin):
                 for tg,fname,im in self.DicomHeaderDict[slice]:
                     im.remove_private_tags()
 
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
         Input:
         - self: DICOMPlugin instance
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: Pre-filled header dict. Can be None
         - input_order: sort order
         - opts: input options (dict)
@@ -167,23 +165,19 @@ class DICOMPlugin(AbstractPlugin):
         self.input_order = input_order
 
         # Read DICOM headers
+        logging.debug('DICOMPlugin.read: sources %s' % sources)
         try:
-            hdr,shape = self.read_headers(urls, files, input_order, opts)
+            hdr,shape = self.read_headers(sources, input_order, opts)
         except:
             raise
 
-        # Read first image to determine pixel type
+        # Look-up first image to determine pixel type
         tag, member_name, im = hdr['DicomHeaderDict'][0][0]
-        url,fname = member_name
-        #im = pydicom.read_file(fname)
-        archive = fs.open_fs(url)
-        open_url = url
-        with archive.open(fname, mode="rb") as f:
-            im = pydicom.filereader.dcmread(f)
         if 'RescaleSlope' in im:
             matrix_dtype = float
         else:
             matrix_dtype = np.uint16
+        logging.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
 
         logging.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_name("SOPClassUID"))))
         logging.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_name("TransferSyntaxUID"))))
@@ -193,7 +187,7 @@ class DICOMPlugin(AbstractPlugin):
         si = np.zeros(shape, matrix_dtype)
         for slice in hdr['DicomHeaderDict']:
             for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
-                url,fname = member_name
+                archive,fname = member_name
                 tgs = np.array(hdr['tags'][slice])
                 #idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
@@ -204,11 +198,7 @@ class DICOMPlugin(AbstractPlugin):
                 # Simplify index when image is 3D, remove tag index
                 if si.ndim == 3:
                     idx = idx[1:]
-                #im=pydicom.read_file(fname)
-                if open_url != url:
-                    archive = fs.open_fs(url)
-                    open_url = url
-                with archive.open(fname, mode="rb") as f:
+                with archive.getmember(fname, mode='rb') as f:
                     im=pydicom.filereader.dcmread(f)
                 #try:
                 #    im.decompress()
@@ -259,14 +249,12 @@ class DICOMPlugin(AbstractPlugin):
         self.create_affine(hdr)
         return hdr,si
 
-    def read_headers(self, urls, files, input_order, opts):
+    def read_headers(self, sources, input_order, opts):
         """Read DICOM headers only
 
         Input:
         - self: DICOMPlugin instance
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - input_order: sort order
         - opts: input options (dict)
         Output:
@@ -275,8 +263,9 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         import traceback
+        logging.debug('DICOMPlugin.read_headers: sources %s' % sources)
         try:
-            hdr,shape = self.get_dicom_headers(urls, files, input_order, opts)
+            hdr,shape = self.get_dicom_headers(sources, input_order, opts)
         except UnevenSlicesError:
             raise
         except ValueError:
@@ -289,14 +278,12 @@ class DICOMPlugin(AbstractPlugin):
 
         return hdr,shape
 
-    def get_dicom_headers(self, urls, files, input_order, opts=None):
+    def get_dicom_headers(self, sources, input_order, opts=None):
         """Get DICOM headers.
 
         Input:
          - self: DICOMPlugin instance
-         - urls: list of urls to image data
-         - files: list of files inside a single url.
-             = None: No files given
+         - sources: list of sources to image data
          - input_order: Determine how to sort the input images
          - opts: options (dict)
         Output:
@@ -304,23 +291,24 @@ class DICOMPlugin(AbstractPlugin):
          - shape
         """
 
-        self.default_opts(opts)
+        logging.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
+        self._default_opts(opts)
 
-        if len(urls) > 1 and files is not None:
-            raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
+        #if len(sources) > 1 and files is not None:
+        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
         imageDict = {}
-        logging.debug("get_dicom_headers: urls: {} {}".format(type(urls), urls))
-        for url in urls:
-            logging.debug("get_dicom_headers: url: {} {}".format(type(url), url))
-            with fs.open_fs(url) as archive:
-                scan_files = files
-                if scan_files is None:
-                    scan_files = archive.walk.files()
-                for path in sorted(scan_files):
-                    if os.path.basename(path) == "DICOMDIR": continue
-                    with archive.open(path, mode="rb") as f:
-                        #logging.debug("get_dicom_headers: calling self.process_member({})".format(path))
-                        self.process_member(imageDict, url, path, f, opts)
+        for source in sources:
+            archive = source['archive']
+            scan_files = source['files']
+            logging.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
+            if scan_files is None or len(scan_files) == 0:
+                scan_files = archive.getnames()
+            logging.debug("get_dicom_headers: source: {} {}".format(type(source), source))
+            for path in archive.getmembers(scan_files):
+                if os.path.basename(path) == "DICOMDIR": continue
+                with archive.getmember(path, mode='rb') as f:
+                    #logging.debug("get_dicom_headers: calling self.process_member({})".format(path))
+                    self.process_member(imageDict, archive, path, f, opts)
         return self.sort_images(imageDict, input_order, opts)
 
     def sort_images(self, headerDict, input_order, opts):
@@ -367,7 +355,7 @@ class DICOMPlugin(AbstractPlugin):
         for sloc in sorted(headerDict):
             tagList[islice] = []
             i = 0
-            for url,fname,im in sorted(headerDict[sloc]):
+            for archive,fname,im in sorted(headerDict[sloc]):
                 if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
                     tag = i
                 else:
@@ -388,14 +376,14 @@ class DICOMPlugin(AbstractPlugin):
         for sloc in sorted(headerDict):
             # Pre-fill sorted_headers
             sorted_headers[islice] = [False for x in range(count[islice])]
-            for url,fname,im in sorted(headerDict[sloc]):
+            for archive,fname,im in sorted(headerDict[sloc]):
                 if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
                     tag = i
                 else:
                     tag = self.get_tag(im, input_order, opts)
                 idx = tagList[islice].index(tag)
-                #sorted_headers[islice].insert(idx, (tag, (url,fname), im))
-                sorted_headers[islice][idx] = (tag, (url,fname), im)
+                #sorted_headers[islice].insert(idx, (tag, (archive,fname), im))
+                sorted_headers[islice][idx] = (tag, (archive,fname), im)
                 rows = im.Rows; columns = im.Columns
                 if 'NumberOfFrames' in im: frames = im.NumberOfFrames
                 i += 1
@@ -414,7 +402,7 @@ class DICOMPlugin(AbstractPlugin):
             shape = (nz, rows, columns)
         return hdr,shape
 
-    def process_member(self, imageDict, url, member_name, member, opts):
+    def process_member(self, imageDict, archive, member_name, member, opts):
         import traceback
         try:
             im=pydicom.filereader.dcmread(member, stop_before_pixels=True)
@@ -432,14 +420,14 @@ class DICOMPlugin(AbstractPlugin):
             sloc=im.SliceLocation
             if sloc not in imageDict:
                 imageDict[sloc] = []
-            imageDict[sloc].append((url, member_name, im))
+            imageDict[sloc].append((archive, member_name, im))
             #logging.debug("process_member: added sloc {} {}".format(sloc, member_name))
         except:
             traceback.print_exc()
             logging.debug("process_member: no SliceLocation in {}".format(member_name))
             if 0 not in imageDict:
                 imageDict[0] = []
-            imageDict[0].append((url, member_name, im))
+            imageDict[0].append((archive, member_name, im))
         #logging.debug("process_member: imageDict len: {}".format(len(imageDict)))
 
     def correct_acqtimes_for_dynamic_series(self, hdr, si):
@@ -494,7 +482,7 @@ class DICOMPlugin(AbstractPlugin):
             raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
         return timesteps.max()
 
-    def default_opts(self, opts):
+    def _default_opts(self, opts):
         """Make sure that required options are set.
         """
 
