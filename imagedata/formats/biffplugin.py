@@ -86,13 +86,11 @@ class BiffPlugin(AbstractPlugin):
         super(BiffPlugin, self).__init__(self.name, self.description,
               self.authors, self.version, self.url)
 
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
         Input:
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: Pre-filled header dict.  Might be None
         - input_order
         - opts: Input options (dict)
@@ -110,71 +108,47 @@ class BiffPlugin(AbstractPlugin):
         hdr['input_format'] = self.name
         hdr['input_order'] = input_order
 
-        if len(urls) > 1 and files is not None:
-            raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
+        #if len(sources) > 1 and files is not None:
+        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
 
         # Scan filelist to determine data size
-        url = urls[0]
-        logging.debug("biffplugin.read: url: {} {}".format(type(url), url))
-        with fs.open_fs(url) as archive:
-            scan_files = files
-            if scan_files is None:
-                scan_files = archive.walk.files()
-            for path in scan_files:
+        image_list = list()
+        for source in sources:
+            logging.debug("biffplugin.read: source: {} {}".format(type(source), source))
+            archive = source['archive']
+            scan_files = source['files']
+            if scan_files is None or len(scan_files) == 0:
+                scan_files = archive.getnames()
+            for path in archive.getmembers(scan_files):
                 logging.debug("biffplugin.read filehandle {}".format(path))
-                if archive.hassyspath(path):
-                    filename = archive.getsyspath(path)
-                    tmp_fs = None
-                else:
-                    # Copy file to a local instance
-                    tmp_fs = fs.tempfs.TempFS()
-                    fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
-                    filename = tmp_fs.getsyspath(os.path.basename(path))
-                logging.debug("biffplugin.read load filename {}".format(filename))
-                try:
-                    self._open_image(filename, 'r')
-                except:
-                    raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(path))
-                logging.debug("biffplugin.read img")
-                if self.nbands == 0:
-                    raise imagedata.formats.EmptyImageError('{} has no image'.format(path))
-                ny = self._y_size()
-                nx = self._x_size()
-                logging.debug("biffplugin.read ny {} nx {}".format(ny,nx))
-                if 'input_shape' in opts and opts['input_shape']:
-                    nt,delim,nz = opts['input_shape'].partition('x')
-                    if len(nz) == 0:
-                        raise BadShapeGiven('input_shape {} is not like (t)x(z)'.format(opts['input_shape']))
-                    nt,nz = (int(nt), int(nz))
-                    if nt*nz != self.nbands:
-                        raise BadShapeGiven('input_shape {} does not match {} bands'.format(opts['input_shape'], self.nbands))
-                else:
-                    # Assume the bands are slices
-                    nt,nz = (1,self.nbands)
-                dtype,dformat = self.dtype_from_biff(self._pixel_type())
-                if dtype == np.complex64:
-                    dfloat = np.float32
-                elif dtype == np.complex128:
-                    dfloat = np.float64
-                si = np.zeros([nt,nz,ny,nx], dtype)
-                iband = 0 # Band numbers start from zero
-                if 'input_sort' in opts and opts['input_sort'] == imagedata.formats.SORT_ON_TAG:
-                    hdr['input_sort'] = imagedata.formats.SORT_ON_TAG
-                    for slice in range(nz):
-                        for tag in range(nt):
-                            si[tag,slice,:,:] = self._read_band(iband)
-                            iband += 1
-                else: # opts['input_sort'] == imagedata.formats.SORT_ON_SLICE:
-                    hdr['input_sort'] = imagedata.formats.SORT_ON_SLICE
-                    for tag in range(nt):
-                        for slice in range(nz):
-                            si[tag,slice,:,:] = self._read_band(iband)
-                            if tag==0 and slice==0:
-                                logging.debug('BiffPlugin.read: si(0) {}'.format(si[0,0,0,:4]))
-                            iband += 1
+                with archive.getmember(path, mode='r') as f:
+                    image_list.append(
+                        self._read_image(f, opts, hdr)
+                    )
+        if len(image_list) < 1:
+            raise ValueError('No image data read.')
+        else:
+            shape = (len(image_list),) + image_list[0].shape
+            dtype = image_list[0].dtype
+            logging.debug('biffplugin.read: shape {}'.format(shape))
+            si = np.zeros(shape, dtype)
+            i = 0
+            for img in image_list:
+                logging.debug('biffplugin.read: img {} si {}'.format(img.shape,
+                    si.shape))
+                si[i] = img
+                i += 1
+
         # Simplify shape when nt == 1
-        if nt == 1:
-            si.shape = si.shape[1:]
+        if si.ndim == 4:
+            nt,nz,ny,nx = si.shape
+            if nt == 1:
+                si.shape = si.shape[1:]
+        elif si.ndim == 3:
+            nt = 1
+            nz,ny,nx = si.shape
+            if nz == 1:
+                si.shape = si.shape[1:]
 
         logging.debug('BiffPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
@@ -187,6 +161,55 @@ class BiffPlugin(AbstractPlugin):
             hdr.update(pre_hdr)
 
         return hdr,si
+
+    def _read_image(self, f, opts, hdr):
+        self.status = None
+        self.f = f
+        try:
+            self._read_info()
+        except:
+            raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(path))
+        self.status = 'read'
+        logging.debug("biffplugin._read_image %s" % f)
+        if self.nbands == 0:
+            raise imagedata.formats.EmptyImageError('{} has no image'.format(path))
+        ny = self._y_size()
+        nx = self._x_size()
+        logging.debug("biffplugin._read_image ny {} nx {}".format(ny,nx))
+        if 'input_shape' in opts and opts['input_shape']:
+            nt,delim,nz = opts['input_shape'].partition('x')
+            if len(nz) == 0:
+                raise BadShapeGiven('input_shape {} is not like (t)x(z)'.format(opts['input_shape']))
+            nt,nz = (int(nt), int(nz))
+            if nt*nz != self.nbands:
+                raise BadShapeGiven('input_shape {} does not match {} bands'.format(opts['input_shape'], self.nbands))
+        else:
+            # Assume the bands are slices
+            nt,nz = (1,self.nbands)
+        dtype,dformat = self.dtype_from_biff(self._pixel_type())
+        if dtype == np.complex64:
+            dfloat = np.float32
+        elif dtype == np.complex128:
+            dfloat = np.float64
+        img = np.zeros([nt,nz,ny,nx], dtype)
+        iband = 0 # Band numbers start from zero
+        if 'input_sort' in opts and opts['input_sort'] == imagedata.formats.SORT_ON_TAG:
+            hdr['input_sort'] = imagedata.formats.SORT_ON_TAG
+            for slice in range(nz):
+                for tag in range(nt):
+                    img[tag,slice,:,:] = self._read_band(iband)
+                    iband += 1
+        else: # opts['input_sort'] == imagedata.formats.SORT_ON_SLICE:
+            hdr['input_sort'] = imagedata.formats.SORT_ON_SLICE
+            for tag in range(nt):
+                for slice in range(nz):
+                    img[tag,slice,:,:] = self._read_band(iband)
+                    if tag==0 and slice==0:
+                        logging.debug('BiffPlugin._read_image: img(0) {}'.format(img[0,0,0,:4]))
+                    iband += 1
+        if len(img.shape) > 2 and img.shape[0] == 1:
+            img.shape = img.shape[1:]
+        return(img)
 
     def write_3d_numpy(self, si, dirname, filename_template, opts):
         """Write 3D numpy image as Xite biff file
@@ -441,12 +464,12 @@ class BiffPlugin(AbstractPlugin):
         else:
             raise PixelTypeNotSupported("NumPy dtype {} not supported in Xite.".format(dtype))
 
-    def _open_image(self, filename, mode):
-        """Open the file 'filename' with 'mode' access, and
+    def _open_image(self, f, mode):
+        """Open the file 'f' with 'mode' access, and
         connect it to self image
 
         Input:
-        - filename
+        - f
         - mode: access mode ('r' or 'w')
         Output:
         - self: image struct
@@ -455,7 +478,8 @@ class BiffPlugin(AbstractPlugin):
 
         self.status = None
         if mode == 'r':
-            self.f = open(filename, 'rb')
+            #self.f = open(filename, 'rb')
+            self.f = f
             self._read_info()
             self.status = 'read'
         elif mode == 'w':
