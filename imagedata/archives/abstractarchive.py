@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Abstract class for image archives.
 
 Defines generic functions.
@@ -116,13 +115,13 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def getmember(self, filehandle):
+    def getmember(self, filehandle, mode='rb'):
         """Return a member object for member given its filehandle.
         """
         pass
 
     @abstractmethod
-    def getmembers(self):
+    def getmembers(self, files=None):
         """Return the members of the archive as an OrderedDict of member objects.
         The keys are the member names as given by getnames().
         """

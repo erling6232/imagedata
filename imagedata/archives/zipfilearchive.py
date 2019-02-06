@@ -68,7 +68,7 @@ class ZipfileArchive(AbstractArchive):
         """
         return os.path.basename(filehandle)
 
-    def getmember(self, filehandle):
+    def getmember(self, filehandle, mode='rb'):
         """Return a member object for member with filehandle.
 
         Extract the member object to local file space.
@@ -82,9 +82,9 @@ class ZipfileArchive(AbstractArchive):
                     filehandle)
             self.__extractedfiles[filehandle] = fname
         logging.debug("Zipfile getmember: {}".format(self.__extractedfiles[filehandle]))
-        return open(self.__extractedfiles[filehandle], mode='rb')
+        return open(self.__extractedfiles[filehandle], mode=mode)
 
-    def getmembers(self):
+    def getmembers(self, files=None):
         """Return the members of the archive as a list of member objects.
         The list has the same order as the members in the archive.
         """
