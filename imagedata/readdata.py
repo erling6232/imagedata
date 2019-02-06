@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-
 """Read/Write image files, calling appropriate transport, archive and format plugins
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import logging
@@ -13,6 +11,8 @@ import urllib.parse
 import numpy as np
 import imagedata.formats
 import imagedata
+import imagedata.transports
+import imagedata.archives
 
 class NoTransportError(Exception): pass
 class NoArchiveError(Exception): pass
@@ -30,10 +30,14 @@ def read(urls, order=None, opts=None):
     """
 
     logging.debug("reader.read: urls {}".format(urls))
-    transport,my_urls,files = sanitize_urls(urls)
-    if len(my_urls) < 1:
-        raise ValueError("No URL(s) where given")
-    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
+#    transport,my_urls,files = sanitize_urls(urls)
+#    if len(my_urls) < 1:
+#        raise ValueError("No URL(s) where given")
+#    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
+    sources = _get_sources(urls)
+    if len(sources) < 1:
+        raise ValueError("No source(s) where given")
+    logging.debug("reader.read: sources {}".format(sources))
 
     # Let in_opts be a dict from opts
     if opts is None:
@@ -55,17 +59,20 @@ def read(urls, order=None, opts=None):
     pre_hdr = None
     if 'template' in in_opts and in_opts['template']:
         logging.debug("readdata.read template {}".format(in_opts['template']))
-        template_transport,template_urls,template_files = sanitize_urls(in_opts['template'])
+#        template_transport,template_urls,template_files = sanitize_urls(in_opts['template'])
+        template_source = get_sources(in_opts['template'])
         reader = imagedata.formats.find_plugin('dicom')
-        pre_hdr,_ = reader.read_headers(template_urls, template_files, input_order, in_opts)
+        pre_hdr,_ = reader.read_headers(template_source, input_order, in_opts)
 
         # Pre-fill DICOM geometry
         geom_hdr = None
         if 'geometry' in in_opts and in_opts['geometry']:
             logging.debug("readdata.read geometry {}".format(in_opts['geometry']))
-            geometry_transport,geometry_urls,geometry_files = sanitize_urls(in_opts['geometry'])
+#            geometry_transport,geometry_urls,geometry_files = sanitize_urls(in_opts['geometry'])
+            geometry_source = get_sources(in_opts['geometry'])
             reader = imagedata.formats.find_plugin('dicom')
-            geom_hdr,_ = reader.read_headers(geometry_urls, geometry_files, input_order, in_opts)
+#            geom_hdr,_ = reader.read_headers(geometry_urls, geometry_files, input_order, in_opts)
+            geom_hdr,_ = reader.read_headers(geometry_source, input_order, in_opts)
             add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
@@ -75,7 +82,8 @@ def read(urls, order=None, opts=None):
         logging.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
         try:
-            hdr, si = reader.read(my_urls, files, pre_hdr, input_order, in_opts)
+#            hdr, si = reader.read(my_urls, files, pre_hdr, input_order, in_opts)
+            hdr, si = reader.read(sources, pre_hdr, input_order, in_opts)
             #logging.debug("reader.read: hdr.imageType: {}".format(hdr['imageType']))
 
             return hdr, si
@@ -198,6 +206,167 @@ def sorted_plugins_dicom_first(plugins):
             break
     return(plugins)
 
+def _get_location_part(url):
+    """Get location part of URL: scheme, netloc and path"""
+    
+    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    # Strip off query and fragment parts
+    location = urllib.parse.urlunsplit((
+        url_tuple.scheme,
+        url_tuple.netloc,
+        url_tuple.path,
+        None,
+        None))
+    if location[:8] == 'file:///' and url_tuple.path[0] != '/':
+        location = 'file://' + os.path.abspath(location[8:])
+    logging.debug('readdata._get_location_part: scheme %s' % url_tuple.scheme)
+    logging.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
+    logging.debug('readdata._get_location_part: path %s' % url_tuple.path)
+    logging.debug('readdata._get_location_part: location %s' % location)
+    return(location)
+
+def _get_query_part(url):
+    """Get query part of URL. This may contain file name"""
+    
+    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    return(url_tuple.query)
+
+def _get_transport(url):
+    """Get transport plugin for given URL."""
+    
+    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    netloc = url_tuple.netloc
+    if url_tuple.scheme == 'file':
+        netloc = url_tuple.path
+    logging.debug('readdata._get_transport: scheme %s netloc %s' %
+        (url_tuple.scheme, netloc))
+    transport = imagedata.transports.find_scheme_plugin(
+        url_tuple.scheme,
+        netloc)
+    return(transport)
+    
+def _get_archive(transport, url, mode='r'):
+    """Get archive plugin for given URL."""
+    
+    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    mimetype = mimetypes.guess_type(url_tuple.path)[0]
+    archive = imagedata.archives.find_mimetype_plugin(
+        mimetype,
+        transport,
+        url,
+        mode)
+    logging.debug('readdata._get_archive: mimetype %s' % mimetype)
+    logging.debug('readdata._get_archive: archive %s' % archive.name)
+    logging.debug('readdata._get_archive: url %s' % url)
+    return(archive)
+
+def _common_prefix(l):
+    """This unlike the os.path.commonprefix version
+    always returns path prefixes as it compares
+    path component wise
+    https://stackoverflow.com/questions/21498939
+    """
+    
+    cp = []
+    ls = [p.split('/') for p in l]
+    ml = min( len(p) for p in ls )
+
+    for i in range(ml):
+
+        s = set( p[i] for p in ls )         
+        if len(s) != 1:
+            break
+
+        cp.append(s.pop())
+
+    return '/'.join(cp)
+
+def _simplify_locations(locations):
+    """Simplify locations by joining file:/// locations to a common prefix."""
+    
+    logging.debug('readdata._simplify_locations: locations {}'.format(locations))
+    new_locations = {}
+    paths = []
+    for location in locations:
+        url_tuple = urllib.parse.urlsplit(location, scheme='file')
+        if url_tuple.scheme == 'file':
+            paths.append(url_tuple.path)
+        else:
+            new_locations[location] = True
+    logging.debug('readdata._simplify_locations: paths {}'.format(paths))
+    if len(paths) > 0:
+        prefix = _common_prefix(paths)
+        logging.debug('readdata._simplify_locations: prefix {}'.format(prefix))
+        prefix_url = urllib.parse.urlunsplit((
+            'file',
+            '',
+            prefix,
+            None,
+            None))
+    new_locations[prefix_url] = True
+    logging.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
+    return(new_locations)
+
+def _get_sources(urls):
+    """Determine transport, archive and file from each url.
+    
+    Handle both single url, a url tuple, and a url list
+
+    Input:
+    - urls: list, tuple or single string, e.g.:
+            file://dicom
+              transport: file, archive: fs, url: dicom
+            file://dicom.zip?query
+              transport: file, archive: zip, files: query
+            file://dicom.tar.gz?query
+              transport: file, archive: tgz, files: query
+            http://server:port/dicom.zip
+              transport: http, archive: zip
+            dicomscp://server:port/AET
+              transport: dicomscp, archive: fs
+            xnat://server:port
+             transport: xnat, archive: fs
+    Output:
+    - sources: list of dict for each url
+        'archive'  : archive plugin
+        'files'    : list of file names or regexp. May be empty list.
+    """
+
+    # Ensure the input is a list: my_urls
+    if isinstance(urls, list):
+        my_urls = urls
+    elif isinstance(urls, tuple):
+        my_urls = list(urls)
+    else:
+        my_urls = [urls]
+
+    # Scan my_urls to determine the locations of the inputs
+    locations = {}
+    for url in my_urls:
+        locations[_get_location_part(url)] = True
+    locations = _simplify_locations(locations)
+
+    # Set up sources for each location, and possibly add files
+    sources = []
+    for location in locations:
+        logging.debug('readdata._get_sources: location %s' % location)
+        source = {}
+        transport = _get_transport(location)
+        source['archive'] = _get_archive(transport, location, mode='r')
+        source['files'] = []
+        for url in my_urls:
+            location_part = _get_location_part(url)
+            logging.debug('readdata._get_sources: compare _get_location_part %s location %s' %
+                (location_part, location))
+            if location_part.startswith(location):
+                fname = location_part[len(location)+1:]
+                # _get_query_part(url)
+                source['files'].append(fname)
+        sources.append(source)
+    for source in sources:
+        logging.debug('readdata._get_sources: sources %s' % source)
+    return(sources)
+
 def sanitize_urls(urls):
     """Determine transport, archive and file from each url.
     
@@ -207,10 +376,10 @@ def sanitize_urls(urls):
     - urls: list, tuple or single string, e.g.:
             file://dicom
               transport: file, url: dicom
-            file://dicom.zip
-              transport: file, url: zip://dicom.zip
-            file://dicom.tar.gz
-              transport: file, url: tar://dicom.zip
+            file://dicom.zip?query
+              transport: file, url: zip://dicom.zip?query
+            file://dicom.tar.gz?query
+              transport: file, url: tar://dicom.tar.gz?query
             http://server:port/dicom.zip
               transport: http, url: zip://dicom.zip
             dicomscp://server:port/AET
@@ -219,7 +388,7 @@ def sanitize_urls(urls):
              transport: xnat, utl: ?
     Output:
     - loc: for each url (dict)
-      - transport: name of trasnport plugin
+      - transport: name of transport plugin
       - url
       - files
     """
@@ -241,34 +410,41 @@ def sanitize_urls(urls):
         loc[url]['transport'] = urldict.scheme
         loc[url]['url']       = urldict.path
 
-    # Only file: scheme can be simplified
-    #if len(schemes)>1 or "file" not in schemes: return (None,my_urls,None)
     if len(schemes)>1 or "file" not in schemes: return (None,loc,None)
+
+    # Otherwise: local file only
+    # Scheme can be simplified
 
     # Collect all paths and simplify
     paths = []
+    simplify = True
     for url in my_urls:
         urldict = urllib.parse.urlsplit(url, scheme="file")
         logging.debug("sanitize_urls: urldict {}".format(urldict))
         paths.append(urldict.path)
+        if mimetypes.guess_type(urldict.path)[0] == 'application/zip':
+            logging.debug("sanitize_urls: no simplify due to {}".format(
+                urldict.path))
+            simplify = False
     cpath = os.path.commonpath(paths)
-    if os.path.isfile(cpath):
+    if simplify and os.path.isfile(cpath):
         cpath = os.path.dirname(cpath)
     logging.debug("sanitize_urls: cpath {}".format(cpath))
     my_url = cpath
-    logging.debug("sanitize_urls: url {}".format(url))
+    logging.debug("sanitize_urls: url {}".format(my_url))
 
     # Calculate file names relative to cpath
     files = []
-    for url in my_urls:
-        urldict = urllib.parse.urlsplit(url, scheme="file")
-        files.append( os.path.relpath(urldict.path, cpath))
+    if simplify:
+        for url in my_urls:
+            urldict = urllib.parse.urlsplit(url, scheme='file')
+            files.append( os.path.relpath(urldict.path, cpath))
 
-    # Catch the case when no basename were given
-    if files[0] == ".": files = None
+        # Catch the case when no basename were given
+        if files[0] == ".": files = None
 
     logging.debug("sanitize_urls: my_url {} {}".format(my_url,files))
-    logging.debug("sanitize_urls: my_url {}".format(urllib.parse.urlsplit(my_url, scheme="file")))
+    logging.debug("sanitize_urls: my_url {}".format(urllib.parse.urlsplit(my_url, scheme='file')))
     return ('file',[my_url],files)
 
 def str_to_dtype(s):
