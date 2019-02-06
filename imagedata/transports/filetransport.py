@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Read/Write local image files
 """
 
@@ -26,8 +24,8 @@ class FileTransport(AbstractTransport):
         super(FileTransport, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.schemes)
         logging.debug("FileTransport __init__ root: {}".format(root))
-        if not os.path.isdir(root):
-            raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
+        #if not os.path.isdir(root):
+        #    raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         self.__root = root
 
     def _get_path(self, path):
