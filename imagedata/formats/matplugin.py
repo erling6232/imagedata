@@ -49,13 +49,11 @@ class MatPlugin(AbstractPlugin):
         super(MatPlugin, self).__init__(self.name, self.description,
             self.authors, self.version, self.url)
 
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
         Input:
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: Pre-filled header dict. Might be None
         - input_order
         - opts: Input options (dict)
@@ -75,57 +73,45 @@ class MatPlugin(AbstractPlugin):
 
         # if len(filelist) > 1: raise ValueError("What to do with multiple input files?")
         #if len(filelist) > 1: raise imagedata.formats.NotImageError('%s does not look like a MAT file.' % filelist[0])
-        if len(urls) > 1 and files is not None:
-            raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
+        #if len(urls) > 1 and files is not None:
+        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
         # Scan filelist to determine data size
-        url = urls[0]
-        logging.debug("matplugin.read: url: {} {}".format(type(url), url))
-        with fs.open_fs(url) as archive:
-            scan_files = files
-            if scan_files is None:
-                scan_files = archive.walk.files()
-            for path in sorted(scan_files):
+        image_list = list()
+        for source in sources:
+            logging.debug("matplugin.read: source: {} {}".format(type(source), source))
+            archive = source['archive']
+            scan_files = source['files']
+            if scan_files is None or len(scan_files) == 0:
+                scan_files = archive.getnames()
+            for path in archive.getmembers(scan_files):
                 logging.debug("matplugin.read filehandle {}".format(path))
-                if archive.hassyspath(path):
-                    filename = archive.getsyspath(path)
-                    tmp_fs = None
-                else:
-                    # Copy file to a local instance
-                    tmp_fs = fs.tempfs.TempFS()
-                    fs.copy.copy_fs(archive,path, tmp_fs,os.path.basename(path))
-                    filename = tmp_fs.getsyspath(os.path.basename(path))
-                logging.debug("matplugin.read load filename {}".format(filename))
-                try:
-                    logging.debug('matplugin.read: scipy.io.loadmat({})'.format(filename))
-                    mdictlist = scipy.io.whosmat(filename)
-                    if len(mdictlist) != 1:
-                        names=[]
-                        for name,shape,dtype in mdictlist: names.append(name)
-                        logging.debug('matplugin.read: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
-                        logging.debug('Multiple variables in Matlab file {}: {}'.format(filename, names))
-                        raise MultipleVariablesInMatlabFile('Multiple variables in Matlab file {}: {}'.format(filename, names))
-                    name,shape,dtype = mdictlist[0]
-                    logging.debug('matplugin.read: name {} shape {} dtype {}'.format(name,shape,dtype))
-                    mdict = scipy.io.loadmat(filename, variable_names=(name,))
-                    logging.debug('matplugin.read variable {}'.format(name))
-                    newshape = tuple(reversed(shape))
-                    logging.debug('matplugin.read newshape {}'.format(newshape))
-                    #si = mdict[name].reshape(newshape, order='F')
-                    si = self.mat_to_dicom(mdict[name])
-                    logging.info("Data shape read MAT: {} {}".format(si.shape, si.dtype))
-                    if si.ndim == 2:
-                        nt, nz, ny, nx = (1, 1,) + si.shape
-                    elif si.ndim == 3:
-                        #si = self.reorder_3d_data(si)
-                        nt, nz, ny, nx = (1,) + si.shape
-                    elif si.ndim == 4:
-                        #si = self.reorder_4d_data(si)
-                        nt, nz, ny, nx = si.shape
-                    else:
-                        raise MatrixDimensionNotImplemented('Matrix dimension {} is not implemented'.format(si.shape))
+                with archive.getmember(path, mode='rb') as f:
+                    image_list.append(
+                        self._read_image(f, opts, hdr)
+                    )
+        if len(image_list) < 1:
+            raise ValueError('No image data read')
+        shape = (len(image_list),) + image_list[0].shape
+        dtype = image_list[0].dtype
+        logging.debug('matplugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, dtype)
+        i = 0
+        for img in image_list:
+            logging.debug('matplugin.read: img {} si {}'.format(img.shape,
+                si.shape))
+            si[i] = img
+            i += 1
 
-                except imagedata.formats.NotImageError:
-                    raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(path))
+        # Simplify shape when nt == 1
+        if si.ndim == 4:
+            nt,nz,ny,nx = si.shape
+            if nt == 1:
+                si.shape = si.shape[1:]
+        elif si.ndim == 3:
+            nt = 1
+            nz,ny,nx = si.shape
+            if nz == 1:
+                si.shape = si.shape[1:]
 
         logging.debug('MatPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
@@ -148,6 +134,40 @@ class MatPlugin(AbstractPlugin):
             hdr.update(pre_hdr)
 
         return hdr,si
+
+    def _read_image(self, f, opts, hdr):
+        try:
+            logging.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
+            mdictlist = scipy.io.whosmat(f)
+            if len(mdictlist) != 1:
+                names=[]
+                for name,shape,dtype in mdictlist: names.append(name)
+                logging.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
+                logging.debug('matplugin._read_image: Multiple variables in MAT file {}: {}'.format(f, names))
+                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: {}'.format(f, names))
+            name,shape,dtype = mdictlist[0]
+            logging.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name,shape,dtype))
+            mdict = scipy.io.loadmat(f, variable_names=(name,))
+            logging.debug('matplugin._read_image variable {}'.format(name))
+            newshape = tuple(reversed(shape))
+            logging.debug('matplugin._read_image newshape {}'.format(newshape))
+            #si = mdict[name].reshape(newshape, order='F')
+            si = self._mat_to_dicom(mdict[name])
+            logging.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
+            if si.ndim == 2:
+                nt, nz, ny, nx = (1, 1,) + si.shape
+            elif si.ndim == 3:
+                #si = self.reorder_3d_data(si)
+                nt, nz, ny, nx = (1,) + si.shape
+            elif si.ndim == 4:
+                #si = self.reorder_4d_data(si)
+                nt, nz, ny, nx = si.shape
+            else:
+                raise MatrixDimensionNotImplemented('Matrix dimension {} is not implemented'.format(si.shape))
+
+        except imagedata.formats.NotImageError:
+            raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(path))
+        return(si)
 
     def write_3d_numpy(self, si, dirname, filename_template, opts):
         """Write 3D numpy image as MAT file
@@ -181,7 +201,7 @@ class MatPlugin(AbstractPlugin):
         #img = si.reshape(newshape, order='C')
         #img = si.reshape(newshape, order='F')
         #img = np.asfortranarray(si)
-        img = self.dicom_to_mat(si)
+        img = self._dicom_to_mat(si)
         logging.debug('matplugin.write_3d_numpy si  {} {}'.format(si.shape, si.dtype))
         logging.debug('matplugin.write_3d_numpy img {} {}'.format(img.shape, img.dtype))
 
@@ -237,14 +257,15 @@ class MatPlugin(AbstractPlugin):
 
         filename = filename_template % (0)
         filename = os.path.join(dirname, filename)
-        scipy.io.savemat(filename, {'A': self.dicom_to_mat(si)})
+        scipy.io.savemat(filename, {'A': self._dicom_to_mat(si)})
         si.shape = save_shape
 
-    def dicom_to_mat(self, data):
+    def _dicom_to_mat(self, data):
         """Reorder data from DICOM to MAT order
+
         4D:
         DICOM order: data[tags,slices,rows,columns]
-        MAT order:   mat[rows,columns,slices,tags]
+        MAT order:   mat [rows,columns,slices,tags]
 
         3D:
         DICOM order: data[slices,rows,columns]
@@ -278,22 +299,36 @@ class MatPlugin(AbstractPlugin):
         logging.info("To shape: {}".format(si.shape))
         return si
 
-    def mat_to_dicom(self, data):
-        # Reorder data from MAT to DICOM order
-        # MAT order:   mat[columns,rows,slices,tags]
-        # DICOM order: data[tags,slices,rows,columns]
+    def _mat_to_dicom(self, data):
+        """Reorder data from MAT to DICOM order
 
-        newshape = tuple(reversed(data.shape))
+        4D:
+        MAT order:   mat [rows,columns,slices,tags]
+        DICOM order: data[tags,slices,rows,columns]
+
+        3D:
+        MAT order:   mat [rows,columns,slices]
+        DICOM order: data[slices,rows,columns]
+
+        Notice that rows and columns are not swapped.
+        """
+
+        if data.ndim == 4:
+            rows,columns,slices,tags = data.shape
+            newshape = (tags,slices,rows,columns)
+        elif data.ndim == 3:
+            rows,columns,slices = data.shape
+            newshape = (slices,rows,columns)
         si = np.zeros(newshape, data.dtype)
 
         logging.info("From shape: {}".format(data.shape))
 
         if data.ndim == 3:
-            slices,columns,rows = newshape
+            slices,rows,columns = newshape
             for slice in range(slices):
                 si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 4:
-            tags,slices,columns,rows = newshape
+            tags,slices,rows,columns = newshape
             for tag in range(tags):
                 for slice in range(slices):
                     si[tag,slice,:,:] = data[:,:,slice,tag]

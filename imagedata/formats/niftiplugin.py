@@ -37,13 +37,11 @@ class NiftiPlugin(AbstractPlugin):
             self.authors, self.version, self.url)
         self.NiftiHeader       = None
 
-    def read(self, urls, files, pre_hdr, input_order, opts):
+    def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
         
         Input:
-        - urls: list of urls to image data
-        - files: list of files inside a single url.
-            = None: No files given
+        - sources: list of sources to image data
         - pre_hdr: Pre-filled header dict. Can be None
         - input_order
         - opts: Input options (dict)

@@ -121,23 +121,22 @@ class BiffPlugin(AbstractPlugin):
                 scan_files = archive.getnames()
             for path in archive.getmembers(scan_files):
                 logging.debug("biffplugin.read filehandle {}".format(path))
-                with archive.getmember(path, mode='r') as f:
+                with archive.getmember(path, mode='rb') as f:
                     image_list.append(
                         self._read_image(f, opts, hdr)
                     )
         if len(image_list) < 1:
             raise ValueError('No image data read.')
-        else:
-            shape = (len(image_list),) + image_list[0].shape
-            dtype = image_list[0].dtype
-            logging.debug('biffplugin.read: shape {}'.format(shape))
-            si = np.zeros(shape, dtype)
-            i = 0
-            for img in image_list:
-                logging.debug('biffplugin.read: img {} si {}'.format(img.shape,
-                    si.shape))
-                si[i] = img
-                i += 1
+        shape = (len(image_list),) + image_list[0].shape
+        dtype = image_list[0].dtype
+        logging.debug('biffplugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, dtype)
+        i = 0
+        for img in image_list:
+            logging.debug('biffplugin.read: img {} si {}'.format(img.shape,
+                si.shape))
+            si[i] = img
+            i += 1
 
         # Simplify shape when nt == 1
         if si.ndim == 4:
