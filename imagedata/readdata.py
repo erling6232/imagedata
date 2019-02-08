@@ -88,10 +88,10 @@ def read(urls, order=None, opts=None):
 
             return hdr, si
         except imagedata.formats.NotImageError as e:
-            logging.warning("Giving up {}: {}".format(ptype,e))
+            logging.info("Giving up {}: {}".format(ptype,e))
             pass
         except Exception as e:
-            logging.warning("Giving up (OTHER) {}: {}".format(ptype,e))
+            logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
             pass
 
     if issubclass(type(urls),list):
