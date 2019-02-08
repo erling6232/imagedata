@@ -91,18 +91,28 @@ class MatPlugin(AbstractPlugin):
                     )
         if len(image_list) < 1:
             raise ValueError('No image data read')
-        shape = (len(image_list),) + image_list[0].shape
+        shape = image_list[0].shape
         dtype = image_list[0].dtype
-        logging.debug('matplugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, dtype)
-        i = 0
-        for img in image_list:
-            logging.debug('matplugin.read: img {} si {}'.format(img.shape,
+        if len(image_list) > 1:
+            shape = (len(image_list),) + shape
+            logging.debug('matplugin.read: shape {}'.format(shape))
+            si = np.zeros(shape, dtype)
+            i = 0
+            for img in image_list:
+                logging.debug('matplugin.read: img {} si {}'.format(img.shape,
+                    si.shape))
+                si[i] = img
+                i += 1
+        else:
+            logging.debug('matplugin.read: shape {}'.format(shape))
+            si = np.zeros(shape, dtype)
+            logging.debug('matplugin.read: img {} si {}'.format(image_list[0].shape,
                 si.shape))
-            si[i] = img
-            i += 1
+            si = image_list[0]
 
         # Simplify shape when nt == 1
+        if si.ndim > 4:
+            nt,nz,ny,nx = si.shape[-4:]
         if si.ndim == 4:
             nt,nz,ny,nx = si.shape
             if nt == 1:
@@ -112,6 +122,9 @@ class MatPlugin(AbstractPlugin):
             nz,ny,nx = si.shape
             if nz == 1:
                 si.shape = si.shape[1:]
+        elif si.ndim == 2:
+            nt = nz = 1
+            ny,nx = si.shape
 
         logging.debug('MatPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
         hdr['slices'] = nz
@@ -263,6 +276,10 @@ class MatPlugin(AbstractPlugin):
     def _dicom_to_mat(self, data):
         """Reorder data from DICOM to MAT order
 
+        5D:
+        DICOM order: data[d5,tags,slices,rows,columns]
+        MAT order:   mat [rows,columns,slices,tags,d5]
+
         4D:
         DICOM order: data[tags,slices,rows,columns]
         MAT order:   mat [rows,columns,slices,tags]
@@ -275,7 +292,10 @@ class MatPlugin(AbstractPlugin):
         """
 
         #newshape = tuple(reversed(data.shape))
-        if data.ndim == 4:
+        if data.ndim == 5:
+            d5,tags,slices,rows,columns = data.shape
+            newshape = (rows,columns,slices,tags,d5)
+        elif data.ndim == 4:
             tags,slices,rows,columns = data.shape
             newshape = (rows,columns,slices,tags)
         elif data.ndim == 3:
@@ -294,6 +314,13 @@ class MatPlugin(AbstractPlugin):
             for tag in range(tags):
                 for slice in range(slices):
                     si[:,:,slice,tag] = data[tag,slice,:,:]
+        elif data.ndim == 5:
+            rows,columns,slices,tags,d5 = newshape
+            for d in range(d5):
+                for tag in range(tags):
+                    for slice in range(slices):
+                        si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
+
         else:
             raise(ValueError("Unknown shape {}.".format(len(data.shape))))
         logging.info("To shape: {}".format(si.shape))
@@ -301,6 +328,10 @@ class MatPlugin(AbstractPlugin):
 
     def _mat_to_dicom(self, data):
         """Reorder data from MAT to DICOM order
+
+        5D:
+        MAT order:   mat [rows,columns,slices,tags,d5]
+        DICOM order: data[d5,tags,slices,rows,columns]
 
         4D:
         MAT order:   mat [rows,columns,slices,tags]
@@ -313,7 +344,10 @@ class MatPlugin(AbstractPlugin):
         Notice that rows and columns are not swapped.
         """
 
-        if data.ndim == 4:
+        if data.ndim == 5:
+            rows,columns,slices,tags,d5 = data.shape
+            newshape = (d5,tags,slices,rows,columns)
+        elif data.ndim == 4:
             rows,columns,slices,tags = data.shape
             newshape = (tags,slices,rows,columns)
         elif data.ndim == 3:
@@ -332,6 +366,12 @@ class MatPlugin(AbstractPlugin):
             for tag in range(tags):
                 for slice in range(slices):
                     si[tag,slice,:,:] = data[:,:,slice,tag]
+        elif data.ndim == 5:
+            d5,tags,slices,rows,columns = newshape
+            for d in range(d5):
+                for tag in range(tags):
+                    for slice in range(slices):
+                        si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         else:
             raise(ValueError("Unknown shape {}.".format(len(data.shape))))
         logging.info("To shape: {}".format(si.shape))
