@@ -37,7 +37,26 @@ class Test3DBiffPlugin(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_read_3d_biff")
+    #@unittest.skip("skipping test_read_single_file")
+    def test_read_single_file(self):
+        si1 = Series(
+            'data/biff/time/time00.biff',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+
+    #@unittest.skip("skipping test_read_two_files")
+    def test_read_two_files(self):
+        si1 = Series(
+            ['data/biff/time/time00.biff',
+             'data/biff/time/time01.biff'],
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 40, 192, 152))
+
+    @unittest.skip("skipping test_read_3d_biff")
     def test_read_3d_biff(self):
         log = logging.getLogger("TestWritePluginITK.test_read_3d_biff")
         log.debug("test_read_3d_biff")
@@ -92,7 +111,7 @@ class Test3DBiffPlugin(unittest.TestCase):
         s3 = si1-si2
         s3.write('ttb3d/diff', 'Image_%05d.mha', formats=['itk'], opts=self.opts)
 
-    #@unittest.skip("skipping test_read_3d_biff_no_opt")
+    @unittest.skip("skipping test_read_3d_biff_no_opt")
     def test_read_3d_biff_no_opt(self):
         log = logging.getLogger("TestWritePluginITK.test_read_3d_biff_no_opt")
         log.debug("test_read_3d_biff_no_opt")
@@ -108,7 +127,7 @@ class Test3DBiffPlugin(unittest.TestCase):
         logging.debug('test_read_3d_biff: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_read_3d_biff: si1.slices {}'.format(si1.slices))
 
-    #@unittest.skip("skipping test_write_3d_biff_no_opt")
+    @unittest.skip("skipping test_write_3d_biff_no_opt")
     def test_write_3d_biff_no_opt(self):
         log = logging.getLogger("TestWritePluginITK.test_write_3d_biff_no_opt")
         log.debug("test_write_3d_biff_no_opt")
@@ -148,7 +167,7 @@ class Test4DBiffPlugin(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_write_4d_biff")
+    @unittest.skip("skipping test_write_4d_biff")
     def test_write_4d_biff(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_biff")
         log.debug("test_write_4d_biff")

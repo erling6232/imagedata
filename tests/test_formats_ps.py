@@ -33,7 +33,37 @@ class Test2DPSPlugin(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_read_3d_biff")
+    #@unittest.skip("skipping test_read_single_file")
+    def test_read_single_file(self):
+        si1 = Series(
+            'data/ps/pages/A_Lovers_Complaint_1.ps',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (1, 192, 152))
+
+    #@unittest.skip("skipping test_read_two_files")
+    def test_read_two_files(self):
+        si1 = Series(
+            [
+            'data/ps/pages/A_Lovers_Complaint_1.ps',
+            'data/ps/pages/A_Lovers_Complaint_2.ps'
+            ],
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 192, 152))
+
+    #@unittest.skip("skipping test_read_single_directory")
+    def test_read_single_directory(self):
+        si1 = Series(
+            'data/ps/pages',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+
+    @unittest.skip("skipping test_read_PS")
     def test_read_PS(self):
         log = logging.getLogger("Test2DPSPlugin.test_read_PS")
         log.debug("test_read_PS")

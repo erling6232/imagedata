@@ -22,6 +22,7 @@ class TestDicomPlugin(unittest.TestCase):
         #sys.argv[1:] = ['aa', 'bb']
         #self.opts = parser.parse_args(['--order', 'none'])
         self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1: self.opts.output_format=['dicom']
 
         plugins = imagedata.formats.get_plugins_list()
         self.dicom_plugin = None
@@ -39,7 +40,37 @@ class TestDicomPlugin(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_read_dicom_3D")
+    #@unittest.skip("skipping test_read_single_file")
+    def test_read_single_file(self):
+        si1 = Series(
+            'data/dicom/time/time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (1, 192, 152))
+
+    #@unittest.skip("skipping test_read_two_files")
+    def test_read_two_files(self):
+        si1 = Series(
+            [
+            'data/dicom/time/time00/Image_00000.dcm',
+            'data/dicom/time/time00/Image_00001.dcm'
+            ],
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 192, 152))
+
+    #@unittest.skip("skipping test_read_single_directory")
+    def test_read_single_directory(self):
+        si1 = Series(
+            'data/dicom/time/time00',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+
+    @unittest.skip("skipping test_read_dicom_3D")
     def test_read_dicom_3D(self):
         d=Series(
                 'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
@@ -51,7 +82,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(d.dtype, np.uint16)
         self.assertEqual(d.shape, (30,192,192))
 
-    #@unittest.skip("skipping test_read_dicom_3D_no_opt")
+    @unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
         d=Series(
                 'tests/dicom/NYRE_151204_T1/_fl3d1_0005')
@@ -61,7 +92,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(d.dtype, np.uint16)
         self.assertEqual(d.shape, (30,192,192))
 
-    #@unittest.skip("skipping test_read_dicom_4D")
+    @unittest.skip("skipping test_read_dicom_4D")
     def test_read_dicom_4D(self):
         si1 = Series(
                 'tests/dicom/NYRE_151204_T1',
@@ -72,7 +103,7 @@ class TestDicomPlugin(unittest.TestCase):
         t = np.array([   0.  ,   66.81,  105.24,  142.24,  173.25,  194.3 ,  216.24, 237.27])
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
 
-    #@unittest.skip("skipping test_copy_dicom_4D")
+    @unittest.skip("skipping test_copy_dicom_4D")
     def test_copy_dicom_4D(self):
         si = Series(
                 'tests/dicom/NYRE_151204_T1',
@@ -87,7 +118,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (8, 30, 192, 192))
 
-    #@unittest.skip("skipping test_write_dicom_4D")
+    @unittest.skip("skipping test_write_dicom_4D")
     def test_write_dicom_4D(self):
         si = Series(
                 #'tests/dicom/NYRE_151204_T1',
@@ -107,7 +138,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (8, 30, 192, 192))
 
-    #@unittest.skip("skipping test_write_dicom_4D_no_opt")
+    @unittest.skip("skipping test_write_dicom_4D_no_opt")
     def test_write_dicom_4D_no_opt(self):
         si = Series(
                 'tests/dicom/NYRE_151204_T1',

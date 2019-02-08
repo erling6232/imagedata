@@ -44,7 +44,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_read_3d_itk")
+    @unittest.skip("skipping test_read_3d_itk")
     def test_read_3d_itk(self):
         si1 = Series(
             #'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
@@ -55,7 +55,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         self.assertEqual(si1.dtype, np.float32)
         self.assertEqual(si1.shape, (30, 142, 115))
 
-    #@unittest.skip("skipping test_read_3d_itk_no_opt")
+    @unittest.skip("skipping test_read_3d_itk_no_opt")
     def test_read_3d_itk_no_opt(self):
         si1 = Series(
             #'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
@@ -64,7 +64,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         self.assertEqual(si1.dtype, np.float32)
         self.assertEqual(si1.shape, (30, 142, 115))
 
-    #@unittest.skip("skipping test_write_3d_itk_no_opt")
+    @unittest.skip("skipping test_write_3d_itk_no_opt")
     def test_write_3d_itk_no_opt(self):
         si1 = Series(
             #'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
@@ -74,7 +74,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         self.assertEqual(si1.shape, (30, 142, 115))
         si1.write('tti3', 'Image.mhd', formats=['itk'])
 
-    #@unittest.skip("skipping test_write_3d_itk")
+    @unittest.skip("skipping test_write_3d_itk")
     def test_write_3d_itk(self):
         #si1 = Series(
         #        'tests/dicom/NYRE_151204_T1',
@@ -129,7 +129,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         np.testing.assert_array_equal(si1, si2)
         compare_headers(self, si1, si2)
 
-    #@unittest.skip("skipping test_write_4d_itk")
+    @unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_itk")
         log.debug("test_write_4d_itk")
