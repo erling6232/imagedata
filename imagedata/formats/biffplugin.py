@@ -267,15 +267,17 @@ class BiffPlugin(AbstractPlugin):
             self.descr = ''
 
         self._set_text('')
-        self._open_image(filename, 'w')
+        if len(os.path.splitext(filename)[1]) == 0:
+            filename = filename + '.biff'
+        with open(filename, 'wb') as f:
+            self._open_image(f, 'w')
 
-        iband = 0
-        for slice in range(slices):
-            self._write_band(iband, self.arr[0,slice])
-            iband += 1
-        logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
-        self._write_text()
-        self._close_image()
+            iband = 0
+            for slice in range(slices):
+                self._write_band(iband, self.arr[0,slice])
+                iband += 1
+            logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
+            self._write_text()
         si.shape = save_shape
 
     def write_4d_numpy(self, si, dirname, filename_template, opts):
@@ -344,52 +346,58 @@ class BiffPlugin(AbstractPlugin):
             except TypeError:
                 filename = filename_template
             filename = os.path.join(dirname, filename)
+            if len(os.path.splitext(filename)[1]) == 0:
+                filename = filename + '.biff'
             self._set_text('')
-            self._open_image(filename, 'w')
-            iband = 0
-            if self.output_sort == imagedata.formats.SORT_ON_TAG:
-                for slice in range(slices):
-                    for tag in range(steps):
-                        self._write_band(iband, self.arr[tag,slice])
-                        iband += 1
-            else: # default: imagedata.formats.SORT_ON_SLICE:
-                for tag in range(steps):
+            with open(filename, 'wb') as f:
+                self._open_image(f, 'w')
+                iband = 0
+                if self.output_sort == imagedata.formats.SORT_ON_TAG:
                     for slice in range(slices):
-                        self._write_band(iband, self.arr[tag,slice])
-                        iband += 1
-            logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-            self._write_text()
-            self._close_image()
+                        for tag in range(steps):
+                            self._write_band(iband, self.arr[tag,slice])
+                            iband += 1
+                else: # default: imagedata.formats.SORT_ON_SLICE:
+                    for tag in range(steps):
+                        for slice in range(slices):
+                            self._write_band(iband, self.arr[tag,slice])
+                            iband += 1
+                logging.debug('BiffPlugin.write_4d_series')
+                self._write_text()
         else: # self.output_dir == 'multi'
             if self.output_sort == imagedata.formats.SORT_ON_TAG:
                 digits = len("{}".format(slices))
                 for slice in range(slices):
                     filename="slice{0:0{1}}".format(slice, digits)
                     filename = os.path.join(dirname, filename)
+                    if len(os.path.splitext(filename)[1]) == 0:
+                        filename = filename + '.biff'
                     self._set_text('')
-                    self._open_image(filename, 'w')
-                    iband = 0
-                    for tag in range(steps):
-                        self._write_band(iband, self.arr[tag,slice])
-                        iband += 1
-                    logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-                    self._write_text()
-                    self._close_image()
+                    with open(filename, 'wb') as f:
+                        self._open_image(f, 'w')
+                        iband = 0
+                        for tag in range(steps):
+                            self._write_band(iband, self.arr[tag,slice])
+                            iband += 1
+                        logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
+                        self._write_text()
             else: # self.output_sort == imagedata.formats.SORT_ON_SLICE:
                 digits = len("{}".format(steps))
                 for tag in range(steps):
                     filename="{0}{1:0{2}}".format(imagedata.formats.input_order_to_dirname_str(si.input_order),
                                                   tag, digits)
                     filename = os.path.join(dirname, filename)
+                    if len(os.path.splitext(filename)[1]) == 0:
+                        filename = filename + '.biff'
                     self._set_text('')
-                    self._open_image(filename, 'w')
-                    iband = 0
-                    for slice in range(slices):
-                        self._write_band(iband, self.arr[tag,slice])
-                        iband += 1
-                    logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
-                    self._write_text()
-                    self._close_image()
+                    with open(filename, 'wb') as f:
+                        self._open_image(f, 'w')
+                        iband = 0
+                        for slice in range(slices):
+                            self._write_band(iband, self.arr[tag,slice])
+                            iband += 1
+                        logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
+                        self._write_text()
         si.shape = save_shape
 
 
@@ -482,9 +490,10 @@ class BiffPlugin(AbstractPlugin):
             self._read_info()
             self.status = 'read'
         elif mode == 'w':
-            if len(os.path.splitext(filename)[1]) == 0:
-                filename = filename + '.biff'
-            self.f = open(filename, 'wb')
+            #if len(os.path.splitext(filename)[1]) == 0:
+            #    filename = filename + '.biff'
+            #self.f = open(filename, 'wb')
+            self.f = f
             self._set_info()
             self.status = 'write'
         else:
@@ -806,9 +815,6 @@ class BiffPlugin(AbstractPlugin):
             rest += 512
         logging.debug('_write_text: skipping %d bytes' % rest)
         self.f.write(rest * b'\x00')
-
-    def _close_image(self):
-        self.f.close()
 
     def _write_band(self, bandnr, arr):
         """Write a BIFF band to file
