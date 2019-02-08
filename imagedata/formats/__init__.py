@@ -126,7 +126,9 @@ def shape_to_str(shape):
     Exceptions:
     - ValueError: when shape cannot be converted to printable string
     """
-    if len(shape) == 4:
+    if len(shape) == 5:
+        return "{}x{}tx{}x{}x{}".format(shape[0],shape[1],shape[2],shape[3],shape[4])
+    elif len(shape) == 4:
         return "{}tx{}x{}x{}".format(shape[0],shape[1],shape[2],shape[3])
     elif len(shape) == 3:
         return "{}x{}x{}".format(shape[0],shape[1],shape[2])
