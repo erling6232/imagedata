@@ -44,7 +44,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (1, 192, 152))
+        self.assertEqual(si1.shape, (10, 40, 152, 192))
 
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
@@ -53,17 +53,17 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             'data/nifti/time/Image_00000.nii.gz',
             'data/nifti/time/Image_00000.nii.gz'
             ],
-            0,
+            imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 192, 152))
+        self.assertEqual(si1.shape, (2, 10, 40, 152, 192))
 
     @unittest.skip("skipping test_read_3d_nifti")
     def test_read_3d_nifti(self):
         try:
             si1 = Series(
                 'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
-                0,
+                imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         except Exception as e:
             logging.debug('test_read_3d_nifti: read si1 exception {}'.format(e))
