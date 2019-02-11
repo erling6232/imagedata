@@ -63,93 +63,85 @@ class NiftiPlugin(AbstractPlugin):
         hdr['input_order'] = input_order
 
         #if len(filelist) > 1: raise ValueError("What to do with multiple input files?")
-        logging.debug("niftiplugin:read: urls: {}".format(urls))
-        if len(urls) > 1 and files is not None:
-            raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
-        for url in urls:
-            logging.debug("niftiplugin:read: url: {} {}".format(type(url), url))
-            with fs.open_fs(url) as archive:
-                scan_files = files
-                if scan_files is None:
-                    scan_files = archive.walk.files()
-                for path in sorted(scan_files):
-                    logging.debug("niftiplugin::read filehandle {}".format(path))
-                    #TODO: Read nifti directly from open file object
-                    #      Should be able to do something like:
-                    #
-                    # with archive.getmember(member_name) as member:
-                    #    # Create a nibabel image using
-                    #    # the existing file handle.
-                    #    fmap = nibabel.nifti1.Nifti1Image.make_file_map()
-                    #    #nibabel.nifti1.Nifti1Header
-                    #    fmap['image'].fileobj = member
-                    #    img = nibabel.Nifti1Image.from_file_map(fmap)
-                    #
-                    if archive.hassyspath(path):
-                        filename = archive.getsyspath(path)
-                        tmp_fs = None
-                    else:
-                        # Copy file to a local instance
-                        tmp_fs = fs.tempfs.TempFS()
-                        fs.copy.copy_fs(archive,path,
-                                tmp_fs,os.path.basename(path))
-                        filename = tmp_fs.getsyspath(os.path.basename(path))
-                    logging.debug("niftiplugin::read load filename {}".format(filename))
-                    try:
-                        img = nibabel.load(filename)
-                    except nibabel.spatialimages.ImageFileError:
-                        raise imagedata.formats.NotImageError('{} does not look like a nifti file.'.format(filename))
-                    except:
-                        raise
-                    self.NiftiHeader = img.get_header()
-                    data = img.get_data()   # Shape (nx,ny,nz,nt)
-                    #nifti_affine = img.get_affine()
-                    nifti_affine = img.get_sform()
-                    logging.debug('NiftiPlugin.read: get_sform\n{}'.format(img.get_sform()))
-                    logging.debug('NiftiPlugin.read: self.NiftiHeader.get_zooms() {}'.format(self.NiftiHeader.get_zooms()))
-                    try:
-                        dx, dy, dz = self.NiftiHeader.get_zooms()
-                    except ValueError:
-                        dx, dy, dz, dt = self.NiftiHeader.get_zooms()
-                    self.spacing = (dz, dy, dx)
-                    hdr['spacing'] = (dz, dy, dx)
+        #logging.debug("niftiplugin:read: urls: {}".format(urls))
+        #if len(urls) > 1 and files is not None:
+        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
+        image_list = list()
+        for source in sources:
+            logging.debug("niftiplugin:read: source: {} {}".format(type(source), source))
+            archive = source['archive']
+            scan_files = source['files']
+            if scan_files is None or len(scan_files) == 0:
+                scan_files = archive.getnames()
+            for f in archive.getmembers(scan_files):
+                logging.debug("niftiplugin::read filehandle {}".format(f))
+                #TODO: Read nifti directly from open file object
+                #      Should be able to do something like:
+                #
+                # with archive.getmember(member_name) as member:
+                #    # Create a nibabel image using
+                #    # the existing file handle.
+                #    fmap = nibabel.nifti1.Nifti1Image.make_file_map()
+                #    #nibabel.nifti1.Nifti1Header
+                #    fmap['image'].fileobj = member
+                #    img = nibabel.Nifti1Image.from_file_map(fmap)
+                #
+                filename = archive.to_localfile(f)
+                logging.debug("niftiplugin::read load filename {}".format(filename))
+                try:
+                    img = nibabel.load(filename)
+                except nibabel.spatialimages.ImageFileError:
+                    raise imagedata.formats.NotImageError('{} does not look like a nifti file.'.format(filename))
+                except:
+                    raise
+                image_list.append(img)
+        if len(image_list) < 1:
+                raise ValueError('No image data read')
+        img = image_list[0]
+        self.NiftiHeader = list()
+        si = self._reorder_data(img.get_data(), flip=False)
+        shape = (len(image_list),) + si.shape
+        dtype = image_list[0].get_data_dtype()
+        logging.debug('niftiplugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, dtype)
+        i = 0
+        for img in image_list:
+            logging.debug('niftiplugin.read: img {} si {}'.format(
+                img.shape, si.shape))
+            img = image_list[i]
+            self.NiftiHeader.append(img.get_header())
+            si[i] = self._reorder_data(img.get_data(), flip=False)
+            i += 1
 
-                    dtype = img.get_data_dtype()
+        #nifti_affine = image_list[0].get_affine()
+        nifti_affine = image_list[0].get_sform()
+        logging.debug('NiftiPlugin.read: get_sform\n{}'.format(image_list[0].get_sform()))
+        logging.debug('NiftiPlugin.read: self.NiftiHeader[0].get_zooms() {}'.format(self.NiftiHeader[0].get_zooms()))
+        try:
+            dx, dy, dz = self.NiftiHeader[0].get_zooms()
+        except ValueError:
+            dx, dy, dz, dt = self.NiftiHeader[0].get_zooms()
+        self.spacing = (dz, dy, dx)
+        hdr['spacing'] = (dz, dy, dx)
 
-        # Reorder data
-        # Nifti order: si[rows,columns,slice,t]
-        # DICOM order: si[t,slice,rows,columns]
-        nifti_shape = self.reverse_shape(self.NiftiHeader.get_data_shape())
+        # Simplify shape
+        self._reduce_shape(si)
 
-        if len(nifti_shape) == 4:
-            # 4D
-            ny,nx,nz,nt = self.NiftiHeader.get_data_shape()
-            logging.info("Data shape: %dx%dx%dx%dt" % (nx,ny,nz,nt))
-            si = np.zeros([nt,nz,nx,ny], dtype)
-            self.shape = (nt,nz,nx,ny)
-            for t in range(nt):
-                for z in range(nz):
-                    si[t,z,:,:] = np.fliplr(data[:,:,z,t]).T
-        elif len(nifti_shape) == 3:
-            # 3D
-            ny,nx,nz = self.NiftiHeader.get_data_shape()
-            logging.info("Data shape: %dx%dx%d" % (nx,ny,nz))
-            si = np.zeros([nz,nx,ny], dtype)
-            self.shape = (nz,nx,ny)
-            for z in range(nz):
-                si[z,:,:] = np.fliplr(data[:,:,z]).T
-
-        dim_info = self.NiftiHeader.get_dim_info()
-        #qform = self.NiftiHeader.get_qform()
-        #sform = self.NiftiHeader.get_sform()
-        xyzt_units = self.NiftiHeader.get_xyzt_units()
+        dim_info = self.NiftiHeader[0].get_dim_info()
+        #qform = self.NiftiHeader[0].get_qform()
+        #sform = self.NiftiHeader[0].get_sform()
+        xyzt_units = self.NiftiHeader[0].get_xyzt_units()
 
         #self.transformationMatrix = self.nifti_to_affine(nifti_affine, si.shape)
         # Prerequisites for setQform: self.spacing and self.slices
         # self.spacing is set already
+        nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
         hdr['slices']  = nz
         #self.setQform(nifti_affine)
         #hdr['transformationMatrix'] = self.transformationMatrix
+        self.shape = si.shape
         self.getGeometryFromAffine(hdr, nifti_affine, hdr['slices'])
         logging.debug("NiftiPlugin::read: hdr[orientation] {}".format(hdr['orientation']))
         logging.debug("NiftiPlugin::read: hdr[transformationMatrix]\n{}".format(hdr['transformationMatrix']))
@@ -167,20 +159,20 @@ class NiftiPlugin(AbstractPlugin):
         """Set tags[slice][tag] from Nifti header
         """
         try:
-            ny,nx,nz,nt = self.NiftiHeader.get_data_shape()
+            ny,nx,nz,nt = self.NiftiHeader[0].get_data_shape()
             logging.debug("setTags: ny {}, nx {}, nz {}, nt {}".format(ny,nx,nz,nt))
         except ValueError:
-            ny,nx,nz = self.NiftiHeader.get_data_shape()
+            ny,nx,nz = self.NiftiHeader[0].get_data_shape()
             nt = 1
-        logging.debug("setTags: get_dim_info(): {}".format(self.NiftiHeader.get_dim_info()))
-        logging.debug("setTags: get_xyzt_units(): {}".format(self.NiftiHeader.get_xyzt_units()))
+        logging.debug("setTags: get_dim_info(): {}".format(self.NiftiHeader[0].get_dim_info()))
+        logging.debug("setTags: get_xyzt_units(): {}".format(self.NiftiHeader[0].get_xyzt_units()))
         times = [0]
         if nt > 1:
             #try:
-            #    times = self.NiftiHeader.get_slice_times()
+            #    times = self.NiftiHeader[0].get_slice_times()
             #    print("setTags: times", times)
             #except nibabel.spatialimages.HeaderDataError:
-                dx, dy, dz, dt = self.NiftiHeader.get_zooms()
+                dx, dy, dz, dt = self.NiftiHeader[0].get_zooms()
                 times = np.arange(0, nt*dt, dt)
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logging.debug("setTags: times {}".format(times))
@@ -188,14 +180,6 @@ class NiftiPlugin(AbstractPlugin):
         for slice in range(nz):
             tags[slice] = np.array(times)
         hdr['tags'] = tags
-
-    def reverse_shape(self, shape):
-        if len(shape) == 4:
-            nx,ny,nz,nt = shape
-            return((nt,nz,nx,ny))
-        else:
-            nx,ny,nz = shape
-        return((nz,nx,ny))
 
     '''
     def nifti_to_affine(self, affine, shape):
