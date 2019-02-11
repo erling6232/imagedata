@@ -299,6 +299,77 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         im.AcquisitionMatrix          = gim.AcquisitionMatrix
         im.PixelSpacing               = gim.PixelSpacing
 
+    def _reduce_shape(self, si):
+        """Reduce shape when leading shape(s) are 1.
+        Will not reduce to less than 2-dimensional image.
+        
+        Input:
+        - self: format plugin instance
+        - si[...]: Series array
+        Returns:
+        Exceptions:
+        - ValueError: tags for dataset is not time tags
+        """
+
+        while si.ndim > 2:
+            if si.shape[0] == 1:
+                si.shape = si.shape[1:]
+            else:
+                break
+
+    def _reorder_data(self, data, flip=False):
+        """Reorder data. Swap axes, except for rows and columns.
+        The same procedure can be used both ways between formats.
+
+        5D:
+        Nifti order: data[rows,columns,slices,tags,d5]
+        DICOM order: si  [d5,tags,slices,rows,columns]
+
+        4D:
+        Nifti order: data[rows,columns,slices,tags]
+        DICOM order: si  [tags,slices,rows,columns]
+
+        3D:
+        Nifti order: data[rows,columns,slices]
+        DICOM order: si  [slices,rows,columns]
+
+        Notice that rows and columns are not swapped.
+        """
+
+        if data.ndim == 5:
+            rows,columns,slices,tags,d5 = data.shape
+            si = np.zeros((d5,tags,slices,rows,columns), data.dtype)
+            for d in range(d5):
+                for tag in range(tags):
+                    for slice in range(slices):
+                        if flip:
+                            si[d,tag,slice,:,:] = \
+                            np.fliplr(data[:,:,slice,tag,d]).T
+                        else:
+                            si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
+        elif data.ndim == 4:
+            rows,columns,slices,tags = data.shape
+            si = np.zeros((tags,slices,rows,columns), data.dtype)
+            for tag in range(tags):
+                for slice in range(slices):
+                    if flip:
+                        si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
+                    else:
+                        si[tag,slice,:,:] = data[:,:,slice,tag]
+        elif data.ndim == 3:
+            rows,columns,slices = data.shape
+            si = np.zeros((slices,rows,columns), data.dtype)
+            for slice in range(slices):
+                if flip:
+                    si[slice,:,:] = np.fliplr(data[:,:,slice]).T
+                else:
+                    si[slice,:,:] = data[:,:,slice]
+        elif data.ndim == 2:
+            si = data
+        else:
+            raise ValueError('Dimension %d is not implemented' % data.ndim)
+        return(si)
+
     def copy(self, other=None):
         """Make a copy of the instance
 
