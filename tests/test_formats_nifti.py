@@ -40,7 +40,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
-            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
@@ -50,8 +50,8 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_read_two_files(self):
         si1 = Series(
             [
-            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz'
             ],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
@@ -61,7 +61,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_zipread_single_file")
     def test_zipread_single_file(self):
         si1 = Series(
-            'data/nifti/time.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            'data/nifti/time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
@@ -70,7 +70,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_zipread_single_directory")
     def test_zipread_single_directory(self):
         si1 = Series(
-            'data/nifti/time.zip?time',
+            'data/nifti/time_all.zip?time',
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
@@ -79,7 +79,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_zipread_all_files")
     def test_zipread_all_files(self):
         si1 = Series(
-            'data/nifti/time.zip',
+            'data/nifti/time_all.zip',
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
