@@ -49,92 +49,23 @@ class MatPlugin(AbstractPlugin):
         super(MatPlugin, self).__init__(self.name, self.description,
             self.authors, self.version, self.url)
 
-    def read(self, sources, pre_hdr, input_order, opts):
-        """Read image data
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
 
         Input:
-        - sources: list of sources to image data
-        - pre_hdr: Pre-filled header dict. Might be None
-        - input_order
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
         - opts: Input options (dict)
+        - hdr: Header dict
         Output:
         - hdr: Header dict
-            input_format
-            input_order
-            slices
-            spacing
-            tags
-        - si[tag,slice,rows,columns]: numpy array
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
         """
 
-        hdr = {}
-        hdr['input_format'] = self.name
-        hdr['input_order'] = input_order
-
-        # if len(filelist) > 1: raise ValueError("What to do with multiple input files?")
-        #if len(filelist) > 1: raise imagedata.formats.NotImageError('%s does not look like a MAT file.' % filelist[0])
-        #if len(urls) > 1 and files is not None:
-        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
-        # Scan filelist to determine data size
-        image_list = list()
-        for source in sources:
-            logging.debug("matplugin.read: source: {} {}".format(type(source), source))
-            archive = source['archive']
-            scan_files = source['files']
-            if scan_files is None or len(scan_files) == 0:
-                scan_files = archive.getnames()
-            for path in archive.getmembers(scan_files):
-                logging.debug("matplugin.read filehandle {}".format(path))
-                with archive.getmember(path, mode='rb') as f:
-                    image_list.append(
-                        self._read_image(f, opts, hdr)
-                    )
-        if len(image_list) < 1:
-            raise ValueError('No image data read')
-        shape = (len(image_list),) + image_list[0].shape
-        dtype = image_list[0].dtype
-        logging.debug('matplugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, dtype)
-        i = 0
-        for img in image_list:
-            logging.debug('matplugin.read: img {} si {}'.format(img.shape,
-                si.shape))
-            si[i] = img
-            i += 1
-
-        # Simplify shape
-        self._reduce_shape(si)
-
-        nt = nz = 1
-        ny, nx = si.shape[-2:]
-        if si.ndim > 2:
-            nz = si.shape[-3]
-        if si.ndim > 3:
-            nt = si.shape[-4]
-
-        logging.debug('MatPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
-        hdr['slices'] = nz
-
-        # Set spacing
-        hdr['spacing'] = (1.0, 1.0, 1.0)
-
-        # Set tags
-        dt = 1
-        times = np.arange(0, nt*dt, dt)
-        tags = {}
-        for slice in range(nz):
-            tags[slice] = np.array(times)
-        hdr['tags'] = tags
-
-        logging.info("Data shape read Mat: {}".format(imagedata.formats.shape_to_str(si.shape)))
-
-        # Add any DICOM template
-        if pre_hdr is not None:
-            hdr.update(pre_hdr)
-
-        return hdr,si
-
-    def _read_image(self, f, opts, hdr):
+        info = {}
         try:
             logging.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
             mdictlist = scipy.io.whosmat(f)
@@ -150,24 +81,48 @@ class MatPlugin(AbstractPlugin):
             logging.debug('matplugin._read_image variable {}'.format(name))
             newshape = tuple(reversed(shape))
             logging.debug('matplugin._read_image newshape {}'.format(newshape))
-            #si = mdict[name].reshape(newshape, order='F')
-            #si = self._mat_to_dicom(mdict[name])
             si = self._reorder_data(mdict[name])
             logging.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
             if si.ndim == 2:
                 nt, nz, ny, nx = (1, 1,) + si.shape
             elif si.ndim == 3:
-                #si = self.reorder_3d_data(si)
                 nt, nz, ny, nx = (1,) + si.shape
             elif si.ndim == 4:
-                #si = self.reorder_4d_data(si)
                 nt, nz, ny, nx = si.shape
             else:
                 raise MatrixDimensionNotImplemented('Matrix dimension {} is not implemented'.format(si.shape))
 
         except imagedata.formats.NotImageError:
             raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(path))
-        return(si)
+        return(info,si)
+
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
+        """
+
+        # Set spacing
+        hdr['spacing'] = (1.0, 1.0, 1.0)
+
+        # Set tags
+        nt = nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        if si.ndim > 3:
+            nt = si.shape[-4]
+        dt = 1
+        times = np.arange(0, nt*dt, dt)
+        tags = {}
+        for slice in range(nz):
+            tags[slice] = np.array(times)
+        hdr['tags'] = tags
 
     def write_3d_numpy(self, si, dirname, filename_template, opts):
         """Write 3D numpy image as MAT file
@@ -233,6 +188,11 @@ class MatPlugin(AbstractPlugin):
         self.spacing              = si.spacing
         self.tags                 = si.tags
 
+        # Defaults
+        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        if 'output_sort' in opts:
+            self.output_sort = opts['output_sort']
+
         save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
@@ -242,7 +202,7 @@ class MatPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts['output_sort'])))
+            imagedata.formats.sort_on_to_str(self.output_sort)))
 
         steps  = si.shape[0]
         slices = si.shape[1]

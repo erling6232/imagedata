@@ -47,71 +47,73 @@ class ITKPlugin(AbstractPlugin):
         super(ITKPlugin, self).__init__(self.name, self.description,
               self.authors, self.version, self.url)
 
-    def read(self, sources, pre_hdr, input_order, opts):
-        """Read image data
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
 
         Input:
-        - sources: list of sources to image data
-        - pre_hdr: Pre-filled header dict. Might be None
-        - input_order
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
         - opts: Input options (dict)
+        - hdr: Header dict
         Output:
         - hdr: Header dict
-            input_format
-            input_order
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - si[tag,slice,rows,columns]: numpy array
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
         """
 
-        hdr = {}
-        hdr['input_format'] = self.name
-        hdr['input_order'] = input_order
+        o = None
+        logging.debug("itkplugin._read_image")
+        logging.debug("itkplugin._read_image filehandle {}".format(f))
+        if f.endswith('.raw'):
+            return(None, None)
+        try:
+            # https://blog.kitware.com/itk-python-image-pixel-types/
+            reader = itk.imread(f)
+            #imagetype = itk.Image[itk.F, 3]
+            #reader = itk.ImageFileReader[imagetype].New()
+            #reader.SetFileName(f)
+            #reader.Update()
 
-        #if len(urls) > 1 and files is not None:
-        if len(sources) > 1:
-            raise FilesGivenForMultipleURLs("Handle multiple inputs are not"
-                "implemented.")
-        nt = 0
-        # Scan filelist to determine data size
-        source = sources[0]
-        archive = source['archive']
-        scan_files = source['files']
-        logging.debug("itkplugin.read: archive type: %s" % archive.name)
-        if scan_files is None or len(scan_files) == 0:
-            scan_files = archive.getnames()
-        logging.debug("itkplugin.read: files: {}".format(scan_files))
-        for f in archive.getmembers(scan_files):
-            logging.debug("itkplugin.read peek f {}".format(f))
-            filename = archive.to_localfile(f)
-            if filename.endswith('.raw'):
-                continue
-            logging.debug("itkplugin.read peek filename {}".format(filename))
-            try:
-                imagetype = itk.Image[itk.F, 3]
-                reader = itk.ImageFileReader[imagetype].New()
-                reader.SetFileName(filename)
-                reader.Update()
+            #img = itk.GetArrayFromImage(reader.GetOutput())
+            img = itk.GetArrayFromImage(reader)
+            logging.info("Data shape read ITK: {}".format(img.shape))
 
-                img = itk.GetArrayFromImage(reader.GetOutput())
-                logging.info("Data shape read ITK: {}".format(img.shape))
-                nz, ny, nx = img.shape
+            #nz, ny, nx = img.shape
 
-                o = reader.GetOutput()
-                spacing   = o.GetSpacing()
-                origin    = o.GetOrigin()
-                direction = o.GetDirection()
-                nt += 1
-            except imagedata.formats.NotImageError as e:
-                logging.error('itkplugin.read: inner exception {}'.format(e))
-                raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+            o = reader
+        except imagedata.formats.NotImageError as e:
+            logging.error('itkplugin._read_image: inner exception {}'.format(e))
+            raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+        return(o, img)
 
-        logging.debug('ITKPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
-        hdr['slices'] = nz
+    def _need_local_file(self):
+        """Do the plugin need access to local files?
+
+        Return values:
+        - True: The plugin need access to local filenames
+        - False: The plugin can access files given by an open file handle
+        """
+
+        return(True)
+
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
+        """
+
+        o, img = image_list[0]
+        spacing   = o.GetSpacing()
+        origin    = o.GetOrigin()
+        direction = o.GetDirection()
 
         # Set spacing
         v=spacing.GetVnlVector()
@@ -126,75 +128,37 @@ class ITKPlugin(AbstractPlugin):
         hdr['imagePositions'] = {}
         hdr['imagePositions'][0] = np.array([v.get(2), v.get(1), v.get(0)])
 
-        self.setTransformationMatrix(direction, origin)
+        self._setTransformationMatrix(direction, hdr['imagePositions'][0])
         hdr['transformationMatrix'] = self.transformationMatrix
-        logging.debug('ITKPlugin.read: transformationMatrix=\n{}'.format(self.transformationMatrix))
+        logging.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(self.transformationMatrix))
 
         # Set image orientation
         iop = self.orientationFromVnlMatrix(direction)
-        logging.debug('ITKPlugin.read: iop=\n{}'.format(iop))
+        logging.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
         hdr['orientation'] = np.array((iop[2],iop[1],iop[0],
                                        iop[5],iop[4],iop[3]))
         M = self.numpyMatrixFromVnlMatrix(direction)
-        logging.debug('ITKPlugin.read: M=\n{}'.format(M))
+        logging.debug('ITKPlugin._set_tags: M=\n{}'.format(M))
 
         # Set imagePositions for additional slices
         #for slice in range(1,nz):
         #    hdr['imagePositions'][slice] = self.getPositionForVoxel(np.array([slice,0,0]))
 
         # Set tags
+        nt = nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        if si.ndim > 3:
+            nt = si.shape[-4]
         times = np.arange(0, nt*dt, dt)
         tags = {}
         for slice in range(nz):
             tags[slice] = np.array(times)
         hdr['tags'] = tags
 
-        # Read data
-        if nt == 1:
-            si = np.zeros([nz,ny,nx], np.float32)
-        else:
-            si = np.zeros([nt,nz,ny,nx], np.float32)
-        i=0
-        for f in archive.getmembers(scan_files):
-            logging.debug("itkplugin::read filehandle {}".format(f))
-            filename = archive.to_localfile(f)
-            if filename.endswith('.raw'):
-                continue
-            logging.debug("itkplugin::read load filename {}".format(filename))
-            try:
-                #TODO: Read ITK file directly from open file object
-                #      Should be able to do something like:
-                # with archive.getmember(fh) as member:
-                #     reader.SetFileObject(member)
-                imagetype = itk.Image[itk.F, 3]
-                reader = itk.ImageFileReader[imagetype].New()
-                reader.SetFileName(filename)
-                reader.Update()
-
-                img = itk.GetArrayFromImage(reader.GetOutput())
-                logging.info("Data shape read ITK: {}".format(img.shape))
-                nz, ny, nx = img.shape
-                logging.debug("read: si.shape {} img.shape{}".format(si.shape, img.shape))
-                if si.ndim == 3:
-                    si[:,:,:] = img[:,:,:]
-                    #si = img.copy()
-                else:
-                    si[i,:,:,:] = img[:,:,:]
-                i+=1
-            except imagedata.formats.NotImageError:
-                raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
-            except Exception as e:
-                logging.error('itkplugin.read: read exception {} {}'.format(e, f))
-
         logging.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
-        # Add any DICOM template
-        if pre_hdr is not None:
-            hdr.update(pre_hdr)
-
-        return hdr,si
-
-    def setTransformationMatrix(self, direction, origin):
+    def _setTransformationMatrix(self, direction, origin):
 
         #A = np.eye(4)
         matrix = self.numpyMatrixFromVnlMatrix(direction)
@@ -349,6 +313,11 @@ class ITKPlugin(AbstractPlugin):
         self.orientation          = si.orientation
         self.tags                 = si.tags
 
+        # Defaults
+        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        if 'output_sort' in opts:
+            self.output_sort = opts['output_sort']
+
         save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
@@ -358,7 +327,7 @@ class ITKPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts['output_sort'])))
+            imagedata.formats.sort_on_to_str(self.output_sort)))
 
         steps  = si.shape[0]
         slices = si.shape[1]
@@ -372,7 +341,7 @@ class ITKPlugin(AbstractPlugin):
 
         logging.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
             si[0,0,0,0]))
-        if opts['output_sort'] == imagedata.formats.SORT_ON_TAG:
+        if self.output_sort == imagedata.formats.SORT_ON_TAG:
             for slice in range(slices):
                 filename = filename_template % (slice)
                 filename = os.path.join(dirname, filename)
@@ -425,6 +394,18 @@ class ITKPlugin(AbstractPlugin):
         image = self.get_image_from_numpy(image)
 
         logging.debug("write_numpy_itk: imagetype {} filename {}".format(fromImageType,filename))
+        """
+        import itk
+
+        PixelType = itk.ctype(“unsigned char”)
+        image = itk.imread("input_filename.png", PixelType)
+        dimension = image.GetImageDimension()
+        InputImageType = type(image)
+        OutputPixelType = itk.ctype(“float”)
+        OutputImageType = itk.Image[OutputPixelType, dimension]
+        cast = itk.CastImageFilter[InputImageType, OutputImageType].New(image)
+        itk.imwrite(cast, "output_filename.png")
+        """
         try:
             writer = itk.ImageFileWriter[fromImageType].New()
         except KeyError:

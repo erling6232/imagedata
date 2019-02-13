@@ -35,102 +35,95 @@ class NiftiPlugin(AbstractPlugin):
     def __init__(self):
         super(NiftiPlugin, self).__init__(self.name, self.description,
             self.authors, self.version, self.url)
-        self.NiftiHeader       = None
 
-    def read(self, sources, pre_hdr, input_order, opts):
-        """Read image data
-        
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
+
         Input:
-        - sources: list of sources to image data
-        - pre_hdr: Pre-filled header dict. Can be None
-        - input_order
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
         - opts: Input options (dict)
+        - hdr: Header dict
         Output:
         - hdr: Header dict
-            input_format
-            input_order
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - si[tag,slice,rows,columns]: numpy array
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
         """
 
-        hdr = {}
-        hdr['input_format'] = self.name
-        hdr['input_order'] = input_order
-
-        #if len(filelist) > 1: raise ValueError("What to do with multiple input files?")
-        #logging.debug("niftiplugin:read: urls: {}".format(urls))
-        #if len(urls) > 1 and files is not None:
-        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
-        image_list = list()
-        for source in sources:
-            logging.debug("niftiplugin:read: source: {} {}".format(type(source), source))
-            archive = source['archive']
-            scan_files = source['files']
-            if scan_files is None or len(scan_files) == 0:
-                scan_files = archive.getnames()
-            for f in archive.getmembers(scan_files):
-                logging.debug("niftiplugin::read filehandle {}".format(f))
-                #TODO: Read nifti directly from open file object
-                #      Should be able to do something like:
-                #
-                # with archive.getmember(member_name) as member:
-                #    # Create a nibabel image using
-                #    # the existing file handle.
-                #    fmap = nibabel.nifti1.Nifti1Image.make_file_map()
-                #    #nibabel.nifti1.Nifti1Header
-                #    fmap['image'].fileobj = member
-                #    img = nibabel.Nifti1Image.from_file_map(fmap)
-                #
-                filename = archive.to_localfile(f)
-                logging.debug("niftiplugin::read load filename {}".format(filename))
-                try:
-                    img = nibabel.load(filename)
-                except nibabel.spatialimages.ImageFileError:
-                    raise imagedata.formats.NotImageError('{} does not look like a nifti file.'.format(filename))
-                except:
-                    raise
-                image_list.append(img)
-        if len(image_list) < 1:
-                raise ValueError('No image data read')
-        img = image_list[0]
-        self.NiftiHeader = list()
-        si = self._reorder_data(img.get_data(), flip=False)
-        shape = (len(image_list),) + si.shape
-        dtype = image_list[0].get_data_dtype()
-        logging.debug('niftiplugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, dtype)
-        i = 0
-        for img in image_list:
-            logging.debug('niftiplugin.read: img {} si {}'.format(
-                img.shape, si.shape))
-            img = image_list[i]
-            self.NiftiHeader.append(img.get_header())
-            si[i] = self._reorder_data(img.get_data(), flip=False)
-            i += 1
-
-        #nifti_affine = image_list[0].get_affine()
-        nifti_affine = image_list[0].get_sform()
-        logging.debug('NiftiPlugin.read: get_sform\n{}'.format(image_list[0].get_sform()))
-        logging.debug('NiftiPlugin.read: self.NiftiHeader[0].get_zooms() {}'.format(self.NiftiHeader[0].get_zooms()))
+        info = None
+        logging.debug("niftiplugin::read filehandle {}".format(f))
+        #TODO: Read nifti directly from open file object
+        #      Should be able to do something like:
+        #
+        # with archive.getmember(member_name) as member:
+        #    # Create a nibabel image using
+        #    # the existing file handle.
+        #    fmap = nibabel.nifti1.Nifti1Image.make_file_map()
+        #    #nibabel.nifti1.Nifti1Header
+        #    fmap['image'].fileobj = member
+        #    img = nibabel.Nifti1Image.from_file_map(fmap)
+        #
+        logging.debug("niftiplugin::read load f {}".format(f))
         try:
-            dx, dy, dz = self.NiftiHeader[0].get_zooms()
+            img = nibabel.load(f)
+        except nibabel.spatialimages.ImageFileError:
+            raise imagedata.formats.NotImageError(
+                    '{} does not look like a nifti file.'.format(f))
+        except:
+            raise
+        info = img.get_header()
+        si = self._reorder_data(img.get_data(), flip=True)
+        return (info, si)
+
+    def _need_local_file(self):
+        """Do the plugin need access to local files?
+
+        Return values:
+        - True: The plugin need access to local filenames
+        - False: The plugin can access files given by an open file handle
+        """
+
+        return(True)
+
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
+        """
+
+        info, si = image_list[0]
+        try:
+            ny,nx,nz,nt = info.get_data_shape()
+            logging.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny,nx,nz,nt))
         except ValueError:
-            dx, dy, dz, dt = self.NiftiHeader[0].get_zooms()
+            ny,nx,nz = info.get_data_shape()
+            nt = 1
+        #nifti_affine = image_list[0].get_affine()
+        nifti_affine = info.get_sform()
+        logging.debug('NiftiPlugin.read: get_sform\n{}'.format(info.get_sform()))
+        logging.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
+        try:
+            dx, dy, dz = info.get_zooms()
+        except ValueError:
+            dx, dy, dz, dt = info.get_zooms()
         self.spacing = (dz, dy, dx)
         hdr['spacing'] = (dz, dy, dx)
 
         # Simplify shape
         self._reduce_shape(si)
 
-        dim_info = self.NiftiHeader[0].get_dim_info()
-        #qform = self.NiftiHeader[0].get_qform()
-        #sform = self.NiftiHeader[0].get_sform()
-        xyzt_units = self.NiftiHeader[0].get_xyzt_units()
+        dim_info = info.get_dim_info()
+        #qform = info.get_qform()
+        #sform = info.get_sform()
+        xyzt_units = info.get_xyzt_units()
 
         #self.transformationMatrix = self.nifti_to_affine(nifti_affine, si.shape)
         # Prerequisites for setQform: self.spacing and self.slices
@@ -138,7 +131,6 @@ class NiftiPlugin(AbstractPlugin):
         nz = 1
         if si.ndim > 2:
             nz = si.shape[-3]
-        hdr['slices']  = nz
         #self.setQform(nifti_affine)
         #hdr['transformationMatrix'] = self.transformationMatrix
         self.shape = si.shape
@@ -146,36 +138,18 @@ class NiftiPlugin(AbstractPlugin):
         logging.debug("NiftiPlugin::read: hdr[orientation] {}".format(hdr['orientation']))
         logging.debug("NiftiPlugin::read: hdr[transformationMatrix]\n{}".format(hdr['transformationMatrix']))
 
-        self.setTags(hdr)
-
-        # Add any DICOM template
-        if pre_hdr is not None:
-            hdr.update(pre_hdr)
-
-        #logging.debug('NiftiPlugin.read: hdr: {}'.format(hdr))
-        return hdr,si
-
-    def setTags(self, hdr):
-        """Set tags[slice][tag] from Nifti header
-        """
-        try:
-            ny,nx,nz,nt = self.NiftiHeader[0].get_data_shape()
-            logging.debug("setTags: ny {}, nx {}, nz {}, nt {}".format(ny,nx,nz,nt))
-        except ValueError:
-            ny,nx,nz = self.NiftiHeader[0].get_data_shape()
-            nt = 1
-        logging.debug("setTags: get_dim_info(): {}".format(self.NiftiHeader[0].get_dim_info()))
-        logging.debug("setTags: get_xyzt_units(): {}".format(self.NiftiHeader[0].get_xyzt_units()))
+        logging.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
+        logging.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
         times = [0]
         if nt > 1:
             #try:
-            #    times = self.NiftiHeader[0].get_slice_times()
-            #    print("setTags: times", times)
+            #    times = info.get_slice_times()
+            #    print("_set_tags: times", times)
             #except nibabel.spatialimages.HeaderDataError:
-                dx, dy, dz, dt = self.NiftiHeader[0].get_zooms()
+                dx, dy, dz, dt = info.get_zooms()
                 times = np.arange(0, nt*dt, dt)
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
-        logging.debug("setTags: times {}".format(times))
+        logging.debug("_set_tags: times {}".format(times))
         tags = {}
         for slice in range(nz):
             tags[slice] = np.array(times)
@@ -501,6 +475,11 @@ class NiftiPlugin(AbstractPlugin):
         self.orientation          = si.orientation
         self.tags                 = si.tags
 
+        # Defaults
+        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        if 'output_sort' in opts:
+            self.output_sort = opts['output_sort']
+
         save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 3:
@@ -510,7 +489,7 @@ class NiftiPlugin(AbstractPlugin):
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts['output_sort'])))
+            imagedata.formats.sort_on_to_str(self.output_sort)))
 
         steps  = si.shape[0]
         slices = si.shape[1]
