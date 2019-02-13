@@ -72,6 +72,42 @@ class Test2DPSPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (6, 842, 595))
 
+    #@unittest.skip("skipping test_zipread_single_file")
+    def test_zipread_single_file(self):
+        si1 = Series(
+            'data/ps/pages.zip?pages/A_Lovers_Complaint_1.ps',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (842, 595))
+
+    #@unittest.skip("skipping test_zipread_two_files")
+    def test_zipread_two_files(self):
+        si1 = Series(
+            'data/ps/pages.zip?pages/A_Lovers_Complaint_[12].ps',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (2, 842, 595))
+
+    #@unittest.skip("skipping test_zipread_a_directory")
+    def test_zipread_a_directory(self):
+        si1 = Series(
+            'data/ps/pages.zip?pages/',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (6, 842, 595))
+
+    #@unittest.skip("skipping test_zipread_all")
+    def test_zipread_all(self):
+        si1 = Series(
+            'data/ps/pages.zip',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (7, 6, 842, 595))
+
     @unittest.skip("skipping test_read_PS")
     def test_read_PS(self):
         log = logging.getLogger("Test2DPSPlugin.test_read_PS")
