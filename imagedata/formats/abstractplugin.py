@@ -78,9 +78,10 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         """
         return self.__url
 
-    @abstractmethod
     def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
+
+        Generic version for images which will be sorted on their filenames.
 
         Input:
         - sources: list of sources to image data
@@ -90,6 +91,116 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         Output:
         - hdr: Header dict
         - si[tag,slice,rows,columns]: numpy array
+        """
+
+        hdr = {}
+        hdr['input_format'] = self.name
+        hdr['input_order'] = input_order
+
+        # image_list: list of tuples (hdr,si)
+        logging.debug("AbstractPlugin.read: sources {}".format(sources))
+        image_list = list()
+        for source in sources:
+            logging.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
+            archive = source['archive']
+            scan_files = source['files']
+            if scan_files is None or len(scan_files) == 0:
+                scan_files = archive.getnames()
+            logging.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
+            for file_handle in archive.getmembers(scan_files):
+                logging.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
+                if self._need_local_file():
+                    logging.debug("AbstractPlugin.read: need local file {}".format(file_handle))
+                    f = archive.to_localfile(file_handle)
+                else:
+                    f = archive.getmember(file_handle, mode='rb')
+                logging.debug("AbstractPlugin.read: file {}".format(f))
+                info, si = self._read_image(f, opts, hdr)
+                # info is None when no image was read
+                if info is not None:
+                    image_list.append((info, si))
+        if len(image_list) < 1:
+            raise ValueError('No image data read')
+        info, si = image_list[0]
+        shape = (len(image_list),) + si.shape
+        dtype = si.dtype
+        logging.debug('AbstractPlugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, dtype)
+        i = 0
+        for info, img in image_list:
+            logging.debug('AbstractPlugin.read: img {} si {}'.format(img.shape, si.shape))
+            si[i] = img
+            i += 1
+        logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
+
+        # Simplify shape
+        self._reduce_shape(si)
+        logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
+
+        nt = nz = 1
+        ny, nx = si.shape[-2:]
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        if si.ndim > 3:
+            nt = si.shape[-4]
+
+        nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        hdr['slices'] = nz
+
+        # hdr['spacing'], hdr['tags']
+        logging.debug('AbstractPlugin.read: calling _set_tags')
+        self._set_tags(image_list, hdr, si)
+        logging.debug('AbstractPlugin.read: return  _set_tags')
+
+        logging.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
+
+        # Add any DICOM template
+        if pre_hdr is not None:
+            hdr.update(pre_hdr)
+
+        return hdr,si
+
+    def _need_local_file(self):
+        """Do the plugin need access to local files?
+
+        Return values:
+        - True: The plugin need access to local filenames
+        - False: The plugin can access files given by an open file handle
+        """
+
+        return(False)
+
+    @abstractmethod
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
+
+        Input:
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
+        - opts: Input options (dict)
+        - hdr: Header dict
+        Output:
+        - hdr: Header dict
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
+        """
+        pass
+
+    @abstractmethod
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
         """
         pass
 
@@ -333,11 +444,15 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         Nifti order: data[rows,columns,slices]
         DICOM order: si  [slices,rows,columns]
 
-        Notice that rows and columns are not swapped.
+        flip: Whether rows and columns are swapped.
         """
 
+        logging.debug('AbstractPlugin._reorder_data: shape in {}'.format(
+            data.shape))
         if data.ndim == 5:
             rows,columns,slices,tags,d5 = data.shape
+            if flip:
+                rows, columns = columns, rows
             si = np.zeros((d5,tags,slices,rows,columns), data.dtype)
             for d in range(d5):
                 for tag in range(tags):
@@ -349,6 +464,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                             si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         elif data.ndim == 4:
             rows,columns,slices,tags = data.shape
+            if flip:
+                rows, columns = columns, rows
             si = np.zeros((tags,slices,rows,columns), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
@@ -358,6 +475,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                         si[tag,slice,:,:] = data[:,:,slice,tag]
         elif data.ndim == 3:
             rows,columns,slices = data.shape
+            if flip:
+                rows, columns = columns, rows
             si = np.zeros((slices,rows,columns), data.dtype)
             for slice in range(slices):
                 if flip:
@@ -365,9 +484,18 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 else:
                     si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 2:
-            si = data
+            rows,columns = data.shape
+            if flip:
+                rows, columns = columns, rows
+            si = np.zeros((rows,columns), data.dtype)
+            if flip:
+                si[:] = np.fliplr(data[:]).T
+            else:
+                si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
+        logging.debug('AbstractPlugin._reorder_data: shape out {}'.format(
+            si.shape))
         return(si)
 
     def copy(self, other=None):
