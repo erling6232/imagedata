@@ -39,8 +39,8 @@ class Test2DPSPlugin(unittest.TestCase):
             'data/ps/pages/A_Lovers_Complaint_1.ps',
             0,
             self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (1, 192, 152))
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (842, 595))
 
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
@@ -51,8 +51,8 @@ class Test2DPSPlugin(unittest.TestCase):
             ],
             0,
             self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 192, 152))
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (2, 842, 595))
 
     #@unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
@@ -60,8 +60,17 @@ class Test2DPSPlugin(unittest.TestCase):
             'data/ps/pages',
             0,
             self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (6, 842, 595))
+
+    #@unittest.skip("skipping test_read_large_file")
+    def test_read_large_file(self):
+        si1 = Series(
+            'data/ps/A_Lovers_Complaint.ps',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint8)
+        self.assertEqual(si1.shape, (6, 842, 595))
 
     @unittest.skip("skipping test_read_PS")
     def test_read_PS(self):
@@ -73,7 +82,7 @@ class Test2DPSPlugin(unittest.TestCase):
             pass
         try:
             si1 = Series(
-                'tests/ps/p1.ps',
+                'data/ps/A_Lovers_Complaint.ps',
                 0,
                 self.opts)
         except Exception as e:
@@ -81,7 +90,6 @@ class Test2DPSPlugin(unittest.TestCase):
             raise
         logging.debug('test_read_PS: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_read_PS: si1.slices {}'.format(si1.slices))
-        tt
 
         si1.spacing = (5, 0.41015625, 0.41015625)
         for slice in range(si1.shape[0]):

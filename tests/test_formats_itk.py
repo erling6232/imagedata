@@ -44,25 +44,21 @@ class TestWritePluginITK_slice(unittest.TestCase):
         except FileNotFoundError:
             pass
 
-    @unittest.skip("skipping test_read_3d_itk")
+    #@unittest.skip("skipping test_read_3d_itk")
     def test_read_3d_itk(self):
         si1 = Series(
-            #'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
-            'tests/itk/time/Image_00000.mhd',
+            'data/itk/time/Image_00000.mha',
             0,
             self.opts)
-        #self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.dtype, np.float32)
-        self.assertEqual(si1.shape, (30, 142, 115))
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
 
-    @unittest.skip("skipping test_read_3d_itk_no_opt")
+    #@unittest.skip("skipping test_read_3d_itk_no_opt")
     def test_read_3d_itk_no_opt(self):
         si1 = Series(
-            #'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
-            'tests/itk/time/Image_00000.mhd')
-        #self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.dtype, np.float32)
-        self.assertEqual(si1.shape, (30, 142, 115))
+            'data/itk/time/Image_00000.mha')
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
 
     @unittest.skip("skipping test_write_3d_itk_no_opt")
     def test_write_3d_itk_no_opt(self):

@@ -70,43 +70,31 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
-    @unittest.skip("skipping test_read_dicom_3D")
-    def test_read_dicom_3D(self):
-        d=Series(
-                'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
-                0,
-                self.opts)
-        #logging.debug("test_series_dicom: type(d) {}".format(type(d)))
-        #logging.debug("Series.imageType {}".format(d.imageType))
-        #logging.debug("Series.dir() {}".format(dir(d)))
-        self.assertEqual(d.dtype, np.uint16)
-        self.assertEqual(d.shape, (30,192,192))
-
-    @unittest.skip("skipping test_read_dicom_3D_no_opt")
+    #@unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
         d=Series(
-                'tests/dicom/NYRE_151204_T1/_fl3d1_0005')
+                'data/dicom/time/time00/Image_00000.dcm')
         #logging.debug("test_series_dicom: type(d) {}".format(type(d)))
         #logging.debug("Series.imageType {}".format(d.imageType))
         #logging.debug("Series.dir() {}".format(dir(d)))
         self.assertEqual(d.dtype, np.uint16)
-        self.assertEqual(d.shape, (30,192,192))
+        self.assertEqual(d.shape, (1, 192, 152))
 
-    @unittest.skip("skipping test_read_dicom_4D")
+    #@unittest.skip("skipping test_read_dicom_4D")
     def test_read_dicom_4D(self):
         si1 = Series(
-                'tests/dicom/NYRE_151204_T1',
+                'data/dicom/time',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (8, 30, 192, 192))
-        t = np.array([   0.  ,   66.81,  105.24,  142.24,  173.25,  194.3 ,  216.24, 237.27])
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        t = np.array([  0.  ,   2.99,   5.97,   8.96,  11.95,  14.94,  17.93,  20.92, 23.9 ,  26.89])
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
 
-    @unittest.skip("skipping test_copy_dicom_4D")
+    #@unittest.skip("skipping test_copy_dicom_4D")
     def test_copy_dicom_4D(self):
         si = Series(
-                'tests/dicom/NYRE_151204_T1',
+                'data/dicom/time',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         #si.sort_on = imagedata.formats.SORT_ON_SLICE
@@ -116,7 +104,7 @@ class TestDicomPlugin(unittest.TestCase):
                 imagedata.formats.INPUT_ORDER_TIME)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (8, 30, 192, 192))
+        self.assertEqual(newsi.shape, (10, 40, 192, 152))
 
     @unittest.skip("skipping test_write_dicom_4D")
     def test_write_dicom_4D(self):

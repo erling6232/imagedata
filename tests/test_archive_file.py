@@ -50,7 +50,7 @@ class test_file_archive_itk(unittest.TestCase):
             'data/itk/time/Image_00000.mha',
             0,
             self.opts)
-        self.assertEqual(si1.dtype, np.float32)
+        self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
     #@unittest.skip("skipping test_read_two_files")
@@ -60,7 +60,7 @@ class test_file_archive_itk(unittest.TestCase):
              'data/itk/time/Image_00001.mha'],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
-        self.assertEqual(si1.dtype, np.float32)
+        self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 40, 192, 152))
 
     #@unittest.skip("skipping test_read_single_directory")
@@ -69,7 +69,7 @@ class test_file_archive_itk(unittest.TestCase):
             'data/itk/time',
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
-        self.assertEqual(si1.dtype, np.float32)
+        self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 
 if __name__ == '__main__':
