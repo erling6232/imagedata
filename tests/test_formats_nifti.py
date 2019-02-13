@@ -40,23 +40,50 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     #@unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
-            'data/nifti/time/Image_00000.nii.gz',
+            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
             0,
             self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 152, 192))
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
 
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
             [
-            'data/nifti/time/Image_00000.nii.gz',
-            'data/nifti/time/Image_00000.nii.gz'
+            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            'data/nifti/time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'
             ],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 10, 40, 152, 192))
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (2, 10, 40, 192, 152))
+
+    #@unittest.skip("skipping test_zipread_single_file")
+    def test_zipread_single_file(self):
+        si1 = Series(
+            'data/nifti/time.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+
+    #@unittest.skip("skipping test_zipread_single_directory")
+    def test_zipread_single_directory(self):
+        si1 = Series(
+            'data/nifti/time.zip?time',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+
+    #@unittest.skip("skipping test_zipread_all_files")
+    def test_zipread_all_files(self):
+        si1 = Series(
+            'data/nifti/time.zip',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
 
     @unittest.skip("skipping test_read_3d_nifti")
     def test_read_3d_nifti(self):
