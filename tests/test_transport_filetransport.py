@@ -87,5 +87,13 @@ class test_filetransport(unittest.TestCase):
         except imagedata.transports.RootDoesNotExist:
             pass
 
+    #@unittest.skip("test_open_new")
+    def test_open_new(self):
+        tree = imagedata.transports.filetransport.FileTransport(
+                'ttft',
+                mode='w', read_directory_only=False)
+        #except imagedata.transports.RootDoesNotExist:
+        #    pass
+
 if __name__ == '__main__':
     unittest.main()
