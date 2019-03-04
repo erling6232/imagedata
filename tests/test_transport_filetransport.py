@@ -15,16 +15,6 @@ import imagedata.cmdline
 import imagedata.transports
 import imagedata.transports.filetransport
 
-def list_files(startpath):
-    import os
-    for root, dirs, files in os.walk(startpath):
-        level = root.replace(startpath, '').count(os.sep)
-        indent = ' ' * 4 * (level)
-        print('{}{}/'.format(indent, os.path.basename(root)))
-        subindent = ' ' * 4 * (level + 1)
-        for f in files:
-            print('{}{}'.format(subindent, f))
-
 class test_filetransport(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
@@ -69,6 +59,33 @@ class test_filetransport(unittest.TestCase):
         f = tree.open('ps/A_Lovers_Complaint.ps')
         contents = f.read()
         self.assertEqual(len(contents), 385176)
+
+    #@unittest.skip("test_open_file")
+    def test_open_file(self):
+        try:
+            tree = imagedata.transports.filetransport.FileTransport(
+                'data/ps/A_Lovers_Complaint.ps',
+                mode='r', read_directory_only=True)
+        except imagedata.transports.RootIsNotDirectory:
+            pass
+
+    #@unittest.skip("test_open_nonexist_dir")
+    def test_open_nonexist_dir(self):
+        try:
+            tree = imagedata.transports.filetransport.FileTransport(
+                'data/nonexist',
+                mode='r', read_directory_only=True)
+        except imagedata.transports.RootIsNotDirectory:
+            pass
+
+    #@unittest.skip("test_open_nonexist")
+    def test_open_nonexist(self):
+        try:
+            tree = imagedata.transports.filetransport.FileTransport(
+                'data/nonexist',
+                mode='r', read_directory_only=False)
+        except imagedata.transports.RootDoesNotExist:
+            pass
 
 if __name__ == '__main__':
     unittest.main()
