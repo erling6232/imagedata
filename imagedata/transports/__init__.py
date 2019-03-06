@@ -11,8 +11,10 @@ import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-#class NotImageError(Exception): pass
-#class TransportPluginNotFound(Exception): pass
+class TransportPluginNotFound(Exception): pass
+class RootIsNotDirectory(Exception): pass
+class RootDoesNotExist(Exception): pass
+
 
 def add_plugin_dir(dir):
     from pkgutil import extend_path
@@ -91,13 +93,13 @@ def find_plugin(ptype):
         return pclass()
     raise TransportPluginNotFound("Plugin for transport {} not found.".format(ptype))
 
-def find_scheme_plugin(scheme, root=None):
+def find_scheme_plugin(scheme, root=None, mode='r', read_directory_only=False):
     """Return plugin for given transport scheme."""
     global plugins
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
         if scheme in pclass.schemes:
-            return pclass(root)
+            return pclass(root, mode=mode, read_directory_only=read_directory_only)
     raise TransportPluginNotFound("Plugin for transport scheme {} not found.".format(scheme))
 
 plugins = load_plugins()

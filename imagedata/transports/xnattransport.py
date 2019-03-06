@@ -8,6 +8,7 @@
 import logging
 import xnat
 from imagedata.transports.abstracttransport import AbstractTransport
+from imagedata.transports import RootDoesNotExist
 
 class XnatTransport(AbstractTransport):
     """Read/write files in xnat database.
@@ -20,11 +21,12 @@ class XnatTransport(AbstractTransport):
     url = "www.helse-bergen.no"
     schemes = ["xnat"]
 
-    def __init__(self, root):
+    def __init__(self, root, mode='r', read_directory_only=False):
         super(XnatTransport, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.schemes)
         logging.debug("XnatTransport __init__ root: {}".format(root))
         self.__root = root
+        self.__mode = mode
 
         self.__session = xnat.connect(self.__root)
         logging.debug("XnatTransport __init__ session: {}".format(self.__session))
