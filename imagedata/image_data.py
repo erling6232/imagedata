@@ -236,7 +236,8 @@ def conversion():
         traceback.print_exc(file=sys.stdout)
         return(1)
 
-    si.write(args.out_name, 'Image_%05d', opts=args)
+    #si.write(args.out_name, 'Image_%05d', opts=args)
+    si.write(args.out_name, opts=args)
     return(0)
 
 if __name__ == '__main__':

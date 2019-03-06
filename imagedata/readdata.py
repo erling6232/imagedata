@@ -16,6 +16,7 @@ import imagedata.archives
 
 class NoTransportError(Exception): pass
 class NoArchiveError(Exception): pass
+class UnknownOptionType(Exception): pass
 
 def read(urls, order=None, opts=None):
     """Read image data, calling appropriate transport, archive and format plugins
@@ -34,7 +35,7 @@ def read(urls, order=None, opts=None):
 #    if len(my_urls) < 1:
 #        raise ValueError("No URL(s) where given")
 #    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
-    sources = _get_sources(urls)
+    sources = _get_sources(urls, mode='r')
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
     logging.debug("reader.read: sources {}".format(sources))
@@ -47,7 +48,8 @@ def read(urls, order=None, opts=None):
     elif issubclass(type(opts), argparse.Namespace):
         in_opts = vars(opts)
     else:
-        raise UnknownOptionType('Unknown opts type ({})'.format(type(opts)))
+        raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
+            opts))
 
     # Let the calling party override a default input order
     input_order = imagedata.formats.INPUT_ORDER_NONE
@@ -60,7 +62,7 @@ def read(urls, order=None, opts=None):
     if 'template' in in_opts and in_opts['template']:
         logging.debug("readdata.read template {}".format(in_opts['template']))
 #        template_transport,template_urls,template_files = sanitize_urls(in_opts['template'])
-        template_source = get_sources(in_opts['template'])
+        template_source = _get_sources(in_opts['template'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
         pre_hdr,_ = reader.read_headers(template_source, input_order, in_opts)
 
@@ -69,7 +71,7 @@ def read(urls, order=None, opts=None):
         if 'geometry' in in_opts and in_opts['geometry']:
             logging.debug("readdata.read geometry {}".format(in_opts['geometry']))
 #            geometry_transport,geometry_urls,geometry_files = sanitize_urls(in_opts['geometry'])
-            geometry_source = get_sources(in_opts['geometry'])
+            geometry_source = _get_sources(in_opts['geometry'], mode='r')
             reader = imagedata.formats.find_plugin('dicom')
 #            geom_hdr,_ = reader.read_headers(geometry_urls, geometry_files, input_order, in_opts)
             geom_hdr,_ = reader.read_headers(geometry_source, input_order, in_opts)
@@ -86,13 +88,22 @@ def read(urls, order=None, opts=None):
             hdr, si = reader.read(sources, pre_hdr, input_order, in_opts)
             #logging.debug("reader.read: hdr.imageType: {}".format(hdr['imageType']))
 
+            for source in sources:
+                logging.debug("readdata.read: close archive {}".format(source['archive']))
+                source['archive'].close()
             return hdr, si
+        except FileNotFoundError:
+            raise
         except imagedata.formats.NotImageError as e:
             logging.info("Giving up {}: {}".format(ptype,e))
             pass
         except Exception as e:
             logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
             pass
+
+    for source in sources:
+        logging.debug("readdata.read: close archive {}".format(source['archive']))
+        source['archive'].close()
 
     if issubclass(type(urls),list):
         raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls[0])
@@ -115,7 +126,7 @@ def add_dicom_geometry(pre_hdr, geometry):
         for k in geometry['imagePositions'].keys():
             pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
 
-def write(si, dirname_template, filename_template, opts=None, formats=None):
+def write(si, url, opts=None, formats=None):
     """Write image data, calling appropriate format plugins
 
     Input:
@@ -137,7 +148,8 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
     elif issubclass(type(opts), argparse.Namespace):
         out_opts = vars(opts)
     else:
-        raise UnknownOptionType('Unknown opts type ({})'.format(type(opts)))
+        raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
+            opts))
 
     if 'sernum' in out_opts and out_opts['sernum']: si.seriesNumber = out_opts['sernum']
     if 'serdes' in out_opts and out_opts['serdes']: si.seriesDescription = out_opts['serdes']
@@ -145,7 +157,10 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
     if 'frame' in out_opts and out_opts['frame']: si.frameOfReferenceUID = out_opts['frame']
 
     # Default output format is input format
-    output_formats = [si.input_format]
+    try:
+        output_formats = [si.input_format]
+    except AttributeError:
+        output_formats = None
     logging.debug("Default    output format : {}".format(output_formats))
     logging.debug("Overriding output formats: {}".format(formats))
     logging.debug("Options: {}".format(out_opts))
@@ -163,33 +178,46 @@ def write(si, dirname_template, filename_template, opts=None, formats=None):
     # Determine output dtype
     write_si = si
     if 'dtype' in out_opts and out_opts['dtype'] is not None:
-        #if str_to_dtype(out_opts['dtype']) != si.dtype:
         if out_opts['dtype'] != si.dtype:
             #write_si = si.astype(str_to_dtype(out_opts['dtype']))
             write_si = si.astype(out_opts['dtype'])
-    #logging.debug("write: dir(write_si): {}".format(dir(write_si)))
 
+    # Verify there is one destination only
+    destinations = _get_sources(url, mode='w')
+    if len(destinations) != 1:
+        raise ValueError('Wrong number of destinations (%d) given' %
+            len(destinations))
+    
     # Call plugin writers in turn to store the data
     logging.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
     written = False
     for pname,ptype,pclass in imagedata.formats.get_plugins_list():
-        logging.debug("Attempt plugin {}".format(ptype))
         if ptype in output_formats:
+            logging.debug("Attempt plugin {}".format(ptype))
             # Create plugin to write data in specified format
             writer = pclass()
-            logging.debug("Created writer plugin of type {}".format(type(writer)))
-            dirname = dirname_template.replace('%p', ptype)
-            if write_si.ndim == 4 and write_si.shape[0] > 1:
-                # 4D data
-                writer.write_4d_numpy(write_si, dirname, filename_template, out_opts)
-            elif write_si.ndim >= 3:
-                # 3D data
-                writer.write_3d_numpy(write_si, dirname, filename_template, out_opts)
-            else:
-                raise ValueError("Don't know how to write image of shape {}".format(write_si.shape))
-            written = True
+            logging.debug("readdata.write: Created writer plugin of type {}".format(type(writer)))
+            local_url = url.replace('%p', ptype)
+            destination = destinations[0]
+            logging.debug('readdata.write: destination {}'.format(destination))
+            try:
+                if write_si.ndim == 4 and write_si.shape[0] > 1:
+                    # 4D data
+                    writer.write_4d_numpy(write_si, destination, out_opts)
+                elif write_si.ndim >= 2:
+                    # 2D-3D data
+                    writer.write_3d_numpy(write_si, destination, out_opts)
+                else:
+                    raise ValueError("Don't know how to write image of shape {}".format(write_si.shape))
+                written = True
+            except imagedata.formats.WriteNotImplemented:
+                raise
+            except Exception as e:
+                logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
+                pass
     if not written:
         raise ValueError("No writer plugin was found for {}".format(output_formats))
+    destination['archive'].close()
 
 def sorted_plugins_dicom_first(plugins):
     """Sort plugins such that any Nifti plugin is used early."""
@@ -231,28 +259,13 @@ def _get_query_part(url):
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     return(url_tuple.query)
 
-def _get_transport(url):
-    """Get transport plugin for given URL."""
-    
-    url_tuple = urllib.parse.urlsplit(url, scheme='file')
-    netloc = url_tuple.netloc
-    if url_tuple.scheme == 'file':
-        netloc = url_tuple.path
-    logging.debug('readdata._get_transport: scheme %s netloc %s' %
-        (url_tuple.scheme, netloc))
-    transport = imagedata.transports.find_scheme_plugin(
-        url_tuple.scheme,
-        netloc)
-    return(transport)
-    
-def _get_archive(transport, url, mode='r'):
+def _get_archive(url, mode='r'):
     """Get archive plugin for given URL."""
     
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(url_tuple.path)[0]
     archive = imagedata.archives.find_mimetype_plugin(
         mimetype,
-        transport,
         url,
         mode)
     logging.debug('readdata._get_archive: mimetype %s' % mimetype)
@@ -307,7 +320,7 @@ def _simplify_locations(locations):
     logging.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
     return(new_locations)
 
-def _get_sources(urls):
+def _get_sources(urls, mode):
     """Determine transport, archive and file from each url.
     
     Handle both single url, a url tuple, and a url list
@@ -326,6 +339,8 @@ def _get_sources(urls):
               transport: dicomscp, archive: fs
             xnat://server:port
              transport: xnat, archive: fs
+    - mode: 'r' or 'w' for Read or Write
+      When mode = 'r', the urls must exist.
     Output:
     - sources: list of dict for each url
         'archive'  : archive plugin
@@ -350,102 +365,30 @@ def _get_sources(urls):
     sources = []
     for location in locations:
         logging.debug('readdata._get_sources: location %s' % location)
+        source_location = location
         source = {}
-        transport = _get_transport(location)
-        source['archive'] = _get_archive(transport, location, mode='r')
         source['files'] = []
+        source['archive'] = _get_archive(source_location, mode=mode)
         for url in my_urls:
             location_part = _get_location_part(url)
             logging.debug('readdata._get_sources: compare _get_location_part %s location %s' %
-                (location_part, location))
-            if location_part.startswith(location):
-                fname = location_part[len(location)+1:]
+                (location_part, source_location))
+            query = _get_query_part(url)
+            logging.debug('readdata._get_sources: query %s' % query)
+            if location_part.startswith(source_location):
+                if source['archive'].use_query():
+                    fname = query
+                else:
+                    if query:
+                        fname = query
+                    else:
+                        fname = location_part[len(source_location)+1:]
                 # _get_query_part(url)
                 source['files'].append(fname)
         sources.append(source)
     for source in sources:
         logging.debug('readdata._get_sources: sources %s' % source)
     return(sources)
-
-def sanitize_urls(urls):
-    """Determine transport, archive and file from each url.
-    
-    Handle both single url, a url tuple, and a url list
-
-    Input:
-    - urls: list, tuple or single string, e.g.:
-            file://dicom
-              transport: file, url: dicom
-            file://dicom.zip?query
-              transport: file, url: zip://dicom.zip?query
-            file://dicom.tar.gz?query
-              transport: file, url: tar://dicom.tar.gz?query
-            http://server:port/dicom.zip
-              transport: http, url: zip://dicom.zip
-            dicomscp://server:port/AET
-              transport: dicomscp, utl: AET
-            xnat://server:port
-             transport: xnat, utl: ?
-    Output:
-    - loc: for each url (dict)
-      - transport: name of transport plugin
-      - url
-      - files
-    """
-
-    if isinstance(urls, list):
-        my_urls = urls
-    elif isinstance(urls, tuple):
-        my_urls = list(urls)
-    else:
-        my_urls = [urls]
-
-    # Map the url schemes
-    loc = {}
-    schemes = {}
-    for url in my_urls:
-        urldict = urllib.parse.urlsplit(url, scheme="file")
-        schemes[urldict.scheme] = True
-        loc[url] = {}
-        loc[url]['transport'] = urldict.scheme
-        loc[url]['url']       = urldict.path
-
-    if len(schemes)>1 or "file" not in schemes: return (None,loc,None)
-
-    # Otherwise: local file only
-    # Scheme can be simplified
-
-    # Collect all paths and simplify
-    paths = []
-    simplify = True
-    for url in my_urls:
-        urldict = urllib.parse.urlsplit(url, scheme="file")
-        logging.debug("sanitize_urls: urldict {}".format(urldict))
-        paths.append(urldict.path)
-        if mimetypes.guess_type(urldict.path)[0] == 'application/zip':
-            logging.debug("sanitize_urls: no simplify due to {}".format(
-                urldict.path))
-            simplify = False
-    cpath = os.path.commonpath(paths)
-    if simplify and os.path.isfile(cpath):
-        cpath = os.path.dirname(cpath)
-    logging.debug("sanitize_urls: cpath {}".format(cpath))
-    my_url = cpath
-    logging.debug("sanitize_urls: url {}".format(my_url))
-
-    # Calculate file names relative to cpath
-    files = []
-    if simplify:
-        for url in my_urls:
-            urldict = urllib.parse.urlsplit(url, scheme='file')
-            files.append( os.path.relpath(urldict.path, cpath))
-
-        # Catch the case when no basename were given
-        if files[0] == ".": files = None
-
-    logging.debug("sanitize_urls: my_url {} {}".format(my_url,files))
-    logging.debug("sanitize_urls: my_url {}".format(urllib.parse.urlsplit(my_url, scheme='file')))
-    return ('file',[my_url],files)
 
 def str_to_dtype(s):
     """Convert dtype string to numpy dtype."""
