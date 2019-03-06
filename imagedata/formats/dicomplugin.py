@@ -184,10 +184,15 @@ class DICOMPlugin(AbstractPlugin):
         if 'headers_only' in opts and opts['headers_only']: return hdr,None
 
         # Load DICOM image data
+        logging.debug('DICOMPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, matrix_dtype)
         for slice in hdr['DicomHeaderDict']:
             for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
                 archive,fname = member_name
+                member = archive.getmembers([fname,])
+                if len(member) != 1:
+                    raise IndexError('Should not be multiple files for a filename')
+                member = member[0]
                 tgs = np.array(hdr['tags'][slice])
                 #idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
@@ -198,7 +203,7 @@ class DICOMPlugin(AbstractPlugin):
                 # Simplify index when image is 3D, remove tag index
                 if si.ndim == 3:
                     idx = idx[1:]
-                with archive.getmember(fname, mode='rb') as f:
+                with archive.open(member, mode='rb') as f:
                     im=pydicom.filereader.dcmread(f)
                 #try:
                 #    im.decompress()
@@ -235,6 +240,15 @@ class DICOMPlugin(AbstractPlugin):
                     logging.warning("Cannot read pixel data: {}".format(e))
                     raise
 
+        # Simplify shape
+        self._reduce_shape(si)
+        logging.debug('DICOMPlugin.read: si {}'.format(si.shape))
+
+        nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        hdr['slices'] = nz
+
         if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr,si)
 
@@ -248,6 +262,38 @@ class DICOMPlugin(AbstractPlugin):
         self.simulateAffine()
         self.create_affine(hdr)
         return hdr,si
+
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
+
+        Input:
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
+        - opts: Input options (dict)
+        - hdr: Header dict
+        Output:
+        - hdr: Header dict
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
+        """
+
+        pass
+
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
+        """
+
+        pass
 
     def read_headers(self, sources, input_order, opts):
         """Read DICOM headers only
@@ -264,15 +310,20 @@ class DICOMPlugin(AbstractPlugin):
 
         import traceback
         logging.debug('DICOMPlugin.read_headers: sources %s' % sources)
-        try:
-            hdr,shape = self.get_dicom_headers(sources, input_order, opts)
-        except UnevenSlicesError:
-            raise
-        except ValueError:
-            #traceback.print_exc()
-            #logging.info("process_member: Could not read {}".format(member_name))
-            raise imagedata.formats.NotImageError(
-                'Does not look like a DICOM file: {}'.format(urls))
+        #try:
+        hdr,shape = self.get_dicom_headers(sources, input_order, opts)
+        #except UnevenSlicesError:
+        #    raise
+        #except FileNotFoundError:
+        #    raise
+        #except ValueError:
+        #    #traceback.print_exc()
+        #    #logging.info("process_member: Could not read {}".format(member_name))
+        #    raise imagedata.formats.NotImageError(
+        #        'Does not look like a DICOM file: {}'.format(sources))
+        #except Exception as e:
+        #    logging.debug('DICOMPlugin.read_headers: Exception {}'.format(e))
+        #    raise
 
         self.extractDicomAttributes(hdr)
 
@@ -304,11 +355,23 @@ class DICOMPlugin(AbstractPlugin):
             if scan_files is None or len(scan_files) == 0:
                 scan_files = archive.getnames()
             logging.debug("get_dicom_headers: source: {} {}".format(type(source), source))
-            for path in archive.getmembers(scan_files):
+            logging.debug("get_dicom_headers: scan_files: {}".format(scan_files))
+            #for member in archive.getmembers(scan_files):
+            for path in archive.getnames(scan_files):
+                logging.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR": continue
-                with archive.getmember(path, mode='rb') as f:
-                    #logging.debug("get_dicom_headers: calling self.process_member({})".format(path))
-                    self.process_member(imageDict, archive, path, f, opts)
+                member = archive.getmembers([path,])
+                if len(member) != 1:
+                    raise IndexError('Should not be multiple files for a filename')
+                member = member[0]
+                try:
+                    with archive.open(member, mode='rb') as f:
+                        logging.debug("get_dicom_headers: calling self.process_member({})".format(member))
+                        self.process_member(imageDict, archive, path, f, opts)
+                except Exception as e:
+                    logging.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
+                    #except FileNotFoundError:
+                    raise
         return self.sort_images(imageDict, input_order, opts)
 
     def sort_images(self, headerDict, input_order, opts):
@@ -489,20 +552,27 @@ class DICOMPlugin(AbstractPlugin):
         if 'input_options' not in opts:
             opts['input_options'] = {}
 
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def write_3d_numpy(self, si, destination, opts):
         """Write 3D Series image as DICOM files
 
         Input:
         - self: DICOMPlugin instance
         - si: Series array (3D or 4D)
-        - dirname: given output directory
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        logging.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.dcm'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
 
         self.instanceNumber = 0
 
         save_shape = si.shape
+        if si.ndim == 2:
+            si.shape = (1,) + si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -518,7 +588,7 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.serInsUid = get_uid()
-        logging.debug("write_3d_series {} {}".format(dirname, self.serInsUid))
+        logging.debug("write_3d_series {}".format(self.serInsUid))
 
         ifile = 0
         for slice in range(slices):
@@ -526,20 +596,19 @@ class DICOMPlugin(AbstractPlugin):
                 filename = filename_template % (slice)
             except TypeError as e:
                 filename = filename_template + "_{}".format(slice)
-            if dirname and not os.path.isdir(dirname):
-                os.makedirs(dirname)
-            self.write_slice(0, slice, si, dirname, filename, ifile)
+            #if dirname and not os.path.isdir(dirname):
+            #    os.makedirs(dirname)
+            self.write_slice(0, slice, si, archive, filename, ifile)
             ifile += 1
         si.shape = save_shape
 
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
 
         Input
         - self: DICOMPlugin instance
         - si[tag,slice,rows,columns]: Series array
-        - dirname:  directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
 
         - si.series_number is inserted into each dicom object
@@ -548,6 +617,12 @@ class DICOMPlugin(AbstractPlugin):
         - opts['output_sort']: Which tag will sort the output images (slice or tag)
         - opts['output_dir']: Store all images in a single or multiple directories
         """
+
+        logging.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.dcm'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
 
         self.DicomHeaderDict = si.DicomHeaderDict
 
@@ -590,19 +665,25 @@ class DICOMPlugin(AbstractPlugin):
             for tag in range(steps):
                 for slice in range(slices):
                     if self.output_dir == 'single':
-                        dirn = dirname
-                        if not os.path.isdir(dirn):
-                            os.makedirs(dirn)
+                        #dirn = dirname
+                        #if not os.path.isdir(dirn):
+                        #    os.makedirs(dirn)
                         filename = filename_template % (ifile)
                     else: # self.output_dir == 'multi'
-                        dirn = os.path.join(dirname, "{0}{1:0{2}}".format(
+                        #dirn = os.path.join(dirname, "{0}{1:0{2}}".format(
+                        #    imagedata.formats.input_order_to_dirname_str(si.input_order),
+                        #    tag, digits))
+                        dirn = dirname, "{0}{1:0{2}}".format(
                             imagedata.formats.input_order_to_dirname_str(si.input_order),
-                            tag, digits))
-                        if not os.path.isdir(dirn):
-                            os.makedirs(dirn)
+                            tag, digits)
+                        #if not os.path.isdir(dirn):
+                        #    os.makedirs(dirn)
+                        if tag == 0:
+                            # Restart file number in each subdirectory
                             ifile = 0
-                        filename = filename_template % (ifile)
-                    self.write_slice(tag, slice, si, dirn, filename, ifile)
+                        filename = os.path.join(dirn,
+                                filename_template % (ifile))
+                    self.write_slice(tag, slice, si, archive, filename, ifile)
                     ifile += 1
         else: # self.output_sort == imagedata.formats.SORT_ON_TAG:
             ifile = 0
@@ -610,22 +691,26 @@ class DICOMPlugin(AbstractPlugin):
             for slice in range(slices):
                 for tag in range(steps):
                     if self.output_dir == 'single':
-                        dirn = dirname
-                        if not os.path.isdir(dirn):
-                            os.makedirs(dirn)
+                        #dirn = dirname
+                        #if not os.path.isdir(dirn):
+                        #    os.makedirs(dirn)
                         filename = filename_template % (ifile)
                     else: # self.output_dir == 'multi'
-                        dirn = os.path.join(dirname,
-                            "slice{0:0{1}}".format(slice, digits))
-                        if not os.path.isdir(dirn):
-                            os.makedirs(dirn)
+                        #dirn = os.path.join(dirname,
+                        #    "slice{0:0{1}}".format(slice, digits))
+                        dirn = "slice{0:0{1}}".format(slice, digits)
+                        #if not os.path.isdir(dirn):
+                        #    os.makedirs(dirn)
+                        if slice == 0:
+                            # Restart file number in each subdirectory
                             ifile = 0
-                        filename = filename_template % (ifile)
-                    self.write_slice(tag, slice, si, dirn, filename, ifile)
+                        filename = os.path.join(dirn,
+                                filename_template % (ifile))
+                    self.write_slice(tag, slice, si, archive, filename, ifile)
                     ifile += 1
         si.shape = save_shape
 
-    def write_slice(self, tag, slice, si, dirname, filename, ifile):
+    def write_slice(self, tag, slice, si, archive, filename, ifile):
         """Write single slice to DICOM file
 
         Input:
@@ -644,7 +729,7 @@ class DICOMPlugin(AbstractPlugin):
             spacing
             orientation
             imagePositions
-        - dirname:  directory name
+        - archive: archive object
         - filename: file name, possible without '.dcm' extension
         - ifile: instance number in series
         """
@@ -657,7 +742,13 @@ class DICOMPlugin(AbstractPlugin):
             safe_si = si.copy()
 
         try:
-            tg,fname,im = si.DicomHeaderDict[slice][tag]
+            #tg,fname,im = si.DicomHeaderDict[slice][tag]
+            tg,member_name,im = si.DicomHeaderDict[slice][tag]
+            #source_archive,source_filename = member_name
+            #member = archive.getmembers([filename,])
+            #if len(member) != 1:
+            #    raise IndexError('Should not be multiple files for a filename')
+            #member = member[0]
         except IndexError:
             raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]" % (slice, tag))
         except AttributeError:
@@ -717,11 +808,14 @@ class DICOMPlugin(AbstractPlugin):
         ds.Rows    = si.shape[2]
         ds.Columns = si.shape[3]
         self.insert_pixeldata(ds, safe_si[tag,slice])
-        if os.path.splitext(filename)[1] == '.dcm':
+        logging.debug("write_slice: filename {}".format(filename))
+        if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
         else:
             fn = filename+'.dcm'
-        ds.save_as(os.path.join(dirname,fn), write_like_original=False)
+        logging.debug("write_slice: fn {}".format(fn))
+        with archive.open(fn, 'wb') as f:
+            ds.save_as(f, write_like_original=False)
 
     def construct_dicom(self, filename, template, serInsUid):
 

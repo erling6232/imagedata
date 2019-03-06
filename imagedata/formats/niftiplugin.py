@@ -5,6 +5,7 @@
 
 import os.path
 import sys
+import tempfile
 import logging
 import fs
 import math
@@ -57,7 +58,7 @@ class NiftiPlugin(AbstractPlugin):
         #TODO: Read nifti directly from open file object
         #      Should be able to do something like:
         #
-        # with archive.getmember(member_name) as member:
+        # with archive.open(member_name) as member:
         #    # Create a nibabel image using
         #    # the existing file handle.
         #    fmap = nibabel.nifti1.Nifti1Image.make_file_map()
@@ -74,7 +75,7 @@ class NiftiPlugin(AbstractPlugin):
         except:
             raise
         info = img.get_header()
-        si = self._reorder_data(img.get_data(), flip=True)
+        si = self._reorder_to_dicom(img.get_data(), flip=True)
         return (info, si)
 
     def _need_local_file(self):
@@ -151,8 +152,8 @@ class NiftiPlugin(AbstractPlugin):
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logging.debug("_set_tags: times {}".format(times))
         tags = {}
-        for slice in range(nz):
-            tags[slice] = np.array(times)
+        for z in range(nz):
+            tags[z] = np.array(times)
         hdr['tags'] = tags
 
     '''
@@ -356,7 +357,10 @@ class NiftiPlugin(AbstractPlugin):
 
         columns,rows,slices = nifti_shape
         logging.info("NIFTI shape: %dx%dx%d, dtype %s" % (columns,rows,slices, data.dtype))
-        if len(data.shape) == 3:
+        if len(data.shape) == 2:
+            logging.info("DCM shape: %dx%d" % (data.shape[0],data.shape[1]))
+            si = np.fliplr(data.T)
+        elif len(data.shape) == 3:
             logging.info("DCM shape: %dx%dx%d" % (data.shape[0],data.shape[1],data.shape[2]))
             si = np.zeros([columns,rows,slices], data.dtype)
             for z in range(slices):
@@ -381,12 +385,17 @@ class NiftiPlugin(AbstractPlugin):
 
         logging.info("DCM shape: %dtx%dx%dx%d" % (data.shape[0],data.shape[1],data.shape[2],data.shape[3]))
         si = np.zeros([columns,rows,slices,t], data.dtype)
+        #logging.debug('reorder_data_in_4d: got data {}'.format(data.shape))
+        #logging.debug('reorder_data_in_4d: got si {}'.format(si.shape))
+        #logging.debug('reorder_data_in_4d: slices {}'.format(slices))
         for i in range(t):
             for z in range(slices):
+                #logging.debug('reorder_data_in_4d: .T {} {}'.format(z,i))
                 si[:,:,z,i] = np.fliplr(data[i,z,:,:].T)
+        #logging.debug('reorder_data_in_4d: return')
         return si
 
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Nifti file
 
         Input:
@@ -398,21 +407,27 @@ class NiftiPlugin(AbstractPlugin):
             transformationMatrix*
             orientation*
             tags*
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
 
+        logging.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image.nii.gz'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
+
         self.slices               = si.slices
         self.spacing              = si.spacing
-        self.imagePositions       = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
         self.orientation          = si.orientation
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
-        if si.ndim == 3:
+        if si.ndim == 2:
+            si.shape = (1,1,) + si.shape
+        elif si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
         if si.shape[0] != 1:
@@ -421,7 +436,8 @@ class NiftiPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        fsi=self.reorder_data_in_3d(si)
+        #fsi=self.reorder_data_in_3d(si)
+        fsi = self._reorder_to_dicom(si, flip=True)
         shape = fsi.shape
 
         #qform = self.affine_to_nifti(shape)
@@ -440,15 +456,19 @@ class NiftiPlugin(AbstractPlugin):
         #NiftiHeader.set_xyzt_units(xyz='mm', t='sec')
         NiftiHeader.set_xyzt_units(xyz='mm')
         img = nibabel.Nifti1Image(fsi, None, NiftiHeader)
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
-        filename = filename_template % (0)
-        if len(os.path.splitext(filename)[1]) == 0:
-            filename = filename + '.nii.gz'
-        img.to_filename(os.path.join(dirname, filename))
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
+        try:
+            filename = filename_template % (0)
+        except TypeError:
+            filename = filename_template
+        #if len(os.path.splitext(filename)[1]) == 0:
+        #    filename = filename + '.nii.gz'
+        #img.to_filename(os.path.join(dirname, filename))
+        self.write_numpy_nifti(img, archive, filename)
         si.shape = save_shape
 
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Nifti file
 
         Input:
@@ -460,17 +480,21 @@ class NiftiPlugin(AbstractPlugin):
             transformationMatrix
             orientation
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
 
-        fsi=self.reorder_data_in_4d(si)
-        shape = fsi.shape
+        logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image.nii.gz'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
+
+        #fsi=self.reorder_data_in_4d(si)
+        #shape = fsi.shape
 
         self.slices               = si.slices
         self.spacing              = si.spacing
-        self.imagePositions       = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
         self.orientation          = si.orientation
         self.tags                 = si.tags
@@ -482,7 +506,9 @@ class NiftiPlugin(AbstractPlugin):
 
         save_shape = si.shape
         # Should we allow to write 3D volume?
-        if si.ndim == 3:
+        if si.ndim == 2:
+            si.shape = (1,1,) + si.shape
+        elif si.ndim == 3:
             si.shape = (1,) + si.shape
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
@@ -503,7 +529,9 @@ class NiftiPlugin(AbstractPlugin):
 
         #qform = self.affine_to_nifti(shape)
         #qform = self.getQform()
+        logging.debug("write_4d_numpy: get qform")
         qform = self.getQformFromTransformationMatrix(shape)
+        logging.debug("write_4d_numpy: got qform")
         NiftiHeader = nibabel.Nifti1Header()
         NiftiHeader.set_dim_info(freq=0, phase=1, slice=2)
         NiftiHeader.set_data_shape(shape)
@@ -516,13 +544,49 @@ class NiftiPlugin(AbstractPlugin):
         #NiftiHeader.set_slice_times(times)
         NiftiHeader.set_xyzt_units(xyz='mm', t='sec')
         img = nibabel.Nifti1Image(fsi, None, NiftiHeader)
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
-        filename = filename_template % (0)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
+        try:
+            filename = filename_template % (0)
+        except TypeError:
+            filename = filename_template
+        #if len(os.path.splitext(filename)[1]) == 0:
+        #    filename = filename + '.nii.gz'
+        #img.to_filename(os.path.join(dirname, filename))
+        self.write_numpy_nifti(img, archive, filename)
+        si.shape = save_shape
+
+    def write_numpy_nifti(self, img, archive, filename):
+        """Write nifti data to file
+
+        Input:
+        - self: ITKPlugin instance, including these attributes:
+            slices (not used)
+            spacing
+            imagePositions
+            transformationMatrix
+            orientation (not used)
+            tags (not used)
+        - img: Nifti1Image
+        - archive: archive object
+        - filename: file name, possibly without extentsion
+        """
+
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.nii.gz'
-        img.to_filename(os.path.join(dirname, filename))
-        si.shape = save_shape
+        ext = os.path.splitext(filename)[1]
+        if filename.endswith('.nii.gz'):
+            ext = '.nii.gz'
+        logging.debug('write_numpy_nifti: ext %s' % ext)
+
+        f = tempfile.NamedTemporaryFile(
+                suffix=ext, delete=False)
+        logging.debug('write_numpy_nifti: write local file %s' % f.name)
+        img.to_filename(f.name)
+        f.close()
+        logging.debug('write_numpy_nifti: copy to file %s' % filename)
+        fh = archive.add_localfile(f.name, filename)
+        os.unlink(f.name)
 
     def copy(self, other=None):
         if other is None: other = NiftiPlugin()

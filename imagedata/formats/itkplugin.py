@@ -7,6 +7,7 @@ import os.path
 import sys
 import logging
 import mimetypes
+import tempfile
 import fs
 import fs.tempfs
 import itk
@@ -78,6 +79,7 @@ class ITKPlugin(AbstractPlugin):
 
             #img = itk.GetArrayFromImage(reader.GetOutput())
             img = itk.GetArrayFromImage(reader)
+            self._reduce_shape(img)
             logging.info("Data shape read ITK: {}".format(img.shape))
 
             #nz, ny, nx = img.shape
@@ -243,7 +245,7 @@ class ITKPlugin(AbstractPlugin):
     #	# writer.SetFileTypeToBinary()
     #	writer.Write()
 
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as ITK file
 
         Input:
@@ -255,12 +257,16 @@ class ITKPlugin(AbstractPlugin):
             transformationMatrix
             orientation
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
 
-        #image = self.get_image_from_numpy(si[:,:,:])
+        logging.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.mha'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
+
         self.slices               = si.slices
         self.spacing              = si.spacing
         self.imagePositions       = si.imagePositions
@@ -279,17 +285,17 @@ class ITKPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
         try:
             filename = filename_template % (0)
         except TypeError:
             filename = filename_template
-        filename = os.path.join(dirname, filename)
-        self.write_numpy_itk(si[0,...], filename)
+        #filename = os.path.join(dirname, filename)
+        self.write_numpy_itk(si[0,...], archive, filename)
         si.shape = save_shape
 
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as ITK files
 
         Input:
@@ -301,10 +307,15 @@ class ITKPlugin(AbstractPlugin):
             transformationMatrix
             orientation
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.mha'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
 
         self.slices               = si.slices
         self.spacing              = si.spacing
@@ -336,24 +347,24 @@ class ITKPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
 
         logging.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
             si[0,0,0,0]))
         if self.output_sort == imagedata.formats.SORT_ON_TAG:
             for slice in range(slices):
                 filename = filename_template % (slice)
-                filename = os.path.join(dirname, filename)
-                self.write_numpy_itk(si[:,slice,...], filename)
+                #filename = os.path.join(dirname, filename)
+                self.write_numpy_itk(si[:,slice,...], archive, filename)
         else: # default: imagedata.formats.SORT_ON_SLICE:
             for tag in range(steps):
                 filename = filename_template % (tag)
-                filename = os.path.join(dirname, filename)
-                self.write_numpy_itk(si[tag,...], filename)
+                #filename = os.path.join(dirname, filename)
+                self.write_numpy_itk(si[tag,...], archive, filename)
         si.shape = save_shape
 
-    def write_numpy_itk(self, si, filename):
+    def write_numpy_itk(self, si, archive, filename):
         """Write single volume to file
 
         Input:
@@ -365,6 +376,7 @@ class ITKPlugin(AbstractPlugin):
             orientation (not used)
             tags (not used)
         - si: numpy 3D array [slice,row,column]
+        - archive: archive object
         - filename: file name, possibly without extentsion
         """
 
@@ -406,24 +418,36 @@ class ITKPlugin(AbstractPlugin):
         cast = itk.CastImageFilter[InputImageType, OutputImageType].New(image)
         itk.imwrite(cast, "output_filename.png")
         """
-        try:
-            writer = itk.ImageFileWriter[fromImageType].New()
-        except KeyError:
-            # Does not support the output format
-            raise
-        #writer.SetInput(image.GetPointer())
-        writer.SetInput(image)
-        #writer.SetInput(image.GetOutput())
+        #try:
+        #    writer = itk.ImageFileWriter[fromImageType].New()
+        #except KeyError:
+        #    # Does not support the output format
+        #    raise
+        ##writer.SetInput(image.GetPointer())
+        #writer.SetInput(image)
+        ##writer.SetInput(image.GetOutput())
 
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.mha'
-        writer.SetFileName(filename)
+        ext = os.path.splitext(filename)[1]
+        logging.debug('write_numpy_itk: ext %s' % ext)
+        #writer.SetFileName(filename)
 
-        #writer.SetRAWFileName(filename+".raw")
-        #writer.SetInput(flipper.GetOutput())
-        # writer.SetFileTypeToBinary()
-        #writer.Write()
-        writer.Update()
+        ##writer.SetRAWFileName(filename+".raw")
+        ##writer.SetInput(flipper.GetOutput())
+        ## writer.SetFileTypeToBinary()
+        ##writer.Write()
+        #writer.Update()
+        f = tempfile.NamedTemporaryFile(
+                suffix=ext, delete=False)
+        logging.debug('write_numpy_itk: write local file %s' % f.name)
+        itk.imwrite(image, f.name)
+        f.close()
+        logging.debug('write_numpy_itk: written local file %s' % f)
+        logging.debug('write_numpy_itk: copy to archive %s as %s' % (
+            archive, filename))
+        archive.add_localfile(f.name, filename)
+        os.unlink(f.name)
 
     def orientationFromVnlMatrix(self, direction):
         tr=direction.GetVnlMatrix()

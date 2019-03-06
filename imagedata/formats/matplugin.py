@@ -79,19 +79,8 @@ class MatPlugin(AbstractPlugin):
             logging.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name,shape,dtype))
             mdict = scipy.io.loadmat(f, variable_names=(name,))
             logging.debug('matplugin._read_image variable {}'.format(name))
-            newshape = tuple(reversed(shape))
-            logging.debug('matplugin._read_image newshape {}'.format(newshape))
-            si = self._reorder_data(mdict[name])
+            si = self._reorder_to_dicom(mdict[name])
             logging.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
-            if si.ndim == 2:
-                nt, nz, ny, nx = (1, 1,) + si.shape
-            elif si.ndim == 3:
-                nt, nz, ny, nx = (1,) + si.shape
-            elif si.ndim == 4:
-                nt, nz, ny, nx = si.shape
-            else:
-                raise MatrixDimensionNotImplemented('Matrix dimension {} is not implemented'.format(si.shape))
-
         except imagedata.formats.NotImageError:
             raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(path))
         return(info,si)
@@ -124,7 +113,7 @@ class MatPlugin(AbstractPlugin):
             tags[slice] = np.array(times)
         hdr['tags'] = tags
 
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as MAT file
 
         Input:
@@ -133,10 +122,15 @@ class MatPlugin(AbstractPlugin):
             slices
             spacing
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        logging.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.mat'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
 
         self.slices               = si.slices
         self.spacing              = si.spacing
@@ -150,27 +144,32 @@ class MatPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        newshape = tuple(reversed(si.shape))
-        logging.info("Data shape matlab write: {}".format(imagedata.formats.shape_to_str(newshape)))
-        logging.debug('matplugin.write_3d_numpy newshape {}'.format(newshape))
+        #newshape = tuple(reversed(si.shape))
+        #logging.info("Data shape matlab write: {}".format(imagedata.formats.shape_to_str(newshape)))
+        #logging.debug('matplugin.write_3d_numpy newshape {}'.format(newshape))
         #img = si.reshape(newshape, order='C')
         #img = si.reshape(newshape, order='F')
         #img = np.asfortranarray(si)
-        img = self._dicom_to_mat(si)
-        logging.debug('matplugin.write_3d_numpy si  {} {}'.format(si.shape, si.dtype))
-        logging.debug('matplugin.write_3d_numpy img {} {}'.format(img.shape, img.dtype))
+        #img = self._dicom_to_mat(si)
+        #img = self._reorder_from_dicom(si)
+        #logging.debug('matplugin.write_3d_numpy si  {} {}'.format(si.shape, si.dtype))
+        #logging.debug('matplugin.write_3d_numpy img {} {}'.format(img.shape, img.dtype))
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
         try:
             filename = filename_template % (0)
         except TypeError:
             filename = filename_template
-        filename = os.path.join(dirname, filename)
-        scipy.io.savemat(filename, {'A': img})
+        #filename = os.path.join(dirname, filename)
+        if len(os.path.splitext(filename)[1]) == 0:
+            filename = filename + '.mat'
+        with archive.open(filename, 'wb') as f:
+            #scipy.io.savemat(f, {'A': img})
+            scipy.io.savemat(f, {'A': self._reorder_from_dicom(si)})
         si.shape = save_shape
 
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as MAT files
 
         Input:
@@ -179,10 +178,15 @@ class MatPlugin(AbstractPlugin):
             slices
             spacing
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        logging.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
+        archive = destination['archive']
+        filename_template = 'Image_%05d.mat'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
 
         self.slices               = si.slices
         self.spacing              = si.spacing
@@ -212,12 +216,18 @@ class MatPlugin(AbstractPlugin):
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
 
         filename = filename_template % (0)
-        filename = os.path.join(dirname, filename)
-        scipy.io.savemat(filename, {'A': self._dicom_to_mat(si)})
+        #filename = os.path.join(dirname, filename)
+        if len(os.path.splitext(filename)[1]) == 0:
+            filename = filename + '.mat'
+        with archive.open(filename, 'wb') as f:
+            #scipy.io.savemat(f, {'A': self._reorder_from_dicom(si)})
+            img = self._reorder_from_dicom(si)
+            logging.debug("write_4d_numpy: Calling savemat")
+            scipy.io.savemat(f, {'A': img})
         si.shape = save_shape
 
     def copy(self, other=None):

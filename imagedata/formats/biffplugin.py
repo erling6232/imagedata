@@ -86,88 +86,29 @@ class BiffPlugin(AbstractPlugin):
         super(BiffPlugin, self).__init__(self.name, self.description,
               self.authors, self.version, self.url)
 
-    def read(self, sources, pre_hdr, input_order, opts):
-        """Read image data
+    def _read_image(self, f, opts, hdr):
+        """Read image data from given file handle
 
         Input:
-        - sources: list of sources to image data
-        - pre_hdr: Pre-filled header dict.  Might be None
-        - input_order
+        - self: format plugin instance
+        - f: file handle or filename (depending on self._need_local_file)
         - opts: Input options (dict)
+        - hdr: Header dict
         Output:
         - hdr: Header dict
-            input_format
-            input_order
-            input_sort
-            slices
-            tags
-        - si[tag,slice,rows,columns]: numpy array
+        Return values:
+        - info: Internal data for the plugin
+          None if the given file should not be included (e.g. raw file)
+        - si: numpy array (multi-dimensional)
         """
 
-        hdr = {}
-        hdr['input_format'] = self.name
-        hdr['input_order'] = input_order
-
-        #if len(sources) > 1 and files is not None:
-        #    raise FilesGivenForMultipleURLs("Files shall not be given when there are multiple URLs")
-
-        # Scan filelist to determine data size
-        image_list = list()
-        for source in sources:
-            logging.debug("biffplugin.read: source: {} {}".format(type(source), source))
-            archive = source['archive']
-            scan_files = source['files']
-            if scan_files is None or len(scan_files) == 0:
-                scan_files = archive.getnames()
-            for path in archive.getmembers(scan_files):
-                logging.debug("biffplugin.read filehandle {}".format(path))
-                with archive.getmember(path, mode='rb') as f:
-                    image_list.append(
-                        self._read_image(f, opts, hdr)
-                    )
-        if len(image_list) < 1:
-            raise ValueError('No image data read.')
-        shape = (len(image_list),) + image_list[0].shape
-        dtype = image_list[0].dtype
-        logging.debug('biffplugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, dtype)
-        i = 0
-        for img in image_list:
-            logging.debug('biffplugin.read: img {} si {}'.format(img.shape,
-                si.shape))
-            si[i] = img
-            i += 1
-
-        # Simplify shape when nt == 1
-        if si.ndim == 4:
-            nt,nz,ny,nx = si.shape
-            if nt == 1:
-                si.shape = si.shape[1:]
-        elif si.ndim == 3:
-            nt = 1
-            nz,ny,nx = si.shape
-            if nz == 1:
-                si.shape = si.shape[1:]
-
-        logging.debug('BiffPlugin.read: nt,nz,ny,nx: {} {} {} {}'.format(nt,nz,ny,nx))
-        hdr['slices'] = nz
-        hdr['tags']   = {}
-        for slice in range(nz):
-            hdr['tags'][slice] = np.array([t for t in range(nt)])
-
-        # Add any DICOM template
-        if pre_hdr is not None:
-            hdr.update(pre_hdr)
-
-        return hdr,si
-
-    def _read_image(self, f, opts, hdr):
+        info = {}
         self.status = None
         self.f = f
         try:
             self._read_info()
         except:
-            raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(path))
+            raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(f))
         self.status = 'read'
         logging.debug("biffplugin._read_image %s" % f)
         if self.nbands == 0:
@@ -208,9 +149,30 @@ class BiffPlugin(AbstractPlugin):
                     iband += 1
         if len(img.shape) > 2 and img.shape[0] == 1:
             img.shape = img.shape[1:]
-        return(img)
+        return(info,img)
 
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def _set_tags(self, image_list, hdr, si):
+        """Set header tags.
+
+        Input:
+        - self: format plugin instance
+        - image_list: list with (info,img) tuples
+        - hdr: Header dict
+        - si: numpy array (multi-dimensional)
+        Output:
+        - hdr: Header dict
+        """
+
+        hdr['tags']   = {}
+        nt = nz = 1
+        if si.ndim > 2:
+            nz = si.shape[-3]
+        if si.ndim > 3:
+            nt = si.shape[-4]
+        for slice in range(nz):
+            hdr['tags'][slice] = np.array([t for t in range(nt)])
+
+    def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Xite biff file
 
         Input:
@@ -219,18 +181,26 @@ class BiffPlugin(AbstractPlugin):
             input_sort
             slices
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
 
+        archive = destination['archive']
+        filename_template = 'Image_%05d.biff'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
+        logging.debug('BiffPlugin.write_3d_series: archive {}'.format(archive))
+        logging.debug('BiffPlugin.write_3d_series: filename_template {}'.format(filename_template))
         logging.debug('BiffPlugin.write_3d_series: si {}'.format(type(si)))
         #logging.debug('BiffPlugin.write_3d_series: si {}'.format(si.__dict__))
-        self.slices               = si.slices
-        self.tags                 = si.tags
-        self.output_dir           = 'single'
+        self.slices = si.slices
+        try:
+            self.tags = si.tags
+        except ValueError:
+            self.tags = None
+        self.output_dir = 'single'
         if 'output_dir' in opts:
-            self.output_dir       = opts['output_dir']
+            self.output_dir = opts['output_dir']
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
@@ -243,13 +213,13 @@ class BiffPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
         try:
             filename = filename_template % (0)
         except TypeError:
             filename = filename_template
-        filename = os.path.join(dirname, filename)
+        #filename = os.path.join(dirname, filename)
 
         if np.issubdtype(si.dtype, np.floating):
             self.arr=np.nan_to_num(si)
@@ -269,7 +239,7 @@ class BiffPlugin(AbstractPlugin):
         self._set_text('')
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.biff'
-        with open(filename, 'wb') as f:
+        with archive.open(filename, 'wb') as f:
             self._open_image(f, 'w')
 
             iband = 0
@@ -280,7 +250,7 @@ class BiffPlugin(AbstractPlugin):
             self._write_text()
         si.shape = save_shape
 
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Xite biff file
 
         Input:
@@ -289,16 +259,27 @@ class BiffPlugin(AbstractPlugin):
             input_sort
             slices
             tags
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
 
-        self.slices               = si.slices
-        self.tags                 = si.tags
-        self.output_dir           = 'single'
+        archive = destination['archive']
+        filename_template = 'Image_%05d.biff'
+        if len(destination['files'][0]) > 0:
+            filename_template = destination['files'][0]
+        logging.debug('BiffPlugin.write_4d_series: archive {}'.format(archive))
+        logging.debug('BiffPlugin.write_4d_series: filename_template {}'.format(filename_template))
+
+        self.slices = si.slices
+        try:
+            self.tags = si.tags
+        except ValueError:
+            self.tags = None
+
+        # Defaults
+        self.output_dir = 'single'
         if 'output_dir' in opts:
-            self.output_dir       = opts['output_dir']
+            self.output_dir = opts['output_dir']
 
         save_shape = si.shape
         # Should we allow to write 3D volume?
@@ -307,10 +288,6 @@ class BiffPlugin(AbstractPlugin):
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
 
-        logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
-            si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(opts['output_sort'])))
-
         logging.debug("write_4d_numpy: si.tags {} si.slices {}".format(len(si.tags[0]), si.slices))
         steps,slices,ny,nx = si.shape[:]
         if steps != len(si.tags[0]):
@@ -318,13 +295,18 @@ class BiffPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        if not os.path.isdir(dirname):
-            os.makedirs(dirname)
+        #if not os.path.isdir(dirname):
+        #    os.makedirs(dirname)
         
+        self.output_sort = imagedata.formats.SORT_ON_SLICE
         if 'output_sort' not in opts or opts['output_sort'] is None:
             self.output_sort = si.input_sort
-        else:
+        elif 'output_sort' in opts:
             self.output_sort = opts['output_sort']
+
+        logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
+            si.dtype, si.shape,
+            imagedata.formats.sort_on_to_str(self.output_sort)))
 
         if np.issubdtype(si.dtype, np.floating):
             self.arr=np.nan_to_num(si)
@@ -345,11 +327,11 @@ class BiffPlugin(AbstractPlugin):
                 filename = filename_template % (0)
             except TypeError:
                 filename = filename_template
-            filename = os.path.join(dirname, filename)
+            #filename = os.path.join(dirname, filename)
             if len(os.path.splitext(filename)[1]) == 0:
                 filename = filename + '.biff'
             self._set_text('')
-            with open(filename, 'wb') as f:
+            with archive.open(filename, 'wb') as f:
                 self._open_image(f, 'w')
                 iband = 0
                 if self.output_sort == imagedata.formats.SORT_ON_TAG:
@@ -369,11 +351,11 @@ class BiffPlugin(AbstractPlugin):
                 digits = len("{}".format(slices))
                 for slice in range(slices):
                     filename="slice{0:0{1}}".format(slice, digits)
-                    filename = os.path.join(dirname, filename)
+                    #filename = os.path.join(dirname, filename)
                     if len(os.path.splitext(filename)[1]) == 0:
                         filename = filename + '.biff'
                     self._set_text('')
-                    with open(filename, 'wb') as f:
+                    with archive.open(filename, 'wb') as f:
                         self._open_image(f, 'w')
                         iband = 0
                         for tag in range(steps):
@@ -386,11 +368,11 @@ class BiffPlugin(AbstractPlugin):
                 for tag in range(steps):
                     filename="{0}{1:0{2}}".format(imagedata.formats.input_order_to_dirname_str(si.input_order),
                                                   tag, digits)
-                    filename = os.path.join(dirname, filename)
+                    #filename = os.path.join(dirname, filename)
                     if len(os.path.splitext(filename)[1]) == 0:
                         filename = filename + '.biff'
                     self._set_text('')
-                    with open(filename, 'wb') as f:
+                    with archive.open(filename, 'wb') as f:
                         self._open_image(f, 'w')
                         iband = 0
                         for slice in range(slices):

@@ -29,6 +29,7 @@ class UnknownTag(Exception): pass
 class NotTimeOrder(Exception): pass
 class SOPInstanceUIDNotFound(Exception): pass
 class FormatPluginNotFound(Exception): pass
+class WriteNotImplemented(Exception): pass
 
 def sort_on_to_str(sort_on):
     if sort_on == SORT_ON_SLICE:

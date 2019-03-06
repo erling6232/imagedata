@@ -113,7 +113,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     logging.debug("AbstractPlugin.read: need local file {}".format(file_handle))
                     f = archive.to_localfile(file_handle)
                 else:
-                    f = archive.getmember(file_handle, mode='rb')
+                    f = archive.open(file_handle, mode='rb')
                 logging.debug("AbstractPlugin.read: file {}".format(f))
                 info, si = self._read_image(f, opts, hdr)
                 # info is None when no image was read
@@ -160,6 +160,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
+        logging.debug('AbstractPlugin.read: hdr {}'.format(
+            hdr.keys()))
         return hdr,si
 
     def _need_local_file(self):
@@ -205,27 +207,29 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def write_3d_numpy(self, si, dirname, filename_template, opts):
+    def write_3d_numpy(self, si, destination, opts):
+        #def write_3d_numpy(self, si, destination, filename_template, opts):
         """Write 3D Series image
 
         Input:
         - self: format plugin instance
         - si[slice,rows,columns]: Series array
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
+        #- filename_template: template including %d for image number
         - opts: Output options (dict)
         """
         pass
 
     @abstractmethod
-    def write_4d_numpy(self, si, dirname, filename_template, opts):
+    def write_4d_numpy(self, si, destination, opts):
+        #def write_4d_numpy(self, si, destination, filename_template, opts):
         """Write 4D Series image
 
         Input:
         - self: format plugin instance
         - si[tag,slice,rows,columns]: Series array
-        - dirname: directory name
-        - filename_template: template including %d for image number
+        - destination: dict of archive and filenames
+        #- filename_template: template including %d for image number
         - opts: Output options (dict)
         """
         pass
@@ -428,26 +432,30 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             else:
                 break
 
-    def _reorder_data(self, data, flip=False):
-        """Reorder data. Swap axes, except for rows and columns.
-        The same procedure can be used both ways between formats.
+    def _reorder_to_dicom(self, data, flip=False):
+        """Reorder data to internal DICOM format.
+        Swap axes, except for rows and columns.
 
         5D:
-        Nifti order: data[rows,columns,slices,tags,d5]
+        data  order: data[rows,columns,slices,tags,d5]
         DICOM order: si  [d5,tags,slices,rows,columns]
 
         4D:
-        Nifti order: data[rows,columns,slices,tags]
+        data  order: data[rows,columns,slices,tags]
         DICOM order: si  [tags,slices,rows,columns]
 
         3D:
-        Nifti order: data[rows,columns,slices]
+        data  order: data[rows,columns,slices]
         DICOM order: si  [slices,rows,columns]
+
+        2D:
+        data  order: data[rows,columns]
+        DICOM order: si  [rows,columns]
 
         flip: Whether rows and columns are swapped.
         """
 
-        logging.debug('AbstractPlugin._reorder_data: shape in {}'.format(
+        logging.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
             data.shape))
         if data.ndim == 5:
             rows,columns,slices,tags,d5 = data.shape
@@ -494,7 +502,81 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
-        logging.debug('AbstractPlugin._reorder_data: shape out {}'.format(
+        logging.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
+            si.shape))
+        return(si)
+
+    def _reorder_from_dicom(self, data, flip=False):
+        """Reorder data from internal DICOM format.
+        Swap axes, except for rows and columns.
+
+        5D:
+        DICOM  order: data[d5,tags,slices,rows,columns]
+        return order: si  [rows,columns,slices,tags,d5]
+
+        4D:
+        DICOM  order: data[tags,slices,rows,columns]
+        return order: si  [rows,columns,slices,tags]
+
+        3D:
+        DICOM  order: data[slices,rows,columns]
+        return order: si  [rows,columns,slices]
+
+        2D:
+        DICOM  order: data[rows,columns]
+        return order: si [rows,columns]
+
+        flip: Whether rows and columns are swapped.
+        """
+
+        logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(
+            data.shape))
+        if data.ndim == 5:
+            d5,tags,slices,rows,columns = data.shape
+            if flip:
+                rows, columns = columns, rows
+            si = np.zeros((rows,columns,slices,tags,d5), data.dtype)
+            for d in range(d5):
+                for tag in range(tags):
+                    for slice in range(slices):
+                        if flip:
+                            si[:,:,slice,tag,d] = \
+                            np.fliplr(data[d,tag,slice,:,:]).T
+                        else:
+                            si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
+        elif data.ndim == 4:
+            tags,slices,rows,columns = data.shape
+            if flip:
+                rows, columns = columns, rows
+            si = np.zeros((rows,columns,slices,tags), data.dtype)
+            for tag in range(tags):
+                for slice in range(slices):
+                    if flip:
+                        si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
+                    else:
+                        si[:,:,slice,tag] = data[tag,slice,:,:]
+        elif data.ndim == 3:
+            slices,rows,columns = data.shape
+            if flip:
+                rows, columns = columns, rows
+            si = np.zeros((rows,columns,slices), data.dtype)
+            for slice in range(slices):
+                if flip:
+                    si[:,:,slice] = np.fliplr(data[slice,:,:]).T
+                else:
+                    si[:,:,slice] = data[slice,:,:]
+        elif data.ndim == 2:
+            rows,columns = data.shape
+            if flip:
+                rows, columns = columns, rows
+            si = np.zeros((rows,columns), data.dtype)
+            if flip:
+                si[:] = np.fliplr(data[:]).T
+            else:
+                si[:] = data[:]
+        else:
+            raise ValueError('Dimension %d is not implemented' % data.ndim)
+        logging.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
             si.shape))
         return(si)
 
