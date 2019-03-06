@@ -25,9 +25,10 @@ class AbstractArchive(object, metaclass=ABCMeta):
     the following methods:
 
     __init__() method
+    use_query() method
     getnames() method
     basename() method
-    getmember() method
+    open() method
     getmembers() method
     to_localfile() method
     read() method
@@ -44,6 +45,11 @@ class AbstractArchive(object, metaclass=ABCMeta):
         self.__url               = url
         self.__mimetypes         = mimetypes
         """Return an archive object for filehandle."""
+
+    @abstractmethod
+    def use_query(self):
+        """Do the plugin need the ?query part of the url?"""
+        pass
 
     @property
     def name(self):
@@ -96,7 +102,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         return self.__mimetypes
 
     @abstractmethod
-    def getnames(self):
+    def getnames(self, files=None):
         """Return the members as a list of their names.
         It has the same order as the members of the archive.
         """
@@ -115,8 +121,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def getmember(self, filehandle, mode='rb'):
-        """Return a member object for member given its filehandle.
+    def open(self, filehandle, mode='rb'):
+        """Open file. Return a member object for member given its filehandle.
         """
         pass
 
@@ -134,6 +140,18 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def add_localfile(self, local_file, filename):
+        """Add a local file to the archive.
+
+        Input:
+        - local_file: named local file
+        - filename: filename in the archive
+        Return:
+        - filehandle to file in the archive
+        """
+        pass
+
+    @abstractmethod
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
 
@@ -146,6 +164,12 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @abstractmethod
     def close(self):
         """Close archive.
+        """
+        pass
+
+    @abstractmethod
+    def is_file(self):
+        """Determine whether the archive points to a single file.
         """
         pass
 

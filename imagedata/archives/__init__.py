@@ -15,6 +15,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 #class NotImageError(Exception): pass
 class ArchivePluginNotFound(Exception): pass
+class FileAlreadyExistsError(Exception): pass
 
 def add_plugin_dir(dir):
     from pkgutil import extend_path
@@ -92,31 +93,42 @@ def get_plugins_dict():
     global plugins
     return plugins
 
-def find_plugin(ptype, transport, url, mode="r"):
+def find_plugin(ptype, url, mode="r"):
     """Return plugin for given image archive type."""
     global plugins
     if ptype in plugins:
         pname, pclass = plugins[ptype]
-        return pclass(transport=transport, url=url, mode=mode)
+        return pclass(url=url, mode=mode)
     raise ArchivePluginNotFound("Plugin for image archive {} not found.".format(ptype))
 
-def find_mimetype_plugin(mimetype, transport, url, mode="r"):
+def lookup_mimetype_plugin(mimetype):
+    """Return name of plugin that will handle given mimetype."""
+
+    if mimetype is None:
+        logging.debug("imagedata.archives.lookup_mimetype_plugin: filesystem")
+        return('filesystem')
+    for ptype in plugins.keys():
+        pname, pclass = plugins[ptype]
+        if mimetype in pclass.mimetypes:
+            return(pname)
+
+def find_mimetype_plugin(mimetype, url, mode="r"):
     """Return plugin for given file type."""
     global plugins
     urldict = urllib.parse.urlsplit(url, scheme="file")
     if mimetype is None:
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
-        return find_plugin('filesystem', transport, url, mode)
+        return find_plugin('filesystem', url, mode)
     logging.debug("imagedata.archive.find_mimetype_plugins: {}".format(plugins.keys()))
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
         logging.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
-            logging.debug("imagedata.archives.find_mimetype_plugin: {}".format(ptype))
-            return pclass(transport=transport, url=url, mode=mode)
+            logging.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype,mode))
+            return pclass(url=url, mode=mode)
     if os.path.isfile(urldict.path):
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
-        return find_plugin('filesystem', transport, url, mode)
+        return find_plugin('filesystem', url, mode)
     raise ArchivePluginNotFound("Plugin for MIME type {} not found.".format(mimetype))
 
 plugins = load_plugins()
