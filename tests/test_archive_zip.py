@@ -26,17 +26,52 @@ class test_zip_archive(unittest.TestCase):
         if len(self.opts.output_format) < 1: self.opts.output_format=['itk']
 
     def tearDown(self):
-        shutil.rmtree('tti3', ignore_errors=True)
-        shutil.rmtree('tti4', ignore_errors=True)
+        shutil.rmtree('ttaz', ignore_errors=True)
 
-    #@unittest.skip("skipping test_read_single_file")
-    def test_read_single_file(self):
-        si1 = Series(
-            'data/itk/time.zip?time/Image_00000.mha',
-            0,
-            self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+    #@unittest.skip("skipping test_unknown_mimetype")
+    def test_unknown_mimetype(self):
+        try:
+            archive = imagedata.archives.find_mimetype_plugin(
+                'unknown',
+                'data/itk/time.zip',
+                'r')
+        except imagedata.archives.ArchivePluginNotFound:
+            pass
+
+    #@unittest.skip("skipping test_mimetype")
+    def test_mimetype(self):
+        archive = imagedata.archives.find_mimetype_plugin(
+            'application/zip',
+            'data/itk/time.zip',
+            'r')
+
+    #@unittest.skip("skipping test_unknown_url")
+    def test_unknown_url(self):
+        try:
+            archive = imagedata.archives.find_mimetype_plugin(
+                'application/zip',
+                'unknown',
+                'r')
+        except imagedata.transports.RootDoesNotExist:
+            pass
+
+    #@unittest.skip("skipping test_new_archive")
+    def test_new_archive(self):
+        with imagedata.archives.find_mimetype_plugin(
+            'application/zip',
+            'ttaz/ar.zip',
+            'w') as archive:
+            with archive.open('test.txt', 'w') as f:
+                f.write(b'Hello world!')
+        with imagedata.archives.find_mimetype_plugin(
+            'application/zip',
+            'ttaz/ar.zip',
+            'r') as read_archive:
+            read_list = read_archive.getmembers('test.txt')
+            self.assertEqual(len(read_list), 1)
+            with read_archive.open(read_list[0], 'r') as f:
+                contents = f.read()
+        self.assertEqual(contents, 'Hello world!')
 
 if __name__ == '__main__':
     unittest.main()
