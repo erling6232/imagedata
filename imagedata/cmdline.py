@@ -81,6 +81,10 @@ def add_argparse_options(parser):
         help="Specify output datatype. Otherwise keep input datatype",
         choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
         default=None)
+    parser.add_argument('--psopt', dest="psopt",
+        help="GhostScript device for reading PostScript file",
+        choices=['png16m', 'pnggray'],
+        default='png16m')
     parser.add_argument('--odir', dest="output_dir",
         help="Store all images in a single or multiple directories (default: single)",
         choices=['single', 'multi'], default='single')
