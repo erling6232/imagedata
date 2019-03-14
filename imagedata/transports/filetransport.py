@@ -24,8 +24,10 @@ class FileTransport(AbstractTransport):
             self.authors, self.version, self.url, self.schemes)
         logging.debug("FileTransport __init__ root: {}".format(root))
         if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
+            logging.debug("FileTransport __init__ RootIsNotDirectory")
             raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
+            logging.debug("FileTransport __init__ RootDoesNotExist")
             raise RootDoesNotExist("Root ({}) does not exist".format(
                 root))
         self.__root = root
@@ -52,8 +54,8 @@ class FileTransport(AbstractTransport):
         for root, dirs, files in os.walk(self._get_path(top)):
             if root.startswith(self.__root):
                 local_root = root[len(self.__root)+1:]     # Strip off root
-            logging.debug('FileTransport.walk: dirs %s, files %s' %
-                    (dirs, files))
+            #logging.debug('FileTransport.walk: dirs %s, files %s' %
+            #        (dirs, files))
             walk_list.append((local_root, dirs, files))
         return walk_list
 
