@@ -5,8 +5,10 @@ import copy
 import numpy as np
 from numpy.compat import basestring
 import logging
+import pydicom.dataset
 import imagedata.formats
 import imagedata.readdata as readdata
+import imagedata.formats.dicomlib.uid
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -35,7 +37,8 @@ class Header(object):
                    'DicomHeaderDict', 'tags', 'spacing',
                    'imagePositions', 'orientation', 'seriesNumber',
                    'seriesDescription', 'imageType', 'frameOfReferenceUID',
-                   'input_sort', 'transformationMatrix']
+                   'input_sort', 'transformationMatrix',
+                   'color', 'photometricInterpretation']
 
     def __init__(self):
         """Initialize image header attributes to defaults
@@ -46,9 +49,86 @@ class Header(object):
         for attr in self.header_tags:
             try:
                 setattr(self, attr, None)
-            except:
+            except Exception:
                 pass
+        self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
 
+    def new_uid(self):
+        return self.__uid_generator.__next__()
+
+    def set_default_values(self):
+        if self.DicomHeaderDict is not None:
+            return
+        try:
+            slices = self.slices
+            tags = len(self.tags)
+        except TypeError:
+            return
+        self.stuInsUid = self.new_uid()
+        self.serInsUid = self.new_uid()
+        self.frameUid = self.new_uid()
+        logging.debug('Header.set_default_values: study  UID {}'.format(self.stuInsUid))
+        logging.debug('Header.set_default_values: series UID {}'.format(self.serInsUid))
+
+        self.DicomHeaderDict = {}
+        i = 0
+        for slice in range(self.slices):
+            self.DicomHeaderDict[slice] = {}
+        logging.debug('Header.set_default_values %d tags' % len(self.tags))
+        for tag in range(len(self.tags)):
+                self.DicomHeaderDict[slice][tag] = \
+                    (tag, None, 
+                        self._empty_ds(i)
+                    )
+                i += 1
+
+    def _empty_ds(self, i):
+        SOPInsUID = self.new_uid()
+
+        # Populate required values for file meta information
+        #file_meta = pydicom.dataset.Dataset()
+        #file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        #file_meta.MediaStorageSOPInstanceUID = SOPInsUID
+        #file_meta.ImplementationClassUID = "%s.1" % (self.root)
+        #file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+        # Create the FileDataset instance
+        # (initially no data elements, but file_meta supplied)
+        #ds = pydicom.dataset.FileDataset(
+        #        filename,
+        #        {},
+        #        file_meta=file_meta,
+        #        preamble=b"\0" * 128)
+
+        ds = pydicom.dataset.Dataset()
+
+        # Add the data elements
+        ds.StudyInstanceUID = self.stuInsUid
+        ds.SeriesInstanceUID = self.serInsUid
+        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7' # SC
+        ds.SOPInstanceUID = SOPInsUID
+        ds.FrameOfReferenceUID = self.frameUid
+
+        ds.PatientName = 'ANONYMOUS'
+        ds.PatientID = 'ANONYMOUS'
+        ds.Modality = 'SC'
+
+        # Image Plane Module Attributes
+        #ds.PixelSpacing
+        #ds.ImageOrientationPatient
+        #ds.ImagePositionPatient
+
+        # Image Pixel Module Attributes
+        #ds.SamplesPerPixel
+        #ds.PhotometricInterpretation
+        #ds.Rows
+        #ds.Columns
+        #ds.BitsAllocated
+        #ds.BitsStored
+        #ds.HighBit
+        #ds.PixelRepresentation
+
+        return ds
 
 class Series(np.ndarray):
     """Series class
@@ -74,23 +154,25 @@ class Series(np.ndarray):
             obj = np.asarray(data).view(cls)
             # Initialize attributes to defaults
             # cls.__init_attributes(cls, obj)
-            obj.__header = Header()
+            obj.header = Header()
 
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
                 # obj.__dict__ = data.__dict__.copy()  # carry forward attributes
-                obj.__header = copy.copy(data.__header)  # carry forward attributes
+                obj.header = copy.copy(data.header)  # carry forward attributes
 
             # set the new 'input_order' attribute to the value passed
-            obj.__header.input_order = input_order
+            obj.header.input_order = input_order
+            obj.header.set_default_values()
             return obj
         logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
         if issubclass(type(data), np.uint16) or issubclass(type(data), np.float32):
             obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
-            obj.__header = Header()
-            obj.__header.input_order = input_order
+            obj.header = Header()
+            obj.header.input_order = input_order
+            obj.header.set_default_values()
             return obj
 
         # Assuming data is url to input data
@@ -104,27 +186,29 @@ class Series(np.ndarray):
             # raise ValueError("Input data could not be resolved: ({}) {}".format(type(data),data))
             obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
-            obj.__header = Header()
-            obj.__header.input_order = input_order
+            obj.header = Header()
+            obj.header.input_order = input_order
+            obj.header.set_default_values()
             return obj
 
         # Read input, hdr is dict of attributes
         hdr, si = readdata.read(urls, input_order, opts)
 
         obj = np.asarray(si).view(cls)
-        obj.__header = Header()
+        obj.header = Header()
 
         # set the new 'input_order' attribute to the value passed
-        obj.__header.input_order = input_order
+        obj.header.input_order = input_order
         # Copy attributes from hdr dict to newly created obj
         logging.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
-        for attr in obj.__header.header_tags:
+        for attr in obj.header.header_tags:
             if attr in hdr:
                 # logging.debug('Series.__new__: Set {} to {}'.format(attr, hdr[attr]))
-                setattr(obj.__header, attr, hdr[attr])
+                setattr(obj.header, attr, hdr[attr])
             else:
                 # logging.debug('Series.__new__: Set {} to None'.format(attr))
-                setattr(obj.__header, attr, None)
+                setattr(obj.header, attr, None)
+        obj.header.set_default_values()
         # Finally, we must return the newly created object
         return obj
 
@@ -159,9 +243,10 @@ class Series(np.ndarray):
             # Copy attributes from obj to newly created self
             # logging.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             # self.__dict__ = obj.__dict__.copy()  # carry forward attributes
-            self.__header = copy.copy(obj.__header)  # carry forward attributes
+            self.header = copy.copy(obj.header)  # carry forward attributes
         else:
-            self.__header = Header()
+            self.header = Header()
+            self.header.set_default_values()
 
         # We do not need to return anything
 
@@ -210,7 +295,7 @@ class Series(np.ndarray):
 
         if method == 'at':
             if isinstance(inputs[0], Series):
-                inputs[0].__header = info
+                inputs[0].header = info
             return
 
         if ufunc.nout == 1:
@@ -221,7 +306,7 @@ class Series(np.ndarray):
                         for result, output in zip(results, outputs))
         if results and isinstance(results[0], Series):
             # logging.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
-            results[0].__header = self._unify_headers(inputs)
+            results[0].header = self._unify_headers(inputs)
 
         return results[0] if len(results) == 1 else results
 
@@ -243,7 +328,7 @@ class Series(np.ndarray):
         for i, input_ in enumerate(inputs):
             if isinstance(input_, Series):
                 if header is None:
-                    header = input_.__header
+                    header = input_.header
                     # logging.debug('Series._unify_headers: copy header')
                 # else:
                 # Here we could have compared the headers of
@@ -272,7 +357,7 @@ class Series(np.ndarray):
             for attr, value in todo:
                 try:
                     setattr(ret, attr, value)
-                except:
+                except Exception:
                     pass
 
         # logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))
@@ -388,7 +473,7 @@ class Series(np.ndarray):
             # logging.debug('__get_imagePositions: got ipp')
         except ValueError:
             ipp = None
-        except:
+        except Exception:
             raise
         # logging.debug('__get_imagePositions: go on')
         if ipp is not None:
@@ -512,7 +597,7 @@ class Series(np.ndarray):
 
         Returns current input order.
         """
-        return self.__header.input_order
+        return self.header.input_order
 
     @input_order.setter
     def input_order(self, order):
@@ -524,7 +609,7 @@ class Series(np.ndarray):
         Raises ValueError when order is illegal.
         """
         if order in imagedata.formats.input_order_set:
-            self.__header.input_order = order
+            self.header.input_order = order
         else:
             raise ValueError("Unknown input order: {}".format(order))
 
@@ -534,7 +619,7 @@ class Series(np.ndarray):
 
         Returns the input format (str).
         """
-        return self.__header.input_format
+        return self.header.input_format
 
     @input_format.setter
     def input_format(self, fmt):
@@ -543,7 +628,7 @@ class Series(np.ndarray):
         Input:
         - fmt: new input_format
         """
-        self.__header.input_format = fmt
+        self.header.input_format = fmt
 
     @property
     def input_sort(self):
@@ -557,9 +642,9 @@ class Series(np.ndarray):
         Raises ValueError when input order is not defined.
         """
         try:
-            if self.__header.input_sort is not None:
-                return self.__header.input_sort
-        except:
+            if self.header.input_sort is not None:
+                return self.header.input_sort
+        except Exception:
             pass
         raise ValueError("Input sort order not set.")
 
@@ -573,7 +658,7 @@ class Series(np.ndarray):
         Raises ValueError when order is illegal.
         """
         if order is None or order in imagedata.formats.sort_on_set:
-            self.__header.input_sort = order
+            self.header.input_sort = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
 
@@ -589,9 +674,9 @@ class Series(np.ndarray):
         Raises ValueError when output order is not defined.
         """
         try:
-            if self.__header.sort_on is not None:
-                return self.__header.sort_on
-        except:
+            if self.header.sort_on is not None:
+                return self.header.sort_on
+        except Exception:
             pass
         raise ValueError("Output sort order not set.")
 
@@ -605,7 +690,7 @@ class Series(np.ndarray):
         Raises ValueError when order is illegal.
         """
         if order in imagedata.formats.sort_on_set:
-            self.__header.sort_on = order
+            self.header.sort_on = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
 
@@ -627,10 +712,13 @@ class Series(np.ndarray):
         # except:
         #    pass
         # raise ValueError("Number of slices is not set.")
-        if self.ndim < 3:
+        _color = 0
+        if self.color:
+            _color = 1
+        if self.ndim - _color < 3:
             # raise ValueError("{}D dataset has no slices".format(self.ndim))
             return 1
-        return self.shape[-3]
+        return self.shape[-3-_color]
 
     @slices.setter
     def slices(self, nslices):
@@ -644,9 +732,9 @@ class Series(np.ndarray):
         # if nslices > 0:
         #    if self.ndim > 2 and nslices != self.shape[-3]:
         #        logging.warning('Setting {} slices does not match shape {}'.format(nslices, self.shape))
-        #    self.__header.slices = nslices
+        #    self.header.slices = nslices
         # else:
-        #    self.__header.slices = None
+        #    self.header.slices = None
         raise DoNotSetSlicesError('Do not set slices (%d) explicitly' %
                                   nslices)
 
@@ -657,21 +745,21 @@ class Series(np.ndarray):
         Sorted numpy array of slice locations, in mm.
         """
         try:
-            if self.__header.sliceLocations is not None:
-                return self.__header.sliceLocations
+            if self.header.sliceLocations is not None:
+                return self.header.sliceLocations
             # Some image formats do not provide slice locations.
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
-            if self.__header.orientation is not None and self.__header.imagePositions is not None:
+            if self.header.orientation is not None and self.header.imagePositions is not None:
                 logging.debug(
                     'sliceLocations: calculate {} slice from orientation and imagePositions'.format(self.slices))
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
                 for slice in range(self.slices):
                     loc[slice] = np.inner(normal, self.imagePositions[slice])
-                self.__header.sliceLocations = loc
-                return self.__header.sliceLocations
-        except:
+                self.header.sliceLocations = loc
+                return self.header.sliceLocations
+        except Exception:
             pass
         raise ValueError("Slice locations are not defined.")
 
@@ -685,9 +773,9 @@ class Series(np.ndarray):
         if loc is not None:
             assert len(loc) == self.slices, "Mismatch number of slices ({}) and number of sliceLocations ({})".format(
                 self.slices, len(loc))
-            self.__header.sliceLocations = np.sort(loc)
+            self.header.sliceLocations = np.sort(loc)
         else:
-            self.__header.sliceLocations = None
+            self.header.sliceLocations = None
 
     @property
     def DicomHeaderDict(self):
@@ -698,10 +786,14 @@ class Series(np.ndarray):
         Returns DicomHeaderDict instance.
         Raises ValueError when header is not set.
         """
+        logging.debug('Series.DicomHeaderDict: here')
         try:
-            if self.__header.DicomHeaderDict is not None:
-                return self.__header.DicomHeaderDict
-        except:
+            if self.header.DicomHeaderDict is not None:
+                logging.debug('Series.DicomHeaderDict: return')
+                logging.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
+                logging.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
+                return self.header.DicomHeaderDict
+        except Exception:
             pass
         raise ValueError("Dicom Header Dict is not set.")
 
@@ -712,7 +804,7 @@ class Series(np.ndarray):
         Input:
         - dct: DicomHeaderDict instance
         """
-        self.__header.DicomHeaderDict = dct
+        self.header.DicomHeaderDict = dct
 
     @property
     def tags(self):
@@ -732,9 +824,9 @@ class Series(np.ndarray):
         Raises ValueError when tags are not set.
         """
         try:
-            if self.__header.tags is not None:
-                return self.__header.tags
-        except:
+            if self.header.tags is not None:
+                return self.header.tags
+        except Exception:
             pass
         raise ValueError("Tags not set.")
 
@@ -747,9 +839,9 @@ class Series(np.ndarray):
 
         dict.keys() are slice numbers (int)
         """
-        self.__header.tags = {}
+        self.header.tags = {}
         for slice in tags.keys():
-            self.__header.tags[slice] = np.array(tags[slice])
+            self.header.tags[slice] = np.array(tags[slice])
 
     @property
     def spacing(self):
@@ -763,9 +855,9 @@ class Series(np.ndarray):
         - ValueError: when spacing is not set.
         """
         try:
-            if self.__header.spacing is not None:
-                return self.__header.spacing
-        except:
+            if self.header.spacing is not None:
+                return self.header.spacing
+        except Exception:
             pass
         raise ValueError("Spacing is unknown")
 
@@ -779,24 +871,24 @@ class Series(np.ndarray):
         - ValueError: when spacing is not a tuple of 3 coordinates
         """
         if args[0] is None:
-            self.__header.spacing = None
+            self.header.spacing = None
             return
         logging.debug("spacing.setter {} {}".format(len(args), args))
         for arg in args:
             logging.debug("spacing.setter arg {} {}".format(len(arg), arg))
         # Invalidate existing transformation matrix
-        self.__header.transformationMatrix = None
+        self.header.transformationMatrix = None
         # Handle both tuple and component spacings
         if len(args) == 3:
-            self.__header.spacing = np.array((args))
+            self.header.spacing = np.array((args))
         elif len(args) == 1:
             arg = args[0]
             if len(arg) == 3:
-                self.__header.spacing = np.array(arg)
+                self.header.spacing = np.array(arg)
             elif len(arg) == 1:
                 arg0 = arg[0]
                 if len(arg0) == 3:
-                    self.__header.spacing = np.array(arg0)
+                    self.header.spacing = np.array(arg0)
                 else:
                     raise ValueError("Length of spacing in setSpacing(): %d" % len(arg0))
             else:
@@ -823,21 +915,21 @@ class Series(np.ndarray):
         """
         # logging.debug('Series.imagePositions.get:')
         try:
-            if self.__header.imagePositions is not None:
-                # logging.debug('Series.imagePositions.get: len(self.__header.imagePositions)={}'.format(len(self.__header.imagePositions)))
+            if self.header.imagePositions is not None:
+                # logging.debug('Series.imagePositions.get: len(self.header.imagePositions)={}'.format(len(self.header.imagePositions)))
                 # logging.debug('Series.imagePositions.get: self.slices={}'.format(self.slices))
-                if len(self.__header.imagePositions) > self.slices:
+                if len(self.header.imagePositions) > self.slices:
                     # Truncate imagePositions to actual number of slices.
                     # Could be the result of a slicing operation.
                     # logging.debug('Series.imagePositions.get: slice to {}'.format(self.slices))
-                    # logging.debug('Series.imagePositions.get: truncate {} {}'.format(type(self.__header.imagePositions), self.__header.imagePositions))
+                    # logging.debug('Series.imagePositions.get: truncate {} {}'.format(type(self.header.imagePositions), self.header.imagePositions))
                     ipp = {}
                     for z in range(self.slices):
                         ipp[z] = \
-                            self.__header.imagePositions[z]
-                    self.__header.imagePositions = ipp
-                elif len(self.__header.imagePositions) < self.slices and \
-                        len(self.__header.imagePositions) == 1:
+                            self.header.imagePositions[z]
+                    self.header.imagePositions = ipp
+                elif len(self.header.imagePositions) < self.slices and \
+                        len(self.header.imagePositions) == 1:
                     # Some image formats define one imagePosition only.
                     # Could calculate the missing imagePositions from origin and
                     # orientation.
@@ -851,16 +943,16 @@ class Series(np.ndarray):
                         # self.imagePositions = {
                         #    slice: self.getPositionForVoxel(np.array([slice,0,0]), transformation=M)
                         # }
-                        self.__header.imagePositions[slice] = \
+                        self.header.imagePositions[slice] = \
                             self.getPositionForVoxel(np.array([slice, 0, 0]),
                                                      transformation=M)
                 # logging.debug('Series.imagePositions: new self.slices={}'.format(self.slices))
-                # logging.debug('Series.imagePositions: new self.imagePositions={}'.format(self.__header.imagePositions))
-                assert len(self.__header.imagePositions) == self.slices, \
+                # logging.debug('Series.imagePositions: new self.imagePositions={}'.format(self.header.imagePositions))
+                assert len(self.header.imagePositions) == self.slices, \
                     "Mismatch number of slices ({}) and number of imagePositions ({})".format(self.slices, len(
-                        self.__header.imagePositions))
-                return self.__header.imagePositions
-        except:
+                        self.header.imagePositions))
+                return self.header.imagePositions
+        except Exception:
             raise
         raise ValueError("No imagePositions set.")
 
@@ -883,23 +975,23 @@ class Series(np.ndarray):
         - AssertionError: when poslist has wrong shape or datatype.
         """
         if poslist is None:
-            self.__header.imagePositions = None
+            self.header.imagePositions = None
             return
         assert isinstance(poslist, dict), "ImagePositions is not dict() (%s)" % type(poslist)
         # Invalidate existing transformation matrix
-        # self.__header.transformationMatrix = None
+        # self.header.transformationMatrix = None
         try:
-            if self.__header.imagePositions is None:
-                self.__header.imagePositions = dict()
-        except:
-            self.__header.imagePositions = dict()
+            if self.header.imagePositions is None:
+                self.header.imagePositions = dict()
+        except Exception:
+            self.header.imagePositions = dict()
         # logging.debug("imagePositions set for keys {}".format(poslist.keys()))
         for slice in poslist.keys():
             pos = poslist[slice]
             # logging.debug("imagePositions set slice {} to {}".format(slice,pos))
             assert isinstance(pos, np.ndarray), "Wrong datatype of position (%s)" % type(pos)
             assert len(pos) == 3, "Wrong size of pos (is %d, should be 3)" % len(pos)
-            self.__header.imagePositions[slice] = np.array(pos)
+            self.header.imagePositions[slice] = np.array(pos)
 
     @property
     def orientation(self):
@@ -917,9 +1009,9 @@ class Series(np.ndarray):
         - ValueError: when orientation is not set.
         """
         try:
-            if self.__header.orientation is not None:
-                return self.__header.orientation
-        except:
+            if self.header.orientation is not None:
+                return self.header.orientation
+        except Exception:
             pass
         raise ValueError("No orientation set.")
 
@@ -933,13 +1025,13 @@ class Series(np.ndarray):
         - AssertionError: when len(orient) != 6
         """
         if orient is None:
-            self.__header.transformationMatrix = None
-            self.__header.orientation = None
+            self.header.transformationMatrix = None
+            self.header.orientation = None
             return
         assert len(orient) == 6, "Wrong size of orientation"
         # Invalidate existing transformation matrix
-        # self.__header.transformationMatrix = None
-        self.__header.orientation = np.array(orient)
+        # self.header.transformationMatrix = None
+        self.header.orientation = np.array(orient)
 
     @property
     def seriesNumber(self):
@@ -953,9 +1045,9 @@ class Series(np.ndarray):
         - ValueError: when series number is not set.
         """
         try:
-            if self.__header.seriesNumber is not None:
-                return self.__header.seriesNumber
-        except:
+            if self.header.seriesNumber is not None:
+                return self.header.seriesNumber
+        except Exception:
             pass
         raise ValueError("No series number set.")
 
@@ -969,11 +1061,11 @@ class Series(np.ndarray):
         - ValueError: when sernum cannot be converted to int
         """
         if sernum is None:
-            self.__header.seriesNumber = None
+            self.header.seriesNumber = None
             return
         try:
-            self.__header.seriesNumber = int(sernum)
-        except:
+            self.header.seriesNumber = int(sernum)
+        except Exception:
             raise ValueError("Cannot convert series number to integer")
 
     @property
@@ -988,9 +1080,9 @@ class Series(np.ndarray):
         - ValueError: When series description is not set.
         """
         try:
-            if self.__header.seriesDescription is not None:
-                return self.__header.seriesDescription
-        except:
+            if self.header.seriesDescription is not None:
+                return self.header.seriesDescription
+        except Exception:
             pass
         raise ValueError("No series description set.")
 
@@ -1004,10 +1096,10 @@ class Series(np.ndarray):
         - AssertionError: when series description is not str
         """
         if descr is None:
-            self.__header.seriesDescription = None
+            self.header.seriesDescription = None
             return
         assert isinstance(descr, str), "Given series description is not str"
-        self.__header.seriesDescription = descr
+        self.header.seriesDescription = descr
 
     @property
     def imageType(self):
@@ -1021,9 +1113,9 @@ class Series(np.ndarray):
         - ValueError: when image type is not set.
         """
         try:
-            if self.__header.imageType is not None:
-                return self.__header.imageType
-        except:
+            if self.header.imageType is not None:
+                return self.header.imageType
+        except Exception:
             pass
         raise ValueError("No image type set.")
 
@@ -1037,13 +1129,13 @@ class Series(np.ndarray):
         - TypeError: When imagetype is not printable
         """
         if imagetype is None:
-            self.__header.imageType = None
+            self.header.imageType = None
             return
-        self.__header.imageType = list()
+        self.header.imageType = list()
         try:
             for s in imagetype:
-                self.__header.imageType.append(str(s))
-        except:
+                self.header.imageType.append(str(s))
+        except Exception:
             raise TypeError("Given image type is not printable (is %s)" % type(imagetype))
 
     @property
@@ -1058,9 +1150,9 @@ class Series(np.ndarray):
         - ValueError: when frame of reference UID is not set
         """
         try:
-            if self.__header.frameOfReferenceUID is not None:
-                return self.__header.frameOfReferenceUID
-        except:
+            if self.header.frameOfReferenceUID is not None:
+                return self.header.frameOfReferenceUID
+        except Exception:
             pass
         raise ValueError("No frame of reference UID set.")
 
@@ -1074,12 +1166,83 @@ class Series(np.ndarray):
         - TypeError: When uid is not printable
         """
         if uid is None:
-            self.__header.frameOfReferenceUID = None
+            self.header.frameOfReferenceUID = None
             return
         try:
-            self.__header.frameOfReferenceUID = str(uid)
-        except:
+            self.header.frameOfReferenceUID = str(uid)
+        except Exception:
             raise TypeError("Given frame of reference UID is not printable")
+
+    @property
+    def color(self):
+        """Color interpretation
+
+        Whether the array stores a color image, and the
+        last index represents the color components
+        
+        Returns:
+        - whether the array stores a color image (bool)
+        Exceptions:
+        - ValueError: when color interpretation is not set
+        """
+        try:
+            if self.header.color is not None:
+                return self.header.color
+        except Exception:
+            pass
+        raise ValueError("No Color Interpretation is set.")
+
+    @color.setter
+    def color(self, color):
+        """Set color interpretation
+
+        Input:
+        - color: color interpretation (bool)
+        Exceptions:
+        - TypeError: When color is not bool
+        """
+        if color is None:
+            self.header.color = False
+            return
+        try:
+            self.header.color = bool(color)
+        except Exception:
+            raise TypeError("Given color is not a boolean.")
+
+    @property
+    def photometricInterpretation(self):
+        """Photometric Interpretation
+
+        DICOM Photometric Interpretation
+        
+        Returns:
+        - photometric interpretation (str)
+        Exceptions:
+        - ValueError: when photometric interpretation is not set
+        """
+        try:
+            if self.header.photometricInterpretation is not None:
+                return self.header.photometricInterpretation
+        except Exception:
+            pass
+        raise ValueError("No Photometric Interpretation is set.")
+
+    @photometricInterpretation.setter
+    def photometricInterpretation(self, string):
+        """Set photometric interpretation
+
+        Input:
+        - string: photometric interpretation
+        Exceptions:
+        - TypeError: When str is not printable
+        """
+        if string is None:
+            self.header.photometricInterpretation = None
+            return
+        try:
+            self.header.photometricInterpretation = str(string)
+        except Exception:
+            raise TypeError("Given phometric interpretation is not printable")
 
     @property
     def transformationMatrix(self):
@@ -1097,15 +1260,15 @@ class Series(np.ndarray):
         # debug = True
 
         try:
-            if self.__header.transformationMatrix is not None:
-                return self.__header.transformationMatrix
+            if self.header.transformationMatrix is not None:
+                return self.header.transformationMatrix
 
             # Calculate transformation matrix
             logging.debug('Series.transformationMatrix: Calculate transformation matrix')
             ds, dr, dc = self.spacing
-            slices = len(self.__header.imagePositions)
-            T0 = self.__header.imagePositions[0].reshape(3, 1)  # z,y,x
-            Tn = self.__header.imagePositions[slices - 1].reshape(3, 1)
+            slices = len(self.header.imagePositions)
+            T0 = self.header.imagePositions[0].reshape(3, 1)  # z,y,x
+            Tn = self.header.imagePositions[slices - 1].reshape(3, 1)
             orient = self.orientation
             # print("ds,dr,dc={},{},{}".format(ds,dr,dc))
             # print("z ,y ,x ={},{},{}".format(z,y,x))
@@ -1126,9 +1289,9 @@ class Series(np.ndarray):
             A[:3, :4] = np.hstack((k, colr, colc, T0))
             if debug:
                 logging.debug("A:\n{}".format(A))
-            self.__header.transformationMatrix = A
-            return self.__header.transformationMatrix
-        except:
+            self.header.transformationMatrix = A
+            return self.header.transformationMatrix
+        except Exception:
             pass
         raise ValueError('Transformation matrix cannot be constructed.')
 
@@ -1146,7 +1309,7 @@ class Series(np.ndarray):
         - self.spacing must be set before setting transformationMatrix
         - self.slices  must be set before setting transformationMatrix
         """
-        self.__header.transformationMatrix = M
+        self.header.transformationMatrix = M
         # if M is not None:
         #    ds,dr,dc = self.spacing
         #    # Set imagePositions for first slice
