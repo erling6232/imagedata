@@ -252,7 +252,7 @@ class ZipfileArchive(AbstractArchive):
                 self.__archive.extract(filehandle['name'])
             filehandle['unpacked'] = True
             self.__files[filehandle['name']] = filehandle
-        return filehandle['name']
+        return filehandle['localfile']
 
     def add_localfile(self, local_file, filename):
         """Add a local file to the archive.

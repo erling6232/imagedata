@@ -128,7 +128,11 @@ def find_mimetype_plugin(mimetype, url, mode="r"):
             return pclass(url=url, mode=mode)
     if os.path.isfile(urldict.path):
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
-        return find_plugin('filesystem', url, mode)
+        try:
+            return find_plugin('filesystem', url, mode)
+        except Exception:
+            # Fall-through to fail with ArchivePluginNotFound
+            pass
     raise ArchivePluginNotFound("Plugin for MIME type {} not found.".format(mimetype))
 
 plugins = load_plugins()

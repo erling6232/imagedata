@@ -4,6 +4,7 @@
 # Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os, os.path, sys
+import re
 import collections
 import shutil
 import urllib.parse
@@ -63,42 +64,65 @@ class FilesystemArchive(AbstractArchive):
         super(FilesystemArchive, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
         logging.debug("FilesystemArchive.__init__ url: {}".format(url))
+        urldict = urllib.parse.urlsplit(url, scheme="file")
         if transport is not None:
             self.__transport = transport
+            self.__path = urldict.path
         elif url is None:
             raise ValueError('url not given')
         else:
             # Determine transport from url
-            self.__transport = self._get_transport(url, mode, read_directory_only)
+            #self.__transport = self._get_transport(url, mode, read_directory_only)
+            # netloc = urldict.netloc
+            # netloc = urldict.path
+            # netloc: where is zipfile
+            # self.__path: zipfile name
+            #netloc, self.__path = os.path.split(urldict.path)
+            #logging.debug('FilesystemArchive.__init__: scheme: %s, netloc: %s path: %s' %
+            #              (urldict.scheme, netloc, self.__path))
+            self.__path = urldict.path
+            logging.debug('FilesystemArchive.__init__: scheme: %s, path: %s' %
+                          (urldict.scheme, self.__path))
+            self.__transport = imagedata.transports.find_scheme_plugin(
+                urldict.scheme,
+                #netloc,
+                self.__path,
+                mode=mode,
+                read_directory_only=read_directory_only)
         self.__mode = mode
+        self.__files = {}
 
         logging.debug("FilesystemArchive __init__: {}".format(type(transport)))
-        logging.debug("FilesystemArchive __init__ url: {}".format(url))
-        self.__urldict = urllib.parse.urlsplit(url, scheme="file")
+
+        logging.debug("FilesystemArchive path: {}".format(self.__path))
+        #self.__fp = self.__transport.open(
+        #    self.__path, mode=self.__mode + "b")
+        #logging.debug("FilesystemArchive self.__fp: {}".format(type(self.__fp)))
+        logging.debug("FilesystemArchive open zipfile mode %s" % self.__mode)
 
         # If the URL refers to a single file, let dirname refer to the
         # directory and basename to the file
-        logging.debug("FilesystemArchive __init__ verify : {}".format(self.__urldict.path))
-        if os.path.isfile(self.__urldict.path):
-            self.__dirname  = os.path.dirname (self.__urldict.path)
-            self.__basename = os.path.basename(self.__urldict.path)
-            self.__filelist = [self.__urldict.path]
+        logging.debug("FilesystemArchive __init__ verify : {}".format(self.__path))
+        if os.path.isfile(self.__path):
+            self.__dirname  = os.path.dirname (self.__path)
+            self.__basename = os.path.basename(self.__path)
+            self.__filelist = [self.__path]
             logging.debug("FilesystemArchive __init__ dirname : {}".format(self.__dirname))
             logging.debug("FilesystemArchive __init__ basename: {}".format(self.__basename))
             #logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
             return
 
         # The URL refers to a directory. Let dirname refer to the directory
-        self.__dirname = self.__urldict.path
+        self.__dirname = self.__path
         self.__basename = None
         logging.debug("FilesystemArchive __init__ scan dirname : {}".format(self.__dirname))
         logging.debug("FilesystemArchive __init__ scan basename: {}".format(self.__basename))
         self.__filelist = list()
         #logging.debug("FilesystemArchive walk root: {}".format(self.__urldict.path))
-        for root, dirs, files in self.__transport.walk(self.__urldict.path):
+        for root, dirs, files in self.__transport.walk(self.__path):
             #logging.debug("FilesystemArchive scan root: {} {}".format(root, files))
             for filename in files:
-                fname = os.path.join(self.__urldict.path, root, filename)
+                fname = os.path.join(self.__path, root, filename)
                 #logging.debug("FilesystemArchive scan fname: {}".format(fname))
                 self.__filelist.append(fname)
                 #if transport.isfile(fname):
@@ -168,7 +192,9 @@ class FilesystemArchive(AbstractArchive):
             for required_filename in files:
                 if required_filename not in used:
                     raise FileNotFoundError('File %s not found.' %
-                            required_filename)
+                            os.path.join(
+                                self.__path,
+                                required_filename))
             return(filelist)
         else:
             return(self.__filelist)
@@ -200,9 +226,11 @@ class FilesystemArchive(AbstractArchive):
             shutil.copy(local_file, fname)
             self.__filelist.append(fname)
         else:
-            raise FileAlreadyExistsError(
-                    'File %s alread exists' %
-                    filename)
+            raise imagedata.archives.FileAlreadyExistsError(
+                    'File %s already exists' %
+                    os.path.join(
+                        self.__path,
+                        filename))
 
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
