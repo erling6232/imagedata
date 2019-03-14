@@ -262,6 +262,7 @@ def _get_query_part(url):
 def _get_archive(url, mode='r'):
     """Get archive plugin for given URL."""
     
+    logging.debug('readdata._get_archive: url %s' % url)
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(url_tuple.path)[0]
     archive = imagedata.archives.find_mimetype_plugin(
@@ -270,7 +271,6 @@ def _get_archive(url, mode='r'):
         mode)
     logging.debug('readdata._get_archive: mimetype %s' % mimetype)
     logging.debug('readdata._get_archive: archive %s' % archive.name)
-    logging.debug('readdata._get_archive: url %s' % url)
     return(archive)
 
 def _common_prefix(l):
@@ -368,7 +368,14 @@ def _get_sources(urls, mode):
         source_location = location
         source = {}
         source['files'] = []
-        source['archive'] = _get_archive(source_location, mode=mode)
+        try:
+            source['archive'] = _get_archive(source_location, mode=mode)
+        except (imagedata.transports.RootIsNotDirectory,
+                imagedata.archives.ArchivePluginNotFound):
+            # Retry with parent directory
+            source_location, filename = os.path.split(source_location)
+            logging.debug('readdata._get_sources: retry location %s' % source_location)
+            source['archive'] = _get_archive(source_location, mode=mode)
         for url in my_urls:
             location_part = _get_location_part(url)
             logging.debug('readdata._get_sources: compare _get_location_part %s location %s' %
