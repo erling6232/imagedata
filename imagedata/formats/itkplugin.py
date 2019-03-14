@@ -88,6 +88,15 @@ class ITKPlugin(AbstractPlugin):
         except imagedata.formats.NotImageError as e:
             logging.error('itkplugin._read_image: inner exception {}'.format(e))
             raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+
+        # Color image?
+        hdr['photometricInterpretation'] = 'MONOCHROME2'
+        hdr['color'] = False
+        if o.GetNumberOfComponentsPerPixel() == 3:
+            logging.debug('ITKPlugin._set_tags: RGB color')
+            hdr['photometricInterpretation'] = 'RGB'
+            hdr['color'] = True
+
         return(o, img)
 
     def _need_local_file(self):
@@ -119,6 +128,8 @@ class ITKPlugin(AbstractPlugin):
 
         # Set spacing
         v=spacing.GetVnlVector()
+        logging.debug('ITKPlugin._set_tags: hdr {}'.format(hdr))
+        logging.debug('ITKPlugin._set_tags: spacing {} {} {}'.format(v.get(2), v.get(1), v.get(0)))
         hdr['spacing'] = (v.get(2), v.get(1), v.get(0))
         if v.size() > 3:
             dt = v.get(3)
@@ -147,11 +158,16 @@ class ITKPlugin(AbstractPlugin):
         #    hdr['imagePositions'][slice] = self.getPositionForVoxel(np.array([slice,0,0]))
 
         # Set tags
+        _actual_shape = si.shape
+        if 'color' in hdr and hdr['color']:
+            _actual_shape = si.shape[:-1]
+            logging.debug('ITKPlugin.read: color')
+        _actual_ndim = len(_actual_shape)
         nt = nz = 1
-        if si.ndim > 2:
-            nz = si.shape[-3]
-        if si.ndim > 3:
-            nt = si.shape[-4]
+        if _actual_ndim > 2:
+            nz = _actual_shape[-3]
+        if _actual_ndim > 3:
+            nt = _actual_shape[-4]
         times = np.arange(0, nt*dt, dt)
         tags = {}
         for slice in range(nz):
@@ -553,8 +569,8 @@ class ITKPlugin(AbstractPlugin):
 
         dz, dy, dx = self.spacing
         dx=float(dx); dy=float(dy); dz=float(dz)
-        #image.SetSpacing([dx, dy, dz]) # Swap dx,dy because image is transposed
-        image.SetSpacing([dy, dx, dz]) # Swap dx,dy because image is transposed
+        image.SetSpacing([dx, dy, dz])
+        #image.SetSpacing([dy, dx, dz]) # Swap dx,dy because image is transposed
 
         return image
 

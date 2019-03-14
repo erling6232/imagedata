@@ -72,7 +72,7 @@ class NiftiPlugin(AbstractPlugin):
         except nibabel.spatialimages.ImageFileError:
             raise imagedata.formats.NotImageError(
                     '{} does not look like a nifti file.'.format(f))
-        except:
+        except Exception:
             raise
         info = img.get_header()
         si = self._reorder_to_dicom(img.get_data(), flip=True)

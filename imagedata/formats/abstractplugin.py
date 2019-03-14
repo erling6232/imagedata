@@ -122,37 +122,42 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if len(image_list) < 1:
             raise ValueError('No image data read')
         info, si = image_list[0]
+        self._reduce_shape(si)
+        logging.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
         shape = (len(image_list),) + si.shape
         dtype = si.dtype
         logging.debug('AbstractPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            logging.debug('AbstractPlugin.read: img {} si {}'.format(img.shape, si.shape))
+            logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
             si[i] = img
             i += 1
         logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
 
         # Simplify shape
         self._reduce_shape(si)
-        logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
+        logging.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
 
+        _shape = si.shape
+        if 'color' in hdr and hdr['color']:
+            _shape = si.shape[:-1]
+            logging.debug('AbstractPlugin.read: color')
+        logging.debug('AbstractPlugin.read: _shape {}'.format(_shape))
+        _ndim = len(_shape)
         nt = nz = 1
-        ny, nx = si.shape[-2:]
-        if si.ndim > 2:
-            nz = si.shape[-3]
-        if si.ndim > 3:
-            nt = si.shape[-4]
-
-        nz = 1
-        if si.ndim > 2:
-            nz = si.shape[-3]
+        ny, nx = _shape[-2:]
+        if _ndim > 2:
+            nz = _shape[-3]
+        if _ndim > 3:
+            nt = _shape[-4]
         hdr['slices'] = nz
+        logging.debug('AbstractPlugin.read: slices {}'.format(nz))
 
         # hdr['spacing'], hdr['tags']
         logging.debug('AbstractPlugin.read: calling _set_tags')
         self._set_tags(image_list, hdr, si)
-        logging.debug('AbstractPlugin.read: return  _set_tags')
+        #logging.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
         logging.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
@@ -162,6 +167,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         logging.debug('AbstractPlugin.read: hdr {}'.format(
             hdr.keys()))
+        #logging.debug('AbstractPlugin.read: hdr {}'.format(hdr))
         return hdr,si
 
     def _need_local_file(self):
@@ -426,7 +432,12 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         - ValueError: tags for dataset is not time tags
         """
 
-        while si.ndim > 2:
+        # Color image?
+        mindim = 2
+        if si.shape[-1] == 3:
+            mindim += 1
+
+        while si.ndim > mindim:
             if si.shape[0] == 1:
                 si.shape = si.shape[1:]
             else:

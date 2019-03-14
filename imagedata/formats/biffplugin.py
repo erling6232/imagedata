@@ -13,11 +13,6 @@ import fs
 import imagedata.formats
 from imagedata.formats.abstractplugin import AbstractPlugin
 
-class ImageTypeError(Exception):
-    """Thrown when trying to load or save an image of unknown type.
-    """
-    pass
-
 class PixelTypeNotSupported(Exception):
     """Thrown when pixel type is not supported.
     """
@@ -107,8 +102,9 @@ class BiffPlugin(AbstractPlugin):
         self.f = f
         try:
             self._read_info()
-        except:
-            raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(f))
+        except imagedata.formats.NotImageError:
+            #raise imagedata.formats.NotImageError('{} does not look like a BIFF file'.format(f))
+            raise
         self.status = 'read'
         logging.debug("biffplugin._read_image %s" % f)
         if self.nbands == 0:
@@ -233,7 +229,7 @@ class BiffPlugin(AbstractPlugin):
                 self.descr = opts['serdes']
             else:
                 self.descr = ''
-        except:
+        except ValueError: #Unsure about correct exception
             self.descr = ''
 
         self._set_text('')
@@ -319,7 +315,7 @@ class BiffPlugin(AbstractPlugin):
                 self.descr = opts['serdes']
             else:
                 self.descr = ''
-        except:
+        except ValueError: #Unsure about correct exception
             self.descr = ''
 
         if self.output_dir == 'single':
@@ -497,7 +493,7 @@ class BiffPlugin(AbstractPlugin):
         #logging.debug('_read_info: magic {}'.format(magic))
         if magic != b'BIFF':
             logging.debug('_read_info: magic {} giving up'.format(magic))
-            raise ImageTypeError('File is not BIFF format')
+            raise imagedata.formats.NotImageError('File is not BIFF format')
         self.param = [0,0,0,0,0,0,0,0]
         try:
             (magic, col,
@@ -506,9 +502,11 @@ class BiffPlugin(AbstractPlugin):
                 self.param[0], self.param[1], self.param[2], self.param[3], 
                 self.param[4], self.param[5], self.param[6], self.param[7], 
                 nfreechars, self.nbands) = struct.unpack('>4s4s4i32s10i', header)
+        except struct.error as e:
+            raise imagedata.formats.NotImageError('{}'.format(e))
         except Exception as e:
             logging.debug('_read_info: exception\n{}'.format(e))
-            raise ImageTypeError('{}'.format(e))
+            raise imagedata.formats.NotImageError('{}'.format(e))
         self.col = col == b'C'
         logging.debug('_read_info: magic {} colour {}'.format(magic, self.col))
         logging.debug('_read_info: ninfoblks {} nbandblks {} ntextblks {} nblocks {}'.format(self.ninfoblks, self.nbandblks, self.ntextblks, self.nblocks))
@@ -530,9 +528,11 @@ class BiffPlugin(AbstractPlugin):
             try:
                 (self.pt, self.xsz, self.ysz, self.xst, self.yst, self.xmg,
                     self.ymg, _) = struct.unpack('>8i', band_header)
+            except struct.error as e:
+                raise imagedata.formats.NotImageError('{}'.format(e))
             except Exception as e:
                 logging.debug('_read_info: exception\n{}'.format(e))
-                raise ImageTypeError('{}'.format(e))
+                raise imagedata.formats.NotImageError('{}'.format(e))
             pt = self.pt &  self.Ipixtyp_mask
             self.little_endian = (self.pt & self.Ilittle_endian_mask) != 0
             #logging.debug('Band {} pt {} xsz {} ysz {} xst {} yst {} xmg {} ymg {} little {}'.format(bandnr, pt, self.xsz, self.ysz,
@@ -741,9 +741,11 @@ class BiffPlugin(AbstractPlugin):
                     self.param[4], self.param[5], self.param[6], self.param[7], 
                     nfreechars, self.nbands)
                 )
+        except struct.error as e:
+            raise imagedata.formats.NotImageError('{}'.format(e))
         except Exception as e:
             logging.debug('_set_info: exception\n{}'.format(e))
-            raise ImageTypeError('{}'.format(e))
+            raise imagedata.formats.NotImageError('{}'.format(e))
 
         # Write data concerning each band
         for bandnr in range(self.nbands):
@@ -760,9 +762,11 @@ class BiffPlugin(AbstractPlugin):
                         pt, xsz, ysz,
                         xst, yst, xmg, ymg, dummy)
                     )
+            except struct.error as e:
+                raise imagedata.formats.NotImageError('{}'.format(e))
             except Exception as e:
                 logging.debug('_set_info: exception\n%s' % e)
-                raise ImageTypeError('{}'.format(e))
+                raise imagedata.formats.NotImageError('{}'.format(e))
 
         # Skip file to beginning of next 512 bytes block
         rest = 0 - struct.calcsize(format_image) - self.nbands*struct.calcsize(format_band)

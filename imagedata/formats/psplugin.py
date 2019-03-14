@@ -1,7 +1,7 @@
 """Read/Write PostScript files
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital,
+# Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital,
 # Bergen, Norway
 
 import os.path
@@ -61,6 +61,9 @@ class PSPlugin(ITKPlugin):
         """
 
         info = None
+        self.psopt = 'png16m'
+        if 'psopt' in opts:
+            self.psopt = opts['psopt']
         #with tempfile.TemporaryDirectory() as tempdir:
         tempdir = tempfile.TemporaryDirectory()
         logging.debug("PSPlugin.read: tempdir {}".format(tempdir))
@@ -78,6 +81,7 @@ class PSPlugin(ITKPlugin):
             info, img = super(PSPlugin, self)._read_image(filename, opts, hdr)
             image_list.append((info, img))
             logging.debug("PSPlugin.read: returned from ITKPlugin")
+            logging.debug("PSPlugin.read: returned from ITKPlugin, hdr\n{}".format(hdr))
         if len(image_list) < 1:
             raise ValueError('No image data read')
         info, img = image_list[0]
@@ -89,6 +93,13 @@ class PSPlugin(ITKPlugin):
             logging.debug('read: img {} si {}'.format(img.shape, si.shape))
             si[i] = img
             i += 1
+        # Color space: RGB
+        hdr['photometricInterpretation'] = 'MONOCHROME2'
+        hdr['color'] = False
+        if self.psopt == 'png16m' and si.shape[-1] == 3:
+            # Photometric interpretation = 'RGB'
+            hdr['photometricInterpretation'] = 'RGB'
+            hdr['color'] = True
         # Let a single page be a 2D image
         if si.ndim == 3 and si.shape[0] == 1:
             si.shape = si.shape[1:]
@@ -132,7 +143,9 @@ class PSPlugin(ITKPlugin):
         args = [
             "gs", # actual value doesn't matter
             "-dNOPAUSE", "-dBATCH", "-dSAFER", "-dQUIET",
-            "-sDEVICE=pnggray",
+            #"-sDEVICE=pnggray",
+            #"-sDEVICE=png16m",
+            "-sDEVICE={}".format(self.psopt),
             "-sOutputFile=" + os.path.join(tempdir, fname),
             #"-c", ".setpdfwrite",
             "-f",  filename
