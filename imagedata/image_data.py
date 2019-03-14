@@ -71,7 +71,7 @@ def dump():
             SeqNam[im.SequenceName] += 1
             try:
                 num = im.AcquisitionNumber
-            except:
+            except AttributeError:
                 num = 'None'
             if num not in AcqNum:
                 AcqNum[num] = 0
@@ -82,7 +82,7 @@ def dump():
 
             try:
                 num = im.EchoNumbers
-            except:
+            except AttributeError:
                 num = 'None'
             if num not in Echo:
                 Echo[num] = 0
