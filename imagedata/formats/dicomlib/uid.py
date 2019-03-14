@@ -8,20 +8,26 @@ import os, os.path
 import time
 
 def get_hostid():
-	import tempfile
-	tmpnamt=tempfile.mkstemp()
-	tmpnam=tmpnamt[1]
-	os.system("hostid >| "+tmpnam)
-	f = open(tmpnam, 'r')
-	hostid = f.readline()
-	f.close()
-	os.remove(tmpnam)
-	return(hostid)
+    import tempfile
+    tmpnamt=tempfile.mkstemp()
+    tmpnam=tmpnamt[1]
+    os.system("hostid >| "+tmpnam)
+    f = open(tmpnam, 'r')
+    hostid = f.readline()
+    f.close()
+    os.remove(tmpnam)
+    return(hostid)
 
 def get_uid():
-	hostid=get_hostid()[:-1]
-	ihostid=int(hostid, 16)
-	return "2.16.578.1.37.1.1.2.%d.%d.%d" % (ihostid, os.getpid(), int(time.time()))
+    """Generator function which will return a unique UID"""
+
+    k = 0
+    hostid=get_hostid()[:-1]
+    ihostid=int(hostid, 16)
+    my_root = "2.16.578.1.37.1.1.2.%d.%d.%d" % (ihostid, os.getpid(), int(time.time()))
+    while True:
+        k += 1
+        yield "%s.%d" % (my_root, k)
 
 def uid_append_instance(root, num):
-	return root+"."+str(num)
+    return root+"."+str(num)
