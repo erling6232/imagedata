@@ -92,8 +92,22 @@ class test_filetransport(unittest.TestCase):
         tree = imagedata.transports.filetransport.FileTransport(
                 'ttft',
                 mode='w', read_directory_only=False)
-        #except imagedata.transports.RootDoesNotExist:
-        #    pass
+
+    #@unittest.skip("test_write_then_read")
+    def test_write_then_read(self):
+        tree = imagedata.transports.filetransport.FileTransport(
+                'ttft',
+                mode='w', read_directory_only=False)
+        f = tree.open('test.txt', mode='w')
+        f.write(b'Hello world!')
+        f.close()
+
+        readtree = imagedata.transports.filetransport.FileTransport(
+                'ttft',
+                mode='r', read_directory_only=False)
+        f = tree.open('test.txt')
+        contents = f.read()
+        self.assertEqual(contents, b'Hello world!')
 
 if __name__ == '__main__':
     unittest.main()

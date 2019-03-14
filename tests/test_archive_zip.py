@@ -17,7 +17,7 @@ import imagedata.formats
 from imagedata.series import Series
 from .compare_headers import compare_headers
 
-class test_zip_archive(unittest.TestCase):
+class test_archive_zip(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
@@ -35,6 +35,7 @@ class test_zip_archive(unittest.TestCase):
                 'unknown',
                 'data/itk/time.zip',
                 'r')
+            archive.close()
         except imagedata.archives.ArchivePluginNotFound:
             pass
 
@@ -44,6 +45,7 @@ class test_zip_archive(unittest.TestCase):
             'application/zip',
             'data/itk/time.zip',
             'r')
+        archive.close()
 
     #@unittest.skip("skipping test_unknown_url")
     def test_unknown_url(self):
@@ -52,6 +54,7 @@ class test_zip_archive(unittest.TestCase):
                 'application/zip',
                 'unknown',
                 'r')
+            archive.close()
         except imagedata.transports.RootDoesNotExist:
             pass
 

@@ -28,14 +28,8 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertIsNotNone(pclass)
 
     def tearDown(self):
-        try:
-            shutil.rmtree('ttn3d')
-        except FileNotFoundError:
-            pass
-        try:
-            shutil.rmtree('ttn4d')
-        except FileNotFoundError:
-            pass
+        shutil.rmtree('ttn3d', ignore_errors=True)
+        shutil.rmtree('ttn4d', ignore_errors=True)
 
     #@unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
@@ -85,15 +79,24 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 
+    #@unittest.skip("skipping test_write_single_file")
+    def test_write_single_file(self):
+        si1 = Series(
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            0,
+            self.opts)
+        si1.write('ttn4d?Image%1d.nii.gz', formats=['nifti'])
+        si2 = Series('ttn4d/Image0.nii.gz')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
     @unittest.skip("skipping test_read_3d_nifti")
     def test_read_3d_nifti(self):
-        try:
-            si1 = Series(
-                'tests/dicom/NYRE_151204_T1/_fl3d1_0005',
-                imagedata.formats.INPUT_ORDER_TIME,
-                self.opts)
-        except Exception as e:
-            logging.debug('test_read_3d_nifti: read si1 exception {}'.format(e))
+        si1 = Series(
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        si1 = si1[0]
         logging.debug('test_read_3d_nifti: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_read_3d_nifti: si1.slices {}'.format(si1.slices))
 
@@ -105,7 +108,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             }
         si1.orientation=np.array([1, 0, 0, 0, 1, 0])
         logging.debug('test_read_3d_nifti: si1.tags {}'.format(si1.tags))
-        si1.write('ttn3d/nifti', 'Image_%05d', formats=['nifti'], opts=self.opts)
+        si1.write('ttn3d/nifti?Image_%05d', formats=['nifti'], opts=self.opts)
         logging.debug('test_read_3d_nifti: si1 {} {} {}'.format(si1.dtype, si1.min(), si1.max()))
 
         si2 = Series(
@@ -129,10 +132,10 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_almost_equal(si1, si3, decimal=4)
         logging.debug('test_read_3d_nifti: si3.slices {}'.format(si3.slices))
         logging.debug('test_read_3d_nifti: si3 {} {} {}'.format(type(si3), si3.dtype, si3.shape))
-        si3.write('ttn3d/n', 'Image_%05d', formats=['nifti'], opts=self.opts)
+        si3.write('ttn3d/n?Image_%05d', formats=['nifti'], opts=self.opts)
 
         s3 = si1-si2
-        s3.write('ttn3d/diff', 'Image_%05d', formats=['nifti'], opts=self.opts)
+        s3.write('ttn3d/diff?Image_%05d', formats=['nifti'], opts=self.opts)
 
     @unittest.skip("skipping test_read_3d_nifti_no_opt")
     def test_read_3d_nifti_no_opt(self):
@@ -169,14 +172,8 @@ class Test4DNIfTIPlugin(unittest.TestCase):
         self.assertIsNotNone(pclass)
 
     def tearDown(self):
-        try:
-            shutil.rmtree('ttn3d')
-        except FileNotFoundError:
-            pass
-        try:
-            shutil.rmtree('ttn4d')
-        except FileNotFoundError:
-            pass
+        shutil.rmtree('ttn3d', ignore_errors=True)
+        shutil.rmtree('ttn4d', ignore_errors=True)
 
     @unittest.skip("skipping test_write_4d_nifti")
     def test_write_4d_nifti(self):

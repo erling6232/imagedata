@@ -31,14 +31,8 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertIsNotNone(pclass)
 
     def tearDown(self):
-        try:
-            shutil.rmtree('ttd3d')
-        except FileNotFoundError:
-            pass
-        try:
-            shutil.rmtree('ttd4d')
-        except FileNotFoundError:
-            pass
+        shutil.rmtree('ttd3d', ignore_errors=True)
+        shutil.rmtree('ttd4d', ignore_errors=True)
 
     #@unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
@@ -47,7 +41,7 @@ class TestDicomPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (1, 192, 152))
+        self.assertEqual(si1.shape, (192, 152))
 
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
@@ -78,7 +72,7 @@ class TestDicomPlugin(unittest.TestCase):
         #logging.debug("Series.imageType {}".format(d.imageType))
         #logging.debug("Series.dir() {}".format(dir(d)))
         self.assertEqual(d.dtype, np.uint16)
-        self.assertEqual(d.shape, (1, 192, 152))
+        self.assertEqual(d.shape, (192, 152))
 
     #@unittest.skip("skipping test_read_dicom_4D")
     def test_read_dicom_4D(self):
@@ -106,17 +100,33 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (10, 40, 192, 152))
 
-    @unittest.skip("skipping test_write_dicom_4D")
+    #@unittest.skip("skipping test_write_single_file")
+    def test_write_single_file(self):
+        si1 = Series(
+            'data/dicom/time/time00/Image_00000.dcm'
+            )
+        si1.write('ttd3d?Image.dcm', formats=['dicom'])
+        si2 = Series('ttd3d/')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    #@unittest.skip("skipping test_write_single_directory")
+    def test_write_single_directory(self):
+        si1 = Series('data/dicom/time/time00/')
+        si1.write('ttd3d?Image%05d.dcm', formats=['dicom'])
+        si2 = Series('ttd3d/')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    #@unittest.skip("skipping test_write_dicom_4D")
     def test_write_dicom_4D(self):
         si = Series(
-                #'tests/dicom/NYRE_151204_T1',
-                'tests/dicom/dynamic',
+                'data/dicom/time_all/',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
-        #si.sort_on = imagedata.formats.SORT_ON_SLICE
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
-        si.write('ttd4d/dicom', 'Image_%05d', formats=['dicom'], opts=self.opts)
+        si.write('ttd4d/Image_%05d', formats=['dicom'], opts=self.opts)
         newsi  = Series('ttd4d',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
@@ -124,26 +134,210 @@ class TestDicomPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (8, 30, 192, 192))
+        self.assertEqual(newsi.shape, (10, 40, 192, 152))
 
-    @unittest.skip("skipping test_write_dicom_4D_no_opt")
+    #@unittest.skip("skipping test_write_dicom_4D_no_opt")
     def test_write_dicom_4D_no_opt(self):
         si = Series(
-                'tests/dicom/NYRE_151204_T1',
+                'data/dicom/time_all/',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
-        #si.sort_on = imagedata.formats.SORT_ON_SLICE
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
-        #si.write('ttd4d/dicom', 'Image_%05d', formats=['dicom'], opts=self.opts)
-        si.write('ttd4d/dicom', 'Image_%05d', formats=['dicom'])
+        si.write('ttd4d/Image_%05d', formats=['dicom'])
         newsi  = Series('ttd4d',
                 imagedata.formats.INPUT_ORDER_TIME)
         self.assertEqual(si.shape, newsi.shape)
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (8, 30, 192, 192))
+        self.assertEqual(newsi.shape, (10, 40, 192, 152))
+
+class TestDicomZipPlugin(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        #sys.argv[1:] = ['aa', 'bb']
+        #self.opts = parser.parse_args(['--order', 'none'])
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1: self.opts.output_format=['dicom']
+
+        plugins = imagedata.formats.get_plugins_list()
+        self.dicom_plugin = None
+        for pname,ptype,pclass in plugins:
+            if ptype == 'dicom': self.dicom_plugin = pclass
+        self.assertIsNotNone(pclass)
+
+    def tearDown(self):
+        #shutil.rmtree('ttd3z', ignore_errors=True)
+        shutil.rmtree('ttd4z', ignore_errors=True)
+
+    #@unittest.skip("skipping test_write_zip")
+    def test_write_zip(self):
+        si1 = Series('data/dicom/time/time00/')
+        si1.write('ttd3z/dicom.zip?Image_%05d.dcm', formats=['dicom'])
+        si2 = Series('ttd3z/dicom.zip')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+class test_zip_archive_dicom(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        #self.opts = parser.parse_args(['--template', 'tests/dicom/time/',
+        #        '--geometry', 'tests/dicom/time'])
+        #self.opts = parser.parse_args(['--of', 'itk', '--sort', 'tag'])
+        #self.opts = parser.parse_args(['--of', 'itk'])
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1: self.opts.output_format=['dicom']
+
+        #self.hdr,self.si = imagedata.readdata.read(
+        #        ('tests/dicom/time/',),
+        #        imagedata.formats.INPUT_ORDER_TIME,
+        #        self.opts)
+
+    def tearDown(self):
+        shutil.rmtree('ttd3', ignore_errors=True)
+        shutil.rmtree('ttd4', ignore_errors=True)
+
+    #@unittest.skip("skipping test_read_single_file")
+    def test_read_single_file(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+
+    #@unittest.skip("skipping test_read_single_file_relative")
+    def test_read_single_file_relative(self):
+        si1 = Series(
+            'data/dicom/time.zip?time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+
+    #@unittest.skip("skipping test_read_single_file_wildcard")
+    def test_read_single_file_wildcard(self):
+        si1 = Series(
+            'data/dicom/time.zip?.*time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+
+    #@unittest.skip("skipping test_read_two_files")
+    def test_read_two_files(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time00/Image_0000[01].dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 192, 152))
+
+    #@unittest.skip("skipping test_read_single_directory")
+    def test_read_single_directory(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time00/',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+
+    #@unittest.skip("skipping test_read_two_directories")
+    def test_read_two_directories(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time0[02]/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 40, 192, 152))
+
+    #@unittest.skip("skipping test_read_all_files")
+    def test_read_all_files(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+
+class write_test_zip_archive_dicom(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1: self.opts.output_format=['dicom']
+
+    def tearDown(self):
+        shutil.rmtree('ttd3z', ignore_errors=True)
+        shutil.rmtree('ttd4z', ignore_errors=True)
+
+    #@unittest.skip("skipping test_read_single_file")
+    def test_read_single_file(self):
+        si1 = Series('data/dicom/time.zip?time/time00/Image_00000.dcm')
+        si1.write('ttd3z/dicom.zip', formats=['dicom'])
+        si2 = Series('ttd3z/dicom.zip?Image_00000.dcm')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    @unittest.skip("skipping test_read_single_file_relative")
+    def test_read_single_file_relative(self):
+        si1 = Series(
+            'data/dicom/time.zip?time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+
+    @unittest.skip("skipping test_read_single_file_wildcard")
+    def test_read_single_file_wildcard(self):
+        si1 = Series(
+            'data/dicom/time.zip?.*time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+
+    @unittest.skip("skipping test_read_two_files")
+    def test_read_two_files(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time00/Image_0000[01].dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 192, 152))
+
+    @unittest.skip("skipping test_read_single_directory")
+    def test_read_single_directory(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time00/',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+
+    @unittest.skip("skipping test_read_two_directories")
+    def test_read_two_directories(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/time0[02]/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (2, 40, 192, 152))
+
+    @unittest.skip("skipping test_read_all_files")
+    def test_read_all_files(self):
+        si1 = Series(
+            'data/dicom/time.zip?time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
 
 if __name__ == '__main__':
     unittest.main()
