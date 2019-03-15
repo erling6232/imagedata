@@ -40,6 +40,17 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 
+    #@unittest.skip("skipping test_read_2D")
+    def test_read_2D(self):
+        si1 = Series(
+            'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz')
+        si2 = si1[0,0,...]
+        si2.write('ttn3d', formats=['nifti'])
+        si3 = Series('ttn3d')
+        self.assertEqual(si2.dtype, si3.dtype)
+        self.assertEqual(si2.shape, si3.shape)
+        np.testing.assert_array_equal(si2, si3)
+
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(

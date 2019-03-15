@@ -47,6 +47,21 @@ class Test3DBiffPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
+    #@unittest.skip("skipping test_read_2D")
+    def test_read_2D(self):
+        si1 = Series(
+            'data/biff/time/time00.biff',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+        si2 = si1[0,...]
+        si2.write('ttb3d', formats=['biff'])
+        si3 = Series('ttb3d')
+        self.assertEqual(si2.dtype, si3.dtype)
+        self.assertEqual(si2.shape, si3.shape)
+        np.testing.assert_array_equal(si2, si3)
+
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(

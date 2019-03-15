@@ -100,7 +100,10 @@ class test_dicom_zip_write(unittest.TestCase):
         si1.write('ttdz/dicom.zip', formats=['dicom'])
         si2 = Series('ttdz/dicom.zip?Image_00000.dcm')
         self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si2.dtype, np.uint16)
         self.assertEqual(si1.shape, si2.shape)
+        self.assertEqual(si1.studyInstanceUID, si2.studyInstanceUID)
+        self.assertEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
 
     #@unittest.skip("skipping test_write_all_files")
     def test_write_all_files(self):

@@ -55,6 +55,21 @@ class test_file_archive_itk(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
+    #@unittest.skip("skipping test_read_2D")
+    def test_read_2D(self):
+        si1 = Series(
+            'data/itk/time/Image_00000.mha',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+        si2 = si1[0,...]
+        si2.write('tti3?Image.mha', formats=['itk'])
+        si3 = Series('tti3')
+        self.assertEqual(si2.dtype, si3.dtype)
+        self.assertEqual(si2.shape, si3.shape)
+        np.testing.assert_array_equal(si2, si3)
+
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
@@ -267,7 +282,7 @@ class TestWritePluginITK_tag(unittest.TestCase):
         shutil.rmtree('tti3w', ignore_errors=True)
         shutil.rmtree('tti4', ignore_errors=True)
 
-    #@unittest.skip("skipping test_write_3d_itk")
+    @unittest.skip("skipping test_write_3d_itk")
     def test_write_3d_itk(self):
         log = logging.getLogger("TestWritePluginITK.test_write_3d_itk")
         log.debug("test_write_3d_itk")
