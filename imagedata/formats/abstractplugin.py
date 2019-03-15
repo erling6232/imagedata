@@ -540,8 +540,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         flip: Whether rows and columns are swapped.
         """
 
-        logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(
-            data.shape))
+        logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
         if data.ndim == 5:
             d5,tags,slices,rows,columns = data.shape
             if flip:

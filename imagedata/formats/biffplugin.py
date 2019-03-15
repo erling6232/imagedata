@@ -159,6 +159,8 @@ class BiffPlugin(AbstractPlugin):
         - hdr: Header dict
         """
 
+        hdr['photometricInterpretation'] = 'MONOCHROME2'
+        hdr['color'] = False
         hdr['tags']   = {}
         nt = nz = 1
         if si.ndim > 2:
@@ -181,6 +183,10 @@ class BiffPlugin(AbstractPlugin):
         - opts: Output options (dict)
         """
 
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color BIFF images not implemented.")
+
         archive = destination['archive']
         filename_template = 'Image_%05d.biff'
         if len(destination['files'][0]) > 0:
@@ -200,6 +206,8 @@ class BiffPlugin(AbstractPlugin):
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
+        if si.ndim == 2:
+            si.shape = (1,) + si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -225,7 +233,7 @@ class BiffPlugin(AbstractPlugin):
         self.pixtyp = self.pixtyp_from_dtype(self.arr.dtype)
 
         try:
-            if opts['serdes'] is not None:
+            if 'serdes' in opts and opts['serdes'] is not None:
                 self.descr = opts['serdes']
             else:
                 self.descr = ''
@@ -258,6 +266,10 @@ class BiffPlugin(AbstractPlugin):
         - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color BIFF images not implemented.")
 
         archive = destination['archive']
         filename_template = 'Image_%05d.biff'
@@ -311,7 +323,7 @@ class BiffPlugin(AbstractPlugin):
         self.pixtyp = self.pixtyp_from_dtype(self.arr.dtype)
 
         try:
-            if opts['serdes'] is not None:
+            if 'serdes' in opts and opts['serdes'] is not None:
                 self.descr = opts['serdes']
             else:
                 self.descr = ''

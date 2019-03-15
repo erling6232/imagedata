@@ -93,7 +93,7 @@ class ITKPlugin(AbstractPlugin):
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
         if o.GetNumberOfComponentsPerPixel() == 3:
-            logging.debug('ITKPlugin._set_tags: RGB color')
+            logging.debug('ITKPlugin._read_image: RGB color')
             hdr['photometricInterpretation'] = 'RGB'
             hdr['color'] = True
 
@@ -277,6 +277,10 @@ class ITKPlugin(AbstractPlugin):
         - opts: Output options (dict)
         """
 
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color ITK images not implemented.")
+
         logging.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mha'
@@ -292,6 +296,8 @@ class ITKPlugin(AbstractPlugin):
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
+        if si.ndim == 2:
+            si.shape = (1,) + si.shape
         if si.ndim == 3:
             si.shape = (1,) + si.shape
         assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
@@ -326,6 +332,10 @@ class ITKPlugin(AbstractPlugin):
         - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color ITK images not implemented.")
 
         logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']

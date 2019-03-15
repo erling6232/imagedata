@@ -156,6 +156,9 @@ class NiftiPlugin(AbstractPlugin):
             tags[z] = np.array(times)
         hdr['tags'] = tags
 
+        hdr['photometricInterpretation'] = 'MONOCHROME2'
+        hdr['color'] = False
+
     '''
     def nifti_to_affine(self, affine, shape):
 
@@ -280,7 +283,10 @@ class NiftiPlugin(AbstractPlugin):
         #Flip voxels in y
         analyze_to_dicom = np.eye(4)
         analyze_to_dicom[1,1] = -1
-        analyze_to_dicom[1,3] = self.shape[2]+1
+        try:
+            analyze_to_dicom[1,3] = self.shape[2]+1
+        except IndexError: # 2D
+            analyze_to_dicom[1,3] = 1
         logging.debug("getGeometryFromAffine: analyze_to_dicom\n{}".format(analyze_to_dicom))
         #dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
         #Q = np.dot(Q,dicom_to_analyze)
@@ -411,6 +417,10 @@ class NiftiPlugin(AbstractPlugin):
         - opts: Output options (dict)
         """
 
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color Nifti images not implemented.")
+
         logging.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image.nii.gz'
@@ -426,13 +436,15 @@ class NiftiPlugin(AbstractPlugin):
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
         if si.ndim == 2:
-            si.shape = (1,1,) + si.shape
-        elif si.ndim == 3:
             si.shape = (1,) + si.shape
-        assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
-        if si.shape[0] != 1:
-            raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        slices = si.shape[1]
+        #elif si.ndim == 3:
+        #    si.shape = (1,) + si.shape
+        #assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
+        assert si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
+        #if si.shape[0] != 1:
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
+        #slices = si.shape[1]
+        slices = si.shape[0]
         if slices != si.slices:
             raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
@@ -483,6 +495,10 @@ class NiftiPlugin(AbstractPlugin):
         - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color Nifti images not implemented.")
 
         logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']

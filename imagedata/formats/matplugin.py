@@ -106,12 +106,18 @@ class MatPlugin(AbstractPlugin):
             nz = si.shape[-3]
         if si.ndim > 3:
             nt = si.shape[-4]
+        logging.debug('matplugin._set_tags nt {}, nz {}'.format(
+            nt,nz))
         dt = 1
         times = np.arange(0, nt*dt, dt)
         tags = {}
         for slice in range(nz):
             tags[slice] = np.array(times)
         hdr['tags'] = tags
+        #logging.debug('matplugin._set_tags tags {}'.format(tags))
+
+        hdr['photometricInterpretation'] = 'MONOCHROME2'
+        hdr['color'] = False
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as MAT file
@@ -126,6 +132,10 @@ class MatPlugin(AbstractPlugin):
         - opts: Output options (dict)
         """
 
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color MAT images not implemented.")
+
         logging.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mat'
@@ -139,6 +149,8 @@ class MatPlugin(AbstractPlugin):
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
         if si.ndim == 4 and si.shape[0] == 1: si.shape = si.shape[1:]
+        if si.ndim == 2:
+            si.shape = (1,) + si.shape
         assert si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
         slices = si.shape[0]
         if slices != si.slices:
@@ -181,6 +193,10 @@ class MatPlugin(AbstractPlugin):
         - destination: dict of archive and filenames
         - opts: Output options (dict)
         """
+
+        if si.color:
+            raise imagedata.formats.WriteNotImplemented(
+                    "Writing color MAT images not implemented.")
 
         logging.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']

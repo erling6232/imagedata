@@ -68,6 +68,13 @@ class DICOMPlugin(AbstractPlugin):
             orientation
             imagePositions
         """
+        hdr['studyInstanceUID'] = \
+            self.getDicomAttribute(tag_for_name('StudyInstanceUID'))
+        hdr['seriesInstanceUID'] = \
+            self.getDicomAttribute(tag_for_name('SeriesInstanceUID'))
+        frameUID = self.getDicomAttribute(tag_for_name('FrameOfReferenceUID'))
+        if frameUID:
+            hdr['frameOfReferenceUID'] = frameUID
         hdr['seriesNumber'] = self.getDicomAttribute(tag_for_name("SeriesNumber"))
         hdr['seriesDescription'] = self.getDicomAttribute(tag_for_name("SeriesDescription"))
         it = self.getDicomAttribute(tag_for_name("ImageType"))
@@ -182,14 +189,15 @@ class DICOMPlugin(AbstractPlugin):
             hdr['photometricInterpretation'] = im.PhotometricInterpretation
         if 'RescaleSlope' in im:
             matrix_dtype = float
-        elif 'SamplesPerPixel' in im:
-            _color = 1
-            hdr['color'] = True
-            shape = shape + (im.SamplesPerPixel,)
+        elif im.BitsAllocated == 8:
             matrix_dtype = np.uint8
         else:
             matrix_dtype = np.uint16
         logging.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
+        if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
+            _color = 1
+            hdr['color'] = True
+            shape = shape + (im.SamplesPerPixel,)
             #ds.SamplesPerPixel = 1
             #ds.PixelRepresentation = 0
             #try:
@@ -624,7 +632,7 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
         #self.serInsUid = si.header.new_uid()
-        self.serInsUid = si.header.serInsUid
+        self.serInsUid = si.header.seriesInstanceUID
         logging.debug("write_3d_series {}".format(self.serInsUid))
 
         ifile = 0
@@ -706,7 +714,7 @@ class DICOMPlugin(AbstractPlugin):
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.seriesTime = self.getDicomAttribute(tag_for_name("AcquisitionTime"))
         #self.serInsUid = get_uid().next()
-        self.serInsUid = si.header.serInsUid
+        self.serInsUid = si.header.seriesInstanceUID
 
         if self.output_sort == imagedata.formats.SORT_ON_SLICE:
             ifile = 0
@@ -907,8 +915,8 @@ class DICOMPlugin(AbstractPlugin):
         # Add the data elements
         # -- not trying to set all required here. Check DICOM standard
         copy_general_dicom_attributes(template, ds)
-        ds.StudyInstanceUID = si.header.stuInsUid
-        ds.SeriesInstanceUID = si.header.serInsUid
+        ds.StudyInstanceUID = si.header.studyInstanceUID
+        ds.SeriesInstanceUID = si.header.seriesInstanceUID
         ds.SOPClassUID = template.SOPClassUID
         ds.SOPInstanceUID = SOPInsUID
 
@@ -930,38 +938,50 @@ class DICOMPlugin(AbstractPlugin):
         If float array, scale to uint16
         """
 
-        if arr.dtype in self.smallint:
-            ds.PixelData = arr.tostring()
-            ds[0x7fe0,0x0010].VR='OB'
-            ds.SamplesPerPixel = 1
-            ds.BitsAllocated = 8
-            ds.BitsStored = 8
-            ds.HighBit = 7
+        # logging.debug('DICOMPlugin.insert_pixeldata: arr.dtype %s' % arr.dtype)
+        # logging.debug('DICOMPlugin.insert_pixeldata: arr.itemsize  %s' % arr.itemsize)
 
-            ds.SamplesPerPixel = 1
-            ds.PixelRepresentation = 0
-            try:
-                ds.PhotometricInterpretation = arr.photometricInterpretation
-                if arr.photometricInterpretation == 'RGB':
-                    ds.SamplesPerPixel = 3
-                    ds.PlanarConfiguration = 0
-            except ValueError:
-                ds.PhotometricInterpretation = 'MONOCHROME2'
-            return
-        elif np.issubdtype(arr.dtype, np.bool_):
-            ds.PixelData = arr.astype('uint16').tostring()
-        else:
-            # Other high precision data type, like float
-            rescaled = (arr-self.b)/self.a
-            ds.PixelData = rescaled.astype('uint16').tostring()
-
-        ds[0x7fe0,0x0010].VR='OW'
         ds.SamplesPerPixel = 1
         ds.PixelRepresentation = 0
-        ds.BitsAllocated = 16
-        ds.BitsStored = 16
-        ds.HighBit = 15
+        try:
+            ds.PhotometricInterpretation = arr.photometricInterpretation
+            if arr.photometricInterpretation == 'RGB':
+                ds.SamplesPerPixel = 3
+                ds.PlanarConfiguration = 0
+        except ValueError:
+            ds.PhotometricInterpretation = 'MONOCHROME2'
 
+        if arr.dtype in self.smallint:
+            # No scaling of pixel values
+            ds.PixelData = arr.tostring()
+            if arr.itemsize == 1:
+                ds[0x7fe0,0x0010].VR='OB'
+                ds.BitsAllocated = 8
+                ds.BitsStored = 8
+                ds.HighBit = 7
+            else:
+                ds[0x7fe0,0x0010].VR='OW'
+                ds.BitsAllocated = 16
+                ds.BitsStored = 16
+                ds.HighBit = 15
+        elif np.issubdtype(arr.dtype, np.bool_):
+            # No scaling. Pack bits in 16-bit words
+            ds.PixelData = arr.astype('uint16').tostring()
+            ds[0x7fe0,0x0010].VR='OW'
+            ds.BitsAllocated = 16
+            ds.BitsStored = 16
+            ds.HighBit = 15
+        else:
+            # Other high precision data type, like float:
+            # rescale to uint16
+            rescaled = (arr-self.b)/self.a
+            ds.PixelData = rescaled.astype('uint16').tostring()
+            ds[0x7fe0,0x0010].VR='OW'
+            ds.BitsAllocated = 16
+            ds.BitsStored = 16
+            ds.HighBit = 15
+
+        # logging.debug('DICOMPlugin.insert_pixeldata: BitsAllocated %d, SamplesPerPixel %d' % (ds.BitsAllocated, ds.SamplesPerPixel))
 
     def calculate_rescale(self, arr):
         """y = ax + b
