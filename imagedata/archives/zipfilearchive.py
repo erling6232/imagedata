@@ -135,13 +135,13 @@ class ZipfileArchive(AbstractArchive):
             self.__archive, self.__tmpdir))
         # self.__archive.extractall(self.__tmpdir)
         # Get filelist in self.__files
-        logging.debug("ZipFile namelist:\n{}".format(self.__archive.namelist()))
+        # logging.debug("ZipFile namelist:\n{}".format(self.__archive.namelist()))
         for fname in self.__archive.namelist():
             # logging.debug("ZipfileArchive fname: {}".format(fname))
             if not self.__archive.getinfo(fname).is_dir():
                 member = {'unpacked': False, 'name': fname, 'fh': None}
                 self.__files[fname] = member
-        logging.debug("ZipFile self.__files: {}".format(self.__files))
+        # logging.debug("ZipFile self.__files: {}".format(self.__files))
 
     def use_query(self):
         """Do the plugin need the ?query part of the url?"""
