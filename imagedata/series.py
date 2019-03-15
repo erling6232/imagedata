@@ -37,6 +37,7 @@ class Header(object):
                    'DicomHeaderDict', 'tags', 'spacing',
                    'imagePositions', 'orientation', 'seriesNumber',
                    'seriesDescription', 'imageType', 'frameOfReferenceUID',
+                   'studyInstanceUID', 'seriesInstanceUID',
                    'input_sort', 'transformationMatrix',
                    'color', 'photometricInterpretation']
 
@@ -64,17 +65,18 @@ class Header(object):
             tags = len(self.tags)
         except TypeError:
             return
-        self.stuInsUid = self.new_uid()
-        self.serInsUid = self.new_uid()
-        self.frameUid = self.new_uid()
-        logging.debug('Header.set_default_values: study  UID {}'.format(self.stuInsUid))
-        logging.debug('Header.set_default_values: series UID {}'.format(self.serInsUid))
+        self.studyInstanceUID = self.new_uid()
+        self.seriesInstanceUID = self.new_uid()
+        self.frameOfReferenceUID = self.new_uid()
+        logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
+        logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
 
         self.DicomHeaderDict = {}
         i = 0
         for slice in range(self.slices):
             self.DicomHeaderDict[slice] = {}
         logging.debug('Header.set_default_values %d tags' % len(self.tags))
+        logging.debug('Header.set_default_values tags {}'.format(self.tags))
         for tag in range(len(self.tags)):
                 self.DicomHeaderDict[slice][tag] = \
                     (tag, None, 
@@ -103,11 +105,11 @@ class Header(object):
         ds = pydicom.dataset.Dataset()
 
         # Add the data elements
-        ds.StudyInstanceUID = self.stuInsUid
-        ds.SeriesInstanceUID = self.serInsUid
+        ds.StudyInstanceUID = self.studyInstanceUID
+        ds.SeriesInstanceUID = self.seriesInstanceUID
         ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7' # SC
         ds.SOPInstanceUID = SOPInsUID
-        ds.FrameOfReferenceUID = self.frameUid
+        ds.FrameOfReferenceUID = self.frameOfReferenceUID
 
         ds.PatientName = 'ANONYMOUS'
         ds.PatientID = 'ANONYMOUS'
@@ -361,6 +363,7 @@ class Series(np.ndarray):
                     pass
 
         # logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))
+        # logging.debug('Series.__getitem__: shape {}'.format(self.shape))
         slicing = False
         if isinstance(self, Series):
             # Calculate slice range
@@ -388,10 +391,10 @@ class Series(np.ndarray):
                     spec[i] = (start, stop, step)
                     slicing = True
             if slicing:
-                # logging.debug('Series.__getitem__: tag slice: {}'.format(spec[-4]))
-                # logging.debug('Series.__getitem__: z   slice: {}'.format(spec[-3]))
-                # logging.debug('Series.__getitem__: y   slice: {}'.format(spec[-2]))
-                # logging.debug('Series.__getitem__: x   slice: {}'.format(spec[-1]))
+                # logging.debug('Series.__getitem__: tag slice: {}'.format(spec[0]))
+                # logging.debug('Series.__getitem__: z   slice: {}'.format(spec[1]))
+                # logging.debug('Series.__getitem__: y   slice: {}'.format(spec[2]))
+                # logging.debug('Series.__getitem__: x   slice: {}'.format(spec[3]))
 
                 it = len(spec) - 4
                 iz = len(spec) - 3
@@ -522,7 +525,10 @@ class Series(np.ndarray):
             hdr[j] = [False for x in range(count_tags)]
             n = 0
             for m in range(specs[it][0], tag_stop):
-                hdr[j][n] = tmpl_hdr[i][m]
+                try:
+                    hdr[j][n] = tmpl_hdr[i][m]
+                except KeyError:
+                    hdr[j][n] = {}
                 n += 1
             j += 1
         return hdr
@@ -786,12 +792,12 @@ class Series(np.ndarray):
         Returns DicomHeaderDict instance.
         Raises ValueError when header is not set.
         """
-        logging.debug('Series.DicomHeaderDict: here')
+        # logging.debug('Series.DicomHeaderDict: here')
         try:
             if self.header.DicomHeaderDict is not None:
-                logging.debug('Series.DicomHeaderDict: return')
-                logging.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
-                logging.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
+                # logging.debug('Series.DicomHeaderDict: return')
+                # logging.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
+                # logging.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
                 return self.header.DicomHeaderDict
         except Exception:
             pass
@@ -1137,6 +1143,76 @@ class Series(np.ndarray):
                 self.header.imageType.append(str(s))
         except Exception:
             raise TypeError("Given image type is not printable (is %s)" % type(imagetype))
+
+    @property
+    def studyInstanceUID(self):
+        """Study instance UID
+
+        DICOM study instance UID
+        
+        Returns:
+        - uid type, study instance UID (str)
+        Exceptions:
+        - ValueError: when study instance UID is not set
+        """
+        try:
+            if self.header.studyInstanceUID is not None:
+                return self.header.studyInstanceUID
+        except Exception:
+            pass
+        raise ValueError("No study instance UID set.")
+
+    @studyInstanceUID.setter
+    def studyInstanceUID(self, uid):
+        """Set study instance UID
+
+        Input:
+        - uid: study instance UID
+        Exceptions:
+        - TypeError: When uid is not printable
+        """
+        if uid is None:
+            self.header.studyInstanceUID = None
+            return
+        try:
+            self.header.studyInstanceUID = str(uid)
+        except Exception:
+            raise TypeError("Given study instance UID is not printable")
+
+    @property
+    def seriesInstanceUID(self):
+        """Series instance UID
+
+        DICOM series instance UID
+        
+        Returns:
+        - uid type, series instance UID (str)
+        Exceptions:
+        - ValueError: when series instance UID is not set
+        """
+        try:
+            if self.header.seriesInstanceUID is not None:
+                return self.header.seriesInstanceUID
+        except Exception:
+            pass
+        raise ValueError("No series instance UID set.")
+
+    @seriesInstanceUID.setter
+    def seriesInstanceUID(self, uid):
+        """Set series instance UID
+
+        Input:
+        - uid: series instance UID
+        Exceptions:
+        - TypeError: When uid is not printable
+        """
+        if uid is None:
+            self.header.seriesInstanceUID = None
+            return
+        try:
+            self.header.seriesInstanceUID = str(uid)
+        except Exception:
+            raise TypeError("Given series instance UID is not printable")
 
     @property
     def frameOfReferenceUID(self):
