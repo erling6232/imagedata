@@ -81,10 +81,13 @@ def add_argparse_options(parser):
         help="Specify output datatype. Otherwise keep input datatype",
         choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
         default=None)
-    parser.add_argument('--psopt', dest="psopt",
+    parser.add_argument('--psopt',
         help="GhostScript device for reading PostScript file",
         choices=['png16m', 'pnggray'],
         default='png16m')
+    parser.add_argument('--dpi',
+        help="Resolution in pixels/inch when creating image",
+        default=150)
     parser.add_argument('--odir', dest="output_dir",
         help="Store all images in a single or multiple directories (default: single)",
         choices=['single', 'multi'], default='single')
@@ -109,6 +112,9 @@ def add_argparse_options(parser):
     parser.add_argument('--input_options', action=CommaSepAction,
         help="Set input options (e.g. TriggerTime), comma-separated list",
         default=[])
+    parser.add_argument('--calling_aet',
+        help='Calling AEtitle',
+        default=None)
     parser.add_argument('--correct_acq', action='store_true',
         help="Correct acquisition time on dynamic series (DICOM only) (implies --order time)")
     parser.add_argument('--headers_only', action='store_true',

@@ -263,7 +263,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
-        compare_headers(self, si, si2)
+        compare_headers(self, si, si2, uid=False)
         logging.debug('si[0,0,0,0]={}, si2[0,0,0,0]={}'.format(
             si[0,0,0,0], si2[0,0,0,0]))
         logging.debug('si.dtype {}, si2.dtype {}'.format(

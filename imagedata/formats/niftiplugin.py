@@ -12,6 +12,7 @@ import math
 import numpy as np
 
 import imagedata.formats
+import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 import nibabel
 
@@ -101,20 +102,25 @@ class NiftiPlugin(AbstractPlugin):
         """
 
         info, si = image_list[0]
-        try:
-            ny,nx,nz,nt = info.get_data_shape()
-            logging.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny,nx,nz,nt))
-        except ValueError:
-            ny,nx,nz = info.get_data_shape()
-            nt = 1
+        _data_shape = info.get_data_shape()
+        nt = nz = 1
+        nx, ny = _data_shape[:2]
+        if len(_data_shape) > 2:
+            nz = _data_shape[2]
+        if len(_data_shape) > 3:
+            nt = _data_shape[3]
+        logging.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny,nx,nz,nt))
         #nifti_affine = image_list[0].get_affine()
         nifti_affine = info.get_sform()
         logging.debug('NiftiPlugin.read: get_sform\n{}'.format(info.get_sform()))
         logging.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
-        try:
-            dx, dy, dz = info.get_zooms()
-        except ValueError:
-            dx, dy, dz, dt = info.get_zooms()
+        _data_zooms = info.get_zooms()
+        dt = dz = 1
+        dx, dy = _data_zooms[:2]
+        if len(_data_zooms) > 2:
+            dz = _data_zooms[2]
+        if len(_data_zooms) > 3:
+            dt = _data_zooms[3]
         self.spacing = (dz, dy, dx)
         hdr['spacing'] = (dz, dy, dx)
 
@@ -129,9 +135,6 @@ class NiftiPlugin(AbstractPlugin):
         #self.transformationMatrix = self.nifti_to_affine(nifti_affine, si.shape)
         # Prerequisites for setQform: self.spacing and self.slices
         # self.spacing is set already
-        nz = 1
-        if si.ndim > 2:
-            nz = si.shape[-3]
         #self.setQform(nifti_affine)
         #hdr['transformationMatrix'] = self.transformationMatrix
         self.shape = si.shape
@@ -147,14 +150,42 @@ class NiftiPlugin(AbstractPlugin):
             #    times = info.get_slice_times()
             #    print("_set_tags: times", times)
             #except nibabel.spatialimages.HeaderDataError:
-                dx, dy, dz, dt = info.get_zooms()
-                times = np.arange(0, nt*dt, dt)
+            times = np.arange(0, nt*dt, dt)
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logging.debug("_set_tags: times {}".format(times))
         tags = {}
         for z in range(nz):
             tags[z] = np.array(times)
         hdr['tags'] = tags
+
+        axes = list()
+        if si.ndim > 3:
+            axes.append(imagedata.axis.UniformLengthAxis(
+                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                0,
+                nt,
+                dt)
+            )
+        if si.ndim > 2:
+            axes.append(imagedata.axis.UniformLengthAxis(
+                'slice',
+                0,
+                nz,
+                dz)
+            )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            0,
+            ny,
+            dy)
+        )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            0,
+            nx,
+            dx)
+        )
+        hdr['axes'] = axes
 
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
@@ -340,6 +371,7 @@ class NiftiPlugin(AbstractPlugin):
 
         return Q
 
+    '''
     def reverse_3d_shape(self, shape):
         if len(shape) == 4:
             t,slices,rows,columns = shape
@@ -400,6 +432,7 @@ class NiftiPlugin(AbstractPlugin):
                 si[:,:,z,i] = np.fliplr(data[i,z,:,:].T)
         #logging.debug('reorder_data_in_4d: return')
         return si
+    '''
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Nifti file
@@ -435,18 +468,18 @@ class NiftiPlugin(AbstractPlugin):
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
-        if si.ndim == 2:
-            si.shape = (1,) + si.shape
+        #if si.ndim == 2:
+        #    si.shape = (1,) + si.shape
         #elif si.ndim == 3:
         #    si.shape = (1,) + si.shape
         #assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
-        assert si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
+        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
         #if si.shape[0] != 1:
         #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
         #slices = si.shape[1]
-        slices = si.shape[0]
-        if slices != si.slices:
-            raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #slices = si.shape[0]
+        #if slices != si.slices:
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
         #fsi=self.reorder_data_in_3d(si)
         fsi = self._reorder_to_dicom(si, flip=True)
@@ -459,7 +492,10 @@ class NiftiPlugin(AbstractPlugin):
         NiftiHeader.set_dim_info(freq=0, phase=1, slice=2)
         NiftiHeader.set_data_shape(shape)
         dz,dy,dx = self.spacing
-        NiftiHeader.set_zooms((dx,dy,dz))
+        if si.ndim < 3:
+            NiftiHeader.set_zooms((dx,dy))
+        else:
+            NiftiHeader.set_zooms((dx,dy,dz))
         NiftiHeader.set_data_dtype(fsi.dtype)
         #NiftiHeader.set_qform(qform, code=2)
         NiftiHeader.set_sform(qform, code=2)
@@ -540,7 +576,8 @@ class NiftiPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        fsi=self.reorder_data_in_4d(si)
+        #fsi=self.reorder_data_in_4d(si)
+        fsi = self._reorder_to_dicom(si, flip=True)
         shape = fsi.shape
 
         #qform = self.affine_to_nifti(shape)

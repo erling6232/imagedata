@@ -17,15 +17,11 @@ import imagedata.formats
 from imagedata.series import Series
 
 logger = logging.getLogger()
-handler = logging.StreamHandler()
-formatter = logging.Formatter(
-       '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-#logger.setLevel(logging.DEBUG)
-#logger.setLevel(logging.INFO)
-logger.setLevel(logging.WARNING)
-#logger.setLevel(logging.ERROR)
+#handler = logging.StreamHandler()
+#formatter = logging.Formatter(
+#       '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
+#handler.setFormatter(formatter)
+#logger.addHandler(handler)
 
 def dump():
     parser = argparse.ArgumentParser()
@@ -33,7 +29,7 @@ def dump():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(args.loglevel)
     #if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
@@ -120,7 +116,7 @@ def calculator():
     parser.add_argument("expression", help="Expression")
     parser.add_argument("indirs", help="Input arguments", nargs="+")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(args.loglevel)
     #if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -166,7 +162,7 @@ def calculator():
     print("after", out.dtype, out.shape, out.min(), out.max())
 
     # Save masked image
-    out.write(args.outdir, 'Image_%05d', opts=args)
+    out.write(args.outdir, opts=args)
     return(0)
 
 def statistics():
@@ -175,7 +171,7 @@ def statistics():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(args.loglevel)
     #if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
@@ -198,7 +194,7 @@ def timeline():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(args.loglevel)
     #if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
@@ -222,7 +218,7 @@ def conversion():
     parser.add_argument("in_dirs", nargs='+',
             help="Input directories and files")
     args = parser.parse_args()
-    logging.basicConfig(level=args.loglevel)
+    logger.setLevel(args.loglevel)
     #if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     if len(args.output_format) < 1: args.output_format=['dicom']
@@ -236,7 +232,6 @@ def conversion():
         traceback.print_exc(file=sys.stdout)
         return(1)
 
-    #si.write(args.out_name, 'Image_%05d', opts=args)
     si.write(args.out_name, opts=args)
     return(0)
 

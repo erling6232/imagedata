@@ -8,15 +8,17 @@ import os, os.path
 import time
 
 def get_hostid():
+    """
     import tempfile
     tmpnamt=tempfile.mkstemp()
     tmpnam=tmpnamt[1]
     os.system("hostid >| "+tmpnam)
-    f = open(tmpnam, 'r')
-    hostid = f.readline()
-    f.close()
+    with open(tmpnam, 'r') as f:
+        hostid = f.readline()
     os.remove(tmpnam)
     return(hostid)
+    """
+    return(os.popen('hostid').read().strip())
 
 def get_uid():
     """Generator function which will return a unique UID"""

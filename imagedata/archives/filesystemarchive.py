@@ -43,7 +43,8 @@ class FilesystemArchive(AbstractArchive):
                 (url_tuple.scheme, netloc))
             transport = imagedata.transports.find_scheme_plugin(
                 url_tuple.scheme,
-                netloc,
+                netloc=url_tuple.netloc,
+                path=netloc,
                 mode=mode,
                 read_directory_only=read_directory_only)
         except imagedata.transports.RootDoesNotExist:
@@ -54,13 +55,14 @@ class FilesystemArchive(AbstractArchive):
             parent, filename = os.path.split(url_tuple.path)
             transport = imagedata.transports.find_scheme_plugin(
                 url_tuple.scheme,
-                parent,
+                netloc=url_tuple.netloc,
+                root=parent,
                 mode=mode,
                 read_directory_only=read_directory_only)
         return(transport)
 
     def __init__(self, transport=None, url=None, mode='r',
-            read_directory_only=True):
+            read_directory_only=True, opts={}):
         super(FilesystemArchive, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
         logging.debug("FilesystemArchive.__init__ url: {}".format(url))
@@ -85,10 +87,11 @@ class FilesystemArchive(AbstractArchive):
                           (urldict.scheme, self.__path))
             self.__transport = imagedata.transports.find_scheme_plugin(
                 urldict.scheme,
-                #netloc,
-                self.__path,
+                netloc=urldict.netloc,
+                root=self.__path,
                 mode=mode,
-                read_directory_only=read_directory_only)
+                read_directory_only=read_directory_only,
+                opts=opts)
         self.__mode = mode
         self.__files = {}
 
@@ -131,6 +134,12 @@ class FilesystemArchive(AbstractArchive):
                 #    self.__filelist[fname] = (root,filename)
                 #    logging.debug(fname)
         #logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
+
+    @property
+    def transport(self):
+        """Underlying transport plugin
+        """
+        return self.__transport
 
     def use_query(self):
         """Do the plugin need the ?query part of the url?"""
@@ -249,8 +258,9 @@ class FilesystemArchive(AbstractArchive):
         self.__filelist.append(fname)
 
     def close(self):
-        """Dummy close function.
+        """Close function.
         """
+        self.__transport.close()
         return
 
     def is_file(self, filehandle):

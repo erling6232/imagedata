@@ -21,7 +21,7 @@ class XnatTransport(AbstractTransport):
     url = "www.helse-bergen.no"
     schemes = ["xnat"]
 
-    def __init__(self, root, mode='r', read_directory_only=False):
+    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts={}):
         super(XnatTransport, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.schemes)
         logging.debug("XnatTransport __init__ root: {}".format(root))

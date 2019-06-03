@@ -39,7 +39,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts_gray)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (842, 595))
+        self.assertEqual(si1.shape, (1754, 1240))
 
     #@unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
@@ -48,7 +48,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (842, 595, 3))
+        self.assertEqual(si1.shape, (1754, 1240, 3))
 
     #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
@@ -60,7 +60,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (2, 842, 595, 3))
+        self.assertEqual(si1.shape, (2, 1754, 1240, 3))
 
     #@unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
@@ -69,7 +69,9 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (6, 842, 595, 3))
+        self.assertEqual(si1.shape, (6, 1754, 1240, 3))
+        #for axis in si1.axes:
+        #    logging.debug('test_read_single_directory: axis {}'.format(axis))
 
     #@unittest.skip("skipping test_read_large_file")
     def test_read_large_file(self):
@@ -78,7 +80,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (6, 842, 595, 3))
+        self.assertEqual(si1.shape, (6, 1754, 1240, 3))
 
     #@unittest.skip("skipping test_zipread_single_file")
     def test_zipread_single_file(self):
@@ -87,7 +89,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (842, 595, 3))
+        self.assertEqual(si1.shape, (1754, 1240, 3))
 
     #@unittest.skip("skipping test_zipread_two_files")
     def test_zipread_two_files(self):
@@ -96,7 +98,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (2, 842, 595, 3))
+        self.assertEqual(si1.shape, (2, 1754, 1240, 3))
 
     #@unittest.skip("skipping test_zipread_a_directory")
     def test_zipread_a_directory(self):
@@ -105,7 +107,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (6, 842, 595, 3))
+        self.assertEqual(si1.shape, (6, 1754, 1240, 3))
 
     #@unittest.skip("skipping test_zipread_all")
     def test_zipread_all(self):
@@ -114,7 +116,7 @@ class Test2DPSPlugin(unittest.TestCase):
             0,
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (6, 842, 595, 3))
+        self.assertEqual(si1.shape, (6, 1754, 1240, 3))
 
     #@unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):

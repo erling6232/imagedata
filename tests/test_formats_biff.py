@@ -36,6 +36,7 @@ class Test3DBiffPlugin(unittest.TestCase):
         self.assertIsNotNone(pclass)
 
     def tearDown(self):
+        shutil.rmtree('ttb2d', ignore_errors=True)
         shutil.rmtree('ttb3d', ignore_errors=True)
 
     #@unittest.skip("skipping test_read_single_file")
@@ -56,8 +57,8 @@ class Test3DBiffPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
         si2 = si1[0,...]
-        si2.write('ttb3d', formats=['biff'])
-        si3 = Series('ttb3d')
+        si2.write('ttb2d', formats=['biff'])
+        si3 = Series('ttb2d')
         self.assertEqual(si2.dtype, si3.dtype)
         self.assertEqual(si2.shape, si3.shape)
         np.testing.assert_array_equal(si2, si3)
@@ -98,6 +99,8 @@ class Test3DBiffPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
+        #for axis in si1.axes:
+        #    logging.debug('test_zipread_single_directory: axis {}'.format(axis))
 
     #@unittest.skip("skipping test_zipread_all_files")
     def test_zipread_all_files(self):

@@ -9,6 +9,7 @@ import sys
 import locale
 import logging
 import fs
+import magic
 import tempfile
 import numpy as np
 #import gfx
@@ -61,6 +62,9 @@ class PSPlugin(ITKPlugin):
         """
 
         info = None
+        self.res = 150 # dpi
+        if 'dpi' in opts:
+            self.res = int(opts['dpi'])
         self.psopt = 'png16m'
         if 'psopt' in opts:
             self.psopt = opts['psopt']
@@ -140,11 +144,16 @@ class PSPlugin(ITKPlugin):
                     Multi-page PostScript files will be converted to fname-N.png
         """
 
+        # Verify that the input file is a PostScript file
+        if magic.from_file(filename, mime=True) != 'application/postscript':
+            raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(filename))
+
         args = [
             "gs", # actual value doesn't matter
             "-dNOPAUSE", "-dBATCH", "-dSAFER", "-dQUIET",
             #"-sDEVICE=pnggray",
             #"-sDEVICE=png16m",
+            "-r{}".format(self.res),
             "-sDEVICE={}".format(self.psopt),
             "-sOutputFile=" + os.path.join(tempdir, fname),
             #"-c", ".setpdfwrite",

@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -14,9 +14,11 @@ from pydicom.datadict import tag_for_name
 
 from imagedata.series import Series
 import imagedata.formats
+import imagedata.axis
 #from imagedata.formats.dicomlib.uid import get_uid
 from imagedata.formats.dicomlib.copy_general_dicom_attributes import copy_general_dicom_attributes
 from imagedata.formats.abstractplugin import AbstractPlugin
+from imagedata.transports.dicomtransport import DicomTransport
 
 class FilesGivenForMultipleURLs(Exception): pass
 class NoDICOMAttributes(Exception): pass
@@ -50,8 +52,10 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         origin = self.getDicomAttribute(tag_for_name("ImagePositionPatient"), slice)
-        x=float(origin[0]); y=float(origin[1]); z=float(origin[2])
-        return np.array([z, y, x])
+        if origin is not None:
+            x=float(origin[0]); y=float(origin[1]); z=float(origin[2])
+            return np.array([z, y, x])
+        return None
 
     def extractDicomAttributes(self, hdr):
         """Extract DICOM attributes
@@ -67,9 +71,12 @@ class DICOMPlugin(AbstractPlugin):
             spacing
             orientation
             imagePositions
+            axes
         """
         hdr['studyInstanceUID'] = \
             self.getDicomAttribute(tag_for_name('StudyInstanceUID'))
+        hdr['studyID'] = \
+            self.getDicomAttribute(tag_for_name('StudyID'))
         hdr['seriesInstanceUID'] = \
             self.getDicomAttribute(tag_for_name('SeriesInstanceUID'))
         frameUID = self.getDicomAttribute(tag_for_name('FrameOfReferenceUID'))
@@ -81,10 +88,32 @@ class DICOMPlugin(AbstractPlugin):
         #logging.debug("ImageType {} {} {}".format(len(it), type(it), it))
         #for it1 in it:
             #logging.debug("ImageType {} {} {}".format(len(it1), type(it1), it1))
-        it2 = "\\".join(it)
+        #if it is not None:
+        #    it2 = "\\".join(it)
         #logging.debug("ImageType {} {} {}".format(len(it2), type(it2), it2))
         hdr['imageType'] = self.getDicomAttribute(tag_for_name("ImageType"))
 
+        hdr['accessionNumber'] = self.getDicomAttribute(tag_for_name('AccessionNumber'))
+        hdr['patientName'] = self.getDicomAttribute(tag_for_name('PatientName'))
+        hdr['patientID'] = self.getDicomAttribute(tag_for_name('PatientID'))
+        hdr['patientBirthDate'] = self.getDicomAttribute(tag_for_name('PatientBirthDate'))
+
+        hdr['spacing'] = self.__get_voxel_spacing()
+
+        ## Image position (patient)
+        # Reverse orientation vectors from (x,y,z) to (z,y,x)
+        iop = self.getDicomAttribute(tag_for_name("ImageOrientationPatient"))
+        if iop is not None:
+            hdr['orientation'] = np.array((iop[2],iop[1],iop[0],
+                                           iop[5],iop[4],iop[3]))
+
+        # Extract imagePositions
+        hdr['imagePositions'] = {}
+        for slice in hdr['DicomHeaderDict']:
+            hdr['imagePositions'][slice] = self.getOriginForSlice(slice)
+
+
+    def __get_voxel_spacing(self):
         # Spacing
         pixel_spacing = self.getDicomAttribute(tag_for_name("PixelSpacing"))
         dy = 1.0; dx = 1.0
@@ -98,24 +127,7 @@ class DICOMPlugin(AbstractPlugin):
                 dz = float(self.getDicomAttribute(tag_for_name("SliceThickness")))
             except TypeError:
                 dz = 1.0
-        hdr['spacing'] = np.array([dz, dy, dx])
-
-        ## Image position (patient)
-        # Reverse orientation vectors from (x,y,z) to (z,y,x)
-        iop = self.getDicomAttribute(tag_for_name("ImageOrientationPatient"))
-        if iop is not None:
-            hdr['orientation'] = np.array((iop[2],iop[1],iop[0],
-                                           iop[5],iop[4],iop[3]))
-
-        # Extract imagePositions, convert from xyz to zyx
-        hdr['imagePositions'] = {}
-        for slice in hdr['DicomHeaderDict']:
-            for tag,fname,im in hdr['DicomHeaderDict'][slice]:
-                try:
-                    # getOriginForSlice gives position as zyx
-                    hdr['imagePositions'][slice] = self.getOriginForSlice(slice)
-                except TypeError:
-                    pass
+        return np.array([dz, dy, dx])
 
     def setDicomAttribute(self, tag, value):
         # Ignore if no real dicom header exists
@@ -198,6 +210,12 @@ class DICOMPlugin(AbstractPlugin):
             _color = 1
             hdr['color'] = True
             shape = shape + (im.SamplesPerPixel,)
+            hdr['axes'].append(
+                imagedata.axis.VariableAxis(
+                    'rgb',
+                    ['r','g','b']
+                )
+            )
             #ds.SamplesPerPixel = 1
             #ds.PixelRepresentation = 0
             #try:
@@ -216,6 +234,7 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('DICOMPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, matrix_dtype)
         for slice in hdr['DicomHeaderDict']:
+            _done = [False for x in range(len(hdr['DicomHeaderDict'][slice]))]
             for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
                 archive,fname = member_name
                 member = archive.getmembers([fname,])
@@ -225,6 +244,10 @@ class DICOMPlugin(AbstractPlugin):
                 tgs = np.array(hdr['tags'][slice])
                 #idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
+                if _done[idx] and 'AcceptDuplicateTag' in opts['input_options']:
+                    while _done[idx]:
+                        idx += 1
+                _done[idx] = True
                 if 'NumberOfFrames' in im:
                     if im.NumberOfFrames == 1: idx = (idx, slice)
                 else:
@@ -240,37 +263,13 @@ class DICOMPlugin(AbstractPlugin):
                 #    logging.error("Cannot decompress pixel data: {}".format(e))
                 #    raise
                 try:
-                    #logging.debug("Set si[{}]".format(idx))
-                    if 'RescaleSlope' in im:
-                        si[idx] = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
-                    else:
-                        si[idx] = im.pixel_array
-                except UnboundLocalError:
-                    # A bug in pydicom appears when reading binary images
-                    if im.BitsAllocated == 1:
-                        logging.debug("Binary image, si.shape={}, image shape=({},{},{})".format(si.shape, im.NumberOfFrames, im.Rows, im.Columns))
-                        #try:
-                        #    im.decompress()
-                        #except NotImplementedError as e:
-                        #    logging.error("Cannot decompress pixel data: {}".format(e))
-                        #    raise
-                        myarr = np.frombuffer(im.PixelData, dtype=np.uint8)
-                        # Reverse bit order, and copy the array to get a
-                        # contiguous array
-                        bits = np.unpackbits(myarr).reshape(-1,8)[:,::-1].copy()
-                        si[idx] = np.fliplr(
-                                bits.reshape(
-                                    1, im.NumberOfFrames, im.Rows, im.Columns))
-                        if 'RescaleSlope' in im:
-                            si[idx] = float(im.RescaleSlope) * si[idx] + float(im.RescaleIntercept)
-                    else:
-                        raise
+                    si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
                 except Exception as e:
                     logging.warning("Cannot read pixel data: {}".format(e))
                     raise
 
         # Simplify shape
-        self._reduce_shape(si)
+        self._reduce_shape(si, hdr['axes'])
         logging.debug('DICOMPlugin.read: si {}'.format(si.shape))
 
         nz = len(hdr['DicomHeaderDict'])
@@ -294,6 +293,60 @@ class DICOMPlugin(AbstractPlugin):
             pass
         self.create_affine(hdr)
         return hdr,si
+
+    def _get_pixels_with_shape(self, im, shape):
+        """Get pixels from im object. Reshape image to given shape
+
+        Input:
+        - self: format plugin instance
+        - im: dicom image
+        - shape: requested image shape
+        Return value:
+        - si: numpy array of given shape
+        """
+
+        try:
+            #logging.debug("Set si[{}]".format(idx))
+            if 'RescaleSlope' in im:
+                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
+            else:
+                pixels = im.pixel_array
+            if shape != pixels.shape:
+                # This happens only when images in a series have varying shape
+                # Place the pixels in the upper left corner of the matrix
+                assert len(shape) == len(pixels.shape), "Shape of matrix ({}) differ from pixel shape ({})".format(
+                    shape, pixels.shape)
+                # Assume that pixels can be expanded to match si shape
+                si = np.zeros(shape, pixels.dtype)
+                roi = []
+                for d in pixels.shape:
+                    roi.append(slice(d))
+                roi = tuple(roi)
+                si[roi] = pixels
+                return si
+            else:
+                return pixels
+        except UnboundLocalError:
+            # A bug in pydicom appears when reading binary images
+            if im.BitsAllocated == 1:
+                logging.debug("Binary image, si.shape={}, image shape=({},{},{})".format(si.shape, im.NumberOfFrames, im.Rows, im.Columns))
+                #try:
+                #    im.decompress()
+                #except NotImplementedError as e:
+                #    logging.error("Cannot decompress pixel data: {}".format(e))
+                #    raise
+                myarr = np.frombuffer(im.PixelData, dtype=np.uint8)
+                # Reverse bit order, and copy the array to get a
+                # contiguous array
+                bits = np.unpackbits(myarr).reshape(-1,8)[:,::-1].copy()
+                si = np.fliplr(
+                    bits.reshape(
+                        1, im.NumberOfFrames, im.Rows, im.Columns))
+                if 'RescaleSlope' in im:
+                    si = float(im.RescaleSlope) * si + float(im.RescaleIntercept)
+                return si
+            else:
+                raise
 
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
@@ -390,7 +443,7 @@ class DICOMPlugin(AbstractPlugin):
             logging.debug("get_dicom_headers: scan_files: {}".format(scan_files))
             #for member in archive.getmembers(scan_files):
             for path in archive.getnames(scan_files):
-                logging.debug("get_dicom_headers: member: {}".format(path))
+                #logging.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR": continue
                 member = archive.getmembers([path,])
                 if len(member) != 1:
@@ -398,7 +451,7 @@ class DICOMPlugin(AbstractPlugin):
                 member = member[0]
                 try:
                     with archive.open(member, mode='rb') as f:
-                        logging.debug("get_dicom_headers: calling self.process_member({})".format(member))
+                        #logging.debug("get_dicom_headers: calling self.process_member({})".format(member))
                         self.process_member(imageDict, archive, path, f, opts)
                 except Exception as e:
                     logging.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
@@ -466,7 +519,8 @@ class DICOMPlugin(AbstractPlugin):
         # Sort images based on position in tagList
         sorted_headers = {}
         islice = 0
-        frames = None; rows = None; columns = None
+        # Allow for variable sized slices
+        frames = None; rows = columns = 0
         i = 0
         for sloc in sorted(headerDict):
             # Pre-fill sorted_headers
@@ -477,9 +531,16 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     tag = self.get_tag(im, input_order, opts)
                 idx = tagList[islice].index(tag)
+                if sorted_headers[islice][idx]:
+                    # Duplicate tag
+                    if 'AcceptDuplicateTag' in opts['input_options']:
+                        while sorted_headers[islice][idx]:
+                            idx += 1
+                    else:
+                        print("WARNING: Duplicate tag", tag)
                 #sorted_headers[islice].insert(idx, (tag, (archive,fname), im))
                 sorted_headers[islice][idx] = (tag, (archive,fname), im)
-                rows = im.Rows; columns = im.Columns
+                rows = max(rows, im.Rows); columns = max(columns, im.Columns)
                 if 'NumberOfFrames' in im: frames = im.NumberOfFrames
                 i += 1
             islice += 1
@@ -495,6 +556,35 @@ class DICOMPlugin(AbstractPlugin):
             shape = ((len(tagList[0]), nz, rows, columns))
         else:
             shape = (nz, rows, columns)
+        spacing = self.__get_voxel_spacing()
+        ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        if ipp is not None:
+            ipp = np.array(list(map(float, ipp)))[::-1] # Reverse xyz
+        else:
+            ipp = np.array([0, 0, 0])
+        axes = list()
+        if len(tagList[0]) > 1:
+            axes.append(
+                imagedata.axis.VariableAxis(
+                    imagedata.formats.input_order_to_dirname_str(input_order),
+                    tagList[0])
+            )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'slice',
+            ipp[0],
+            nz,
+            spacing[0]))
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            ipp[1],
+            rows,
+            spacing[1]))
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            ipp[2],
+            columns,
+            spacing[2]))
+        hdr['axes'] = axes
         return hdr,shape
 
     def process_member(self, imageDict, archive, member_name, member, opts):
@@ -513,16 +603,19 @@ class DICOMPlugin(AbstractPlugin):
 
         try:
             sloc=im.SliceLocation
-            if sloc not in imageDict:
-                imageDict[sloc] = []
-            imageDict[sloc].append((archive, member_name, im))
-            #logging.debug("process_member: added sloc {} {}".format(sloc, member_name))
-        except Exception:
-            traceback.print_exc()
-            logging.debug("process_member: no SliceLocation in {}".format(member_name))
-            if 0 not in imageDict:
-                imageDict[0] = []
-            imageDict[0].append((archive, member_name, im))
+        except AttributeError:
+            #traceback.print_exc()
+            #logging.debug("process_member: no SliceLocation in {}".format(member_name))
+            logging.debug('DICOMPlugin.process_member: Calculate SliceLocation')
+            try:
+                sloc = self.calculateSliceLocation(im)
+            except ValueError:
+                sloc = 0
+        logging.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
+        if sloc not in imageDict:
+            imageDict[sloc] = []
+        imageDict[sloc].append((archive, member_name, im))
+        #logging.debug("process_member: added sloc {} {}".format(sloc, member_name))
         #logging.debug("process_member: imageDict len: {}".format(len(imageDict)))
 
     def correct_acqtimes_for_dynamic_series(self, hdr, si):
@@ -597,32 +690,38 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.dcm'
-        if len(destination['files'][0]) > 0:
+        logging.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(destination['files']))
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
+        logging.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
 
         self.instanceNumber = 0
 
         save_shape = si.shape
-        _actual_shape = si.shape
+        _ndim = si.ndim
+        #_actual_shape = si.shape
         try:
             if si.color:
-                _actual_shape = si.shape[:-1]
+                _ndim -= 1
+        #        _actual_shape = si.shape[:-1]
         except:
             pass
-        _actual_ndim = len(_actual_shape)
-        if _actual_ndim == 2:
-            si.shape = (1,) + si.shape
-            _actual_shape = (1,) + _actual_shape
-            _actual_ndim += 1
-        if _actual_ndim == 3:
-            si.shape = (1,) + si.shape
-            _actual_shape = (1,) + _actual_shape
-            _actual_ndim += 1
-        logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, write shape {} len {}'.format(save_shape, si.shape, _actual_ndim))
-        assert _actual_ndim == 4, "write_3d_series: input dimension %d is not 3D." % (_actual_ndim-1)
-        if si.shape[0] != 1:
-            raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(_actual_shape))
-        logging.debug('DICOMPlugin.write_3d_numpy: _shape {}'.format(_actual_shape))
+        #_actual_ndim = len(_actual_shape)
+        #if _actual_ndim == 2:
+        #    si.shape = (1,) + si.shape
+        #    _actual_shape = (1,) + _actual_shape
+        #    _actual_ndim += 1
+        #if _actual_ndim == 3:
+        #    si.shape = (1,) + si.shape
+        #    _actual_shape = (1,) + _actual_shape
+        #    _actual_ndim += 1
+        logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, write shape {} slices {} len {}'.format(
+            save_shape, si.shape, si.slices, _ndim))
+        assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (_ndim)
+        #assert _actual_ndim == 4, "write_3d_series: input dimension %d is not 3D." % (_actual_ndim-1)
+        #if si.shape[0] != 1:
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(_actual_shape))
+        #logging.debug('DICOMPlugin.write_3d_numpy: _shape {}'.format(_actual_shape))
         #slices = _actual_shape[-3]
         #slices = si.slices
 
@@ -636,15 +735,22 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug("write_3d_series {}".format(self.serInsUid))
 
         ifile = 0
-        for slice in range(si.slices):
+        if _ndim < 3:
+            logging.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
             try:
-                filename = filename_template % (slice)
-            except TypeError as e:
-                filename = filename_template + "_{}".format(slice)
-            #if dirname and not os.path.isdir(dirname):
-            #    os.makedirs(dirname)
-            self.write_slice(0, slice, si, archive, filename, ifile)
-            ifile += 1
+                filename = filename_template % (0)
+            except TypeError:
+                filename = filename_template
+            self.write_slice(0, 0, si, archive, filename, ifile)
+        else:
+            logging.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
+            for slice in range(si.slices):
+                try:
+                    filename = filename_template % (slice)
+                except TypeError as e:
+                    filename = filename_template + "_{}".format(slice)
+                self.write_slice(0, slice, si[slice], archive, filename, ifile)
+                ifile += 1
         si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
@@ -666,7 +772,7 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.dcm'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.DicomHeaderDict = si.DicomHeaderDict
@@ -680,31 +786,36 @@ class DICOMPlugin(AbstractPlugin):
             self.output_dir = opts['output_dir']
 
         self.instanceNumber = 0
+
         save_shape = si.shape
-        _actual_shape = si.shape
+        _ndim = si.ndim
+        #_actual_shape = si.shape
         try:
             if si.color:
-                _actual_shape = si.shape[:-1]
+                _ndim -= 1
+                #_actual_shape = si.shape[:-1]
         except:
             pass
-        _actual_ndim = len(_actual_shape)
+        #_actual_ndim = len(_actual_shape)
         # Should we allow to write 3D volume?
-        if _actual_ndim == 3:
-            si.shape = (1,) + si.shape
-            _actual_shape = (1,) + _actual_shape
-            _actual_ndim += 1
-        if _actual_ndim != 4:
-            raise ValueError("write_4d_numpy: input dimension %d is not 4D." % _actual_ndim)
-        logging.debug("write_4d_numpy: si dtype {}, shape {}".format(si.dtype,
-            si.shape))
-        steps  = _actual_shape[-4]
+        #if _actual_ndim == 3:
+        #    si.shape = (1,) + si.shape
+        #    _actual_shape = (1,) + _actual_shape
+        #    _actual_ndim += 1
+        #if _actual_ndim != 4:
+        #    raise ValueError("write_4d_numpy: input dimension %d is not 4D." % _actual_ndim)
+        #logging.debug("write_4d_numpy: si dtype {}, shape {}".format(si.dtype,
+        #    si.shape))
+        logging.debug('DICOMPlugin.write_4d_numpy: orig shape {}, write shape {} len {}'.format(save_shape, si.shape, _ndim))
         #slices = _actual_shape[-3]
         #slices = si.slices
-        if steps != len(si.tags[0]):
-            raise ValueError("write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]), steps))
+        #if steps != len(si.tags[0]):
+        #    raise ValueError("write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]), steps))
         #if slices != si.slices:
         #    raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        assert _ndim == 4, "write_4d_series: input dimension %d is not 4D." % (_ndim)
 
+        steps  = si.shape[0]
         self.calculate_rescale(si)
         logging.info("Smallest pixel value in series: {}".format(
             self.smallestPixelValueInSeries))
@@ -722,25 +833,17 @@ class DICOMPlugin(AbstractPlugin):
             for tag in range(steps):
                 for slice in range(si.slices):
                     if self.output_dir == 'single':
-                        #dirn = dirname
-                        #if not os.path.isdir(dirn):
-                        #    os.makedirs(dirn)
                         filename = filename_template % (ifile)
                     else: # self.output_dir == 'multi'
-                        #dirn = os.path.join(dirname, "{0}{1:0{2}}".format(
-                        #    imagedata.formats.input_order_to_dirname_str(si.input_order),
-                        #    tag, digits))
-                        dirn = dirname, "{0}{1:0{2}}".format(
+                        dirn = "{0}{1:0{2}}".format(
                             imagedata.formats.input_order_to_dirname_str(si.input_order),
                             tag, digits)
-                        #if not os.path.isdir(dirn):
-                        #    os.makedirs(dirn)
                         if tag == 0:
                             # Restart file number in each subdirectory
                             ifile = 0
                         filename = os.path.join(dirn,
                                 filename_template % (ifile))
-                    self.write_slice(tag, slice, si, archive, filename, ifile)
+                    self.write_slice(tag, slice, si[tag,slice], archive, filename, ifile)
                     ifile += 1
         else: # self.output_sort == imagedata.formats.SORT_ON_TAG:
             ifile = 0
@@ -748,22 +851,15 @@ class DICOMPlugin(AbstractPlugin):
             for slice in range(si.slices):
                 for tag in range(steps):
                     if self.output_dir == 'single':
-                        #dirn = dirname
-                        #if not os.path.isdir(dirn):
-                        #    os.makedirs(dirn)
                         filename = filename_template % (ifile)
                     else: # self.output_dir == 'multi'
-                        #dirn = os.path.join(dirname,
-                        #    "slice{0:0{1}}".format(slice, digits))
                         dirn = "slice{0:0{1}}".format(slice, digits)
-                        #if not os.path.isdir(dirn):
-                        #    os.makedirs(dirn)
                         if slice == 0:
                             # Restart file number in each subdirectory
                             ifile = 0
                         filename = os.path.join(dirn,
                                 filename_template % (ifile))
-                    self.write_slice(tag, slice, si, archive, filename, ifile)
+                    self.write_slice(tag, slice, si[tag,slice], archive, filename, ifile)
                     ifile += 1
         si.shape = save_shape
 
@@ -798,40 +894,51 @@ class DICOMPlugin(AbstractPlugin):
             safe_si = np.nan_to_num(si)
         else:
             safe_si = si.copy()
-        logging.debug("write_slice safe_si ok")
 
         try:
-            logging.debug("write_slice {} {}".format(slice,tag))
-            tt = si.DicomHeaderDict[slice][tag]
-            logging.debug("write_slice tt {}".format(type(tt)))
-            tg,member_name,im = si.DicomHeaderDict[slice][tag]
-            logging.debug("write_slice tg,member_name,im ok")
-        except IndexError:
+            logging.debug("write_slice slice {}, tag {}".format(slice,tag))
+            #logging.debug("write_slice {}".format(si.DicomHeaderDict))
+            tg,member_name,im = si.DicomHeaderDict[0][0]
+            #tg,member_name,im = si.DicomHeaderDict[slice][tag]
+        except (KeyError, IndexError):
             raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]" % (slice, tag))
         #except AttributeError:
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
-        logging.debug("write_slice enter construct_dicom")
+        logging.debug("write_slice member_name {}".format(member_name))
         ds = self.construct_dicom(filename, im, safe_si)
-        logging.debug("write_slice leave construct_dicom")
         self.copy_dicom_group(0x21, im, ds)
         self.copy_dicom_group(0x29, im, ds)
 
         # Add header information
-        ds.SliceLocation = si.sliceLocations[slice]
-        dz,dy,dx = si.spacing
-        logging.debug("write_slice set PixelSpacing {} {}".format(dy,dx))
+        try:
+            ds.SliceLocation = si.sliceLocations[0]
+        except ValueError:
+            ds.SliceLocation = 0
+        try:
+            dz,dy,dx = si.spacing
+        except ValueError:
+            dz,dy,dx = 1,1,1
         ds.PixelSpacing = [str(dy), str(dx)]
-        logging.debug("write_slice PixelSpacing set")
         ds.SliceThickness = str(dz)
-        ipp=si.imagePositions[slice]
+        try:
+            ipp=si.imagePositions
+            if len(ipp) > 0:
+                ipp = ipp[0]
+            else:
+                ipp = np.array([0, 0, 0])
+        except ValueError:
+            ipp = np.array([0, 0, 0])
         if ipp.shape == (3,1): ipp.shape = (3,)
         z,y,x=ipp[:]
         ds.ImagePositionPatient = [str(x),str(y),str(z)]
         # Reverse orientation vectors from zyx to xyz
-        ds.ImageOrientationPatient = [
+        try:
+            ds.ImageOrientationPatient = [
                 si.orientation[2], si.orientation[1], si.orientation[0],
                 si.orientation[5], si.orientation[4], si.orientation[3]]
+        except ValueError:
+            ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
         try:
             ds.SeriesNumber = si.seriesNumber
         except ValueError:
@@ -849,15 +956,17 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             pass
 
-        ds.SmallestPixelValueInSeries = self.smallestPixelValueInSeries.astype('uint16')
-        ds.LargestPixelValueInSeries  = self.largestPixelValueInSeries.astype('uint16')
+        ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries.astype('uint16'))
+        ds.LargestPixelValueInSeries  = np.uint16(self.largestPixelValueInSeries.astype('uint16'))
         ds[0x0028,0x0108].VR='US'
         ds[0x0028,0x0109].VR='US'
         ds.WindowCenter = self.center
         ds.WindowWidth  = self.width
         if np.issubdtype(safe_si.dtype, np.floating):
-            ds.SmallestImagePixelValue    = ((safe_si[tag,slice].min()-self.b)/self.a).astype('uint16')
-            ds.LargestImagePixelValue     = ((safe_si[tag,slice].max()-self.b)/self.a).astype('uint16')
+            ds.SmallestImagePixelValue    = ((safe_si.min()-self.b)/self.a).astype('uint16')
+            ds.LargestImagePixelValue     = ((safe_si.max()-self.b)/self.a).astype('uint16')
+            #ds.SmallestImagePixelValue    = ((safe_si[tag,slice].min()-self.b)/self.a).astype('uint16')
+            #ds.LargestImagePixelValue     = ((safe_si[tag,slice].max()-self.b)/self.a).astype('uint16')
             try:
                 ds.RescaleSlope = "%f" % self.a
             except OverflowError:
@@ -865,8 +974,8 @@ class DICOMPlugin(AbstractPlugin):
             ds.RescaleIntercept = "%f" % self.b
         else:
             #if si.dtype == 'uint16':
-            ds.SmallestImagePixelValue    = safe_si[tag,slice].min().astype('uint16')
-            ds.LargestImagePixelValue     = safe_si[tag,slice].max().astype('uint16')
+            ds.SmallestImagePixelValue    = np.uint16(safe_si.min().astype('uint16'))
+            ds.LargestImagePixelValue     = np.uint16(safe_si.max().astype('uint16'))
             if 'RescaleSlope'     in ds: del ds.RescaleSlope
             if 'RescaleIntercept' in ds: del ds.RescaleIntercept
         ds[0x0028,0x0106].VR='US'
@@ -876,17 +985,23 @@ class DICOMPlugin(AbstractPlugin):
         ds.ContentDate = self.today
         ds.ContentTime = self.now
         #ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
-        ds.Rows    = si.shape[2]
-        ds.Columns = si.shape[3]
-        self.insert_pixeldata(ds, safe_si[tag,slice])
-        logging.debug("write_slice: filename {}".format(filename))
+        ds.Rows    = si.rows
+        ds.Columns = si.columns
+        #self.insert_pixeldata(ds, safe_si[tag,slice])
+        self.insert_pixeldata(ds, safe_si)
+        # logging.debug("write_slice: filename {}".format(filename))
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
         else:
             fn = filename+'.dcm'
-        logging.debug("write_slice: fn {}".format(fn))
-        with archive.open(fn, 'wb') as f:
-            ds.save_as(f, write_like_original=False)
+        logging.debug("write_slice: filename {}".format(fn))
+        if archive.transport.name == 'dicom':
+            # Store dicom set ds directly
+            archive.transport.store(ds)
+        else:
+            # Store dicom set ds as file
+            with archive.open(fn, 'wb') as f:
+                ds.save_as(f, write_like_original=False)
 
     def construct_dicom(self, filename, template, si):
 
@@ -916,9 +1031,15 @@ class DICOMPlugin(AbstractPlugin):
         # -- not trying to set all required here. Check DICOM standard
         copy_general_dicom_attributes(template, ds)
         ds.StudyInstanceUID = si.header.studyInstanceUID
+        ds.StudyID = si.header.studyID
         ds.SeriesInstanceUID = si.header.seriesInstanceUID
         ds.SOPClassUID = template.SOPClassUID
         ds.SOPInstanceUID = SOPInsUID
+
+        ds.AccessionNumber = si.header.accessionNumber
+        ds.PatientName = si.header.patientName
+        ds.PatientID = si.header.patientID
+        ds.PatientBirthDate = si.header.patientBirthDate
 
         # Set the transfer syntax
         ds.is_little_endian = True
@@ -998,8 +1119,8 @@ class DICOMPlugin(AbstractPlugin):
             # No need to rescale
             self.a = None
             self.b = None
-            self.smallestPixelValueInSeries = arr.min()
-            self.largestPixelValueInSeries  = arr.max()
+            self.smallestPixelValueInSeries = arr.min().astype('int8')
+            self.largestPixelValueInSeries  = arr.max().astype('int8')
         else:
             # Other high precision data type, like float
             # Must rescale data
@@ -1073,6 +1194,8 @@ class DICOMPlugin(AbstractPlugin):
             self.getDicomAttribute(tag_for_name('Rows')),
             self.getDicomAttribute(tag_for_name('Columns')))
         iop = self.getDicomAttribute(tag_for_name('ImageOrientationPatient'))
+        if iop is None:
+            return
         iop = np.array(list(map(float, iop)))
         iop = np.array(iop).reshape(2, 3).T
         logging.debug('simulateAffine: iop\n{}'.format(iop))
@@ -1096,6 +1219,8 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('simulateAffine: vox {}'.format(vox))
 
         ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        if ipp is None:
+            return
         ipp = np.array(list(map(float, ipp)))
         logging.debug('simulateAffine: ipp {}'.format(ipp))
 
@@ -1119,6 +1244,8 @@ class DICOMPlugin(AbstractPlugin):
         # Create affine matrix
         # (http://nipy.sourceforge.net/nibabel/dicom/dicom_orientation.html#dicom-slice-affine)
         iop = self.getDicomAttribute(tag_for_name('ImageOrientationPatient'))
+        if iop is None:
+            return
         image_orient1 = np.array(iop[0:3])
         image_orient2 = np.array(iop[3:6])
 
@@ -1127,10 +1254,14 @@ class DICOMPlugin(AbstractPlugin):
         delta_c = float(pix_space[1])
 
         ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        if ipp is None:
+            return
         image_pos = np.array(ipp)
 
         ippn = self.getDicomAttribute(tag_for_name('ImagePositionPatient'),
                 slice=slices-1)
+        if ippn is None:
+            return
         last_image_pos = np.array(ippn)
 
         if slices == 1:
@@ -1151,3 +1282,36 @@ class DICOMPlugin(AbstractPlugin):
             [0, 0, 0, 1]
             ])
         logging.debug('create_affine: affine\n{}'.format(affine))
+        return affine
+
+    def calculateSliceLocation(self, im) -> float:
+        """Function to calculate slicelocation from imageposition and orientation.
+
+        Input:
+        - im: image (pydicom dicom object)
+        Returns:
+        - calculated slice location for this slice (float)
+        Exceptions:
+        - ValueError: when sliceLocation cannot be calculated
+        """
+
+        def get_attribute(im, tag):
+            if tag in im:
+                return im[tag].value
+            else:
+                raise ValueError('Tag %s not found' % tag)
+
+        def get_normal(im):
+            iop = np.array(get_attribute(im, tag_for_name('ImageOrientationPatient')))
+            normal = np.zeros(3)
+            normal[0] = iop[1] * iop[5] - iop[2] * iop[4]
+            normal[1] = iop[2] * iop[3] - iop[0] * iop[5]
+            normal[2] = iop[0] * iop[4] - iop[1] * iop[3]
+            return normal
+
+        try:
+            ipp = np.array(get_attribute(im, tag_for_name('ImagePositionPatient')))
+            normal = get_normal(im)
+            return np.inner(normal, ipp)
+        except ValueError as e:
+            raise ValueError('Cannot calculate slice location: %s' % e)

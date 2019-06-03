@@ -44,6 +44,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_read_2D(self):
         si1 = Series(
             'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz')
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
         si2 = si1[0,0,...]
         si2.write('ttn3d', formats=['nifti'])
         si3 = Series('ttn3d')

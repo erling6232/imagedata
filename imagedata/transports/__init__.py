@@ -14,6 +14,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 class TransportPluginNotFound(Exception): pass
 class RootIsNotDirectory(Exception): pass
 class RootDoesNotExist(Exception): pass
+class FunctionNotSupported(Exception): pass
 
 
 def add_plugin_dir(dir):
@@ -93,13 +94,24 @@ def find_plugin(ptype):
         return pclass()
     raise TransportPluginNotFound("Plugin for transport {} not found.".format(ptype))
 
-def find_scheme_plugin(scheme, root=None, mode='r', read_directory_only=False):
+def find_scheme_plugin(
+        scheme,
+        netloc=None,
+        root=None,
+        mode='r',
+        read_directory_only=False,
+        opts={}):
     """Return plugin for given transport scheme."""
     global plugins
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
         if scheme in pclass.schemes:
-            return pclass(root, mode=mode, read_directory_only=read_directory_only)
+            return pclass(
+                root=root,
+                netloc=netloc,
+                mode=mode,
+                read_directory_only=read_directory_only,
+                opts=opts)
     raise TransportPluginNotFound("Plugin for transport scheme {} not found.".format(scheme))
 
 plugins = load_plugins()

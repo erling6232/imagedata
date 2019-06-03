@@ -12,6 +12,7 @@ import numpy as np
 import scipy, scipy.io
 
 import imagedata.formats
+import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 
 class ImageTypeError(Exception):
@@ -100,12 +101,34 @@ class MatPlugin(AbstractPlugin):
         # Set spacing
         hdr['spacing'] = (1.0, 1.0, 1.0)
 
+        axes = list()
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            0,
+            si.shape[-2])
+        )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            0,
+            si.shape[-1])
+        )
         # Set tags
         nt = nz = 1
         if si.ndim > 2:
             nz = si.shape[-3]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                'slice',
+                0,
+                nz)
+            )
         if si.ndim > 3:
             nt = si.shape[-4]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                0,
+                nt)
+            )
+        hdr['axes'] = axes
         logging.debug('matplugin._set_tags nt {}, nz {}'.format(
             nt,nz))
         dt = 1
@@ -149,12 +172,12 @@ class MatPlugin(AbstractPlugin):
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
         if si.ndim == 4 and si.shape[0] == 1: si.shape = si.shape[1:]
-        if si.ndim == 2:
-            si.shape = (1,) + si.shape
-        assert si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
-        slices = si.shape[0]
-        if slices != si.slices:
-            raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #if si.ndim == 2:
+        #    si.shape = (1,) + si.shape
+        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (si.ndim)
+        #slices = si.shape[0]
+        #if slices != si.slices:
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
         #newshape = tuple(reversed(si.shape))
         #logging.info("Data shape matlab write: {}".format(imagedata.formats.shape_to_str(newshape)))
@@ -215,8 +238,8 @@ class MatPlugin(AbstractPlugin):
 
         save_shape = si.shape
         # Should we allow to write 3D volume?
-        if si.ndim == 3:
-            si.shape = (1,) + si.shape
+        #if si.ndim == 3:
+        #    si.shape = (1,) + si.shape
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
 

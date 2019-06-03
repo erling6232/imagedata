@@ -26,7 +26,8 @@ def list_files(startpath):
 
 
 class WriteFileIO(io.FileIO):
-    """Local object to maintain file before writing it to zip archive."""
+    """Local object making sure the new file is written to zip
+    archive before closing."""
 
     def __init__(self, archive, filename, localfile):
         """Inputs:
@@ -34,7 +35,7 @@ class WriteFileIO(io.FileIO):
         filename - path name in zip archive
         localfile - path name to local, temporary file
         """
-        super(WriteFileIO, self).__init__(localfile.name, mode='w')
+        super(WriteFileIO, self).__init__(localfile.name, mode='wb')
         self.__archive = archive
         self.__filename = filename
         self.__localfile = localfile
@@ -43,6 +44,7 @@ class WriteFileIO(io.FileIO):
         """Close file, copy it to archive, then delete local file."""
         logging.debug("ZipfileArchive.WriteFileIO.close:")
         ret = super(WriteFileIO, self).close()
+        self.__localfile.close()
         #os.system('/bin/ls -l %s >/tmp/list3.txt' % os.path.dirname(self.__localfile))
         logging.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
                       (self.__localfile.name, self.__filename))
@@ -93,7 +95,7 @@ class ZipfileArchive(AbstractArchive):
         'localfile': local filename of unpacked file
     """
 
-    def __init__(self, transport=None, url=None, mode='r', read_directory_only=False):
+    def __init__(self, transport=None, url=None, mode='r', read_directory_only=False, opts={}):
         super(ZipfileArchive, self).__init__(self.name, self.description,
                                              self.authors, self.version, self.url, self.mimetypes)
         logging.debug("ZipfileArchive.__init__ url: {}".format(url))
@@ -114,7 +116,7 @@ class ZipfileArchive(AbstractArchive):
                           (urldict.scheme, netloc))
             self.__transport = imagedata.transports.find_scheme_plugin(
                 urldict.scheme,
-                netloc,
+                root=netloc,
                 mode=mode,
                 read_directory_only=read_directory_only)
         self.__mode = mode
@@ -133,7 +135,6 @@ class ZipfileArchive(AbstractArchive):
         self.__tmpdir = tempfile.mkdtemp()
         logging.debug("Extract zipfile {} to {}".format(
             self.__archive, self.__tmpdir))
-        # self.__archive.extractall(self.__tmpdir)
         # Get filelist in self.__files
         # logging.debug("ZipFile namelist:\n{}".format(self.__archive.namelist()))
         for fname in self.__archive.namelist():
@@ -142,6 +143,12 @@ class ZipfileArchive(AbstractArchive):
                 member = {'unpacked': False, 'name': fname, 'fh': None}
                 self.__files[fname] = member
         # logging.debug("ZipFile self.__files: {}".format(self.__files))
+
+    @property
+    def transport(self):
+        """Underlying transport plugin
+        """
+        return self.__transport
 
     def use_query(self):
         """Do the plugin need the ?query part of the url?"""
@@ -301,6 +308,7 @@ class ZipfileArchive(AbstractArchive):
         #logging.debug('ZipfileArchive.close: {}'.format(self.__fp))
         shutil.rmtree(self.__tmpdir)
         logging.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
+        self.__transport.close()
 
     def is_file(self):
         """Determine whether the archive points to a single file.

@@ -6,6 +6,8 @@ import numpy as np
 from numpy.compat import basestring
 import logging
 import pydicom.dataset
+import pydicom.datadict
+import imagedata.axis
 import imagedata.formats
 import imagedata.readdata as readdata
 import imagedata.formats.dicomlib.uid
@@ -19,6 +21,10 @@ except ImportError:
 
 
 class DoNotSetSlicesError(Exception):
+    pass
+
+
+class NotSeriesObject(Exception):
     pass
 
 
@@ -37,9 +43,12 @@ class Header(object):
                    'DicomHeaderDict', 'tags', 'spacing',
                    'imagePositions', 'orientation', 'seriesNumber',
                    'seriesDescription', 'imageType', 'frameOfReferenceUID',
-                   'studyInstanceUID', 'seriesInstanceUID',
+                   'studyInstanceUID', 'studyID', 'seriesInstanceUID',
+                   'accessionNumber',
+                   'patientName', 'patientID', 'patientBirthDate',
                    'input_sort', 'transformationMatrix',
-                   'color', 'photometricInterpretation']
+                   'color', 'photometricInterpretation',
+                   'axes']
 
     def __init__(self):
         """Initialize image header attributes to defaults
@@ -50,62 +59,59 @@ class Header(object):
         for attr in self.header_tags:
             try:
                 setattr(self, attr, None)
-            except Exception:
+            except AttributeError:
                 pass
         self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
-
-    def new_uid(self):
-        return self.__uid_generator.__next__()
-
-    def set_default_values(self):
-        if self.DicomHeaderDict is not None:
-            return
-        try:
-            slices = self.slices
-            tags = len(self.tags)
-        except TypeError:
-            return
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
-        logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
-        logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
+
+    def new_uid(self) -> str:
+        return self.__uid_generator.__next__()
+
+    def set_default_values(self, shape, axes):
+        logging.debug('Header.set_default_values: color=False')
+        self.color = False
+        if self.DicomHeaderDict is not None:
+            return
+        #self.axes = list()
+        #for d in range(len(shape)):
+        #    self.axes.append(imagedata.axis.UniformAxis('%d' % d,
+        #                                                0,
+        #                                                shape[d]))
+        self.axes = copy.copy(axes)
+        #logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
+        #logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
+
+        slices = tags = 1
+        if axes is not None:
+            for axis in axes:
+                if axis.name == 'slice':
+                    slices = len(axis)
+                elif axis.name not in {'row', 'column', 'rgb'}:
+                    tags = len(axis)
 
         self.DicomHeaderDict = {}
         i = 0
-        for slice in range(self.slices):
-            self.DicomHeaderDict[slice] = {}
-        logging.debug('Header.set_default_values %d tags' % len(self.tags))
-        logging.debug('Header.set_default_values tags {}'.format(self.tags))
-        for tag in range(len(self.tags)):
-                self.DicomHeaderDict[slice][tag] = \
-                    (tag, None, 
-                        self._empty_ds(i)
-                    )
-                i += 1
+        #logging.debug('Header.set_default_values %d tags' % tags)
+        #logging.debug('Header.set_default_values tags {}'.format(self.tags))
+        for _slice in range(slices):
+            self.DicomHeaderDict[_slice] = {}
+            for tag in range(tags):
+                    self.DicomHeaderDict[_slice][tag] = \
+                        (tag, None, 
+                            self._empty_ds(i)
+                        )
+                    i += 1
 
     def _empty_ds(self, i):
         SOPInsUID = self.new_uid()
-
-        # Populate required values for file meta information
-        #file_meta = pydicom.dataset.Dataset()
-        #file_meta.MediaStorageSOPClassUID = template.SOPClassUID
-        #file_meta.MediaStorageSOPInstanceUID = SOPInsUID
-        #file_meta.ImplementationClassUID = "%s.1" % (self.root)
-        #file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-
-        # Create the FileDataset instance
-        # (initially no data elements, but file_meta supplied)
-        #ds = pydicom.dataset.FileDataset(
-        #        filename,
-        #        {},
-        #        file_meta=file_meta,
-        #        preamble=b"\0" * 128)
 
         ds = pydicom.dataset.Dataset()
 
         # Add the data elements
         ds.StudyInstanceUID = self.studyInstanceUID
+        ds.StudyID = '1'
         ds.SeriesInstanceUID = self.seriesInstanceUID
         ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7' # SC
         ds.SOPInstanceUID = SOPInsUID
@@ -113,24 +119,12 @@ class Header(object):
 
         ds.PatientName = 'ANONYMOUS'
         ds.PatientID = 'ANONYMOUS'
+        ds.PatientBirthDate = '00000000'
+        ds.AccessionNumber = ''
         ds.Modality = 'SC'
 
-        # Image Plane Module Attributes
-        #ds.PixelSpacing
-        #ds.ImageOrientationPatient
-        #ds.ImagePositionPatient
-
-        # Image Pixel Module Attributes
-        #ds.SamplesPerPixel
-        #ds.PhotometricInterpretation
-        #ds.Rows
-        #ds.Columns
-        #ds.BitsAllocated
-        #ds.BitsStored
-        #ds.HighBit
-        #ds.PixelRepresentation
-
         return ds
+
 
 class Series(np.ndarray):
     """Series class
@@ -146,7 +140,8 @@ class Series(np.ndarray):
 
     def __new__(cls, data, input_order=0,
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
-                strides=None, order=None):
+                strides=None, order=None,
+                template=None, geometry=None):
         """
         - opts: Input options (argparse.Namespace or dict)
         """
@@ -156,7 +151,7 @@ class Series(np.ndarray):
             obj = np.asarray(data).view(cls)
             # Initialize attributes to defaults
             # cls.__init_attributes(cls, obj)
-            obj.header = Header()
+            # obj.header = Header() # Already set in __array_finalize__
 
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
@@ -165,7 +160,9 @@ class Series(np.ndarray):
 
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
-            obj.header.set_default_values()
+            # obj.header.set_default_values() # Already done in __array_finalize__
+            obj._template = template
+            obj._geometry = geometry
             return obj
         logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -174,7 +171,9 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             obj.header.input_order = input_order
-            obj.header.set_default_values()
+            obj.header.set_default_values(obj.shape, obj.axes)
+            obj._template = template
+            obj._geometry = geometry
             return obj
 
         # Assuming data is url to input data
@@ -190,27 +189,33 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             obj.header.input_order = input_order
-            obj.header.set_default_values()
+            obj.header.set_default_values(obj.shape, obj.axes)
+            obj._template = template
+            obj._geometry = geometry
             return obj
 
         # Read input, hdr is dict of attributes
         hdr, si = readdata.read(urls, input_order, opts)
 
         obj = np.asarray(si).view(cls)
-        obj.header = Header()
+        #obj.header = Header()
+        assert obj.header, "No Header found in obj.header"
 
         # set the new 'input_order' attribute to the value passed
         obj.header.input_order = input_order
         # Copy attributes from hdr dict to newly created obj
         logging.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
-        for attr in obj.header.header_tags:
-            if attr in hdr:
-                # logging.debug('Series.__new__: Set {} to {}'.format(attr, hdr[attr]))
-                setattr(obj.header, attr, hdr[attr])
+        obj.header.set_default_values(obj.shape, obj.axes)
+        for attr in hdr.keys():
+            setattr(obj.header, attr, hdr[attr])
+        # Store any template and geometry headers,
+        if template is not None:
+            if issubclass(type(template), Series):
+                obj.header = copy.copy(template.header)
             else:
-                # logging.debug('Series.__new__: Set {} to None'.format(attr))
-                setattr(obj.header, attr, None)
-        obj.header.set_default_values()
+                raise NotSeriesObject('Template object is not a Series')
+        if geometry is not None:
+            obj._add_dicom_geometry(geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -248,7 +253,7 @@ class Series(np.ndarray):
             self.header = copy.copy(obj.header)  # carry forward attributes
         else:
             self.header = Header()
-            self.header.set_default_values()
+            self.header.set_default_values(self.shape, self.axes)
 
         # We do not need to return anything
 
@@ -312,6 +317,27 @@ class Series(np.ndarray):
 
         return results[0] if len(results) == 1 else results
 
+    def _add_dicom_geometry(self, data):
+        """Add geometry attributes to self object.
+
+        Input:
+        - data: DICOM input with geometry attributes
+            (Series object or URL)
+        """
+
+        if issubclass(type(data), Series):
+            self.sliceLocations = data.sliceLocations
+            self.spacing = data.spacing
+            self.orientation = data.orientation
+            self.imagePositions = data.imagePositions
+            self.axes = copy.copy(data.axes)
+        else:
+            if issubclass(type(data), str):
+                logging.debug('Series._add_dicom_geometry: %s' %
+                        data)
+            raise NotSeriesObject('Geometry object (%s) is not a Series' %
+                    type(data))
+
     def _unify_headers(self, inputs):
         """Unify the headers of the inputs.
 
@@ -368,208 +394,182 @@ class Series(np.ndarray):
         if isinstance(self, Series):
             # Calculate slice range
             spec = {}
-            # logging.debug('Series.__getitem__: self.shape {}'.format(self.shape))
-            for i in range(4):  # Loop over tag,z,y,x regardless of array shape
-                spec[i] = (0, None, 1)  # Initial start,stop,step
-            for i in range(self.ndim - 1, -1, -1):  # Loop over actual array shape
-                spec[4 - self.ndim + i] = (0, self.shape[i], 1)  # Initial start,stop,step
+            # # logging.debug('Series.__getitem__: self.shape {}'.format(self.shape))
+            # for i in range(4):  # Loop over tag,z,y,x regardless of array shape
+                # spec[i] = (0, None, 1)  # Initial start,stop,step
+            # for i in range(self.ndim - 1, -1, -1):  # Loop over actual array shape
+                # spec[4 - self.ndim + i] = (0, self.shape[i], 1)  # Initial start,stop,step
+            for i in range(self.ndim):  # Loop over actual array shape
+                spec[i] = (0, self.shape[i], 1, self.axes[i])  # Initial start,stop,step,axis
             # logging.debug('Series.__getitem__: spec {}'.format(spec))
             if isinstance(item, tuple):
                 items = item
             else:
                 items = (item,)
             # logging.debug('Series.__getitem__: items type {}: {}'.format(type(items),item))
-            for i in range(min(self.ndim, len(items))):
-                if type(items[i]) == Ellipsis: break
-                if isinstance(items[i], slice):
-                    start, stop, step = spec[i]
-                    if items[i].start is not None: start = items[i].start
-                    if items[i].stop is not None: stop = items[i].stop
-                    if items[i].step is not None: step = items[i].step
-                    # if step not in (-1,1):
-                    #    raise IndexError('Step size = {} not implemented. Must be +-1.'.format(step))
-                    spec[i] = (start, stop, step)
+            for i in range(len(items)):
+                #if type(items[i]) == Ellipsis:
+                if items[i] is Ellipsis:
+                    break
+                elif isinstance(items[i], slice):
+                    start = items[i].start or spec[i][0]
+                    stop  = items[i].stop  or spec[i][1]
+                    step  = items[i].step  or spec[i][2]
+                    spec[i] = (start, stop, step, self.axes[i])
+                    slicing = True
+                elif isinstance(items[i], int):
+                    start = items[i] or spec[i][0]
+                    stop = start+1
+                    step = 1
+                    spec[i] = (start, stop, step, self.axes[i])
                     slicing = True
             if slicing:
-                # logging.debug('Series.__getitem__: tag slice: {}'.format(spec[0]))
-                # logging.debug('Series.__getitem__: z   slice: {}'.format(spec[1]))
-                # logging.debug('Series.__getitem__: y   slice: {}'.format(spec[2]))
-                # logging.debug('Series.__getitem__: x   slice: {}'.format(spec[3]))
+                # Here we slice the header information
+                #for i in range(self.ndim):
+                #    logging.debug('Series.__getitem__: slice {}: {}'.format(i, spec[i]))
 
-                it = len(spec) - 4
-                iz = len(spec) - 3
-                # Slice step should be one
-                if self.ndim > 2:
-                    if spec[iz][2] != 1:
-                        raise IndexError('Step size in slice = {} not implemented. Must be +-1.'.format(
-                            spec[iz][2]))
+                # it = len(spec) - 4
+                # iz = len(spec) - 3
+                # # Slice step should be one
+                # if self.ndim > 2:
+                    # if spec[iz][2] != 1:
+                        # raise IndexError('Step size in slice = {} not implemented. Must be +-1.'.format(
+                            # spec[iz][2]))
 
-                # Tag step should be one
-                if self.ndim > 3:
-                    if spec[it][2] != 1:
-                        raise IndexError('Step size in tag = {} not implemented. Must be +-1.'.format(
-                            spec[it][2]))
+                # # Tag step should be one
+                # if self.ndim > 3:
+                    # if spec[it][2] != 1:
+                        # raise IndexError('Step size in tag = {} not implemented. Must be +-1.'.format(
+                            # spec[it][2]))
 
-                todo = []
-                # Select slice of sliceLocations
-                # logging.debug('Series.__getitem__: before __get_sliceLocations')
-                sloc = self.__get_sliceLocations(spec[iz])
-                todo.append(('sliceLocations', sloc))
-                # Select slice of imagePositions
-                # logging.debug('Series.__getitem__: before __get_imagePositions')
-                ipp = self.__get_imagePositions(spec[iz])
-                # logging.debug('Series.__getitem__: after __get_imagePositions')
-                todo.append(('imagePositions', None))  # Wipe existing positions
-                todo.append(('imagePositions', ipp))
+                todo = []   # Collect header changes, apply after ndarray slicing
+                new_axes = []
+                for i in range(self.ndim):
+                    # Slice dimension i
+                    start, stop, step, axis = spec[i]
+                    new_axes.append(axis[start:stop:step])
+                    
+                    if axis.name == 'slice':
+                        # Select slice of sliceLocations
+                        # logging.debug('Series.__getitem__: before __get_sliceLocations')
+                        sloc = self.__get_sliceLocations(spec[i])
+                        todo.append(('sliceLocations', sloc))
+                        # Select slice of imagePositions
+                        # logging.debug('Series.__getitem__: before __get_imagePositions')
+                        ipp = self.__get_imagePositions(spec[i])
+                        # logging.debug('Series.__getitem__: after __get_imagePositions')
+                        todo.append(('imagePositions', None))  # Wipe existing positions
+                        if ipp is not None:
+                            todo.append(('imagePositions', ipp))
+                    elif axis.name != 'row' and axis.name != 'column' and axis.name != 'rgb':
+                        # # Select slice of tags
+                        tags = self.__get_tags(spec)
+                        todo.append(('tags', tags))
                 # Select slice of DicomHeaderDict
                 hdr = self.__get_DicomHeaderDict(spec)
                 todo.append(('DicomHeaderDict', hdr))
-                # Select slice of tags
-                tags = self.__get_tags(spec)
-                todo.append(('tags', tags))
 
-        # logging.debug('Series.__getitem__: before super(Series)')
+        # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
-        # logging.debug('Series.__getitem__: after  super(Series)')
-        if slicing:
+        if slicing and isinstance(ret, Series):
+            todo.append(('axes', new_axes[-ret.ndim:]))
             _set_geometry(ret, todo)
         return ret
 
     def __get_sliceLocations(self, spec):
         # logging.debug('__get_sliceLocations: enter')
-        stop = 0
-        if spec[1] is not None: stop = spec[1]
-        count = stop - spec[0]
-        if self.ndim > 2 and count > self.slices:
-            raise IndexError(
-                'Too few sliceLocations={} in template for {} slices. Giving up!'.format(
-                    self.slices, count))
         try:
-            #    sl = getattr(self, 'sliceLocations', None)
-            # logging.debug('__get_sliceLocations: get sl')
             sl = self.sliceLocations
-            # logging.debug('__get_sliceLocations: got sl {}'.format(len(sl)))
         except ValueError:
-            sl = None
-        if sl is not None:
-            slist = []
-            # logging.debug('__get_sliceLocations: start,stop={},{}'.format(spec[0], stop))
-            for i in range(spec[0], stop):
-                slist.append(sl[i])
-            sl = np.array(slist)
+            return None
+        start, stop, step = 0, self.slices, 1
+        if spec[0] is not None: start = spec[0]
+        if spec[1] is not None: stop  = spec[1]
+        if spec[2] is not None: step  = spec[2]
+        sl = np.array(sl[start:stop:step])
         # logging.debug('__get_sliceLocations: exit')
         return sl
 
     def __get_imagePositions(self, spec):
         # logging.debug('__get_imagePositions: enter')
-        stop = 0
-        if spec[1] is not None: stop = spec[1]
-        count = stop - spec[0]
-        if self.ndim > 2 and count > self.slices:
-            raise IndexError(
-                'Too few imagePositions={} in template for {} slices. Giving up!'.format(
-                    self.slices, count))
         try:
-            #    ipp = getattr(self, 'imagePositions', None)
-            # logging.debug('__get_imagePositions: get ipp')
             ipp = self.imagePositions
-            # logging.debug('__get_imagePositions: got ipp')
         except ValueError:
-            ipp = None
-        except Exception:
-            raise
-        # logging.debug('__get_imagePositions: go on')
-        if ipp is not None:
-            ippdict = {}
-            j = 0
-            # logging.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
-            for i in range(spec[0], stop):
-                ippdict[j] = ipp[i]
-                j += 1
-            ipp = ippdict
+            return None
+        start, stop, step = 0, self.slices, 1
+        if spec[0] is not None: start = spec[0]
+        if spec[1] is not None: stop  = spec[1]
+        if spec[2] is not None: step  = spec[2]
+        ippdict = {}
+        j = 0
+        # logging.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
+        for i in range(start, stop, step):
+            ippdict[j] = ipp[i]
+            j += 1
         # logging.debug('__get_imagePositions: exit')
-        return ipp
+        return ippdict
 
     def __get_DicomHeaderDict(self, specs):
-        it = len(specs) - 4
-        iz = len(specs) - 3
-        # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
-        z_stop = 0
-        if specs[iz][1] is not None: z_stop = specs[iz][1]
-        tag_stop = 0;
-        tags = 1
-        if specs[it][1] is not None: tag_stop = specs[it][1]
-        if self.ndim > 3: tags = self.shape[it]
-        count_tags = tag_stop - specs[it][0]
-        count_slices = z_stop - specs[iz][0]
-        if self.ndim > 2 and count_slices > self.slices:
-            raise IndexError(
-                'Too few sliceLocations={} in template for {} slices. Giving up!'.format(
-                    self.slices, count_slices))
-        if self.ndim > 3 and count_tags > tags:
-            raise IndexError(
-                'Too few tags={} in template for {} tags. Giving up!'.format(
-                    tags, count_tags))
         try:
-            #    tmpl_hdr = getattr(self, 'DicomHeaderDict', None)
-            tmpl_hdr = self.DicomHeaderDict
+            slices = len(self.DicomHeaderDict)
         except ValueError:
-            tmpl_hdr = None
-        if tmpl_hdr is None:
-            return tmpl_hdr
+            return None
+        slice_spec = slice(0, slices, 1)
+        tags = len(self.tags[0])
+        tag_spec = slice(0, tags, 1)
+        for d in range(len(specs)):
+            start,stop,step,axis = specs[d]
+            if axis.name == 'slice':
+                slice_spec = slice(start,stop,step)
+            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+                tag_spec = slice(start,stop,step)
+        # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
         hdr = {}
         j = 0
-        # logging.debug('__get_DicomHeaderDict: slice start,stop={},{}'.format(specs[iz][0], z_stop))
-        # logging.debug('__get_DicomHeaderDict: tag start,stop={},{}'.format(specs[it][0], tag_stop))
-        for i in range(specs[iz][0], z_stop):
-            hdr[j] = [False for x in range(count_tags)]
-            n = 0
-            for m in range(specs[it][0], tag_stop):
-                try:
-                    hdr[j][n] = tmpl_hdr[i][m]
-                except KeyError:
-                    hdr[j][n] = {}
-                n += 1
+        for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
+            ###hdr[s] = [False for x in range(tag_spec)]
+            hdr[j] = list()
+            for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
+                tag = self.tags[s][t]
+                hdr[j].append(
+                    self.__find_tag_in_hdr(
+                        self.DicomHeaderDict[s],
+                        imagedata.formats.input_order_to_dirname_str(self.input_order),
+                        tag)
+                )
             j += 1
+
         return hdr
 
+    def __find_tag_in_hdr(self, hdr_list, label, tag):
+        for tagvalue, filename, hdr in hdr_list:
+            if tagvalue == tag:
+                return tagvalue, filename, hdr
+        return None
+
     def __get_tags(self, specs):
-        it = len(specs) - 4
-        iz = len(specs) - 3
-        # tags: dict[slice] is np.array(tags)
-        z_stop = 0
-        if specs[iz][1] is not None: z_stop = specs[iz][1]
-        tag_stop = 0;
-        tags = 1
-        if specs[it][1] is not None: tag_stop = specs[it][1]
-        if self.ndim > 3: tags = self.shape[it]
-        count_tags = tag_stop - specs[it][0]
-        count_slices = z_stop - specs[iz][0]
-        if self.ndim > 2 and count_slices > self.slices:
-            raise IndexError(
-                'Too few sliceLocations={} in template for {} slices. Giving up!'.format(
-                    self.slices, count_slices))
-        if self.ndim > 3 and count_tags > tags:
-            raise IndexError(
-                'Too few tags={} in template for {} tags. Giving up!'.format(
-                    tags, count_tags))
         try:
-            #    tmpl_tags = getattr(self, 'tags', None)
             tmpl_tags = self.tags
+            tags = len(self.tags[0])
         except ValueError:
-            tmpl_tags = None
-        if tmpl_tags is None:
-            return tmpl_tags
+            return None
+        slice_spec = slice(0, self.slices, 1)
+        tag_spec = slice(0, tags, 1)
+        for d in range(len(specs)):
+            start,stop,step,axis = specs[d]
+            if axis.name == 'slice':
+                slice_spec = slice(start,stop,step)
+            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+                tag_spec = slice(start,stop,step)
+        # tags: dict[slice] is np.array(tags)
         new_tags = {}
         j = 0
-        # logging.debug('__get_tags: slice start,stop={},{}'.format(specs[iz][0], z_stop))
-        # logging.debug('__get_tags: tag start,stop={},{}'.format(specs[it][0], tag_stop))
-        for i in range(specs[iz][0], z_stop):
-            new_tags[j] = [False for x in range(count_tags)]
-            n = 0
-            for m in range(specs[it][0], tag_stop):
-                new_tags[j][n] = tmpl_tags[i][m]
-                n += 1
+        for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
+            new_tags[j] = list()
+            for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
+                new_tags[j].append(
+                    tmpl_tags[s][t]
+                )
             j += 1
         return new_tags
 
@@ -701,30 +701,94 @@ class Series(np.ndarray):
             raise ValueError("Unknown sort order: {}".format(order))
 
     @property
+    def shape(self):
+        """Matrix shape
+
+        Returns current matrix shape as tuple
+        """
+        return super(Series, self).shape
+
+    @shape.setter
+    def shape(self, s):
+        """Set matrix shape
+
+        Input:
+        - s: new shape tuple
+        """
+        prev_shape = super(Series, self).shape
+        super(Series, self).resize(s)
+        if len(s) > len(prev_shape):
+            # Adding dimension => add axis
+            for i in range(len(s) - len(prev_shape)):
+                logging.debug('Series.shape add empty axis 0')
+                self.axes.insert(
+                    0,
+                    imagedata.axis.Axis('none')
+                )
+        elif len(s) < len(prev_shape):
+            # Reduce dimension => remove axis
+            for i in range(len(prev_shape) - len(s)):
+                logging.debug('Series.shape delete axis 0')
+                del self.axes[0]
+
+    @property
+    def rows(self):
+        """Number of rows
+
+        Returns number of rows.
+        Raises ValueError when number of rows is not defined.
+        """
+        try:
+            row_axis = self.__find_axis('row')
+            return len(row_axis)
+        except ValueError:
+            _color = 0
+            if self.color:
+                _color = 1
+            if self.ndim - _color < 2:
+                raise ValueError("{}D dataset has no rows".format(self.ndim))
+            return self.shape[-2-_color]
+
+    @property
+    def columns(self):
+        """Number of columns
+
+        Returns number of columns.
+        Raises ValueError when number of columns is not defined.
+        """
+        try:
+            column_axis = self.__find_axis('column')
+            return len(column_axis)
+        except ValueError:
+            _color = 0
+            if self.color:
+                _color = 1
+            if self.ndim - _color < 1:
+                raise ValueError("Dataset has no columns")
+            return self.shape[-1-_color]
+
+    @property
     def slices(self):
         """Number of slices
 
         Returns number of slices.
         Raises ValueError when number of slices is not defined.
         """
-        # try:
-        #    if self.__slices is not None:
-        #        if self.__slices == self.shape[1]:
-        #            return self.__slices
-        #        else:
-        #            raise ValueError('Number of slices ({}) does not match shape {}'.format(self.__slices, self.shape))
-        #    else:
-        #        return self.shape[1]
-        # except:
-        #    pass
-        # raise ValueError("Number of slices is not set.")
-        _color = 0
-        if self.color:
-            _color = 1
-        if self.ndim - _color < 3:
-            # raise ValueError("{}D dataset has no slices".format(self.ndim))
-            return 1
-        return self.shape[-3-_color]
+        try:
+            slice_axis = self.__find_axis('slice')
+            logging.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
+            return len(slice_axis)
+        except ValueError:
+            _color = 0
+            if self.color:
+                _color = 1
+            if self.ndim - _color < 3:
+                logging.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
+                # raise ValueError("{}D dataset has no slices".format(self.ndim))
+                return 1
+            logging.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
+                self.ndim, self.shape, self.shape[-3-_color]))
+            return self.shape[-3-_color]
 
     @slices.setter
     def slices(self, nslices):
@@ -741,7 +805,7 @@ class Series(np.ndarray):
         #    self.header.slices = nslices
         # else:
         #    self.header.slices = None
-        raise DoNotSetSlicesError('Do not set slices (%d) explicitly' %
+        raise DoNotSetSlicesError('Do not set slices=%d explicitly. Slices are inferred from the shape.' %
                                   nslices)
 
     @property
@@ -777,8 +841,8 @@ class Series(np.ndarray):
         - loc: list or numpy array of slice locations, in mm.
         """
         if loc is not None:
-            assert len(loc) == self.slices, "Mismatch number of slices ({}) and number of sliceLocations ({})".format(
-                self.slices, len(loc))
+            #assert len(loc) == self.slices, "Mismatch number of slices ({}) and number of sliceLocations ({})".format(
+            #    self.slices, len(loc))
             self.header.sliceLocations = np.sort(loc)
         else:
             self.header.sliceLocations = None
@@ -834,7 +898,8 @@ class Series(np.ndarray):
                 return self.header.tags
         except Exception:
             pass
-        raise ValueError("Tags not set.")
+        #raise ValueError("Tags not set.")
+        return None
 
     @tags.setter
     def tags(self, tags):
@@ -848,6 +913,49 @@ class Series(np.ndarray):
         self.header.tags = {}
         for slice in tags.keys():
             self.header.tags[slice] = np.array(tags[slice])
+
+    @property
+    def axes(self):
+        """axes
+
+        Return axis object for given dimension.
+
+        Return:
+        - List of Axis objects
+        Exceptions:
+        - ValueError: when axis object is not set.
+        """
+        try:
+            if self.header.axes is not None:
+                return self.header.axes
+        except Exception:
+            pass
+        #raise ValueError("Axis is unknown")
+        return None
+
+    @axes.setter
+    def axes(self, ax):
+        """Set axes
+
+        Input:
+        - ax: list of axis objects
+        """
+        self.header.axes = ax
+
+    def __find_axis(self, name):
+        """Find axis with given name
+
+        Input:
+        - name: Axis name to search for
+        Returned value:
+        - axis object with given name
+        Exceptions:
+        - ValueError: when no axis object has given name
+        """
+        for axis in self.header.axes:
+            if axis.name == name:
+                return axis
+        raise ValueError("No axis object with name %s exist" % name)
 
     @property
     def spacing(self):
@@ -954,9 +1062,9 @@ class Series(np.ndarray):
                                                      transformation=M)
                 # logging.debug('Series.imagePositions: new self.slices={}'.format(self.slices))
                 # logging.debug('Series.imagePositions: new self.imagePositions={}'.format(self.header.imagePositions))
-                assert len(self.header.imagePositions) == self.slices, \
-                    "Mismatch number of slices ({}) and number of imagePositions ({})".format(self.slices, len(
-                        self.header.imagePositions))
+                #assert len(self.header.imagePositions) == self.slices, \
+                #    "Mismatch number of slices ({}) and number of imagePositions ({})".format(self.slices, len(
+                #        self.header.imagePositions))
                 return self.header.imagePositions
         except Exception:
             raise
@@ -1149,7 +1257,7 @@ class Series(np.ndarray):
         """Study instance UID
 
         DICOM study instance UID
-        
+
         Returns:
         - uid type, study instance UID (str)
         Exceptions:
@@ -1178,6 +1286,41 @@ class Series(np.ndarray):
             self.header.studyInstanceUID = str(uid)
         except Exception:
             raise TypeError("Given study instance UID is not printable")
+
+    @property
+    def studyID(self):
+        """Study ID
+
+        DICOM study ID
+        
+        Returns:
+        - study ID (str)
+        Exceptions:
+        - ValueError: when study ID is not set
+        """
+        try:
+            if self.header.studyID is not None:
+                return self.header.studyID
+        except Exception:
+            pass
+        raise ValueError("No study ID set.")
+
+    @studyID.setter
+    def studyID(self, id):
+        """Set study ID
+
+        Input:
+        - id: study ID
+        Exceptions:
+        - TypeError: When id is not printable
+        """
+        if id is None:
+            self.header.studyID = None
+            return
+        try:
+            self.header.studyID = str(id)
+        except Exception:
+            raise TypeError("Given study ID is not printable")
 
     @property
     def seriesInstanceUID(self):
@@ -1248,6 +1391,140 @@ class Series(np.ndarray):
             self.header.frameOfReferenceUID = str(uid)
         except Exception:
             raise TypeError("Given frame of reference UID is not printable")
+
+    @property
+    def accessionNumber(self):
+        """Accession number
+
+        DICOM accession number
+
+        Returns:
+        - accession number (str)
+        Exceptions:
+        - ValueError: when accession number is not set
+        """
+        try:
+            if self.header.accessionNumber is not None:
+                return self.header.accessionNumber
+        except Exception:
+            pass
+        raise ValueError("No accession number set.")
+
+    @accessionNumber.setter
+    def accessionNumber(self, accno):
+        """Set accession number
+
+        Input:
+        - accno: accession number
+        Exceptions:
+        - TypeError: When accno is not printable
+        """
+        if accno is None:
+            self.header.accessionNumber = None
+            return
+        try:
+            self.header.accessionNumber = str(accno)
+        except Exception:
+            raise TypeError("Given accession number is not printable")
+
+    @property
+    def patientName(self):
+        """Patient name
+
+        DICOM patient name
+
+        Returns:
+        - patient name (str)
+        Exceptions:
+        - ValueError: when patient name is not set
+        """
+        try:
+            if self.header.patientName is not None:
+                return self.header.patientName
+        except Exception:
+            pass
+        raise ValueError("No patient name set.")
+
+    @patientName.setter
+    def patientName(self, patnam):
+        """Set patient name
+
+        Input:
+        - patnam: patient name
+        Exceptions:
+        - TypeError: When patnam is not printable
+        """
+        if patnam is None:
+            self.header.patientName = None
+            return
+        try:
+            self.header.patientName = str(patnam)
+        except Exception:
+            raise TypeError("Given patient name is not printable")
+
+    @property
+    def patientID(self):
+        """Patient ID
+
+        DICOM patient ID
+
+        Returns:
+        - patient ID (str)
+        Exceptions:
+        - ValueError: when patient ID is not set
+        """
+        try:
+            if self.header.patientID is not None:
+                return self.header.patientID
+        except Exception:
+            pass
+        raise ValueError("No patient ID set.")
+
+    @patientID.setter
+    def patientID(self, patID):
+        """Set patient ID
+
+        Input:
+        - patID: patient ID
+        Exceptions:
+        - TypeError: When patID is not printable
+        """
+        if patID is None:
+            self.header.patientID = None
+            return
+        try:
+            self.header.patientID = str(patID)
+        except Exception:
+            raise TypeError("Given patient ID is not printable")
+
+    @property
+    def patientBirthDate(self):
+        """Patient birth date
+
+        DICOM patient birth date
+
+        Returns:
+        - patient birth date (str)
+          None: when no birth date is set
+        """
+        return self.header.patientBirthDate
+
+    @patientBirthDate.setter
+    def patientBirthDate(self, patbirdat):
+        """Set patient birth date
+
+        Input:
+        - patbirdat: patient birth date
+        Exceptions:
+        - TypeError: When patbirdat is not printable
+        """
+        if patbirdat is None:
+            self.header.patientBirthDate = None
+            return
+        try:
+            self.header.patientBirthDate = str(patbirdat)
+        except Exception:
+            raise TypeError("Given patient birth date is not printable")
 
     @property
     def color(self):
@@ -1426,6 +1703,32 @@ class Series(np.ndarray):
             return np.array(timeline)
         else:
             raise ValueError("No timeline tags are available. Input order: {}".format(self.input_order))
+
+    def getDicomAttribute(self, keyword, slice=0, tag=0):
+        """Get named DICOM attribute.
+
+        Input:
+        - keyword: name (str) or dicom tag
+        - slice: optional slice to get attribute from (default: 0)
+        - tag: optional tag to get attribute from (default: 0)
+        Returns:
+        - DICOM attribute
+        """
+
+        if self.DicomHeaderDict is None:
+            return None
+        if issubclass(type(keyword), str):
+            _tag = pydicom.datadict.tag_for_keyword(keyword)
+        else:
+            _tag = keyword
+        if _tag is None:
+            return None
+        tg, fname, im = self.DicomHeaderDict[slice][tag]
+        if _tag in im:
+            return im[_tag].value
+        else:
+            return None
+
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r

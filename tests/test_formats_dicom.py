@@ -84,6 +84,8 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.shape, (10, 40, 192, 152))
         t = np.array([  0.  ,   2.99,   5.97,   8.96,  11.95,  14.94,  17.93,  20.92, 23.9 ,  26.89])
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
+        #for axis in si1.axes:
+        #    logging.debug('test_read_dicom_4D: axis {}'.format(axis))
 
     #@unittest.skip("skipping test_copy_dicom_4D")
     def test_copy_dicom_4D(self):
@@ -338,6 +340,68 @@ class write_test_zip_archive_dicom(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
+
+class TestDicomSlicing(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1: self.opts.output_format=['dicom']
+
+        plugins = imagedata.formats.get_plugins_list()
+        self.dicom_plugin = None
+        for pname,ptype,pclass in plugins:
+            if ptype == 'dicom': self.dicom_plugin = pclass
+        self.assertIsNotNone(pclass)
+
+    def tearDown(self):
+        shutil.rmtree('ttd3s', ignore_errors=True)
+        shutil.rmtree('ttd4s', ignore_errors=True)
+
+    #@unittest.skip("skipping test_slice_inplane")
+    def test_slice_inplane(self):
+        si1 = Series(
+            'data/dicom/time/time00/Image_00000.dcm',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (192, 152))
+        a2 = np.array(si1)[80:120,40:60]
+        si2 = si1[80:120,40:60]
+        np.testing.assert_array_equal(a2, si2)
+
+    #@unittest.skip("skipping test_slice_z")
+    def test_slice_z(self):
+        si1 = Series(
+            'data/dicom/time/time00/',
+            0,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (40, 192, 152))
+        a2 = np.array(si1)[1:3]
+        si2 = si1[1:3]
+        np.testing.assert_array_equal(a2, si2)
+        self.assertEqual(len(si2.imagePositions), 2)
+        np.testing.assert_array_equal(si2.imagePositions[0], si1.imagePositions[1])
+        np.testing.assert_array_equal(si2.imagePositions[1], si1.imagePositions[2])
+
+    #@unittest.skip("skipping test_slice_time_z")
+    def test_slice_time_z(self):
+        si1 = Series(
+            'data/dicom/time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        a2 = np.array(si1)[1:3,1:4]
+        si2 = si1[1:3,1:4]
+        np.testing.assert_array_equal(a2, si2)
+        self.assertEqual(len(si2.imagePositions), 3)
+        np.testing.assert_array_equal(si2.imagePositions[0], si1.imagePositions[1])
+        np.testing.assert_array_equal(si2.imagePositions[1], si1.imagePositions[2])
+        np.testing.assert_array_equal(si2.imagePositions[2], si1.imagePositions[3])
+        self.assertEqual(len(si2.tags[0]), 2)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,7 @@
 """Read/Write image files using Xite (biff format)
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital,
+# Copyright (c) 2018-2019 Erling Andersen, Haukeland University Hospital,
 # Bergen, Norway
 
 import os.path
@@ -11,6 +11,7 @@ import numpy as np
 import fs
 
 import imagedata.formats
+import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 
 class PixelTypeNotSupported(Exception):
@@ -116,12 +117,12 @@ class BiffPlugin(AbstractPlugin):
             nt,delim,nz = opts['input_shape'].partition('x')
             if len(nz) == 0:
                 raise BadShapeGiven('input_shape {} is not like (t)x(z)'.format(opts['input_shape']))
-            nt,nz = (int(nt), int(nz))
+            nt,nz = int(nt), int(nz)
             if nt*nz != self.nbands:
                 raise BadShapeGiven('input_shape {} does not match {} bands'.format(opts['input_shape'], self.nbands))
         else:
             # Assume the bands are slices
-            nt,nz = (1,self.nbands)
+            nt,nz = 1,self.nbands
         dtype,dformat = self.dtype_from_biff(self._pixel_type())
         if dtype == np.complex64:
             dfloat = np.float32
@@ -161,12 +162,35 @@ class BiffPlugin(AbstractPlugin):
 
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
-        hdr['tags']   = {}
+        axes = list()
         nt = nz = 1
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            0,
+            self._y_size())
+        )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            0,
+            self._x_size())
+        )
+
         if si.ndim > 2:
             nz = si.shape[-3]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                'slice',
+                0,
+                nz)
+            )
         if si.ndim > 3:
             nt = si.shape[-4]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                0,
+                nt)
+            )
+        hdr['axes'] = axes
+        hdr['tags']   = {}
         for slice in range(nz):
             hdr['tags'][slice] = np.array([t for t in range(nt)])
 
@@ -206,16 +230,17 @@ class BiffPlugin(AbstractPlugin):
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
-        if si.ndim == 2:
-            si.shape = (1,) + si.shape
-        if si.ndim == 3:
-            si.shape = (1,) + si.shape
-        assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
-        if si.shape[0] != 1:
-            raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        slices,ny,nx = si.shape[1:]
-        if slices != si.slices:
-            raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #if si.ndim == 2:
+        #    si.shape = (1,) + si.shape
+        #if si.ndim == 3:
+        #    si.shape = (1,) + si.shape
+        #assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
+        #if si.shape[0] != 1:
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
+        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (si.ndim)
+        #slices,ny,nx = si.shape[1:]
+        #if slices != si.slices:
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
         #if not os.path.isdir(dirname):
         #    os.makedirs(dirname)
@@ -247,9 +272,12 @@ class BiffPlugin(AbstractPlugin):
             self._open_image(f, 'w')
 
             iband = 0
-            for slice in range(slices):
-                self._write_band(iband, self.arr[0,slice])
-                iband += 1
+            if self.arr.ndim < 3:
+                self._write_band(iband, self.arr)
+            else:
+                for slice in range(si.slices):
+                    self._write_band(iband, self.arr[slice])
+                    iband += 1
             logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
             self._write_text()
         si.shape = save_shape
@@ -291,8 +319,8 @@ class BiffPlugin(AbstractPlugin):
 
         save_shape = si.shape
         # Should we allow to write 3D volume?
-        if si.ndim == 3:
-            si.shape = (1,) + si.shape
+        #if si.ndim == 3:
+        #    si.shape = (1,) + si.shape
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
 
@@ -722,7 +750,7 @@ class BiffPlugin(AbstractPlugin):
         self.bands = {}
         for bandnr in range(self.nbands):
             pt = self.pixtyp &  self.Ipixtyp_mask
-            ysz,xsz = self.arr.shape[2:]
+            ysz,xsz = self.arr.shape[-2:]
             self.bands[bandnr] = self._init_band(pt, xsz, ysz)
 
         # Calculate BIFF image header
@@ -763,7 +791,7 @@ class BiffPlugin(AbstractPlugin):
         for bandnr in range(self.nbands):
             pt = self.pixtyp &  self.Ipixtyp_mask
             pt = pt ^ self.Ilittle_endian_mask
-            ysz,xsz = self.arr.shape[2:]
+            ysz,xsz = self.arr.shape[-2:]
             (yst,xst,ymg,xmg) = (1,1,1,1)
             dummy = 0
             #logging.debug('Band {} pt {} xsz {} ysz {} xst {} yst {} xmg {} ymg {}'.format(bandnr, pt, xsz, ysz,

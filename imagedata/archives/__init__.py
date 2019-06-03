@@ -93,12 +93,12 @@ def get_plugins_dict():
     global plugins
     return plugins
 
-def find_plugin(ptype, url, mode="r"):
+def find_plugin(ptype, url, mode="r", opts={}):
     """Return plugin for given image archive type."""
     global plugins
     if ptype in plugins:
         pname, pclass = plugins[ptype]
-        return pclass(url=url, mode=mode)
+        return pclass(url=url, mode=mode, opts=opts)
     raise ArchivePluginNotFound("Plugin for image archive {} not found.".format(ptype))
 
 def lookup_mimetype_plugin(mimetype):
@@ -112,24 +112,24 @@ def lookup_mimetype_plugin(mimetype):
         if mimetype in pclass.mimetypes:
             return(pname)
 
-def find_mimetype_plugin(mimetype, url, mode="r"):
+def find_mimetype_plugin(mimetype, url, mode="r", opts={}):
     """Return plugin for given file type."""
     global plugins
     urldict = urllib.parse.urlsplit(url, scheme="file")
     if mimetype is None:
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
-        return find_plugin('filesystem', url, mode)
+        return find_plugin('filesystem', url, mode, opts=opts)
     logging.debug("imagedata.archive.find_mimetype_plugins: {}".format(plugins.keys()))
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
         logging.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
             logging.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype,mode))
-            return pclass(url=url, mode=mode)
+            return pclass(url=url, mode=mode, opts=opts)
     if os.path.isfile(urldict.path):
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         try:
-            return find_plugin('filesystem', url, mode)
+            return find_plugin('filesystem', url, mode, opts=opts)
         except Exception:
             # Fall-through to fail with ArchivePluginNotFound
             pass

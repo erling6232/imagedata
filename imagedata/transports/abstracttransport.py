@@ -105,3 +105,9 @@ class AbstractTransport(object, metaclass=ABCMeta):
         """Extract a member from the archive as a file-like object.
         """
         pass
+
+    @abstractmethod
+    def close(self):
+        """Close the transport
+        """
+        pass

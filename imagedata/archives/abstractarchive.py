@@ -36,7 +36,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     """
 
     def __init__(self, name, description, authors, version, url, mimetypes,
-            filehandle=None, mode='r'):
+            filehandle=None, mode='r', opts={}):
         object.__init__(self)
         self.__name              = name
         self.__description       = description
@@ -44,6 +44,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         self.__version           = version
         self.__url               = url
         self.__mimetypes         = mimetypes
+        self.__opts              = opts
         """Return an archive object for filehandle."""
 
     @abstractmethod
@@ -92,6 +93,12 @@ class AbstractArchive(object, metaclass=ABCMeta):
         URL string to the site of the plugin or the author(s).
         """
         return self.__url
+
+    @property
+    def transport(self):
+        """Underlying transport plugin
+        """
+        return self.__transport
 
     @property
     def mimetypes(self):
@@ -221,7 +228,7 @@ class ArchiveCollection(AbstractArchive):
             basename = os.path.basename(urldict.path)
             logging.debug("ArchiveCollection: transport root: '{}'".format(os.curdir))
             transport = imagedata.transports.find_scheme_plugin(
-                            urldict.scheme, os.curdir)
+                            urldict.scheme, root=os.curdir)
             logging.debug("ArchiveCollection: archive url: '{}'".format(url))
             archive = imagedata.archives.find_mimetype_plugin(
                             mimetypes.guess_type(basename)[0],

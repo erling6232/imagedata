@@ -15,6 +15,7 @@ import numpy as np
 import scipy
 
 import imagedata.formats
+import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 
 class ImageTypeError(Exception):
@@ -158,20 +159,55 @@ class ITKPlugin(AbstractPlugin):
         #    hdr['imagePositions'][slice] = self.getPositionForVoxel(np.array([slice,0,0]))
 
         # Set tags
+        axes = list()
         _actual_shape = si.shape
+        _color = False
         if 'color' in hdr and hdr['color']:
             _actual_shape = si.shape[:-1]
+            _color = True
             logging.debug('ITKPlugin.read: color')
         _actual_ndim = len(_actual_shape)
         nt = nz = 1
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            hdr['imagePositions'][0][1],
+            _actual_shape[-2],
+            hdr['spacing'][1])
+        )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            hdr['imagePositions'][0][2],
+            _actual_shape[-1],
+            hdr['spacing'][2])
+        )
         if _actual_ndim > 2:
             nz = _actual_shape[-3]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                'slice',
+                hdr['imagePositions'][0][0],
+                nz,
+                hdr['spacing'][0])
+            )
         if _actual_ndim > 3:
             nt = _actual_shape[-4]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                0,
+                nt,
+                dt)
+            )
         times = np.arange(0, nt*dt, dt)
         tags = {}
         for slice in range(nz):
             tags[slice] = np.array(times)
+        if _color:
+            axes.append(
+                imagedata.axis.VariableAxis(
+                    'rgb',
+                    ['r', 'g', 'b']
+                )
+            )
+        hdr['axes'] = axes
         hdr['tags'] = tags
 
         logging.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
@@ -287,6 +323,7 @@ class ITKPlugin(AbstractPlugin):
         if len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
+        self.shape                = si.shape
         self.slices               = si.slices
         self.spacing              = si.spacing
         self.imagePositions       = si.imagePositions
@@ -296,16 +333,17 @@ class ITKPlugin(AbstractPlugin):
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         save_shape = si.shape
-        if si.ndim == 2:
-            si.shape = (1,) + si.shape
-        if si.ndim == 3:
-            si.shape = (1,) + si.shape
-        assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
-        if si.shape[0] != 1:
-            raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        slices = si.shape[1]
-        if slices != si.slices:
-            raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #if si.ndim == 2:
+        #    si.shape = (1,) + si.shape
+        #if si.ndim == 3:
+        #    si.shape = (1,) + si.shape
+        #assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
+        #if si.shape[0] != 1:
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
+        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (si.ndim)
+        #slices = si.shape[1]
+        #if slices != si.slices:
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
         #if not os.path.isdir(dirname):
         #    os.makedirs(dirname)
@@ -314,7 +352,7 @@ class ITKPlugin(AbstractPlugin):
         except TypeError:
             filename = filename_template
         #filename = os.path.join(dirname, filename)
-        self.write_numpy_itk(si[0,...], archive, filename)
+        self.write_numpy_itk(si, archive, filename)
         si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
@@ -343,6 +381,7 @@ class ITKPlugin(AbstractPlugin):
         if len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
+        self.shape                = si.shape
         self.slices               = si.slices
         self.spacing              = si.spacing
         self.imagePositions       = si.imagePositions
@@ -357,8 +396,8 @@ class ITKPlugin(AbstractPlugin):
 
         save_shape = si.shape
         # Should we allow to write 3D volume?
-        if si.ndim == 3:
-            si.shape = (1,) + si.shape
+        #if si.ndim == 3:
+        #    si.shape = (1,) + si.shape
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
 
@@ -406,8 +445,8 @@ class ITKPlugin(AbstractPlugin):
         - filename: file name, possibly without extentsion
         """
 
-        if si.ndim != 3:
-            raise ValueError("write_numpy_itk: input dimension %d is not 3D." % si.ndim)
+        if si.ndim != 2 and si.ndim != 3:
+            raise ValueError("write_numpy_itk: input dimension %d is not 2D/3D." % si.ndim)
         if np.issubdtype(si.dtype, np.floating):
             arr=np.float32(np.nan_to_num(si))
             #arr=np.nan_to_num(si)
@@ -572,15 +611,23 @@ class ITKPlugin(AbstractPlugin):
         logging.debug("get_image_from_numpy: (z,y,x)=({},{},{}) ({})".format(z,y,x,type(z)))
         if isinstance(z, np.int64):
             logging.debug("get_image_from_numpy: SetOrigin int")
-            image.SetOrigin([int(x),int(y),int(z)])
+            if len(self.shape) < 3:
+                image.SetOrigin([int(x),int(y)])
+            else:
+                image.SetOrigin([int(x),int(y),int(z)])
         else:
             logging.debug("get_image_from_numpy: SetOrigin float")
-            image.SetOrigin([float(x),float(y),float(z)])
+            if len(self.shape) < 3:
+                image.SetOrigin((float(x),float(y)))
+            else:
+                image.SetOrigin((float(x),float(y),float(z)))
 
         dz, dy, dx = self.spacing
         dx=float(dx); dy=float(dy); dz=float(dz)
-        image.SetSpacing([dx, dy, dz])
-        #image.SetSpacing([dy, dx, dz]) # Swap dx,dy because image is transposed
+        if len(self.shape) < 3:
+            image.SetSpacing([dx, dy])
+        else:
+            image.SetSpacing([dx, dy, dz])
 
         return image
 

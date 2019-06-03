@@ -19,19 +19,24 @@ class FileTransport(AbstractTransport):
     url = "www.helse-bergen.no"
     schemes = ["file"]
 
-    def __init__(self, root, mode='r', read_directory_only=False):
+    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts={}):
         super(FileTransport, self).__init__(self.name, self.description,
             self.authors, self.version, self.url, self.schemes)
-        logging.debug("FileTransport __init__ root: {}".format(root))
+        logging.debug("FileTransport __init__ root: {} ({})".format(root, mode))
+        assert root is not None, "Root should not be None"
         if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
             logging.debug("FileTransport __init__ RootIsNotDirectory")
             raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
             logging.debug("FileTransport __init__ RootDoesNotExist")
-            raise RootDoesNotExist("Root ({}) does not exist".format(
-                root))
+            raise RootDoesNotExist("Root ({}) does not exist".format(root))
         self.__root = root
         self.__mode = mode
+
+    def close(self):
+        """Close the transport
+        """
+        return
 
     def _get_path(self, path):
         """Return either relative or absolute path.
@@ -67,10 +72,9 @@ class FileTransport(AbstractTransport):
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
-        logging.debug("FileTransport open: mode {} path {}".format(mode, path))
+        logging.debug("FileTransport open: {} ({})".format(path, mode))
         fname = os.path.join(self.__root, path)
         if mode[0] == 'w':
             os.makedirs(os.path.dirname(fname), exist_ok=True)
-        logging.debug("FileTransport open {}, mode: {}".format(
-            fname, mode))
+        logging.debug("FileTransport open: {} ({})".format(fname, mode))
         return io.FileIO(fname, mode)

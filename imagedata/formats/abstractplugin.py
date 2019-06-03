@@ -130,7 +130,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
+            #logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
             si[i] = img
             i += 1
         logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
@@ -420,9 +420,10 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         im.AcquisitionMatrix          = gim.AcquisitionMatrix
         im.PixelSpacing               = gim.PixelSpacing
 
-    def _reduce_shape(self, si):
+    def _reduce_shape(self, si, axes=None):
         """Reduce shape when leading shape(s) are 1.
         Will not reduce to less than 2-dimensional image.
+        Also reduce axes when reducing shape.
         
         Input:
         - self: format plugin instance
@@ -440,6 +441,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         while si.ndim > mindim:
             if si.shape[0] == 1:
                 si.shape = si.shape[1:]
+                if axes is not None:
+                    del axes[0]
             else:
                 break
 
@@ -478,7 +481,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     for slice in range(slices):
                         if flip:
                             si[d,tag,slice,:,:] = \
-                            np.fliplr(data[:,:,slice,tag,d]).T
+                            (data[:,:,slice,tag,d]).T
+                            #np.fliplr(data[:,:,slice,tag,d]).T
                         else:
                             si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         elif data.ndim == 4:
@@ -489,7 +493,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             for tag in range(tags):
                 for slice in range(slices):
                     if flip:
-                        si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
+                        si[tag,slice,:,:] = (data[:,:,slice,tag]).T
+                        #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
                     else:
                         si[tag,slice,:,:] = data[:,:,slice,tag]
         elif data.ndim == 3:
@@ -499,7 +504,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             si = np.zeros((slices,rows,columns), data.dtype)
             for slice in range(slices):
                 if flip:
-                    si[slice,:,:] = np.fliplr(data[:,:,slice]).T
+                    si[slice,:,:] = (data[:,:,slice]).T
+                    #si[slice,:,:] = np.fliplr(data[:,:,slice]).T
                 else:
                     si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 2:
@@ -508,7 +514,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 rows, columns = columns, rows
             si = np.zeros((rows,columns), data.dtype)
             if flip:
-                si[:] = np.fliplr(data[:]).T
+                si[:] = (data[:]).T
+                #si[:] = np.fliplr(data[:]).T
             else:
                 si[:] = data[:]
         else:
