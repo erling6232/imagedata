@@ -14,12 +14,12 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 SORT_ON_TAG)             = range(2)
 sort_on_set = {SORT_ON_SLICE, SORT_ON_TAG}
 
-(INPUT_ORDER_NONE,
-INPUT_ORDER_TIME,
-INPUT_ORDER_B,
-INPUT_ORDER_FA,
-INPUT_ORDER_TE,
-INPUT_ORDER_FAULTY)      = range(6)
+INPUT_ORDER_NONE = 'none'
+INPUT_ORDER_TIME = 'time'
+INPUT_ORDER_B = 'b'
+INPUT_ORDER_FA = 'fa'
+INPUT_ORDER_TE = 'te'
+INPUT_ORDER_FAULTY = 'faulty'
 input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
 class NotImageError(Exception): pass

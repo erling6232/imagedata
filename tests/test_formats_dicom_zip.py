@@ -33,7 +33,7 @@ class test_dicom_zip_read(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/dicom/time.zip?time/time00/Image_00000.dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
@@ -42,7 +42,7 @@ class test_dicom_zip_read(unittest.TestCase):
     def test_read_single_file_wildcard(self):
         si1 = Series(
             'data/dicom/time.zip?.*00/Image_00000.dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
@@ -51,7 +51,7 @@ class test_dicom_zip_read(unittest.TestCase):
     def test_read_two_files(self):
         si1 = Series(
             'data/dicom/time.zip?.*00/Image_0000[01].dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 192, 152))
@@ -60,7 +60,7 @@ class test_dicom_zip_read(unittest.TestCase):
     def test_read_two_files2(self):
         si1 = Series(
             'data/dicom/time.zip?.*0[01]/Image_0000[01].dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 2, 192, 152))
@@ -69,7 +69,7 @@ class test_dicom_zip_read(unittest.TestCase):
     def test_read_single_directory(self):
         si1 = Series(
             'data/dicom/time.zip?time/time00',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))

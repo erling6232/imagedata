@@ -43,7 +43,7 @@ class Test3DBiffPlugin(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/biff/time/time00.biff',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -52,7 +52,7 @@ class Test3DBiffPlugin(unittest.TestCase):
     def test_read_2D(self):
         si1 = Series(
             'data/biff/time/time00.biff',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -77,7 +77,7 @@ class Test3DBiffPlugin(unittest.TestCase):
     def test_zipread_single_file(self):
         si1 = Series(
             'data/biff/time.zip?time/time00.biff',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -124,7 +124,7 @@ class Test3DBiffPlugin(unittest.TestCase):
         try:
             si1 = Series(
                 'data/biff/time/time00.biff',
-                0,
+                'none',
                 self.opts)
         except Exception as e:
             logging.debug('test_read_3d_biff: read si1 exception {}'.format(e))
@@ -144,7 +144,7 @@ class Test3DBiffPlugin(unittest.TestCase):
 
         si2 = Series(
                 'ttb3d/biff/Image_00000.biff',
-                0,
+                'none',
                 self.opts)
         logging.debug('test_read_3d_biff: si2 {} {} {}'.format(si2.dtype, si2.min(), si2.max()))
 

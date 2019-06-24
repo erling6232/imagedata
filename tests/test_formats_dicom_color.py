@@ -45,7 +45,7 @@ class test_dicom_color(unittest.TestCase):
     def test_write_dicom_color(self):
         si1 = Series(
             'data/lena_color.jpg',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (512, 512, 3))

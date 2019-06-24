@@ -141,7 +141,7 @@ class Series(np.ndarray):
     version = "1.1.1"
     url = "www.helse-bergen.no"
 
-    def __new__(cls, data, input_order=0,
+    def __new__(cls, data, input_order='none',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None):

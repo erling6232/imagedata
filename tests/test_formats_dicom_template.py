@@ -52,7 +52,7 @@ class test_dicom_template(unittest.TestCase):
         # adding DICOM template
         si1 = Series(
                 'ttdt/empty_header',
-                0,
+                'none',
                 self.opts_template)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -63,7 +63,7 @@ class test_dicom_template(unittest.TestCase):
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
         si1.write('ttdt/tdtc', formats=['dicom'])
-        si3 = Series('ttdt/tdtc', 0, self.opts)
+        si3 = Series('ttdt/tdtc', 'none', self.opts)
         np.testing.assert_array_equal(si2, si3)
         compare_headers(self, si2, si3)
 
@@ -136,7 +136,7 @@ class test_dicom_template(unittest.TestCase):
         # adding DICOM template
         si1 = Series(
                 'ttdt/empty_header',
-                0,
+                'none',
                 self.opts_tempgeom)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -147,7 +147,7 @@ class test_dicom_template(unittest.TestCase):
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
         si1.write('ttdt/tdtc', formats=['dicom'])
-        si3 = Series('ttdt/tdtc', 0, self.opts)
+        si3 = Series('ttdt/tdtc', 'none', self.opts)
         np.testing.assert_array_equal(si2, si3)
         compare_headers(self, si2, si3)
 

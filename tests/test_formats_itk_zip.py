@@ -33,7 +33,7 @@ class test_itk_zip_read(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/itk/time.zip?time/Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -42,7 +42,7 @@ class test_itk_zip_read(unittest.TestCase):
     def test_read_single_file_wildcard(self):
         si1 = Series(
             'data/itk/time.zip?.*Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -51,7 +51,7 @@ class test_itk_zip_read(unittest.TestCase):
     def test_read_single_file_relative(self):
         si1 = Series(
             'data/itk/time.zip?Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))

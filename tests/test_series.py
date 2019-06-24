@@ -79,7 +79,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.slices, 1)
         np.testing.assert_array_equal(si.spacing, np.array((1, 1, 1)))
 
-    #@unittest.skip("skipping test_increase_ndim")
+    @unittest.skip("skipping test_increase_ndim")
     def test_increase_ndim(self):
         a = np.eye(128)
         s = Series(a)

@@ -47,7 +47,7 @@ class test_biff_template(unittest.TestCase):
         # Read the BIFF series, adding DICOM template
         si1 = Series(
                 'data/biff/time/time00.biff',
-                0,
+                'none',
                 self.opts_template)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -79,7 +79,7 @@ class test_biff_template(unittest.TestCase):
         # Read the BIFF series, adding DICOM geometry
         si1 = Series(
                 'data/biff/time/time00.biff',
-                0,
+                'none',
                 self.opts_geometry)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -125,7 +125,7 @@ class test_biff_template(unittest.TestCase):
         # Read the BIFF series, adding DICOM template and geometry
         si1 = Series(
             'data/biff/time/time00.biff',
-            0,
+            'none',
             self.opts_tempgeom)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')

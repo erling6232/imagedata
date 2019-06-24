@@ -29,7 +29,7 @@ class test_nifti_zip_read(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/nifti/time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -38,7 +38,7 @@ class test_nifti_zip_read(unittest.TestCase):
     def test_read_single_file_wildcard(self):
         si1 = Series(
             'data/nifti/time_all.zip?.*/.*_14.nii.gz',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -47,7 +47,7 @@ class test_nifti_zip_read(unittest.TestCase):
     def test_read_single_file_relative(self):
         si1 = Series(
             'data/nifti/time_all.zip?time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))

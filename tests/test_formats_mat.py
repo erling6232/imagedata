@@ -90,7 +90,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_zipread_single_file(self):
         si1 = Series(
             'data/mat/time.zip?time/Image_00000.mat',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -99,7 +99,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_zipread_single_file_wildcard(self):
         si1 = Series(
             'data/mat/time.zip?.*Image_00000.mat',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -108,7 +108,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_zipread_single_file_relative(self):
         si1 = Series(
             'data/mat/time.zip?Image_00000.mat',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -135,7 +135,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_write_single_file(self):
         si1 = Series(
             'data/mat/time/Image_00000.mat',
-            0,
+            'none',
             self.opts)
         si1.write('ttm4d?Image%05d.mat', formats=['mat'])
         list_files('ttm4d')
@@ -147,7 +147,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_write_single_directory(self):
         si1 = Series(
             'data/mat/time/',
-            0,
+            'none',
             self.opts)
         si1.write('ttm4d?Image%05d.mat', formats=['mat'])
         si2 = Series('ttm4d/')
@@ -161,7 +161,7 @@ class Test3DMatPlugin(unittest.TestCase):
         shutil.rmtree('ttm3d', ignore_errors=True)
         si1 = Series(
             'data/mat/time/Image_00000.mat',
-            0,
+            'none',
             self.opts)
         si1.write('ttm3d/mat?Image_%05d', formats=['mat'], opts=self.opts)
         si2 = Series('ttm3d/mat/Image_00000.mat')
@@ -173,7 +173,7 @@ class Test3DMatPlugin(unittest.TestCase):
         shutil.rmtree('ttm3d', ignore_errors=True)
         si1 = Series(
                 'data/mat/time/Image_00000.mat',
-                0,
+                'none',
                 self.opts)
         si1.write('ttm3d/mat?Image_%05d', formats=['mat'])
 
@@ -184,7 +184,7 @@ class Test3DMatPlugin(unittest.TestCase):
         shutil.rmtree('ttm3d', ignore_errors=True)
         si1 = Series(
                 'data/mat/time/Image_00000.mat',
-                0,
+                'none',
                 self.opts)
         #si1.shape = si1.shape[1:]
         logging.debug('test_write_3d_mat: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
@@ -197,7 +197,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         si2 = Series(
                 'ttm3d/mat/Image_00000.mat',
-                0,
+                'none',
                 self.opts)
         logging.debug('test_write_3d_mat: si2 {} {} {}'.format(si2.dtype, si2.min(), si2.max()))
 

@@ -50,7 +50,7 @@ class test_file_archive_itk(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/itk/time/Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -59,7 +59,7 @@ class test_file_archive_itk(unittest.TestCase):
     def test_read_2D(self):
         si1 = Series(
             'data/itk/time/Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -93,7 +93,7 @@ class test_file_archive_itk(unittest.TestCase):
     def test_write_3d_single_file(self):
         si1 = Series(
             'data/itk/time/Image_00000.mha',
-            0,
+            'none',
             self.opts)
         si1.write('tti3?Image.mha', formats=['itk'])
         list_files('tti3')
@@ -105,7 +105,7 @@ class test_file_archive_itk(unittest.TestCase):
     def test_write_4d_single_directory(self):
         si1 = Series(
             'data/itk/time/',
-            0,
+            'none',
             self.opts)
         si1.write('tti4?Image%05d.mha', formats=['itk'])
         si2 = Series('tti4/')
@@ -116,7 +116,7 @@ class test_file_archive_itk(unittest.TestCase):
     def test_write_4d_single_directory_explicit(self):
         si1 = Series(
             'data/itk/time/',
-            0,
+            'none',
             self.opts)
         si1.write('tti4/Image%05d.mha', formats=['itk'])
         si2 = Series('tti4/')
@@ -148,7 +148,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
     def test_write_3d_itk(self):
         si1 = Series(
             'data/itk/time/Image_00000.mha',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
@@ -186,7 +186,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
         # Read back the ITK data and verify that the header was modified
         si2 = Series(
                 'tti3/Image.mha',
-                0,
+                'none',
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)

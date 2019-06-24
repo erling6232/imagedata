@@ -47,7 +47,7 @@ class test_itk_template(unittest.TestCase):
         # Read the ITK series, adding DICOM template
         si1 = Series(
                 'data/itk/time/Image_00000.mha',
-                0,
+                'none',
                 self.opts_template)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -79,7 +79,7 @@ class test_itk_template(unittest.TestCase):
         # Read the ITK series, adding DICOM geometry
         si1 = Series(
                 'data/itk/time/Image_00000.mha',
-                0,
+                'none',
                 self.opts_geometry)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -125,7 +125,7 @@ class test_itk_template(unittest.TestCase):
         # Read the ITK series, adding DICOM template and geometry
         si1 = Series(
             'data/itk/time/Image_00000.mha',
-            0,
+            'none',
             self.opts_tempgeom)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')

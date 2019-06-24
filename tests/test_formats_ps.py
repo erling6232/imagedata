@@ -36,7 +36,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_read_single_file_gray(self):
         si1 = Series(
             'data/ps/pages/A_Lovers_Complaint_1.ps',
-            0,
+            'none',
             self.opts_gray)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (1754, 1240))
@@ -45,7 +45,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/ps/pages/A_Lovers_Complaint_1.ps',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (1754, 1240, 3))
@@ -57,7 +57,7 @@ class Test2DPSPlugin(unittest.TestCase):
             'data/ps/pages/A_Lovers_Complaint_1.ps',
             'data/ps/pages/A_Lovers_Complaint_2.ps'
             ],
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (2, 1754, 1240, 3))
@@ -66,7 +66,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_read_single_directory(self):
         si1 = Series(
             'data/ps/pages',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (6, 1754, 1240, 3))
@@ -77,7 +77,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_read_large_file(self):
         si1 = Series(
             'data/ps/A_Lovers_Complaint.ps',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (6, 1754, 1240, 3))
@@ -86,7 +86,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_zipread_single_file(self):
         si1 = Series(
             'data/ps/pages.zip?pages/A_Lovers_Complaint_1.ps',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (1754, 1240, 3))
@@ -95,7 +95,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_zipread_two_files(self):
         si1 = Series(
             'data/ps/pages.zip?pages/A_Lovers_Complaint_[12].ps',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (2, 1754, 1240, 3))
@@ -104,7 +104,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_zipread_a_directory(self):
         si1 = Series(
             'data/ps/pages.zip?pages/',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (6, 1754, 1240, 3))
@@ -113,7 +113,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_zipread_all(self):
         si1 = Series(
             'data/ps/pages.zip',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (6, 1754, 1240, 3))
@@ -122,7 +122,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_write_single_file(self):
         si1 = Series(
             'data/ps/pages.zip?pages/A_Lovers_Complaint_1.ps',
-            0,
+            'none',
             self.opts)
         try:
             si1.write('ttp2d?Image%05d.ps', formats=['ps'])
@@ -133,7 +133,7 @@ class Test2DPSPlugin(unittest.TestCase):
     def test_write_single_directory(self):
         si1 = Series(
             'data/mat/time/',
-            0,
+            'none',
             self.opts)
         try:
             si1.write('ttp2d?Image%05d.ps', formats=['ps'])

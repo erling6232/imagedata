@@ -35,7 +35,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -68,7 +68,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_zipread_single_file(self):
         si1 = Series(
             'data/nifti/time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
@@ -95,7 +95,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_write_single_file(self):
         si1 = Series(
             'data/nifti/time_all/time_all_fl3d_dynamic_20190207140517_14.nii.gz',
-            0,
+            'none',
             self.opts)
         si1.write('ttn4d?Image%1d.nii.gz', formats=['nifti'])
         si2 = Series('ttn4d/Image0.nii.gz')
