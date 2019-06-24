@@ -213,7 +213,7 @@ class BiffPlugin(AbstractPlugin):
 
         archive = destination['archive']
         filename_template = 'Image_%05d.biff'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
         logging.debug('BiffPlugin.write_3d_series: archive {}'.format(archive))
         logging.debug('BiffPlugin.write_3d_series: filename_template {}'.format(filename_template))
@@ -229,7 +229,6 @@ class BiffPlugin(AbstractPlugin):
             self.output_dir = opts['output_dir']
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
-        save_shape = si.shape
         #if si.ndim == 2:
         #    si.shape = (1,) + si.shape
         #if si.ndim == 3:
@@ -280,7 +279,6 @@ class BiffPlugin(AbstractPlugin):
                     iband += 1
             logging.debug('BiffPlugin.write_3d_series: filename {}'.format(filename))
             self._write_text()
-        si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Xite biff file
@@ -301,7 +299,7 @@ class BiffPlugin(AbstractPlugin):
 
         archive = destination['archive']
         filename_template = 'Image_%05d.biff'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
         logging.debug('BiffPlugin.write_4d_series: archive {}'.format(archive))
         logging.debug('BiffPlugin.write_4d_series: filename_template {}'.format(filename_template))
@@ -317,7 +315,6 @@ class BiffPlugin(AbstractPlugin):
         if 'output_dir' in opts:
             self.output_dir = opts['output_dir']
 
-        save_shape = si.shape
         # Should we allow to write 3D volume?
         #if si.ndim == 3:
         #    si.shape = (1,) + si.shape
@@ -416,8 +413,6 @@ class BiffPlugin(AbstractPlugin):
                             iband += 1
                         logging.debug('BiffPlugin.write_4d_series: filename {}'.format(filename))
                         self._write_text()
-        si.shape = save_shape
-
 
     def dtype_from_biff(self, pixtyp):
         """Return NumPy dtype for given Xite pixel type

@@ -291,7 +291,7 @@ class DICOMPlugin(AbstractPlugin):
             self.simulateAffine()
         except ValueErrorWrapperPrecisionError:
             pass
-        self.create_affine(hdr)
+        #self.create_affine(hdr)
         return hdr,si
 
     def _get_pixels_with_shape(self, im, shape):
@@ -697,7 +697,6 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber = 0
 
-        save_shape = si.shape
         _ndim = si.ndim
         #_actual_shape = si.shape
         try:
@@ -715,8 +714,8 @@ class DICOMPlugin(AbstractPlugin):
         #    si.shape = (1,) + si.shape
         #    _actual_shape = (1,) + _actual_shape
         #    _actual_ndim += 1
-        logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, write shape {} slices {} len {}'.format(
-            save_shape, si.shape, si.slices, _ndim))
+        logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
+            si.shape, si.slices, _ndim))
         assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (_ndim)
         #assert _actual_ndim == 4, "write_3d_series: input dimension %d is not 3D." % (_actual_ndim-1)
         #if si.shape[0] != 1:
@@ -751,7 +750,6 @@ class DICOMPlugin(AbstractPlugin):
                     filename = filename_template + "_{}".format(slice)
                 self.write_slice(0, slice, si[slice], archive, filename, ifile)
                 ifile += 1
-        si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
@@ -787,7 +785,6 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber = 0
 
-        save_shape = si.shape
         _ndim = si.ndim
         #_actual_shape = si.shape
         try:
@@ -806,7 +803,7 @@ class DICOMPlugin(AbstractPlugin):
         #    raise ValueError("write_4d_numpy: input dimension %d is not 4D." % _actual_ndim)
         #logging.debug("write_4d_numpy: si dtype {}, shape {}".format(si.dtype,
         #    si.shape))
-        logging.debug('DICOMPlugin.write_4d_numpy: orig shape {}, write shape {} len {}'.format(save_shape, si.shape, _ndim))
+        logging.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, _ndim))
         #slices = _actual_shape[-3]
         #slices = si.slices
         #if steps != len(si.tags[0]):
@@ -861,7 +858,6 @@ class DICOMPlugin(AbstractPlugin):
                                 filename_template % (ifile))
                     self.write_slice(tag, slice, si[tag,slice], archive, filename, ifile)
                     ifile += 1
-        si.shape = save_shape
 
     def write_slice(self, tag, slice, si, archive, filename, ifile):
         """Write single slice to DICOM file
@@ -913,8 +909,13 @@ class DICOMPlugin(AbstractPlugin):
         # Add header information
         try:
             ds.SliceLocation = si.sliceLocations[0]
-        except ValueError:
-            ds.SliceLocation = 0
+        except (AttributeError, ValueError):
+            # Dont know the SliceLocation, attempt to calculate from image geometry
+            try:
+                ds.SliceLocation = self.calculateSliceLocation(im)
+            except ValueError:
+                # Dont know the SliceLocation, so will set this to be the slice index
+                ds.SliceLocation = slice
         try:
             dz,dy,dx = si.spacing
         except ValueError:

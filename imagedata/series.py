@@ -91,18 +91,21 @@ class Header(object):
                 elif axis.name not in {'row', 'column', 'rgb'}:
                     tags = len(axis)
 
-        self.DicomHeaderDict = {}
-        i = 0
-        #logging.debug('Header.set_default_values %d tags' % tags)
-        #logging.debug('Header.set_default_values tags {}'.format(self.tags))
-        for _slice in range(slices):
-            self.DicomHeaderDict[_slice] = {}
-            for tag in range(tags):
-                    self.DicomHeaderDict[_slice][tag] = \
-                        (tag, None, 
-                            self._empty_ds(i)
-                        )
-                    i += 1
+            self.DicomHeaderDict = {}
+            i = 0
+            #logging.debug('Header.set_default_values %d tags' % tags)
+            #logging.debug('Header.set_default_values tags {}'.format(self.tags))
+            for _slice in range(slices):
+                self.DicomHeaderDict[_slice] = []
+                for tag in range(tags):
+                        self.DicomHeaderDict[_slice].append(
+                            ( tag, None, self._empty_ds(i))
+                            )
+                        i += 1
+            if self.tags is None:
+                self.tags = {}
+                for _slice in range(slices):
+                    self.tags[_slice] = [i for i in range(tags)]
 
     def _empty_ds(self, i):
         SOPInsUID = self.new_uid()
@@ -205,7 +208,11 @@ class Series(np.ndarray):
         obj.header.input_order = input_order
         # Copy attributes from hdr dict to newly created obj
         logging.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
-        obj.header.set_default_values(obj.shape, obj.axes)
+        if obj.axes is None and 'axes' in hdr:
+            axes = hdr['axes']
+        else:
+            axes = obj.axes
+        obj.header.set_default_values(obj.shape, axes)
         for attr in hdr.keys():
             setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
@@ -715,6 +722,7 @@ class Series(np.ndarray):
         Input:
         - s: new shape tuple
         """
+        raise IndexError('Should set axes instead of shape.')
         prev_shape = super(Series, self).shape
         super(Series, self).resize(s)
         if len(s) > len(prev_shape):
@@ -776,7 +784,7 @@ class Series(np.ndarray):
         """
         try:
             slice_axis = self.__find_axis('slice')
-            logging.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
+            # logging.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
             _color = 0
@@ -930,17 +938,43 @@ class Series(np.ndarray):
                 return self.header.axes
         except Exception:
             pass
-        #raise ValueError("Axis is unknown")
-        return None
+        # Calculate axes from image shape
+        self.header.axes = []
+        shape = super(Series, self).shape
+        if len(shape) < 1:
+            return None
+        if shape[-1] == 3 and self.dtype == np.uint8:
+            _mono_shape = shape[:-1]
+        else:
+            _mono_shape = shape
+        _max_known_shape = min(3, len(_mono_shape))
+        _labels = ['slice', 'row', 'column'][-_max_known_shape:]
+        while len(_labels) < self.ndim:
+            _labels.insert(0, 'unknown')
+
+        i = 0
+        for d in super(Series, self).shape:
+            self.header.axes.append(
+                imagedata.axis.UniformLengthAxis(
+                    _labels[i], 0, d, 1
+                )
+            )
+            i += 1
+        return self.header.axes
 
     @axes.setter
     def axes(self, ax):
-        """Set axes
+        """Set axes and shape
 
         Input:
         - ax: list of axis objects
         """
         self.header.axes = ax
+        shape = [len(axis) for axis in ax]
+        try:
+            super(Series, self).resize(tuple(shape))
+        except Exception as e:
+            pass
 
     def __find_axis(self, name):
         """Find axis with given name
@@ -952,7 +986,7 @@ class Series(np.ndarray):
         Exceptions:
         - ValueError: when no axis object has given name
         """
-        for axis in self.header.axes:
+        for axis in self.axes:
             if axis.name == name:
                 return axis
         raise ValueError("No axis object with name %s exist" % name)

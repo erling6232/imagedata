@@ -162,7 +162,7 @@ class MatPlugin(AbstractPlugin):
         logging.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mat'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.slices               = si.slices
@@ -170,7 +170,6 @@ class MatPlugin(AbstractPlugin):
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
-        save_shape = si.shape
         if si.ndim == 4 and si.shape[0] == 1: si.shape = si.shape[1:]
         #if si.ndim == 2:
         #    si.shape = (1,) + si.shape
@@ -202,7 +201,6 @@ class MatPlugin(AbstractPlugin):
         with archive.open(filename, 'wb') as f:
             #scipy.io.savemat(f, {'A': img})
             scipy.io.savemat(f, {'A': self._reorder_from_dicom(si)})
-        si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as MAT files
@@ -224,7 +222,7 @@ class MatPlugin(AbstractPlugin):
         logging.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mat'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.slices               = si.slices
@@ -236,7 +234,6 @@ class MatPlugin(AbstractPlugin):
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
-        save_shape = si.shape
         # Should we allow to write 3D volume?
         #if si.ndim == 3:
         #    si.shape = (1,) + si.shape
@@ -267,7 +264,6 @@ class MatPlugin(AbstractPlugin):
             img = self._reorder_from_dicom(si)
             logging.debug("write_4d_numpy: Calling savemat")
             scipy.io.savemat(f, {'A': img})
-        si.shape = save_shape
 
     def copy(self, other=None):
         logging.debug("MatPlugin::copy")

@@ -457,7 +457,7 @@ class NiftiPlugin(AbstractPlugin):
         logging.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image.nii.gz'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.slices               = si.slices
@@ -467,7 +467,6 @@ class NiftiPlugin(AbstractPlugin):
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
-        save_shape = si.shape
         #if si.ndim == 2:
         #    si.shape = (1,) + si.shape
         #elif si.ndim == 3:
@@ -514,7 +513,6 @@ class NiftiPlugin(AbstractPlugin):
         #    filename = filename + '.nii.gz'
         #img.to_filename(os.path.join(dirname, filename))
         self.write_numpy_nifti(img, archive, filename)
-        si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Nifti file
@@ -539,7 +537,7 @@ class NiftiPlugin(AbstractPlugin):
         logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image.nii.gz'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         #fsi=self.reorder_data_in_4d(si)
@@ -556,7 +554,6 @@ class NiftiPlugin(AbstractPlugin):
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
-        save_shape = si.shape
         # Should we allow to write 3D volume?
         if si.ndim == 2:
             si.shape = (1,1,) + si.shape
@@ -607,7 +604,6 @@ class NiftiPlugin(AbstractPlugin):
         #    filename = filename + '.nii.gz'
         #img.to_filename(os.path.join(dirname, filename))
         self.write_numpy_nifti(img, archive, filename)
-        si.shape = save_shape
 
     def write_numpy_nifti(self, img, archive, filename):
         """Write nifti data to file

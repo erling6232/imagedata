@@ -103,10 +103,10 @@ class test_itk_template(unittest.TestCase):
 
     #@unittest.skip("skipping test_itk_geometry_prog")
     def test_itk_geometry_prog(self):
-        # Read the DICOM empty header series,
+        # Read the ITK series,
         # adding DICOM geometry in Series constructor
         si1 = Series(
-                'ttdt/empty_header',
+                'data/itk/time/Image_00000.mha',
                 geometry=self.geometry)
         # Compare constructed series si1 to original series
         self.assertEqual(si1.dtype, self.geometry.dtype)
@@ -142,10 +142,10 @@ class test_itk_template(unittest.TestCase):
 
     #@unittest.skip("skipping test_itk_tempgeom_prog")
     def test_itk_tempgeom_prog(self):
-        # Read the DICOM empty header series,
+        # Read the ITK series,
         # adding DICOM template in Series constructor
         si1 = Series(
-                'ttdt/empty_header',
+                'data/itk/time/Image_00000.mha',
                 template=self.template,
                 geometry=self.geometry)
         # Compare constructed series si1 to original series

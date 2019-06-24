@@ -15,7 +15,7 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 setup(name = 'imagedata',
-    packages = find_packages(exclude=['contrib', 'docs', 'tests*']),
+    packages = find_packages(exclude=['contrib', 'docs', 'tests', 'data']),
     version = pkg_vars['__version__'],
     description = 'Read/write medical image data',
     author = 'Erling Andersen',

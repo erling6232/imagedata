@@ -320,7 +320,7 @@ class ITKPlugin(AbstractPlugin):
         logging.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mha'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.shape                = si.shape
@@ -332,7 +332,6 @@ class ITKPlugin(AbstractPlugin):
         self.tags                 = si.tags
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
-        save_shape = si.shape
         #if si.ndim == 2:
         #    si.shape = (1,) + si.shape
         #if si.ndim == 3:
@@ -353,7 +352,6 @@ class ITKPlugin(AbstractPlugin):
             filename = filename_template
         #filename = os.path.join(dirname, filename)
         self.write_numpy_itk(si, archive, filename)
-        si.shape = save_shape
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as ITK files
@@ -378,7 +376,7 @@ class ITKPlugin(AbstractPlugin):
         logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mha'
-        if len(destination['files'][0]) > 0:
+        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
         self.shape                = si.shape
@@ -394,7 +392,6 @@ class ITKPlugin(AbstractPlugin):
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
-        save_shape = si.shape
         # Should we allow to write 3D volume?
         #if si.ndim == 3:
         #    si.shape = (1,) + si.shape
@@ -427,7 +424,6 @@ class ITKPlugin(AbstractPlugin):
                 filename = filename_template % (tag)
                 #filename = os.path.join(dirname, filename)
                 self.write_numpy_itk(si[tag,...], archive, filename)
-        si.shape = save_shape
 
     def write_numpy_itk(self, si, archive, filename):
         """Write single volume to file

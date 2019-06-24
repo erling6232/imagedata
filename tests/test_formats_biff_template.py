@@ -142,10 +142,10 @@ class test_biff_template(unittest.TestCase):
 
     #@unittest.skip("skipping test_biff_tempgeom_prog")
     def test_biff_tempgeom_prog(self):
-        # Read the DICOM empty header series,
-        # adding DICOM template in Series constructor
+        # Read the BIFF series,
+        # adding DICOM template and geometry in Series constructor
         si1 = Series(
-                'ttdt/empty_header',
+                'data/biff/time/time00.biff',
                 template=self.template,
                 geometry=self.geometry)
         # Compare constructed series si1 to original series

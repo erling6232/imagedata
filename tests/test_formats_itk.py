@@ -190,7 +190,7 @@ class TestWritePluginITK_slice(unittest.TestCase):
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
-        compare_headers(self, si1, si2)
+        compare_headers(self, si1, si2, uid=False)
 
     #@unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):

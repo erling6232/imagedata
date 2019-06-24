@@ -93,8 +93,11 @@ class TestSeries(unittest.TestCase):
         a = np.eye(128)
         a.shape = (1,1,128,128)
         s = Series(a)
-        s.shape = (128,128)
-        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
+        #s.shape = (128,128)
+        s.axes = [
+            imagedata.axis.UniformLengthAxis('row', 0, 128),
+            imagedata.axis.UniformLengthAxis('column', 0, 128)
+        ]
         self.assertEqual(s.shape, (128,128))
         self.assertEqual(len(s.axes), 2)
 
@@ -162,7 +165,7 @@ class TestSeries(unittest.TestCase):
         a2 = np.vstack([a1, a1, a1])
         a2.shape = (1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
-        s = Series(a)
+        s = Series(a, input_order=imagedata.formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
         s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
