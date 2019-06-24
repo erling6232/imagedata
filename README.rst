@@ -26,7 +26,7 @@ A simple example reading a time series from in_dir, and writing it to out_dir::
   a = Series('in_dir', 'time')
   a.write('out_dir')
   
-Series object
+Series fields
 -------------
 
 The Series object is inherited from numpy.ndarray, adding a number of useful fields:
@@ -63,6 +63,35 @@ timeline
   
 transformationMatrix
   The transformation matrix to calculate physical coordinates from pixel coordinates
+
+Series instancing
+-----------------
+
+From image data file(s):
+  a = Series('in_dir')
+  
+From a list of directories:
+  a = Series(['1', '2', '3'])
+
+From a numpy array:
+  e = np.eye(128)
+  
+  a = Series(e)
+
+Series methods
+--------------
+
+write
+  Write the image data as a Matlab file to out_dir:
+  
+  a.write('out_dir', formats=['mat'])
+
+slicing
+  The image data array can be sliced like numpy.ndarray. The axes will be adjusted accordingly:
+  
+  b = a[0, ...]
+  
+  will give a 3D **b** image when **a** is 4D.
 
 Command line usage
 ------------------
