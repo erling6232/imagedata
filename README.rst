@@ -20,7 +20,7 @@ Other formats can be added through a plugin architecture.
 Simple python3 code
 -------------------
 
-A simple example reading a time series from in_dir, and writing the series to out_dir::
+A simple example reading a time series from in_dir, and writing it to out_dir::
 
   from imagedata.series import Series
   a = Series('in_dir', 'time')
