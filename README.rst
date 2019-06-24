@@ -93,6 +93,44 @@ slicing
   
   will give a 3D **b** image when **a** is 4D.
 
+Archives
+--------
+
+The Series object can access image data in a number of **archives**. Some archives are:
+
+Filesystem
+  Access files in directories on the local file system
+  
+  a = Series('in_dir')
+  
+Zip
+  Access files inside zip files.
+  
+  Read all files inside file.zip:
+  
+  a = Series('file.zip')
+  
+  Read named directory inside file.zip:
+  
+  b = Series('file.zip?dir_a')
+  
+  Write the image data to DICOM files inside newfile.zip:
+  
+  b.write('newfile.zip', formats=['dicom'])
+
+Transports
+----------
+
+file
+  Access local files (default)
+  
+  a = Series('file:in_dir')
+  
+dicom
+  Access files using DICOM Storage protocols. Currently, writing (implies sending) DICOM images only.
+  
+  a.write('dicom://server:104/AETITLE')
+
 Command line usage
 ------------------
 
