@@ -7,9 +7,25 @@
 import sys
 import os.path
 import argparse
+import copy
 import logging
 import imagedata
 import imagedata.formats
+
+class DictAction(argparse.Action):
+    def __init__(self, option_strings, dest, nargs=None, **kwargs):
+        if nargs is not None:
+            raise ValueError("nargs not allowed")
+        super(DictAction, self).__init__(option_strings, dest, **kwargs)
+    def __call__(self, parser, namespace, values, option_string=None):
+        try:
+            k, v = values.split("=", 1)
+        except ValueError:
+            raise argparse.ArgumentError(self, "Format must be key=value")
+
+        items = copy.copy(argparse._ensure_value(namespace, self.dest, {}))  # Default mutables, use copy!
+        items[k] = v
+        setattr(namespace, self.dest, items)
 
 class CommaSepAction(argparse.Action):
     def __init__(self, option_strings, dest, nargs=None, **kwargs):
@@ -109,9 +125,13 @@ def add_argparse_options(parser):
         default=None)
     parser.add_argument('--imagetype', action=CommaSepAction,
         help="Set DICOM image type, comma-separated list")
-    parser.add_argument('--input_options', action=CommaSepAction,
-        help="Set input options (e.g. TriggerTime), comma-separated list",
-        default=[])
+    parser.add_argument('--input_options', action=DictAction,
+        help="Set input options (e.g. time=TriggerTime)",
+        default={
+            'time': 'AcquisitionTime',
+            'fa': 'FlipAngle',
+            'te': 'EchoTime'
+        })
     parser.add_argument('--calling_aet',
         help='Calling AEtitle',
         default=None)

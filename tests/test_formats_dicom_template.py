@@ -23,13 +23,13 @@ class test_dicom_template(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'dicom'])
         self.opts_template = parser.parse_args(['--of', 'dicom',
-            '--input_options', 'AcceptDuplicateTag',
+            '--input_options', 'AcceptDuplicateTag=True',
             '--template', 'data/dicom/time/time00/'])
         self.opts_geometry = parser.parse_args(['--of', 'dicom',
-            '--input_options', 'AcceptDuplicateTag',
+            '--input_options', 'AcceptDuplicateTag=True',
             '--geometry', 'data/dicom/time/time00/'])
         self.opts_tempgeom = parser.parse_args(['--of', 'dicom',
-            '--input_options', 'AcceptDuplicateTag',
+            '--input_options', 'AcceptDuplicateTag=True',
             '--template', 'data/dicom/time/time00/',
             '--geometry', 'data/dicom/time/time00/'])
 

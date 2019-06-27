@@ -244,7 +244,9 @@ class DICOMPlugin(AbstractPlugin):
                 tgs = np.array(hdr['tags'][slice])
                 #idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
-                if _done[idx] and 'AcceptDuplicateTag' in opts['input_options']:
+                if _done[idx] and \
+                        'AcceptDuplicateTag' in opts['input_options'] and \
+                        opts['input_options']['AcceptDuplicateTag'] == 'True':
                     while _done[idx]:
                         idx += 1
                 _done[idx] = True
@@ -493,7 +495,14 @@ class DICOMPlugin(AbstractPlugin):
             count[islice] += len(headerDict[sloc])
             islice += 1
         logging.debug("sort_images: tags per slice: {}".format(count))
-        if min(count) != max(count) and 'AcceptUnevenSlices' not in opts['input_options']:
+        AcceptUnevenSlices = AcceptDuplicateTag = False
+        if 'AcceptUnevenSlices' in opts['input_options'] and \
+            opts['input_options']['AcceptUnevenSlices'] == 'True':
+            AcceptUnevenSlices = True
+        if 'AcceptDuplicateTag' in opts['input_options'] and \
+            opts['input_options']['AcceptDuplicateTag'] == 'True':
+            AcceptDuplicateTag = True
+        if min(count) != max(count) and AcceptUnevenSlices:
             logging.error("sort_images: tags per slice: {}".format(count))
             raise UnevenSlicesError("Different number of images in each slice.")
 
@@ -508,7 +517,7 @@ class DICOMPlugin(AbstractPlugin):
                     tag = i
                 else:
                     tag = self.get_tag(im, input_order, opts)
-                if tag not in tagList[islice] or 'AcceptDuplicateTag' in opts['input_options']:
+                if tag not in tagList[islice] or AcceptDuplicateTag:
                     tagList[islice].append(tag)
                 else:
                     print("WARNING: Duplicate tag", tag)
@@ -533,7 +542,7 @@ class DICOMPlugin(AbstractPlugin):
                 idx = tagList[islice].index(tag)
                 if sorted_headers[islice][idx]:
                     # Duplicate tag
-                    if 'AcceptDuplicateTag' in opts['input_options']:
+                    if AcceptDuplicateTag:
                         while sorted_headers[islice][idx]:
                             idx += 1
                     else:
@@ -1155,6 +1164,10 @@ class DICOMPlugin(AbstractPlugin):
     #    return AbstractPlugin.copy(self, other=other)
 
     def get_tag(self, im, input_order, opts):
+
+        #Example: _tag = choose_tag('b', 'csa_header')
+        choose_tag = lambda tag, default: opts['input_options'][tag] if tag in opts['input_options'] else default
+
         if input_order is None:
             return 0
         if input_order == imagedata.formats.INPUT_ORDER_NONE:
@@ -1162,33 +1175,50 @@ class DICOMPlugin(AbstractPlugin):
         elif input_order == imagedata.formats.INPUT_ORDER_TIME:
             #return im.AcquisitionTime
             assert 'input_options' in opts, 'No input_options in opts'
-            if 'TriggerTime' in opts['input_options']:
-                return(float(im.TriggerTime))
-            elif 'InstanceNumber' in opts['input_options']:
-                return(float(im.InstanceNumber))
-            else:
-                if '.' in im.AcquisitionTime:
-                    tm = datetime.strptime(im.AcquisitionTime, "%H%M%S.%f")
+            time_tag = choose_tag('time', 'AcquisitionTime')
+            #if 'TriggerTime' in opts['input_options']:
+            #    return(float(im.TriggerTime))
+            #elif 'InstanceNumber' in opts['input_options']:
+            #    return(float(im.InstanceNumber))
+            #else:
+            if im.data_element(time_tag).VR == 'TM':
+                time_str = im.data_element(time_tag).value
+                if '.' in time_str:
+                    tm = datetime.strptime(time_str, "%H%M%S.%f")
                 else:
-                    tm = datetime.strptime(im.AcquisitionTime, "%H%M%S")
+                    tm = datetime.strptime(time_str, "%H%M%S")
                 td = timedelta(hours=tm.hour,
                                 minutes=tm.minute,
                                 seconds=tm.second,
                                 microseconds=tm.microsecond)
                 return td.total_seconds()
+            else:
+                return float(im.data_element(time_tag).value)
         elif input_order == imagedata.formats.INPUT_ORDER_B:
-            csa_head = csa.get_csa_header(im)
-            try:
-                value = csa.get_b_value(csa_head)
-            except Exception:
-                raise ValueError("Unable to extract b value from header.")
+            #b_tag = opts['input_options']['b'] if 'b' in opts['input_options'] else b_tag = 'csa_header'
+            b_tag = choose_tag('b', 'csa_header')
+            if b_tag == 'csa_header':
+                csa_head = csa.get_csa_header(im)
+                try:
+                    value = csa.get_b_value(csa_head)
+                except Exception:
+                    raise ValueError("Unable to extract b value from header.")
+            else:
+                value = float(im.data_element(b_tag).value)
             return value
         elif input_order == imagedata.formats.INPUT_ORDER_FA:
-            return float(im.FlipAngle)
+            #fa_tag = opts['input_options']['fa'] if 'fa' in opts['input_options'] else 'FlipAngle'
+            fa_tag = choose_tag('fa', 'FlipAngle')
+            return float(im.data_element(fa_tag).value)
         elif input_order == imagedata.formats.INPUT_ORDER_TE:
-            return float(im.EchoTime)
+            te_tag = choose_tag('te', 'EchoTime')
+            return float(im.data_element(te_tag).value)
         else:
-            raise(UnknownTag("Unknown numerical input_order {}.".format(imagedata.formats.input_order_to_str(input_order))))
+            # User-defined tag
+            if input_order in opts['input_options']:
+                _tag = opts['input_options'][input_order]
+                return float(im.data_element(_tag).value)
+        raise(UnknownTag("Unknown input_order {}.".format(input_order)))
 
     def simulateAffine(self):
         shape = (
