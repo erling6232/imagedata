@@ -66,5 +66,5 @@ def compare_geometry_headers(self, hdr, newhdr):
                 hdr.imagePositions[k],
                 newhdr.imagePositions[k],
                 decimal=4)
-    #np.testing.assert_array_almost_equal(hdr.transformationMatrix, newhdr.transformationMatrix, decimal=4)
+    np.testing.assert_array_almost_equal(hdr.transformationMatrix, newhdr.transformationMatrix, decimal=3)
 

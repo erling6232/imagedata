@@ -70,7 +70,6 @@ class Header(object):
         return self.__uid_generator.__next__()
 
     def set_default_values(self, shape, axes):
-        logging.debug('Header.set_default_values: color=False')
         self.color = False
         if self.DicomHeaderDict is not None:
             return
@@ -1643,6 +1642,19 @@ class Series(np.ndarray):
         - transformation matrix as numpy array
         """
 
+        def normalize(v):
+            """Normalize a vector
+
+            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+
+            :param v: 3D vector
+            :return: normalized 3D vector
+            """
+            norm=np.linalg.norm(v, ord=1)
+            if norm==0:
+                norm=np.finfo(v.dtype).eps
+            return v/norm
+
         debug = None
         # debug = True
 
@@ -1660,20 +1672,30 @@ class Series(np.ndarray):
             # print("ds,dr,dc={},{},{}".format(ds,dr,dc))
             # print("z ,y ,x ={},{},{}".format(z,y,x))
 
-            colr = np.array([[orient[5]], [orient[4]], [orient[3]]]) * dr
-            colc = np.array([[orient[2]], [orient[1]], [orient[0]]]) * dc
+            #colr = np.array([[orient[3]], [orient[4]], [orient[5]]]) * dr
+            colr = normalize(np.array(orient[3:6])) * dr
+            #colc = np.array([[orient[0]], [orient[1]], [orient[2]]]) * dc
+            colc = normalize(np.array(orient[0:3])) * dc
             if slices > 1:
                 logging.debug('Series.transformationMatrix: multiple slices case (slices={})'.format(slices))
+                # Calculating normal vector based on first and last slice should be the correct method.
                 k = (T0 - Tn) / (1 - slices)
+                # Will just calculate normal to row and column to match other software.
+                #k = np.cross(colr, colc, axis=0)
             else:
                 logging.debug('Series.transformationMatrix: single slice case')
                 # k = np.cross(colc, colr, axis=0)
-                k = np.cross(colr, colc, axis=0) * ds
+                k = np.cross(colr, colc, axis=0)
+                k = normalize(k) * ds
             logging.debug('Series.transformationMatrix: k={}'.format(k.T))
             # logging.debug("Q: k {} colc {} colr {} T0 {}".format(k.shape,
             #    colc.shape, colr.shape, T0.shape))
             A = np.eye(4)
-            A[:3, :4] = np.hstack((k, colr, colc, T0))
+            A[:3, :4] = np.hstack([
+                k.reshape(3,1),
+                colr.reshape(3,1),
+                colc.reshape(3,1),
+                T0.reshape(3,1)])
             if debug:
                 logging.debug("A:\n{}".format(A))
             self.header.transformationMatrix = A
@@ -1717,6 +1739,46 @@ class Series(np.ndarray):
         #            slice: self.getPositionForVoxel(np.array([slice,0,0]),
         #                transformation=M)
         #        }
+
+    def get_transformation_components_xyz(self):
+        """Get origin and direction from transformation matrix in xyz convention.
+
+        Input:
+        - self.transformationMatrix
+        - self.spacing
+        Returns:
+        - origin: np.array size 3
+        - orientation: np.array size 6 (row, then column directional cosines) (DICOM convention)
+        - normal vector: np.array size 3 (slice direction)
+        """
+        M = self.transformationMatrix
+        ds, dr, dc = self.spacing
+
+        # origin
+        try:
+            ipp=self.imagePositions
+            if len(ipp) > 0:
+                ipp = ipp[0]
+            else:
+                ipp = np.array([0, 0, 0])
+        except ValueError:
+            ipp = np.array([0, 0, 0])
+        if ipp.shape == (3,1): ipp.shape = (3,)
+        z,y,x=ipp[:]
+        origin = np.array([x, y, z])
+
+        # orientation
+        # Reverse orientation vectors from zyx to xyz
+        try:
+            orientation = [
+                self.orientation[2], self.orientation[1], self.orientation[0],
+                self.orientation[5], self.orientation[4], self.orientation[3]]
+        except ValueError:
+            orientation = [1, 0, 0, 0, 1, 0]
+
+        n = M[:3,0][::-1].reshape(3) / ds
+
+        return origin, np.array(orientation), n
 
     @property
     def timeline(self):

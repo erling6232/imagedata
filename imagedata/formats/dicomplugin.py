@@ -31,7 +31,7 @@ class DICOMPlugin(AbstractPlugin):
     name = "dicom"
     description = "Read and write DICOM files."
     authors = "Erling Andersen"
-    version = "1.1.1"
+    version = "1.2.0"
     url = "www.helse-bergen.no"
 
     root="2.16.578.1.37.1.1.4"
@@ -84,13 +84,6 @@ class DICOMPlugin(AbstractPlugin):
             hdr['frameOfReferenceUID'] = frameUID
         hdr['seriesNumber'] = self.getDicomAttribute(tag_for_name("SeriesNumber"))
         hdr['seriesDescription'] = self.getDicomAttribute(tag_for_name("SeriesDescription"))
-        it = self.getDicomAttribute(tag_for_name("ImageType"))
-        #logging.debug("ImageType {} {} {}".format(len(it), type(it), it))
-        #for it1 in it:
-            #logging.debug("ImageType {} {} {}".format(len(it1), type(it1), it1))
-        #if it is not None:
-        #    it2 = "\\".join(it)
-        #logging.debug("ImageType {} {} {}".format(len(it2), type(it2), it2))
         hdr['imageType'] = self.getDicomAttribute(tag_for_name("ImageType"))
 
         hdr['accessionNumber'] = self.getDicomAttribute(tag_for_name('AccessionNumber'))
@@ -187,7 +180,7 @@ class DICOMPlugin(AbstractPlugin):
         # Read DICOM headers
         logging.debug('DICOMPlugin.read: sources %s' % sources)
         try:
-            hdr,shape = self.read_headers(sources, input_order, opts)
+            hdr,shape = self.read_headers(sources, input_order, opts, skip_pixels=False)
         except Exception as e:
             logging.debug('DICOMPlugin.read: exception\n%s' % e)
             raise imagedata.formats.NotImageError('{}'.format(e))
@@ -257,8 +250,9 @@ class DICOMPlugin(AbstractPlugin):
                 # Simplify index when image is 3D, remove tag index
                 if si.ndim == 3 + _color:
                     idx = idx[1:]
-                with archive.open(member, mode='rb') as f:
-                    im=pydicom.filereader.dcmread(f)
+                ## Do not read file again
+                # with archive.open(member, mode='rb') as f:
+                #    im=pydicom.filereader.dcmread(f)
                 #try:
                 #    im.decompress()
                 #except NotImplementedError as e:
@@ -275,8 +269,6 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('DICOMPlugin.read: si {}'.format(si.shape))
 
         nz = len(hdr['DicomHeaderDict'])
-        #if si.ndim > 2:
-        #    nz = si.shape[-3]
         hdr['slices'] = nz
 
         if 'correct_acq' in opts and opts['correct_acq']:
@@ -286,13 +278,11 @@ class DICOMPlugin(AbstractPlugin):
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        #logging.debug("DICOMPlugin::read: hdr: {}".format(hdr.keys()))
-        #logging.debug("DICOMPlugin::read: hdr.imageType: {}".format(hdr['imageType']))
 
-        try:
-            self.simulateAffine()
-        except ValueErrorWrapperPrecisionError:
-            pass
+        #try:
+        #    self.simulateAffine()
+        #except ValueErrorWrapperPrecisionError:
+        #    pass
         #self.create_affine(hdr)
         return hdr,si
 
@@ -382,7 +372,7 @@ class DICOMPlugin(AbstractPlugin):
 
         pass
 
-    def read_headers(self, sources, input_order, opts):
+    def read_headers(self, sources, input_order, opts, skip_pixels=True):
         """Read DICOM headers only
 
         Input:
@@ -390,20 +380,21 @@ class DICOMPlugin(AbstractPlugin):
         - sources: list of sources to image data
         - input_order: sort order
         - opts: input options (dict)
+        - skip_pixels: Do not read pixel data (default: True)
         Output:
         - hdr: header dict
         - shape: required shape of image data
         """
 
-        import traceback
         logging.debug('DICOMPlugin.read_headers: sources %s' % sources)
         #try:
-        hdr,shape = self.get_dicom_headers(sources, input_order, opts)
+        hdr,shape = self.get_dicom_headers(sources, input_order, opts, skip_pixels=skip_pixels)
         #except UnevenSlicesError:
         #    raise
         #except FileNotFoundError:
         #    raise
         #except ValueError:
+        #    #import traceback
         #    #traceback.print_exc()
         #    #logging.info("process_member: Could not read {}".format(member_name))
         #    raise imagedata.formats.NotImageError(
@@ -416,7 +407,7 @@ class DICOMPlugin(AbstractPlugin):
 
         return hdr,shape
 
-    def get_dicom_headers(self, sources, input_order, opts=None):
+    def get_dicom_headers(self, sources, input_order, opts=None, skip_pixels=True):
         """Get DICOM headers.
 
         Input:
@@ -424,6 +415,7 @@ class DICOMPlugin(AbstractPlugin):
          - sources: list of sources to image data
          - input_order: Determine how to sort the input images
          - opts: options (dict)
+         - skip_pixels: Do not read pixel data (default: True)
         Output:
          - hdr dict
          - shape
@@ -454,7 +446,7 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     with archive.open(member, mode='rb') as f:
                         #logging.debug("get_dicom_headers: calling self.process_member({})".format(member))
-                        self.process_member(imageDict, archive, path, f, opts)
+                        self.process_member(imageDict, archive, path, f, opts, skip_pixels=skip_pixels)
                 except Exception as e:
                     logging.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
                     #except FileNotFoundError:
@@ -596,10 +588,10 @@ class DICOMPlugin(AbstractPlugin):
         hdr['axes'] = axes
         return hdr,shape
 
-    def process_member(self, imageDict, archive, member_name, member, opts):
+    def process_member(self, imageDict, archive, member_name, member, opts, skip_pixels=True):
         import traceback
         try:
-            im=pydicom.filereader.dcmread(member, stop_before_pixels=True)
+            im=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
         except Exception:
             #traceback.print_exc()
             #logging.info("process_member: Could not read {}".format(member_name))
@@ -707,38 +699,20 @@ class DICOMPlugin(AbstractPlugin):
         self.instanceNumber = 0
 
         _ndim = si.ndim
-        #_actual_shape = si.shape
         try:
             if si.color:
                 _ndim -= 1
-        #        _actual_shape = si.shape[:-1]
         except:
             pass
-        #_actual_ndim = len(_actual_shape)
-        #if _actual_ndim == 2:
-        #    si.shape = (1,) + si.shape
-        #    _actual_shape = (1,) + _actual_shape
-        #    _actual_ndim += 1
-        #if _actual_ndim == 3:
-        #    si.shape = (1,) + si.shape
-        #    _actual_shape = (1,) + _actual_shape
-        #    _actual_ndim += 1
         logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
             si.shape, si.slices, _ndim))
         assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % (_ndim)
-        #assert _actual_ndim == 4, "write_3d_series: input dimension %d is not 3D." % (_actual_ndim-1)
-        #if si.shape[0] != 1:
-        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(_actual_shape))
-        #logging.debug('DICOMPlugin.write_3d_numpy: _shape {}'.format(_actual_shape))
-        #slices = _actual_shape[-3]
-        #slices = si.slices
 
         self.calculate_rescale(si)
         logging.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
         logging.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
-        #self.serInsUid = si.header.new_uid()
         self.serInsUid = si.header.seriesInstanceUID
         logging.debug("write_3d_series {}".format(self.serInsUid))
 
@@ -795,30 +769,12 @@ class DICOMPlugin(AbstractPlugin):
         self.instanceNumber = 0
 
         _ndim = si.ndim
-        #_actual_shape = si.shape
         try:
             if si.color:
                 _ndim -= 1
-                #_actual_shape = si.shape[:-1]
         except:
             pass
-        #_actual_ndim = len(_actual_shape)
-        # Should we allow to write 3D volume?
-        #if _actual_ndim == 3:
-        #    si.shape = (1,) + si.shape
-        #    _actual_shape = (1,) + _actual_shape
-        #    _actual_ndim += 1
-        #if _actual_ndim != 4:
-        #    raise ValueError("write_4d_numpy: input dimension %d is not 4D." % _actual_ndim)
-        #logging.debug("write_4d_numpy: si dtype {}, shape {}".format(si.dtype,
-        #    si.shape))
         logging.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, _ndim))
-        #slices = _actual_shape[-3]
-        #slices = si.slices
-        #if steps != len(si.tags[0]):
-        #    raise ValueError("write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]), steps))
-        #if slices != si.slices:
-        #    raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
         assert _ndim == 4, "write_4d_series: input dimension %d is not 4D." % (_ndim)
 
         steps  = si.shape[0]
@@ -830,7 +786,6 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.seriesTime = self.getDicomAttribute(tag_for_name("AcquisitionTime"))
-        #self.serInsUid = get_uid().next()
         self.serInsUid = si.header.seriesInstanceUID
 
         if self.output_sort == imagedata.formats.SORT_ON_SLICE:
@@ -975,15 +930,12 @@ class DICOMPlugin(AbstractPlugin):
         if np.issubdtype(safe_si.dtype, np.floating):
             ds.SmallestImagePixelValue    = ((safe_si.min()-self.b)/self.a).astype('uint16')
             ds.LargestImagePixelValue     = ((safe_si.max()-self.b)/self.a).astype('uint16')
-            #ds.SmallestImagePixelValue    = ((safe_si[tag,slice].min()-self.b)/self.a).astype('uint16')
-            #ds.LargestImagePixelValue     = ((safe_si[tag,slice].max()-self.b)/self.a).astype('uint16')
             try:
                 ds.RescaleSlope = "%f" % self.a
             except OverflowError:
                 ds.RescaleSlope = "%d" % int(self.a)
             ds.RescaleIntercept = "%f" % self.b
         else:
-            #if si.dtype == 'uint16':
             ds.SmallestImagePixelValue    = np.uint16(safe_si.min().astype('uint16'))
             ds.LargestImagePixelValue     = np.uint16(safe_si.max().astype('uint16'))
             if 'RescaleSlope'     in ds: del ds.RescaleSlope
@@ -997,7 +949,6 @@ class DICOMPlugin(AbstractPlugin):
         #ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
         ds.Rows    = si.rows
         ds.Columns = si.columns
-        #self.insert_pixeldata(ds, safe_si[tag,slice])
         self.insert_pixeldata(ds, safe_si)
         # logging.debug("write_slice: filename {}".format(filename))
         if len(os.path.splitext(filename)[1]) > 0:

@@ -83,8 +83,6 @@ class ITKPlugin(AbstractPlugin):
             self._reduce_shape(img)
             logging.info("Data shape read ITK: {}".format(img.shape))
 
-            #nz, ny, nx = img.shape
-
             o = reader
         except imagedata.formats.NotImageError as e:
             logging.error('itkplugin._read_image: inner exception {}'.format(e))
@@ -122,6 +120,43 @@ class ITKPlugin(AbstractPlugin):
         - hdr: Header dict
         """
 
+        def transformMatrix(direction, origin):
+            matrix = itk.GetArrayFromMatrix(direction)
+            A = np.array([[matrix[2,2], matrix[1,2], matrix[0,2], origin[2]],
+                          [matrix[2,1], matrix[1,1], matrix[0,1], origin[1]],
+                          [matrix[2,0], matrix[1,0], matrix[0,0], origin[0]],
+                          [          0,           0,           0,         1]])
+            return A
+
+        """
+        orientation = self.orientation
+        rotation = np.zeros([3,3])
+        # X axis
+        rotation[0,0] = orientation[0]
+        rotation[0,1] = orientation[1]
+        rotation[0,2] = orientation[2]
+        # Y axis
+        rotation[1,0] = orientation[3]
+        rotation[1,1] = orientation[4]
+        rotation[1,2] = orientation[5]
+        # Z axis = X cross Y
+        rotation[2,0] = orientation[1]*orientation[5]-orientation[2]*orientation[4]
+        rotation[2,1] = orientation[2]*orientation[3]-orientation[0]*orientation[5]
+        rotation[2,2] = orientation[0]*orientation[4]-orientation[1]*orientation[3]
+        logging.debug(rotation)
+
+        # Set direction by modifying default orientation in place
+        d=image.GetDirection()
+        dv=d.GetVnlMatrix()
+        for col in range(3):
+            v=itk.vnl_vector.D()
+            v.set_size(3)
+            v.put(0, rotation[col,0])
+            v.put(1, rotation[col,1])
+            v.put(2, rotation[col,2])
+            dv.set_column(col,v)
+        """
+
         o, img = image_list[0]
         spacing   = o.GetSpacing()
         origin    = o.GetOrigin()
@@ -142,21 +177,16 @@ class ITKPlugin(AbstractPlugin):
         hdr['imagePositions'] = {}
         hdr['imagePositions'][0] = np.array([v.get(2), v.get(1), v.get(0)])
 
-        self._setTransformationMatrix(direction, hdr['imagePositions'][0])
-        hdr['transformationMatrix'] = self.transformationMatrix
-        logging.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(self.transformationMatrix))
+        # Do not calculate transformationMatrix here. Will be calculated by Series() when needed.
+        #self.transformationMatrix = transformMatrix(direction, hdr['imagePositions'][0])
+        #hdr['transformationMatrix'] = self.transformationMatrix
+        #logging.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(self.transformationMatrix))
 
         # Set image orientation
         iop = self.orientationFromVnlMatrix(direction)
         logging.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
         hdr['orientation'] = np.array((iop[2],iop[1],iop[0],
                                        iop[5],iop[4],iop[3]))
-        M = self.numpyMatrixFromVnlMatrix(direction)
-        logging.debug('ITKPlugin._set_tags: M=\n{}'.format(M))
-
-        # Set imagePositions for additional slices
-        #for slice in range(1,nz):
-        #    hdr['imagePositions'][slice] = self.getPositionForVoxel(np.array([slice,0,0]))
 
         # Set tags
         axes = list()
@@ -212,91 +242,6 @@ class ITKPlugin(AbstractPlugin):
 
         logging.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
-    def _setTransformationMatrix(self, direction, origin):
-
-        #A = np.eye(4)
-        matrix = self.numpyMatrixFromVnlMatrix(direction)
-        #A[:3,:3] = matrix
-        #A[3,:3]  = origin
-        A = np.array([[matrix[2,2], matrix[1,2], matrix[0,2], origin[2]],
-                      [matrix[2,1], matrix[1,1], matrix[0,1], origin[1]],
-                      [matrix[2,0], matrix[1,0], matrix[0,0], origin[0]],
-                      [          0,           0,           0,         1]])
-
-
-        self.transformationMatrix = A
-
-        """
-        orientation = self.orientation
-        rotation = np.zeros([3,3])
-        # X axis
-        rotation[0,0] = orientation[0]
-        rotation[0,1] = orientation[1]
-        rotation[0,2] = orientation[2]
-        # Y axis
-        rotation[1,0] = orientation[3]
-        rotation[1,1] = orientation[4]
-        rotation[1,2] = orientation[5]
-        # Z axis = X cross Y
-        rotation[2,0] = orientation[1]*orientation[5]-orientation[2]*orientation[4]
-        rotation[2,1] = orientation[2]*orientation[3]-orientation[0]*orientation[5]
-        rotation[2,2] = orientation[0]*orientation[4]-orientation[1]*orientation[3]
-        logging.debug(rotation)
-
-        # Set direction by modifying default orientation in place
-        d=image.GetDirection()
-        dv=d.GetVnlMatrix()
-        for col in range(3):
-            v=itk.vnl_vector.D()
-            v.set_size(3)
-            v.put(0, rotation[col,0])
-            v.put(1, rotation[col,1])
-            v.put(2, rotation[col,2])
-            dv.set_column(col,v)
-        """
-
-    #def write_nibabel_vti(vol, dtype, hdr, filename):
-    #	# import nibabel
-    #	if len(hdr.get_data_shape()) > 3:
-    #		nx,ny,nz,nt = hdr.get_data_shape()
-    #	else:
-    #		nx,ny,nz = hdr.get_data_shape()
-    #		nt = 1
-    #
-    #	vtkvol = vtk.vtkImageImport()
-    #	
-    #	#vtkvol.SetSpacing(1,1,1)
-    #	#vtkvol.SetOrigin(0,0,0)
-    #	vtkvol.SetWholeExtent(0, nx-1, 0, ny-1, 1, nz)
-    #	vtkvol.SetDataExtentToWholeExtent()
-    #	vtkvol.SetNumberOfScalarComponents(1)
-    #
-    #	if dtype == "uint16":
-    #		vtkvol.SetDataScalarTypeToUnsignedShort()
-    #	elif dtype == "int16":
-    #		vtkvol.SetDataScalarTypeToShort()
-    #	elif dtype == "float":
-    #		vtkvol.SetDataScalarTypeToFloat()
-    #	elif dtype == "double":
-    #		vtkvol.SetDataScalarTypeToDouble()
-    #
-    #	vtkvol.SetImportVoidPointer(vol)
-    #	vtkvol.SetScalarArrayName("pointData")
-    #
-    #	# Its upside down, so flip it
-    #	flipper = vtk.vtkImageFlip()
-    #	flipper.SetInput(vtkvol.GetOutput())
-    #	#flipper.SetFilteredAxis(0)
-    #	flipper.SetFilteredAxis(1)
-    #
-    #	# Write it
-    #	# writer = vtk.vtkStructuredPointsWriter()
-    #	writer = vtk.vtkMetaImageWriter()
-    #	writer.SetFileName(filename)
-    #	writer.SetInput(flipper.GetOutput())
-    #	# writer.SetFileTypeToBinary()
-    #	writer.Write()
-
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as ITK file
 
@@ -328,8 +273,9 @@ class ITKPlugin(AbstractPlugin):
         self.spacing              = si.spacing
         self.imagePositions       = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
-        self.orientation          = si.orientation
+        #self.orientation          = si.orientation
         self.tags                 = si.tags
+        self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         #if si.ndim == 2:
@@ -384,8 +330,9 @@ class ITKPlugin(AbstractPlugin):
         self.spacing              = si.spacing
         self.imagePositions       = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
-        self.orientation          = si.orientation
+        #self.orientation          = si.orientation
         self.tags                 = si.tags
+        self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         # Defaults
         self.output_sort = imagedata.formats.SORT_ON_SLICE
@@ -518,13 +465,13 @@ class ITKPlugin(AbstractPlugin):
                 arr.append(float(tr.get(r,c)))
         return arr
 
-    def numpyMatrixFromVnlMatrix(self, direction):
-        tr=direction.GetVnlMatrix()
-        arr = np.zeros([3,3])
-        for c in range(3):
-            for r in range(3):
-                arr[r,c] = float(tr.get(r,c))
-        return arr
+    # def numpyMatrixFromVnlMatrix(self, direction):
+    #     tr=direction.GetVnlMatrix()
+    #     arr = np.zeros([3,3])
+    #     for c in range(3):
+    #         for r in range(3):
+    #             arr[r,c] = float(tr.get(r,c))
+    #     return arr
 
     def set_direction_from_dicom_header(self, image):
         orientation = self.orientation
@@ -585,6 +532,18 @@ class ITKPlugin(AbstractPlugin):
         @rtype itk.Image (instance)
         """
 
+        def itkMatrix_from_orientation(orientation, normal):
+            oT = orientation.reshape((2,3)).T
+            colr = oT[:,0].reshape((3,1))
+            colc = oT[:,1].reshape((3,1))
+            coln = normal.reshape((3,1))
+            if len(self.shape) < 3:
+                M = np.hstack((colr[:2], colc[:2])).reshape((2,2))
+            else:
+                M = np.hstack((colr, colc, coln)).reshape((3,3))
+            itkM = itk.GetMatrixFromArray(M)
+            return itkM
+
         # The itk_py_converter transposes the image dimensions. This has to be countered.
         ##arr = si
         #arr = scipy.transpose(si)
@@ -601,7 +560,10 @@ class ITKPlugin(AbstractPlugin):
         #    arr.shape, img2.shape))
 
         #self.set_direction_from_dicom_header(image)
-        self.set_direction_from_transformation_matrix(image)
+        #self.set_direction_from_transformation_matrix(image)
+        image.SetDirection(
+            itkMatrix_from_orientation(
+                self.orientation, self.normal))
 
         z,y,x = self.imagePositions[0]
         logging.debug("get_image_from_numpy: (z,y,x)=({},{},{}) ({})".format(z,y,x,type(z)))
@@ -627,56 +589,56 @@ class ITKPlugin(AbstractPlugin):
 
         return image
 
-    def get_image_type_from_array(self, arr): # tested
-        """
-        Returns the image type of the supplied array as itk.Image template.
-        @param arr: an scipy.ndarray array
-
-        @return a template of itk.Image
-        @rtype itk.Image
-
-        @raise DependencyError if the itk wrapper do not support the target image type
-        @raise ImageTypeError if the array dtype is unsupported
-        """
-        # mapping from scipy to the possible itk types, in order from most to least suitable
-        # ! this assumes char=8bit, short=16bit and long=32bit (minimal values)
-        scipy_to_itk_types = {scipy.bool_: [itk.SS, itk.UC, itk.US, itk.SS, itk.UL, itk.SL],
-            scipy.uint8: [itk.UC, itk.US, itk.SS, itk.UL, itk.SL],
-            scipy.uint16: [itk.US, itk.UL, itk.SL],
-            scipy.uint32: [itk.UL],
-            scipy.uint64: [],
-            scipy.int8: [itk.SC, itk.SS, itk.SL],
-            scipy.int16: [itk.SS, itk.SL],
-            scipy.int32: [itk.SL],
-            scipy.int64: [],
-            scipy.float32: [itk.F, itk.D],
-            scipy.float64: [itk.D],
-            scipy.float128: []}
-
-        if arr.ndim <= 1:
-            raise(DependencyError('Itk does not support images with less than 2 dimensions.'))
-
-        # chek for unknown array data type
-        if not arr.dtype.type in scipy_to_itk_types:
-            raise(ImageTypeError('The array dtype {} could not be mapped to any itk image type.'.format(arr.dtype)))
-
-        # check if any valid conversion exists
-        if 0 == len(scipy_to_itk_types[arr.dtype.type]):
-            raise(ImageTypeError('No valid itk type for the pixel data dtype {}.'.format(arr.dtype)))
-
-        # iterate and try out candidate templates
-        ex = None
-        for itk_type in scipy_to_itk_types[arr.dtype.type]:
-            try:
-                return itk.Image[itk_type, arr.ndim]
-            except Exception as e: # pass raised exception, as a list of ordered possible itk pixel types is processed and some of them might not be compiled with the current itk wrapper module
-                ex = e
-                pass
-        # if none fitted, examine error and eventually translate, otherwise rethrow
-        if type(ex) == KeyError:
-            raise(DependencyError('The itk python wrappers were compiled without support the combination of {} dimensions and at least one of the following pixel data types (which are compatible with dtype {}): {}.'.format(arr.ndim, arr.dtype, scipy_to_itk_types[arr.dtype.type])))
-        else:
-            raise
+    # def get_image_type_from_array(self, arr): # tested
+    #     """
+    #     Returns the image type of the supplied array as itk.Image template.
+    #     @param arr: an scipy.ndarray array
+    #
+    #     @return a template of itk.Image
+    #     @rtype itk.Image
+    #
+    #     @raise DependencyError if the itk wrapper do not support the target image type
+    #     @raise ImageTypeError if the array dtype is unsupported
+    #     """
+    #     # mapping from scipy to the possible itk types, in order from most to least suitable
+    #     # ! this assumes char=8bit, short=16bit and long=32bit (minimal values)
+    #     scipy_to_itk_types = {scipy.bool_: [itk.SS, itk.UC, itk.US, itk.SS, itk.UL, itk.SL],
+    #         scipy.uint8: [itk.UC, itk.US, itk.SS, itk.UL, itk.SL],
+    #         scipy.uint16: [itk.US, itk.UL, itk.SL],
+    #         scipy.uint32: [itk.UL],
+    #         scipy.uint64: [],
+    #         scipy.int8: [itk.SC, itk.SS, itk.SL],
+    #         scipy.int16: [itk.SS, itk.SL],
+    #         scipy.int32: [itk.SL],
+    #         scipy.int64: [],
+    #         scipy.float32: [itk.F, itk.D],
+    #         scipy.float64: [itk.D],
+    #         scipy.float128: []}
+    #
+    #     if arr.ndim <= 1:
+    #         raise(DependencyError('Itk does not support images with less than 2 dimensions.'))
+    #
+    #     # chek for unknown array data type
+    #     if not arr.dtype.type in scipy_to_itk_types:
+    #         raise(ImageTypeError('The array dtype {} could not be mapped to any itk image type.'.format(arr.dtype)))
+    #
+    #     # check if any valid conversion exists
+    #     if 0 == len(scipy_to_itk_types[arr.dtype.type]):
+    #         raise(ImageTypeError('No valid itk type for the pixel data dtype {}.'.format(arr.dtype)))
+    #
+    #     # iterate and try out candidate templates
+    #     ex = None
+    #     for itk_type in scipy_to_itk_types[arr.dtype.type]:
+    #         try:
+    #             return itk.Image[itk_type, arr.ndim]
+    #         except Exception as e: # pass raised exception, as a list of ordered possible itk pixel types is processed and some of them might not be compiled with the current itk wrapper module
+    #             ex = e
+    #             pass
+    #     # if none fitted, examine error and eventually translate, otherwise rethrow
+    #     if type(ex) == KeyError:
+    #         raise(DependencyError('The itk python wrappers were compiled without support the combination of {} dimensions and at least one of the following pixel data types (which are compatible with dtype {}): {}.'.format(arr.ndim, arr.dtype, scipy_to_itk_types[arr.dtype.type])))
+    #     else:
+    #         raise
 
     def get_image_type(self, image):
         """
@@ -692,66 +654,66 @@ class ITKPlugin(AbstractPlugin):
         except IndexError as e:
             raise(NotImplementedError, 'The python wrappers of ITK define no template class for this data type.')
 
-    def reverse_3d_shape(self, shape):
-        #if len(shape) == 4:
-        #    t,slices,rows,columns = shape
-        #else:
-        #    slices,rows,columns = shape
-        #return((columns,rows,slices))
-        return tuple(reversed(shape))
+    # def reverse_3d_shape(self, shape):
+    #     #if len(shape) == 4:
+    #     #    t,slices,rows,columns = shape
+    #     #else:
+    #     #    slices,rows,columns = shape
+    #     #return((columns,rows,slices))
+    #     return tuple(reversed(shape))
+    #
+    # def reverse_4d_shape(self, shape):
+    #     #if len(shape) == 4:
+    #     #    t,slices,rows,columns = shape
+    #     #else:
+    #     #    slices,rows,columns = shape
+    #     #    t = 1
+    #     #return((columns,rows,slices,t))
+    #     return tuple(reversed(shape))
 
-    def reverse_4d_shape(self, shape):
-        #if len(shape) == 4:
-        #    t,slices,rows,columns = shape
-        #else:
-        #    slices,rows,columns = shape
-        #    t = 1
-        #return((columns,rows,slices,t))
-        return tuple(reversed(shape))
-
-    def reorder_3d_data(self, data):
-        # Reorder data
-        # ITK order:   sitk[columns,rows,slices]
-        # DICOM order: data[t,slices,rows,columns]
-        itk_shape = self.reverse_3d_shape(data.shape)
-
-        rows,columns,slices = itk_shape
-        if len(data.shape) == 3:
-            logging.info("From DCM shape: {}x{}x{}".format(data.shape[0],data.shape[1],data.shape[2]))
-            si = np.zeros([slices,columns,rows], data.dtype)
-            for z in range(slices):
-                #si[:,:,z] = data[z,:,:].T
-                #si[z,:,:] = data[z,:,:].T
-                si[z,:,:] = data[z,:,:]
-        elif len(data.shape) == 4:
-            logging.info("From DCM shape: {}tx{}x{}x{}".format(data.shape[0],data.shape[1],data.shape[2],data.shape[3]))
-            si = np.zeros([slices,columns,rows], data.dtype)
-            for z in range(slices):
-                #si[:,:,z] = data[0,z,:,:].T
-                #si[z,:,:] = data[0,z,:,:].T
-                si[z,:,:] = data[0,z,:,:]
-        else:
-            raise(ValueError("Unknown shape {}.".format(len(data.shape))))
-        logging.info("To   ITK shape: cols:{} rows:{} slices:{}".format(columns,rows,slices))
-        return si
-
-    def reorder_4d_data(self, data):
-        # Reorder data
-        # ITK order:   sitk[columns,rows,slices,t]
-        # DICOM order: data[t,slices,rows,columns]
-        itk_shape = self.reverse_4d_shape(data.shape)
-
-        rows,columns,slices,t = itk_shape
-        if len(data.shape) != 4:
-            raise(ValueError("Not 4D data set."))
-        logging.info("From DCM shape: %dtx%dx%dx%d" % (data.shape[0],data.shape[1],data.shape[2],data.shape[3]))
-        si = np.zeros([slices,columns,rows,t], data.dtype)
-        for i in range(t):
-            for z in range(slices):
-                #si[z,:,:,i] = data[i,z,:,:].T
-                si[z,:,:,i] = data[i,z,:,:]
-        logging.debug("To   ITK shape: %dx%dx%dx%dt" % (columns,rows,slices,t))
-        return si
+    # def reorder_3d_data(self, data):
+    #     # Reorder data
+    #     # ITK order:   sitk[columns,rows,slices]
+    #     # DICOM order: data[t,slices,rows,columns]
+    #     itk_shape = self.reverse_3d_shape(data.shape)
+    #
+    #     rows,columns,slices = itk_shape
+    #     if len(data.shape) == 3:
+    #         logging.info("From DCM shape: {}x{}x{}".format(data.shape[0],data.shape[1],data.shape[2]))
+    #         si = np.zeros([slices,columns,rows], data.dtype)
+    #         for z in range(slices):
+    #             #si[:,:,z] = data[z,:,:].T
+    #             #si[z,:,:] = data[z,:,:].T
+    #             si[z,:,:] = data[z,:,:]
+    #     elif len(data.shape) == 4:
+    #         logging.info("From DCM shape: {}tx{}x{}x{}".format(data.shape[0],data.shape[1],data.shape[2],data.shape[3]))
+    #         si = np.zeros([slices,columns,rows], data.dtype)
+    #         for z in range(slices):
+    #             #si[:,:,z] = data[0,z,:,:].T
+    #             #si[z,:,:] = data[0,z,:,:].T
+    #             si[z,:,:] = data[0,z,:,:]
+    #     else:
+    #         raise(ValueError("Unknown shape {}.".format(len(data.shape))))
+    #     logging.info("To   ITK shape: cols:{} rows:{} slices:{}".format(columns,rows,slices))
+    #     return si
+    #
+    # def reorder_4d_data(self, data):
+    #     # Reorder data
+    #     # ITK order:   sitk[columns,rows,slices,t]
+    #     # DICOM order: data[t,slices,rows,columns]
+    #     itk_shape = self.reverse_4d_shape(data.shape)
+    #
+    #     rows,columns,slices,t = itk_shape
+    #     if len(data.shape) != 4:
+    #         raise(ValueError("Not 4D data set."))
+    #     logging.info("From DCM shape: %dtx%dx%dx%d" % (data.shape[0],data.shape[1],data.shape[2],data.shape[3]))
+    #     si = np.zeros([slices,columns,rows,t], data.dtype)
+    #     for i in range(t):
+    #         for z in range(slices):
+    #             #si[z,:,:,i] = data[i,z,:,:].T
+    #             si[z,:,:,i] = data[i,z,:,:]
+    #     logging.debug("To   ITK shape: %dx%dx%dx%dt" % (columns,rows,slices,t))
+    #     return si
 
     def copy(self, other=None):
         logging.debug("ITKPlugin::copy")
