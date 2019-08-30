@@ -120,6 +120,7 @@ class ITKPlugin(AbstractPlugin):
         - hdr: Header dict
         """
 
+        """
         def transformMatrix(direction, origin):
             matrix = itk.GetArrayFromMatrix(direction)
             A = np.array([[matrix[2,2], matrix[1,2], matrix[0,2], origin[2]],
@@ -127,6 +128,7 @@ class ITKPlugin(AbstractPlugin):
                           [matrix[2,0], matrix[1,0], matrix[0,0], origin[0]],
                           [          0,           0,           0,         1]])
             return A
+        """
 
         """
         orientation = self.orientation

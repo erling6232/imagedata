@@ -55,7 +55,7 @@ def read(urls, order=None, opts=None):
     # Let the calling party override a default input order
     input_order = imagedata.formats.INPUT_ORDER_NONE
     if 'input_order' in in_opts: input_order = in_opts['input_order']
-    if order is not None: input_order = order
+    if order != 'none': input_order = order
     logging.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
 
     # Pre-fetch DICOM template

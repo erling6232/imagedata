@@ -163,8 +163,8 @@ class Series(np.ndarray):
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
-            obj._template = template
-            obj._geometry = geometry
+            obj._add_template(template)
+            obj._add_dicom_geometry(geometry)
             return obj
         logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -174,8 +174,8 @@ class Series(np.ndarray):
             obj.header = Header()
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.shape, obj.axes)
-            obj._template = template
-            obj._geometry = geometry
+            obj._add_template(template)
+            obj._add_dicom_geometry(geometry)
             return obj
 
         # Assuming data is url to input data
@@ -192,8 +192,8 @@ class Series(np.ndarray):
             obj.header = Header()
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.shape, obj.axes)
-            obj._template = template
-            obj._geometry = geometry
+            obj._add_template(template)
+            obj._add_dicom_geometry(geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -215,13 +215,8 @@ class Series(np.ndarray):
         for attr in hdr.keys():
             setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
-        if template is not None:
-            if issubclass(type(template), Series):
-                obj.header = copy.copy(template.header)
-            else:
-                raise NotSeriesObject('Template object is not a Series')
-        if geometry is not None:
-            obj._add_dicom_geometry(geometry)
+        obj._add_template(template)
+        obj._add_dicom_geometry(geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -323,6 +318,18 @@ class Series(np.ndarray):
 
         return results[0] if len(results) == 1 else results
 
+    def _add_template(self, template):
+        """Add template attributes to self object.
+
+        Input:
+        - template: Series instance with template attributes
+        """
+        if template is not None:
+            if issubclass(type(template), Series):
+                self.header = copy.copy(template.header)
+            else:
+                raise NotSeriesObject('Template object is not a Series')
+
     def _add_dicom_geometry(self, data):
         """Add geometry attributes to self object.
 
@@ -331,6 +338,8 @@ class Series(np.ndarray):
             (Series object or URL)
         """
 
+        if data is None:
+            return
         if issubclass(type(data), Series):
             self.sliceLocations = data.sliceLocations
             self.spacing = data.spacing
@@ -1672,30 +1681,30 @@ class Series(np.ndarray):
             # print("ds,dr,dc={},{},{}".format(ds,dr,dc))
             # print("z ,y ,x ={},{},{}".format(z,y,x))
 
-            #colr = np.array([[orient[3]], [orient[4]], [orient[5]]]) * dr
-            colr = normalize(np.array(orient[3:6])) * dr
-            #colc = np.array([[orient[0]], [orient[1]], [orient[2]]]) * dc
-            colc = normalize(np.array(orient[0:3])) * dc
+            colr = np.array(orient[3:]).reshape(3,1)
+            colc = np.array(orient[:3]).reshape(3,1)
             if slices > 1:
                 logging.debug('Series.transformationMatrix: multiple slices case (slices={})'.format(slices))
                 # Calculating normal vector based on first and last slice should be the correct method.
                 k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
                 #k = np.cross(colr, colc, axis=0)
+                ###k = np.cross(colc, colr, axis=0)
+                ###k = k * ds
             else:
                 logging.debug('Series.transformationMatrix: single slice case')
-                # k = np.cross(colc, colr, axis=0)
                 k = np.cross(colr, colc, axis=0)
-                k = normalize(k) * ds
+                #k = normalize(k) * ds
+                k = k * ds
             logging.debug('Series.transformationMatrix: k={}'.format(k.T))
             # logging.debug("Q: k {} colc {} colr {} T0 {}".format(k.shape,
             #    colc.shape, colr.shape, T0.shape))
             A = np.eye(4)
             A[:3, :4] = np.hstack([
-                k.reshape(3,1),
-                colr.reshape(3,1),
-                colc.reshape(3,1),
-                T0.reshape(3,1)])
+                k,
+                colr * dr,
+                colc * dc,
+                T0])
             if debug:
                 logging.debug("A:\n{}".format(A))
             self.header.transformationMatrix = A
@@ -1776,7 +1785,9 @@ class Series(np.ndarray):
         except ValueError:
             orientation = [1, 0, 0, 0, 1, 0]
 
-        n = M[:3,0][::-1].reshape(3) / ds
+        n = M[:3,0][::-1].reshape(3)
+        if self.slices == 1:
+            n = n / ds
 
         return origin, np.array(orientation), n
 
@@ -1832,7 +1843,7 @@ class Series(np.ndarray):
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
         Input:
-        - r: (z,y,x) of voxel in voxel coordinates as numpy.array
+        - r: (s,r,c) of voxel in voxel coordinates as numpy.array
         - transformation: transformation matrix when different from
                           self.transformationMatrix
         Output:
@@ -1844,8 +1855,13 @@ class Series(np.ndarray):
         # Q = self.getTransformationMatrix()
 
         # V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
+        if len(r) == 3 or (len(p) == 1 and len(p[0] == 3)):
+            p = np.vstack((r.reshape((3,1)), [1]))
+        elif len(r) == 4:
+            p = r.reshape((4,1))
 
-        newpos = np.dot(transformation, np.hstack((r, [1])))
+        #newpos = np.dot(transformation, np.hstack((r, [1])))
+        newpos = np.dot(transformation, p)
 
         # return np.array([newpos[2,0],newpos[1,0],newpos[0,0]])   # z,y,x
         return newpos[:3]
@@ -1860,7 +1876,7 @@ class Series(np.ndarray):
         - transformation: transformation matrix when different from
                           self.transformationMatrix
         Output:
-        - (z,y,x) of voxel in voxel coordinates as numpy.array
+        - (s,r,c) of voxel in voxel coordinates as numpy.array
         """
 
         if transformation is None:
@@ -1869,8 +1885,13 @@ class Series(np.ndarray):
 
         # V = np.array([[p[2]], [p[1]], [p[0]], [1]])    # V is [x,y,z,1]
 
+        if len(p) == 3 or (len(p) == 1 and len(p[0] == 3)):
+            pt = np.vstack((p.reshape((3,1)), [1]))
+        elif len(p) == 4:
+            pt = p.reshape((4,1))
+
         Qinv = np.linalg.inv(transformation)
-        r = np.dot(Qinv, np.hstack((p, [1])))
+        r = np.dot(Qinv, pt)
 
         # z,y,x
         # return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
