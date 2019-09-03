@@ -14,7 +14,7 @@ import numpy as np
 import imagedata.formats
 import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
-import nibabel, nibabel.nicom.dicomwrappers
+import nibabel
 
 class NoInputFile(Exception): pass
 class FilesGivenForMultipleURLs(Exception): pass
