@@ -403,86 +403,107 @@ class Series(np.ndarray):
                 except Exception:
                     pass
 
+        def _calculate_spec(obj, items):
+            slicing = False
+            if isinstance(obj, Series):
+                # Calculate slice range
+                spec = {}
+                for i in range(obj.ndim):  # Loop over actual array shape
+                    spec[i] = (0, obj.shape[i], 1, obj.axes[i])  # Initial start,stop,step,axis
+
+                # Determine how to loop over slice spec
+                if items[0] is Ellipsis:
+                    # First item is Ellipsis, skip, align rest of slice
+                    first_spec = obj.ndim - len(items) + 1
+                    last_spec = obj.ndim - 1
+                    use_items = items[1:]
+                elif items[-1] is Ellipsis:
+                    # Skip last item
+                    first_spec = 0
+                    last_spec = len(items) - 2
+                    use_items = items[:-1]
+                else:
+                    first_spec = 0
+                    last_spec = obj.ndim - 1
+                    use_items = items
+                for item in use_items:
+                    # If any item is of unknown type, we will not slice the data
+                    if not isinstance(item, slice) and not isinstance(item, int):
+                        return slicing, spec
+                assert len(use_items) == last_spec-first_spec+1, "Length of slice spec (%d) do not match ndim (%d)" % (len(use_items), last_spec-first_spec+1)
+                j = 0
+                for i in range(first_spec, last_spec+1):
+                    #if type(items[i]) == Ellipsis:
+                    if use_items[j] is Ellipsis:
+                        raise IndexError('Ellipsis in the middle of the slice spec is not supported.')
+                    elif isinstance(use_items[j], slice):
+                        start = use_items[j].start or spec[i][0]
+                        stop  = use_items[j].stop  or spec[i][1]
+                        step  = use_items[j].step  or spec[i][2]
+                        spec[i] = (start, stop, step, obj.axes[i])
+                        slicing = True
+                    elif isinstance(use_items[j], int):
+                        start = use_items[j] or spec[i][0]
+                        stop = start+1
+                        step = 1
+                        spec[i] = (start, stop, step, obj.axes[i])
+                        slicing = True
+                    j += 1
+            return slicing, spec
+
         # logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))
         # logging.debug('Series.__getitem__: shape {}'.format(self.shape))
-        slicing = False
-        if isinstance(self, Series):
-            # Calculate slice range
-            spec = {}
-            # # logging.debug('Series.__getitem__: self.shape {}'.format(self.shape))
-            # for i in range(4):  # Loop over tag,z,y,x regardless of array shape
-                # spec[i] = (0, None, 1)  # Initial start,stop,step
-            # for i in range(self.ndim - 1, -1, -1):  # Loop over actual array shape
-                # spec[4 - self.ndim + i] = (0, self.shape[i], 1)  # Initial start,stop,step
-            for i in range(self.ndim):  # Loop over actual array shape
-                spec[i] = (0, self.shape[i], 1, self.axes[i])  # Initial start,stop,step,axis
-            # logging.debug('Series.__getitem__: spec {}'.format(spec))
-            if isinstance(item, tuple):
-                items = item
-            else:
-                items = (item,)
-            # logging.debug('Series.__getitem__: items type {}: {}'.format(type(items),item))
-            for i in range(len(items)):
-                #if type(items[i]) == Ellipsis:
-                if items[i] is Ellipsis:
-                    break
-                elif isinstance(items[i], slice):
-                    start = items[i].start or spec[i][0]
-                    stop  = items[i].stop  or spec[i][1]
-                    step  = items[i].step  or spec[i][2]
-                    spec[i] = (start, stop, step, self.axes[i])
-                    slicing = True
-                elif isinstance(items[i], int):
-                    start = items[i] or spec[i][0]
-                    stop = start+1
-                    step = 1
-                    spec[i] = (start, stop, step, self.axes[i])
-                    slicing = True
-            if slicing:
-                # Here we slice the header information
-                #for i in range(self.ndim):
-                #    logging.debug('Series.__getitem__: slice {}: {}'.format(i, spec[i]))
+        if isinstance(item, tuple):
+            items = item
+        else:
+            items = (item,)
+        slicing, spec = _calculate_spec(self, items)
 
-                # it = len(spec) - 4
-                # iz = len(spec) - 3
-                # # Slice step should be one
-                # if self.ndim > 2:
-                    # if spec[iz][2] != 1:
-                        # raise IndexError('Step size in slice = {} not implemented. Must be +-1.'.format(
-                            # spec[iz][2]))
+        if slicing:
+            # Here we slice the header information
+            #for i in range(self.ndim):
+            #    logging.debug('Series.__getitem__: slice {}: {}'.format(i, spec[i]))
 
-                # # Tag step should be one
-                # if self.ndim > 3:
-                    # if spec[it][2] != 1:
-                        # raise IndexError('Step size in tag = {} not implemented. Must be +-1.'.format(
-                            # spec[it][2]))
+            # it = len(spec) - 4
+            # iz = len(spec) - 3
+            # # Slice step should be one
+            # if self.ndim > 2:
+                # if spec[iz][2] != 1:
+                    # raise IndexError('Step size in slice = {} not implemented. Must be +-1.'.format(
+                        # spec[iz][2]))
 
-                todo = []   # Collect header changes, apply after ndarray slicing
-                new_axes = []
-                for i in range(self.ndim):
-                    # Slice dimension i
-                    start, stop, step, axis = spec[i]
-                    new_axes.append(axis[start:stop:step])
-                    
-                    if axis.name == 'slice':
-                        # Select slice of sliceLocations
-                        # logging.debug('Series.__getitem__: before __get_sliceLocations')
-                        sloc = self.__get_sliceLocations(spec[i])
-                        todo.append(('sliceLocations', sloc))
-                        # Select slice of imagePositions
-                        # logging.debug('Series.__getitem__: before __get_imagePositions')
-                        ipp = self.__get_imagePositions(spec[i])
-                        # logging.debug('Series.__getitem__: after __get_imagePositions')
-                        todo.append(('imagePositions', None))  # Wipe existing positions
-                        if ipp is not None:
-                            todo.append(('imagePositions', ipp))
-                    elif axis.name != 'row' and axis.name != 'column' and axis.name != 'rgb':
-                        # # Select slice of tags
-                        tags = self.__get_tags(spec)
-                        todo.append(('tags', tags))
-                # Select slice of DicomHeaderDict
-                hdr = self.__get_DicomHeaderDict(spec)
-                todo.append(('DicomHeaderDict', hdr))
+            # # Tag step should be one
+            # if self.ndim > 3:
+                # if spec[it][2] != 1:
+                    # raise IndexError('Step size in tag = {} not implemented. Must be +-1.'.format(
+                        # spec[it][2]))
+
+            todo = []   # Collect header changes, apply after ndarray slicing
+            new_axes = []
+            for i in range(self.ndim):
+                # Slice dimension i
+                start, stop, step, axis = spec[i]
+                new_axes.append(axis[start:stop:step])
+
+                if axis.name == 'slice':
+                    # Select slice of sliceLocations
+                    # logging.debug('Series.__getitem__: before __get_sliceLocations')
+                    sloc = self.__get_sliceLocations(spec[i])
+                    todo.append(('sliceLocations', sloc))
+                    # Select slice of imagePositions
+                    # logging.debug('Series.__getitem__: before __get_imagePositions')
+                    ipp = self.__get_imagePositions(spec[i])
+                    # logging.debug('Series.__getitem__: after __get_imagePositions')
+                    todo.append(('imagePositions', None))  # Wipe existing positions
+                    if ipp is not None:
+                        todo.append(('imagePositions', ipp))
+                elif axis.name != 'row' and axis.name != 'column' and axis.name != 'rgb':
+                    # # Select slice of tags
+                    tags = self.__get_tags(spec)
+                    todo.append(('tags', tags))
+            # Select slice of DicomHeaderDict
+            hdr = self.__get_DicomHeaderDict(spec)
+            todo.append(('DicomHeaderDict', hdr))
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
