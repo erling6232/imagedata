@@ -353,37 +353,38 @@ class NiftiPlugin(AbstractPlugin):
         """Create affine in xyz.
         """
 
-        def normalize(v):
-            """Normalize a vector
+        #def normalize(v):
+        #    """Normalize a vector
 
-            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+        #    https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
 
-            :param v: 3D vector
-            :return: normalized 3D vector
-            """
-            norm=np.linalg.norm(v, ord=1)
-            if norm==0:
-                norm=np.finfo(v.dtype).eps
-            return v/norm
+        #    :param v: 3D vector
+        #    :return: normalized 3D vector
+        #    """
+        #    norm=np.linalg.norm(v, ord=1)
+        #    if norm==0:
+        #        norm=np.finfo(v.dtype).eps
+        #    return v/norm
 
-        ds, dr, dc = self.spacing
-        colr = normalize(np.array(self.orientation[3:6])).reshape((3,))
-        colc = normalize(np.array(self.orientation[0:3])).reshape((3,))
-        T0 = self.imagePositions[0][::-1].reshape(3,)  # x,y,z
-        if self.slices > 1:
-            # Stack of multiple slices
-            Tn = self.imagePositions[self.slices-1][::-1].reshape(3,)  # x,y,z
-            k = -(T0-Tn)/(1-self.slices)
-        else:
-            # Single slice
-            k = np.cross(colr, colc, axis=0)
-            k = k * ds
+        #ds, dr, dc = self.spacing
+        #colr = normalize(np.array(self.orientation[3:6])).reshape((3,))
+        #colc = normalize(np.array(self.orientation[0:3])).reshape((3,))
+        #T0 = self.imagePositions[0][::-1].reshape(3,)  # x,y,z
+        #if self.slices > 1:
+        #    # Stack of multiple slices
+        #    Tn = self.imagePositions[self.slices-1][::-1].reshape(3,)  # x,y,z
+        #    k = -(T0-Tn)/(1-self.slices)
+        #else:
+        #    # Single slice
+        #    k = np.cross(colr, colc, axis=0)
+        #    k = k * ds
 
         L = np.zeros((4,4))
-        L[:3, 0] = colr * dr
-        L[:3, 1] = colc * dc
-        L[:3, 2] = k
-        L[:3, 3] = T0[:]
+        #self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
+        L[:3, 0] = self.orientation[3:]
+        L[:3, 1] = self.orientation[:3]
+        L[:3, 2] = self.normal
+        L[:3, 3] = self.origin
         L[ 3, 3] = 1
         return L
 
