@@ -79,14 +79,12 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.slices, 1)
         np.testing.assert_array_equal(si.spacing, np.array((1, 1, 1)))
 
-    @unittest.skip("skipping test_increase_ndim")
+    #@unittest.skip("skipping test_increase_ndim")
     def test_increase_ndim(self):
         a = np.eye(128)
         s = Series(a)
-        s.shape = (1,1,128,128)
-        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
-        self.assertEqual(s.shape, (1,1,128,128))
-        self.assertEqual(len(s.axes), 4)
+        with self.assertRaises(IndexError):
+            s.shape = (1,1,128,128)
 
     #@unittest.skip("skipping test_decrease_ndim")
     def test_decrease_ndim(self):
@@ -183,6 +181,75 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s_slice.tags[0]), 2)
         for s in range(s_slice.slices):
             np.testing.assert_array_equal(s_slice.tags[s], tags[s][1:3])
+
+    #@unittest.skip("skipping test_multiple_ellipses")
+    def test_multiple_ellipses(self):
+        a1 = np.eye(128)
+        a1.shape = (1,128,128)
+        a2 = np.vstack([a1, a1, a1])
+        a2.shape = (1,3,128,128)
+        a = np.vstack([a2,a2,a2,a2])
+        s = Series(a, input_order=imagedata.formats.INPUT_ORDER_TIME)
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
+        s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
+        tags = {}
+        k = 0
+        for i in range(s.slices):
+            tags[i] = np.arange(k, k+s.shape[0])
+            k += s.shape[0]
+        s.tags = tags
+
+        with self.assertRaises(IndexError):
+            s_slice = s[...,1:3,...]
+
+    #@unittest.skip("skipping test_ellipsis_first")
+    def test_ellipsis_first(self):
+        a1 = np.eye(128)
+        a1.shape = (1,128,128)
+        a2 = np.vstack([a1, a1, a1])
+        a2.shape = (1,3,128,128)
+        a = np.vstack([a2,a2,a2,a2])
+        s = Series(a, input_order=imagedata.formats.INPUT_ORDER_TIME)
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
+        s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
+        tags = {}
+        k = 0
+        for i in range(s.slices):
+            tags[i] = np.arange(k, k+s.shape[0])
+            k += s.shape[0]
+        s.tags = tags
+
+        a_slice = a[..., 3:5]
+        s_slice = s[..., 3:5]
+        np.testing.assert_array_equal(a_slice, s_slice)
+        self.assertEqual(s_slice.slices, s.slices)
+        self.assertEqual(len(s_slice.tags[0]), len(s.tags[0]))
+
+    #@unittest.skip("skipping test_ellipsis_middle")
+    def test_ellipsis_middle(self):
+        a1 = np.eye(128)
+        a1.shape = (1,128,128)
+        a2 = np.vstack([a1, a1, a1])
+        a2.shape = (1,3,128,128)
+        a = np.vstack([a2,a2,a2,a2])
+        s = Series(a, input_order=imagedata.formats.INPUT_ORDER_TIME)
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
+        s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
+        tags = {}
+        k = 0
+        for i in range(s.slices):
+            tags[i] = np.arange(k, k+s.shape[0])
+            k += s.shape[0]
+        s.tags = tags
+
+        a_slice = a[1:3, ..., 3:5]
+        s_slice = s[1:3, ..., 3:5]
+        np.testing.assert_array_equal(a_slice, s_slice)
+        self.assertEqual(s_slice.slices, s.slices)
+        self.assertEqual(len(s_slice.tags[0]), 2)
 
 if __name__ == '__main__':
     unittest.main()

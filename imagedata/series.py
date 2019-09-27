@@ -403,6 +403,13 @@ class Series(np.ndarray):
                 except Exception:
                     pass
 
+        def _number_of_ellipses(items):
+            n = 0
+            for item in items:
+                if item is Ellipsis:
+                    n += 1
+            return n
+
         def _calculate_spec(obj, items):
             slicing = False
             if isinstance(obj, Series):
@@ -411,44 +418,43 @@ class Series(np.ndarray):
                 for i in range(obj.ndim):  # Loop over actual array shape
                     spec[i] = (0, obj.shape[i], 1, obj.axes[i])  # Initial start,stop,step,axis
 
-                # Determine how to loop over slice spec
-                if items[0] is Ellipsis:
-                    # First item is Ellipsis, skip, align rest of slice
-                    first_spec = obj.ndim - len(items) + 1
-                    last_spec = obj.ndim - 1
-                    use_items = items[1:]
-                elif items[-1] is Ellipsis:
-                    # Skip last item
-                    first_spec = 0
-                    last_spec = len(items) - 2
-                    use_items = items[:-1]
-                else:
-                    first_spec = 0
-                    last_spec = obj.ndim - 1
-                    use_items = items
-                for item in use_items:
+                # Determine how to loop over slice spec and items
+                if _number_of_ellipses(items) > 1:
+                    raise IndexError('Multiple ellipses are not allowed.')
+
+                # Assume Ellipsis anywhere in items
+                index_spec = []
+                index_item = []
+                for i in range(len(items)):
+                    if items[i] is not Ellipsis:
+                        index_spec.append(i)
+                        index_item.append(i)
+                    else: # Ellipsis
+                        remaining_items = len(items) - i - 1
+                        index_spec += range(len(spec)-remaining_items, len(spec))
+                        index_item += range(len(items)-remaining_items, len(items))
+                        break
+                if len(index_spec) != len(index_item):
+                    raise IndexError('Index problem: spec length %d, items length %d' %
+                                     (len(index_spec), len(index_item)))
+
+                for i_item in index_item:
                     # If any item is of unknown type, we will not slice the data
-                    if not isinstance(item, slice) and not isinstance(item, int):
+                    if not isinstance(items[i_item], slice) and not isinstance(items[i_item], int):
                         return slicing, spec
-                assert len(use_items) == last_spec-first_spec+1, "Length of slice spec (%d) do not match ndim (%d)" % (len(use_items), last_spec-first_spec+1)
-                j = 0
-                for i in range(first_spec, last_spec+1):
-                    #if type(items[i]) == Ellipsis:
-                    if use_items[j] is Ellipsis:
-                        raise IndexError('Ellipsis in the middle of the slice spec is not supported.')
-                    elif isinstance(use_items[j], slice):
-                        start = use_items[j].start or spec[i][0]
-                        stop  = use_items[j].stop  or spec[i][1]
-                        step  = use_items[j].step  or spec[i][2]
-                        spec[i] = (start, stop, step, obj.axes[i])
+                for i_spec, i_item in zip(index_spec, index_item):
+                    if isinstance(items[i_item], slice):
+                        start = items[i_item].start or spec[i_spec][0]
+                        stop  = items[i_item].stop  or spec[i_spec][1]
+                        step  = items[i_item].step  or spec[i_spec][2]
+                        spec[i_spec] = (start, stop, step, obj.axes[i_spec])
                         slicing = True
-                    elif isinstance(use_items[j], int):
-                        start = use_items[j] or spec[i][0]
+                    elif isinstance(items[i_item], int):
+                        start = items[i_item] or spec[i_spec][0]
                         stop = start+1
                         step = 1
-                        spec[i] = (start, stop, step, obj.axes[i])
+                        spec[i_spec] = (start, stop, step, obj.axes[i_spec])
                         slicing = True
-                    j += 1
             return slicing, spec
 
         # logging.debug('Series.__getitem__: item type {}: {}'.format(type(item),item))

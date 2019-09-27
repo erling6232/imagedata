@@ -403,5 +403,56 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.imagePositions[2], si1.imagePositions[3])
         self.assertEqual(len(si2.tags[0]), 2)
 
+    #@unittest.skip("skipping test_slice_ellipsis_first")
+    def test_slice_ellipsis_first(self):
+        si1 = Series(
+            'data/dicom/time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        a2 = np.array(si1)[..., 10:40]
+        si2 = si1[..., 10:40]
+        np.testing.assert_array_equal(a2, si2)
+        self.assertEqual(len(si2.imagePositions), len(si1.imagePositions))
+        for i in range(len(si2.imagePositions)):
+            np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
+        self.assertEqual(len(si2.tags[0]), len(si1.tags[0]))
+        np.testing.assert_array_equal(si2.tags[0], si1.tags[0])
+
+    #@unittest.skip("skipping test_slice_ellipsis_last")
+    def test_slice_ellipsis_last(self):
+        si1 = Series(
+            'data/dicom/time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        a2 = np.array(si1)[3:5, ...]
+        si2 = si1[3:5, ...]
+        np.testing.assert_array_equal(a2, si2)
+        self.assertEqual(len(si2.imagePositions), len(si1.imagePositions))
+        for i in range(len(si2.imagePositions)):
+            np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
+        self.assertEqual(len(si2.tags[0]), 2)
+        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][3:5])
+
+    #@unittest.skip("skipping test_slice_ellipsis_middle")
+    def test_slice_ellipsis_middle(self):
+        si1 = Series(
+            'data/dicom/time/',
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        a2 = np.array(si1)[3:5, ..., 10:40]
+        si2 = si1[3:5, ..., 10:40]
+        np.testing.assert_array_equal(a2, si2)
+        self.assertEqual(len(si2.imagePositions), len(si1.imagePositions))
+        for i in range(len(si2.imagePositions)):
+            np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
+        self.assertEqual(len(si2.tags[0]), 2)
+        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][3:5])
+
 if __name__ == '__main__':
     unittest.main()
