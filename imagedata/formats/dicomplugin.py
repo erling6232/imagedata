@@ -269,7 +269,7 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug('DICOMPlugin.read: si {}'.format(si.shape))
 
         nz = len(hdr['DicomHeaderDict'])
-        hdr['slices'] = nz
+        #hdr['slices'] = nz
 
         if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr,si)
@@ -475,7 +475,7 @@ class DICOMPlugin(AbstractPlugin):
         hdr['input_format'] = self.name
         hdr['input_order'] = input_order
         sliceLocations = sorted(headerDict)
-        hdr['slices'] = len(sliceLocations)
+        #hdr['slices'] = len(sliceLocations)
         hdr['sliceLocations'] = sliceLocations
 
         # Verify same number of images for each slice

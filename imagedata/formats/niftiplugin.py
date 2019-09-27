@@ -138,7 +138,7 @@ class NiftiPlugin(AbstractPlugin):
         #self.setQform(nifti_affine)
         #hdr['transformationMatrix'] = self.transformationMatrix
         self.shape = si.shape
-        self.getGeometryFromAffine(hdr, nifti_affine, hdr['slices'])
+        self.getGeometryFromAffine(hdr, nifti_affine)
         logging.debug("NiftiPlugin::read: hdr[orientation] {}".format(hdr['orientation']))
         #logging.debug("NiftiPlugin::read: hdr[transformationMatrix]\n{}".format(hdr['transformationMatrix']))
 
@@ -279,13 +279,12 @@ class NiftiPlugin(AbstractPlugin):
         return Q
     '''
 
-    def getGeometryFromAffine(self, hdr, Q, slices):
+    def getGeometryFromAffine(self, hdr, Q):
         """Extract geometry attributes from Nifti header
 
         Input:
         - self: NiftiPlugin instance
         - Q: nifti Qform
-        - slices: number of slices
         - hdr['spacing']
         Output:
         - hdr: header dict

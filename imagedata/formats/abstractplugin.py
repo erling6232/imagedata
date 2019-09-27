@@ -152,7 +152,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             nz = _shape[-3]
         if _ndim > 3:
             nt = _shape[-4]
-        hdr['slices'] = nz
+        #hdr['slices'] = nz
         logging.debug('AbstractPlugin.read: slices {}'.format(nz))
 
         # hdr['spacing'], hdr['tags']

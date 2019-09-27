@@ -39,7 +39,7 @@ class Header(object):
     """Image header object.
     """
 
-    header_tags = ['input_format', 'slices', 'sliceLocations',
+    header_tags = ['input_format', 'sliceLocations',
                    'DicomHeaderDict', 'tags', 'spacing',
                    'imagePositions', 'orientation', 'seriesNumber',
                    'seriesDescription', 'imageType', 'frameOfReferenceUID',
