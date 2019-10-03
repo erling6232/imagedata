@@ -11,6 +11,7 @@ import imagedata.axis
 import imagedata.formats
 import imagedata.readdata as readdata
 import imagedata.formats.dicomlib.uid
+from imagedata.header import Header, add_template, add_geometry
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -24,108 +25,11 @@ class DoNotSetSlicesError(Exception):
     pass
 
 
-class NotSeriesObject(Exception):
-    pass
-
-
 def is_pathlib_path(obj):
     """
     Check whether obj is a pathlib.Path object.
     """
     return Path is not None and isinstance(obj, Path)
-
-
-class Header(object):
-    """Image header object.
-    """
-
-    header_tags = ['input_format', 'sliceLocations',
-                   'DicomHeaderDict', 'tags', 'spacing',
-                   'imagePositions', 'orientation', 'seriesNumber',
-                   'seriesDescription', 'imageType', 'frameOfReferenceUID',
-                   'studyInstanceUID', 'studyID', 'seriesInstanceUID',
-                   'accessionNumber',
-                   'patientName', 'patientID', 'patientBirthDate',
-                   'input_sort', 'transformationMatrix',
-                   'color', 'photometricInterpretation',
-                   'axes']
-
-    def __init__(self):
-        """Initialize image header attributes to defaults
-        """
-        object.__init__(self)
-        self.input_order = imagedata.formats.INPUT_ORDER_NONE
-        self.sort_on = None
-        for attr in self.header_tags:
-            try:
-                setattr(self, attr, None)
-            except AttributeError:
-                pass
-        self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
-        self.studyInstanceUID = self.new_uid()
-        self.seriesInstanceUID = self.new_uid()
-        self.frameOfReferenceUID = self.new_uid()
-
-    def new_uid(self) -> str:
-        return self.__uid_generator.__next__()
-
-    def set_default_values(self, shape, axes):
-        self.color = False
-        if self.DicomHeaderDict is not None:
-            return
-        #self.axes = list()
-        #for d in range(len(shape)):
-        #    self.axes.append(imagedata.axis.UniformAxis('%d' % d,
-        #                                                0,
-        #                                                shape[d]))
-        self.axes = copy.copy(axes)
-        #logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
-        #logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
-
-        slices = tags = 1
-        if axes is not None:
-            for axis in axes:
-                if axis.name == 'slice':
-                    slices = len(axis)
-                elif axis.name not in {'row', 'column', 'rgb'}:
-                    tags = len(axis)
-
-            self.DicomHeaderDict = {}
-            i = 0
-            #logging.debug('Header.set_default_values %d tags' % tags)
-            #logging.debug('Header.set_default_values tags {}'.format(self.tags))
-            for _slice in range(slices):
-                self.DicomHeaderDict[_slice] = []
-                for tag in range(tags):
-                        self.DicomHeaderDict[_slice].append(
-                            ( tag, None, self._empty_ds(i))
-                            )
-                        i += 1
-            if self.tags is None:
-                self.tags = {}
-                for _slice in range(slices):
-                    self.tags[_slice] = [i for i in range(tags)]
-
-    def _empty_ds(self, i):
-        SOPInsUID = self.new_uid()
-
-        ds = pydicom.dataset.Dataset()
-
-        # Add the data elements
-        ds.StudyInstanceUID = self.studyInstanceUID
-        ds.StudyID = '1'
-        ds.SeriesInstanceUID = self.seriesInstanceUID
-        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7' # SC
-        ds.SOPInstanceUID = SOPInsUID
-        ds.FrameOfReferenceUID = self.frameOfReferenceUID
-
-        ds.PatientName = 'ANONYMOUS'
-        ds.PatientID = 'ANONYMOUS'
-        ds.PatientBirthDate = '00000000'
-        ds.AccessionNumber = ''
-        ds.Modality = 'SC'
-
-        return ds
 
 
 class Series(np.ndarray):
@@ -148,6 +52,10 @@ class Series(np.ndarray):
         - opts: Input options (argparse.Namespace or dict)
         """
 
+        if issubclass(type(template), Series):
+            template = template.header
+        if issubclass(type(geometry), Series):
+            geometry = geometry.header
         if issubclass(type(data), np.ndarray):
             logging.debug('Series.__new__: data ({}) is subclass of np.ndarray'.format(type(data)))
             obj = np.asarray(data).view(cls)
@@ -163,8 +71,8 @@ class Series(np.ndarray):
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
-            obj._add_template(template)
-            obj._add_dicom_geometry(geometry)
+            add_template(obj.header, template)
+            add_geometry(obj.header, geometry)
             return obj
         logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -174,8 +82,8 @@ class Series(np.ndarray):
             obj.header = Header()
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.shape, obj.axes)
-            obj._add_template(template)
-            obj._add_dicom_geometry(geometry)
+            add_template(obj.header, template)
+            add_geometry(obj.header, geometry)
             return obj
 
         # Assuming data is url to input data
@@ -192,8 +100,8 @@ class Series(np.ndarray):
             obj.header = Header()
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.shape, obj.axes)
-            obj._add_template(template)
-            obj._add_dicom_geometry(geometry)
+            add_template(obj.header, template)
+            add_geometry(obj.header, geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -215,8 +123,8 @@ class Series(np.ndarray):
         for attr in hdr.keys():
             setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
-        obj._add_template(template)
-        obj._add_dicom_geometry(geometry)
+        add_template(obj.header, template)
+        add_geometry(obj.header, geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -317,41 +225,6 @@ class Series(np.ndarray):
             results[0].header = self._unify_headers(inputs)
 
         return results[0] if len(results) == 1 else results
-
-    def _add_template(self, template):
-        """Add template attributes to self object.
-
-        Input:
-        - template: Series instance with template attributes
-        """
-        if template is not None:
-            if issubclass(type(template), Series):
-                self.header = copy.copy(template.header)
-            else:
-                raise NotSeriesObject('Template object is not a Series')
-
-    def _add_dicom_geometry(self, data):
-        """Add geometry attributes to self object.
-
-        Input:
-        - data: DICOM input with geometry attributes
-            (Series object or URL)
-        """
-
-        if data is None:
-            return
-        if issubclass(type(data), Series):
-            self.sliceLocations = data.sliceLocations
-            self.spacing = data.spacing
-            self.orientation = data.orientation
-            self.imagePositions = data.imagePositions
-            self.axes = copy.copy(data.axes)
-        else:
-            if issubclass(type(data), str):
-                logging.debug('Series._add_dicom_geometry: %s' %
-                        data)
-            raise NotSeriesObject('Geometry object (%s) is not a Series' %
-                    type(data))
 
     def _unify_headers(self, inputs):
         """Unify the headers of the inputs.

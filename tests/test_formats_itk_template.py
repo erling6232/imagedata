@@ -54,13 +54,13 @@ class test_itk_template(unittest.TestCase):
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
-        compare_headers(self, si1, si2)
+        compare_template_headers(self, si1, si2)
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
         si1.write('ttit', formats=['dicom'])
         si3 = Series('ttit')
         np.testing.assert_array_equal(si2, si3)
-        compare_headers(self, si2, si3)
+        compare_template_headers(self, si2, si3)
 
     #@unittest.skip("skipping test_itk_template_prog")
     def test_itk_template_prog(self):
@@ -72,7 +72,7 @@ class test_itk_template(unittest.TestCase):
         # Compare constructed series si1 to original series
         self.assertEqual(si1.dtype, self.template.dtype)
         np.testing.assert_array_equal(si1, self.template)
-        compare_headers(self, si1, self.template)
+        compare_template_headers(self, si1, self.template)
 
     #@unittest.skip("skipping test_itk_geometry_cmdline")
     def test_itk_geometry_cmdline(self):

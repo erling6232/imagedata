@@ -59,13 +59,20 @@ class test_dicom_template(unittest.TestCase):
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
-        compare_headers(self, si1, si2)
+        compare_template_headers(self, si1, si2)
+        try:
+            compare_geometry_headers(self, si1, si2)
+        except AssertionError:
+            # Expected to fail
+            pass
+        else:
+            raise ShouldHaveFailed('Template header should differ when joining geometry')
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
         si1.write('ttdt/tdtc', formats=['dicom'])
         si3 = Series('ttdt/tdtc', 'none', self.opts)
         np.testing.assert_array_equal(si2, si3)
-        compare_headers(self, si2, si3)
+        compare_template_headers(self, si2, si3)
 
     #@unittest.skip("skipping test_dicom_template_prog")
     def test_dicom_template_prog(self):
@@ -79,15 +86,15 @@ class test_dicom_template(unittest.TestCase):
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
-        compare_headers(self, si1, si2)
+        compare_template_headers(self, si1, si2)
 
-    @unittest.skip("skipping test_dicom_geometry_cmdline")
+    #@unittest.skip("skipping test_dicom_geometry_cmdline")
     def test_dicom_geometry_cmdline(self):
         # Read the DICOM empty header series,
         # adding DICOM geometry
         si1 = Series(
                 'ttdt/empty_header',
-                0,
+                'none',
                 self.opts_geometry)
         # Read the original DICOM series
         si2 = Series('data/dicom/time/time00/')
@@ -100,16 +107,16 @@ class test_dicom_template(unittest.TestCase):
         except AssertionError:
             # Expected to fail
             pass
-        finally:
+        else:
             raise ShouldHaveFailed('Template header should differ when joining geometry')
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
         si1.write('ttdt/tdgc', formats=['dicom'])
-        si3 = Series('ttdt/tdgc', 0, self.opts)
+        si3 = Series('ttdt/tdgc', 'none', self.opts)
         np.testing.assert_array_equal(si2, si3)
         compare_geometry_headers(self, si2, si2)
 
-    @unittest.skip("skipping test_dicom_geometry_prog")
+    #@unittest.skip("skipping test_dicom_geometry_prog")
     def test_dicom_geometry_prog(self):
         # Read the DICOM empty header series,
         # adding DICOM geometry in Series constructor
@@ -127,7 +134,7 @@ class test_dicom_template(unittest.TestCase):
         except AssertionError:
             # Excpected to fail
             pass
-        finally:
+        else:
             raise ShouldHaveFailed('Template header should differ when joining geometry')
 
     #@unittest.skip("skipping test_dicom_tempgeom_cmdline")

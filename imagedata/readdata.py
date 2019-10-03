@@ -10,6 +10,7 @@ import mimetypes
 import argparse
 import urllib.parse
 import numpy as np
+from imagedata.header import add_template, add_geometry
 import imagedata.formats
 import imagedata
 import imagedata.transports
@@ -73,9 +74,9 @@ def read(urls, order=None, opts=None):
         geometry_source = _get_sources(in_opts['geometry'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
         geom_hdr,_ = reader.read_headers(geometry_source, input_order, in_opts)
-        if pre_hdr is None:
-            pre_hdr = {}
-        _add_dicom_geometry(pre_hdr, geom_hdr)
+        #if pre_hdr is None:
+        #    pre_hdr = {}
+        #_add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(imagedata.formats.get_plugins_list())
@@ -89,7 +90,8 @@ def read(urls, order=None, opts=None):
             for source in sources:
                 logging.debug("readdata.read: close archive {}".format(source['archive']))
                 source['archive'].close()
-            _add_template(hdr, pre_hdr)
+            add_template(hdr, pre_hdr)
+            add_geometry(hdr, geom_hdr)
             return hdr, si
         except FileNotFoundError:
             raise
@@ -109,27 +111,27 @@ def read(urls, order=None, opts=None):
     else:
         raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls)
 
-def _add_template(hdr, pre_hdr):
-    if pre_hdr is not None:
-        for key in pre_hdr:
-            hdr[key] = copy.copy(pre_hdr[key])
+#def _add_template(hdr, pre_hdr):
+#    if pre_hdr is not None:
+#        for key in pre_hdr:
+#            hdr[key] = copy.copy(pre_hdr[key])
 
-def _add_dicom_geometry(pre_hdr, geometry):
-        """For each slice in geometry, use most of pre_hdr, adding a few attributes from geometry
-        """
-
-        #logging.debug("_add_dicom_geometry template %s geometry %s" % (
-        #    imagedata.formats.shape_to_str(self.shape),
-        #    imagedata.formats.shape_to_str(geometry.shape)))
-        pre_hdr['sliceLocations'] = geometry['sliceLocations'].copy()
-        pre_hdr['spacing']        = geometry['spacing'].copy()
-        pre_hdr['orientation']    = geometry['orientation'].copy()
-        pre_hdr['imagePositions'] = {}
-        logging.debug("_add_dicom_geometry:")
-        logging.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
-        for k in geometry['imagePositions'].keys():
-            pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
-        pre_hdr['axes'] = geometry['axes'].copy()
+#def _add_dicom_geometry(pre_hdr, geometry):
+#        """For each slice in geometry, use most of pre_hdr, adding a few attributes from geometry
+#        """
+#
+#        #logging.debug("_add_dicom_geometry template %s geometry %s" % (
+#        #    imagedata.formats.shape_to_str(self.shape),
+#        #    imagedata.formats.shape_to_str(geometry.shape)))
+#        pre_hdr['sliceLocations'] = geometry['sliceLocations'].copy()
+#        pre_hdr['spacing']        = geometry['spacing'].copy()
+#        pre_hdr['orientation']    = geometry['orientation'].copy()
+#        pre_hdr['imagePositions'] = {}
+#        logging.debug("_add_dicom_geometry:")
+#        logging.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
+#        for k in geometry['imagePositions'].keys():
+#            pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
+#        pre_hdr['axes'] = geometry['axes'].copy()
 
 def write(si, url, opts=None, formats=None):
     """Write image data, calling appropriate format plugins
