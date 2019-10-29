@@ -232,16 +232,22 @@ class ZipfileArchive(AbstractArchive):
                 wanted_files = files
             else:
                 wanted_files = list((files,))
+            found_match = [False for i in range(len(wanted_files))]
             #logging.debug('ZipfileArchive.getmembers: wanted_files {}'.format(wanted_files))
             filelist = list()
             for filename in self.__files:
                 #logging.debug('ZipfileArchive.getmembers: member {}'.format(filename))
                 # filename = member['name']
-                for required_filename in wanted_files:
+                for i,required_filename in enumerate(wanted_files):
                     # if filename.endswith(required_filename):
                     #logging.debug('ZipfileArchive.getmembers: compare %s to %s' % (required_filename, filename))
                     if re.search(required_filename, filename):
                         filelist.append(self.__files[filename])
+                        found_match[i] = True
+            # Verify that all wanted files are found
+            for i,found in enumerate(found_match):
+                if not found:
+                    raise FileNotFoundError('No such file: %s' % wanted_files[i])
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return (filelist)
