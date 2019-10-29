@@ -447,7 +447,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             else:
                 break
 
-    def _reorder_to_dicom(self, data, flip=False):
+    def _reorder_to_dicom(self, data, flip=False, flipud=False):
         """Reorder data to internal DICOM format.
         Swap axes, except for rows and columns.
 
@@ -468,64 +468,69 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         DICOM order: si  [rows,columns]
 
         flip: Whether rows and columns are swapped.
+        flipud: Whether matrix is transposed
         """
 
         logging.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
             data.shape))
         if data.ndim == 5:
             rows,columns,slices,tags,d5 = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((d5,tags,slices,rows,columns), data.dtype)
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        if flip:
-                            si[d,tag,slice,:,:] = \
-                            (data[:,:,slice,tag,d]).T
-                            #np.fliplr(data[:,:,slice,tag,d]).T
-                        else:
-                            si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
+                        si[d,tag,slice,:,:] = self._reorder_slice(data[:,:,slice,tag,d], flip=flip, flipud=flipud)
+                        #if flip:
+                        #    si[d,tag,slice,:,:] = \
+                        #    (data[:,:,slice,tag,d]).T
+                        #    #np.fliplr(data[:,:,slice,tag,d]).T
+                        #else:
+                        #    si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         elif data.ndim == 4:
             rows,columns,slices,tags = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((tags,slices,rows,columns), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    if flip:
-                        si[tag,slice,:,:] = (data[:,:,slice,tag]).T
-                        #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
-                    else:
-                        si[tag,slice,:,:] = data[:,:,slice,tag]
+                    si[tag,slice,:,:] = self._reorder_slice(data[:,:,slice,tag], flip=flip, flipud=flipud)
+                    #if flip:
+                    #    si[tag,slice,:,:] = (data[:,:,slice,tag]).T
+                    #    #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
+                    #else:
+                    #    si[tag,slice,:,:] = data[:,:,slice,tag]
         elif data.ndim == 3:
             rows,columns,slices = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((slices,rows,columns), data.dtype)
             for slice in range(slices):
-                if flip:
-                    si[slice,:,:] = (data[:,:,slice]).T
-                    #si[slice,:,:] = np.fliplr(data[:,:,slice]).T
-                else:
-                    si[slice,:,:] = data[:,:,slice]
+                si[slice,:,:] = self._reorder_slice(data[:,:,slice], flip=flip, flipud=flipud)
+                #if flip:
+                #    si[slice,:,:] = (data[:,:,slice]).T
+                #    #si[slice,:,:] = np.fliplr(data[:,:,slice]).T
+                #else:
+                #    si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 2:
             rows,columns = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows,columns), data.dtype)
-            if flip:
-                si[:] = (data[:]).T
-                #si[:] = np.fliplr(data[:]).T
-            else:
-                si[:] = data[:]
+            si[:] = self._reorder_slice(data[:], flip=flip, flipud=flipud)
+            #if flip:
+            #    si[:] = (data[:]).T
+            #    #si[:] = np.fliplr(data[:]).T
+            #else:
+            #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logging.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
             si.shape))
         return(si)
 
-    def _reorder_from_dicom(self, data, flip=False):
+    def _reorder_from_dicom(self, data, flip=False, flipud=False):
         """Reorder data from internal DICOM format.
         Swap axes, except for rows and columns.
 
@@ -546,57 +551,72 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         return order: si [rows,columns]
 
         flip: Whether rows and columns are swapped.
+        flipud: Whether matrix is transposed
         """
 
         logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
         if data.ndim == 5:
             d5,tags,slices,rows,columns = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows,columns,slices,tags,d5), data.dtype)
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        if flip:
-                            si[:,:,slice,tag,d] = \
-                            np.fliplr(data[d,tag,slice,:,:]).T
-                        else:
-                            si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
+                        si[:,:,slice,tag,d] = self._reorder_slice(data[d, tag, slice, :, :], flip=flip, flipud=flipud)
+                        #if flip:
+                        #    si[:,:,slice,tag,d] = \
+                        #    np.fliplr(data[d,tag,slice,:,:]).T
+                        #else:
+                        #    si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
         elif data.ndim == 4:
             tags,slices,rows,columns = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows,columns,slices,tags), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    if flip:
-                        si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
-                    else:
-                        si[:,:,slice,tag] = data[tag,slice,:,:]
+                    si[:,:,slice,tag] = self._reorder_slice(data[tag,slice,:,:], flip=flip, flipud=flipud)
+                    #if flip:
+                    #    si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
+                    #else:
+                    #    si[:,:,slice,tag] = data[tag,slice,:,:]
         elif data.ndim == 3:
             slices,rows,columns = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows,columns,slices), data.dtype)
             for slice in range(slices):
-                if flip:
-                    si[:,:,slice] = np.fliplr(data[slice,:,:]).T
-                else:
-                    si[:,:,slice] = data[slice,:,:]
+                si[:,:,slice] = self._reorder_slice(data[slice,:,:], flip=flip, flipud=flipud)
+                #if flip:
+                #    si[:,:,slice] = np.fliplr(data[slice,:,:]).T
+                #else:
+                #    si[:,:,slice] = data[slice,:,:]
         elif data.ndim == 2:
             rows,columns = data.shape
-            if flip:
+            if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows,columns), data.dtype)
-            if flip:
-                si[:] = np.fliplr(data[:]).T
-            else:
-                si[:] = data[:]
+            si[:,:] = self._reorder_slice(data[:,:], flip=flip, flipud=flipud)
+            #if flip:
+            #    si[:] = np.fliplr(data[:]).T
+            #else:
+            #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logging.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
             si.shape))
         return(si)
+
+    def _reorder_slice(self, data, flip, flipud):
+        if flip and flipud:
+            return np.fliplr(data).T
+        elif flip:
+            return np.fliplr(data)
+        elif flipud:
+            return data.T
+        else:
+            return data
 
     def copy(self, other=None):
         """Make a copy of the instance
@@ -646,4 +666,5 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if self.__imageType is not None:
             other.__imageType        = self.__imageType
         return other
+
 

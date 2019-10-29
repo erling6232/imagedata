@@ -376,7 +376,8 @@ class Series(np.ndarray):
                     todo.append(('imagePositions', None))  # Wipe existing positions
                     if ipp is not None:
                         todo.append(('imagePositions', ipp))
-                elif axis.name != 'row' and axis.name != 'column' and axis.name != 'rgb':
+                #elif axis.name != 'row' and axis.name != 'column' and axis.name != 'rgb':
+                elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
                     # # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
@@ -442,13 +443,14 @@ class Series(np.ndarray):
         hdr = {}
         j = 0
         for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
-            ###hdr[s] = [False for x in range(tag_spec)]
+            _slice = min(s, slices-1)
+            ###hdr[_slice] = [False for x in range(tag_spec)]
             hdr[j] = list()
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-                tag = self.tags[s][t]
+                tag = self.tags[_slice][t]
                 hdr[j].append(
                     self.__find_tag_in_hdr(
-                        self.DicomHeaderDict[s],
+                        self.DicomHeaderDict[_slice],
                         imagedata.formats.input_order_to_dirname_str(self.input_order),
                         tag)
                 )
@@ -465,6 +467,7 @@ class Series(np.ndarray):
     def __get_tags(self, specs):
         try:
             tmpl_tags = self.tags
+            last_slice = len(self.tags) - 1 # known_slices might be less than actual data shape
             tags = len(self.tags[0])
         except ValueError:
             return None
@@ -482,8 +485,9 @@ class Series(np.ndarray):
         for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
             new_tags[j] = list()
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
+                # Limit slices to the known slices. Duplicates last tag if too few.
                 new_tags[j].append(
-                    tmpl_tags[s][t]
+                    tmpl_tags[min(s, last_slice)][t]
                 )
             j += 1
         return new_tags
@@ -819,16 +823,32 @@ class Series(np.ndarray):
 
     @tags.setter
     def tags(self, tags):
-        """Set tag(s) for given slice(s)
+        """Set tag(s) for given slice(s).
+        Includes adjusting tags for DicomHeaderDict.
         
         Input:
         - tags: dict() of np.array(tags)
-
-        dict.keys() are slice numbers (int)
+          tags.keys() are slice numbers (int)
         """
         self.header.tags = {}
-        for slice in tags.keys():
-            self.header.tags[slice] = np.array(tags[slice])
+        hdr = {}
+        for s in tags.keys():
+            self.header.tags[s] = np.array(tags[s])
+            hdr[s] = list()
+            max_t = len(self.header.DicomHeaderDict[s]) - 1
+            for t in range(len(tags[s])):
+                if t <= max_t:
+                    wrongtag, filename, dcm = self.header.DicomHeaderDict[s][t]
+                    hdr[s].append(
+                        (tags[s][t], filename, dcm)
+                    )
+                else:
+                    # Copy last DicomHeaderDict
+                    wrongtag, filename, dcm = self.header.DicomHeaderDict[s][max_t]
+                    hdr[s].append(
+                        (tags[s][t], None, dcm)
+                    )
+        self.header.DicomHeaderDict = hdr
 
     @property
     def axes(self):

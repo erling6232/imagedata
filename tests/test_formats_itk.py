@@ -288,7 +288,7 @@ class TestWritePluginITK_tag(unittest.TestCase):
         log.debug("test_write_3d_itk")
         si = Series(
                 'data/itk/time/Image_00000.mha',
-                0,
+                'none',
                 self.opts)
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (40, 192, 152))
@@ -317,9 +317,9 @@ class TestWritePluginITK_tag(unittest.TestCase):
             si.imagePositions = {
                     slice: si.getPositionForVoxel(np.array([slice,0,0]))
             }
-        si.seriesNumber=1001
-        si.seriesDescription="Test 1"
-        si.imageType = ['AB', 'CD', 'EF']
+        #si.seriesNumber=1001
+        #si.seriesDescription="Test 1"
+        #si.imageType = ['AB', 'CD', 'EF']
 
         # Store image with modified header 'hdr'
         shutil.rmtree('tti3', ignore_errors=True)
@@ -328,34 +328,32 @@ class TestWritePluginITK_tag(unittest.TestCase):
         # Read back the ITK data and verify that the header was modified
         si2 = Series(
                 'tti3w/Image.mha',
-                0,
+                'none',
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
         np.testing.assert_array_equal(si, si2)
         #np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
         compare_headers(self, si, si2)
 
-    @unittest.skip("skipping test_write_4d_itk")
+    #@unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_itk")
         log.debug("test_write_4d_itk")
-        hdr,si = imagedata.readdata.read(
-                #('tests/dicom/time/',),
-                ('tests/mhd/time/Image_00000.mhd',
-                'tests/mhd/time/Image_00001.mhd',
-                'tests/mhd/time/Image_00002.mhd',
-                'tests/mhd/time/Image_00003.mhd',
-                'tests/mhd/time/Image_00004.mhd',
-                'tests/mhd/time/Image_00005.mhd',
-                'tests/mhd/time/Image_00006.mhd',
-                'tests/mhd/time/Image_00007.mhd',
-                'tests/mhd/time/Image_00008.mhd',
-                'tests/mhd/time/Image_00009.mhd'
-                ),
+        si = Series(
+                ['data/itk/time/Image_00000.mha',
+                 'data/itk/time/Image_00001.mha',
+                 'data/itk/time/Image_00002.mha',
+                 'data/itk/time/Image_00003.mha',
+                 'data/itk/time/Image_00004.mha',
+                 'data/itk/time/Image_00005.mha',
+                 'data/itk/time/Image_00006.mha',
+                 'data/itk/time/Image_00007.mha',
+                 'data/itk/time/Image_00008.mha',
+                 'data/itk/time/Image_00009.mha'],
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
-        self.assertEqual(si.dtype, np.float64)
-        self.assertEqual(si.shape, (10,30,142,115))
+        self.assertEqual(si.dtype, np.uint16)
+        self.assertEqual(si.shape, (10,40,192,152))
         #np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
 
         #log.debug("test_write_4d_itk: sliceLocations", hdr.sliceLocations)
@@ -365,93 +363,62 @@ class TestWritePluginITK_tag(unittest.TestCase):
         #log.debug("test_write_4d_itk: orientation", hdr.orientation)
 
         # Modify header
-        hdr.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+        si.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
         #slices = len(hdr.sliceLocations)
         #hdr.sliceLocations = np.arange(1, slices*1+0.5, 1).tolist()
         #for slice in range(slices):
         #   hdr.tags=
-        hdr.spacing = (3, 2, 1)
+        si.spacing = (3, 2, 1)
         for slice in range(si.shape[1]):
-            hdr.imagePositions = {
+            si.imagePositions = {
                 slice:
                         np.array([slice,1,0])
             }
-        hdr.orientation=np.array([1, 0, 0, 0, 0, -1])
+        si.orientation=np.array([0, 0, 1, 0, 1, 0])
         for slice in range(si.shape[1]):
-            hdr.imagePositions = {
-                slice: hdr.getPositionForVoxel(np.array([slice,0,0]))
+            si.imagePositions = {
+                slice: si.getPositionForVoxel(np.array([slice,0,0])).reshape((3,1))
             }
-        hdr.seriesNumber=1001
-        hdr.seriesDescription="Test 1"
-        hdr.imageType = ['AB', 'CD', 'EF']
+        #si.seriesNumber=1001
+        #si.seriesDescription="Test 1"
+        #si.imageType = ['AB', 'CD', 'EF']
 
         #hdr.sort_on = imagedata.formats.SORT_ON_SLICE
-        hdr.sort_on = imagedata.formats.SORT_ON_TAG
+        si.sort_on = imagedata.formats.SORT_ON_TAG
         log.debug("test_write_4d_itk: hdr.sort_on {}".format(
-            imagedata.formats.sort_on_to_str(hdr.sort_on)))
-        hdr.output_dir = 'single'
+            imagedata.formats.sort_on_to_str(si.sort_on)))
+        si.output_dir = 'single'
         #hdr.output_dir = 'multi'
         shutil.rmtree('tt4ds', ignore_errors=True)
-        hdr.write_4d_numpy(si, 'tt4ds', 'Image_%05d.mhd', self.opts)
+        si.write('tt4ds', self.opts)
 
         # Read back the ITK data and verify that the header was modified
-        hdr2,si2 = imagedata.readdata.read(
-                #('tt4d/',),
-                ('tt4ds/Image_00000.mhd',
-                 'tt4ds/Image_00001.mhd',
-                 'tt4ds/Image_00002.mhd',
-                 'tt4ds/Image_00003.mhd',
-                 'tt4ds/Image_00004.mhd',
-                 'tt4ds/Image_00005.mhd',
-                 'tt4ds/Image_00006.mhd',
-                 'tt4ds/Image_00007.mhd',
-                 'tt4ds/Image_00008.mhd',
-                 'tt4ds/Image_00009.mhd',
-                 'tt4ds/Image_00010.mhd',
-                 'tt4ds/Image_00011.mhd',
-                 'tt4ds/Image_00012.mhd',
-                 'tt4ds/Image_00013.mhd',
-                 'tt4ds/Image_00014.mhd',
-                 'tt4ds/Image_00015.mhd',
-                 'tt4ds/Image_00016.mhd',
-                 'tt4ds/Image_00017.mhd',
-                 'tt4ds/Image_00018.mhd',
-                 'tt4ds/Image_00019.mhd',
-                 'tt4ds/Image_00020.mhd',
-                 'tt4ds/Image_00021.mhd',
-                 'tt4ds/Image_00022.mhd',
-                 'tt4ds/Image_00023.mhd',
-                 'tt4ds/Image_00024.mhd',
-                 'tt4ds/Image_00025.mhd',
-                 'tt4ds/Image_00026.mhd',
-                 'tt4ds/Image_00027.mhd',
-                 'tt4ds/Image_00028.mhd',
-                 'tt4ds/Image_00029.mhd'
-                ),
+        si2 = Series(
+                'tt4ds/',
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
-        self.assertEqual((30, 10, 142, 115), si2.shape)
+        self.assertEqual((40, 10, 192, 152), si2.shape)
         #np.testing.assert_array_equal(si, si2)
         #np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
         #log.debug("hdr2.tags.keys(): {}".format(hdr2.tags.keys()))
         tags = {}
         for slice in range(10):
-            tags[slice] = np.arange(30)
-        self.assertEqual(tags.keys(), hdr2.tags.keys())
-        for k in hdr2.tags.keys():
-            np.testing.assert_array_equal(tags[k], hdr2.tags[k])
-        np.testing.assert_array_equal(hdr.spacing, hdr2.spacing)
+            tags[slice] = np.arange(40)
+        self.assertEqual(tags.keys(), si2.tags.keys())
+        for k in si2.tags.keys():
+            np.testing.assert_array_equal(tags[k], si2.tags[k])
+        np.testing.assert_array_equal(si.spacing, si2.spacing)
         imagePositions = {}
         for slice in range(10):
             imagePositions[slice] = np.array([0,1+3*slice,0])
         self.assertEqual(imagePositions.keys(),
-                hdr2.imagePositions.keys())
-        for k in imagePositions.keys():
-            log.debug("hdr2.imagePositions: {} {}".format(
-                k, hdr2.imagePositions[k]))
-            np.testing.assert_array_equal(imagePositions[k],
-                hdr2.imagePositions[k])
-        np.testing.assert_array_equal(hdr.orientation, hdr2.orientation)
+                si2.imagePositions.keys())
+        #for k in imagePositions.keys():
+        #    log.debug("hdr2.imagePositions: {} {}".format(
+        #        k, si2.imagePositions[k]))
+        #    np.testing.assert_array_equal(imagePositions[k],
+        #        si2.imagePositions[k])
+        np.testing.assert_array_equal(si.orientation, si2.orientation)
         #self.assertEqual(hdr.seriesNumber, hdr2.seriesNumber)
         #self.assertEqual(hdr.seriesDescription, hdr2.seriesDescription)
         #self.assertEqual(hdr.imageType, hdr2.imageType)

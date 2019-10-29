@@ -175,15 +175,20 @@ class DICOMPlugin(AbstractPlugin):
         - si[tag,slice,rows,columns]: multi-dimensional numpy array
         """
 
+        ##import psutil
+        ##process = psutil.Process()
+        ##print(process.memory_info())
         self.input_order = input_order
 
         # Read DICOM headers
         logging.debug('DICOMPlugin.read: sources %s' % sources)
+        #pydicom.config.debug(True)
         try:
-            hdr,shape = self.read_headers(sources, input_order, opts, skip_pixels=False)
+            hdr,shape = self.read_headers(sources, input_order, opts, skip_pixels=True)
         except Exception as e:
             logging.debug('DICOMPlugin.read: exception\n%s' % e)
             raise imagedata.formats.NotImageError('{}'.format(e))
+        #pydicom.config.debug(False)
 
         # Look-up first image to determine pixel type
         _color = 0
@@ -226,6 +231,8 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logging.debug('DICOMPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, matrix_dtype)
+        ##process = psutil.Process()
+        ##print(process.memory_info())
         for slice in hdr['DicomHeaderDict']:
             _done = [False for x in range(len(hdr['DicomHeaderDict'][slice]))]
             for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
@@ -251,13 +258,13 @@ class DICOMPlugin(AbstractPlugin):
                 if si.ndim == 3 + _color:
                     idx = idx[1:]
                 ## Do not read file again
-                # with archive.open(member, mode='rb') as f:
-                #    im=pydicom.filereader.dcmread(f)
-                #try:
-                #    im.decompress()
-                #except NotImplementedError as e:
-                #    logging.error("Cannot decompress pixel data: {}".format(e))
-                #    raise
+                with archive.open(member, mode='rb') as f:
+                    im=pydicom.filereader.dcmread(f)
+                try:
+                    im.decompress()
+                except NotImplementedError as e:
+                    logging.error("Cannot decompress pixel data: {}".format(e))
+                    raise
                 try:
                     si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
                 except Exception as e:
@@ -284,6 +291,8 @@ class DICOMPlugin(AbstractPlugin):
         #except ValueErrorWrapperPrecisionError:
         #    pass
         #self.create_affine(hdr)
+        ##process = psutil.Process()
+        ##print(process.memory_info())
         return hdr,si
 
     def _get_pixels_with_shape(self, im, shape):
@@ -302,7 +311,7 @@ class DICOMPlugin(AbstractPlugin):
             if 'RescaleSlope' in im:
                 pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
             else:
-                pixels = im.pixel_array
+                pixels = im.pixel_array.copy()
             if shape != pixels.shape:
                 # This happens only when images in a series have varying shape
                 # Place the pixels in the upper left corner of the matrix
@@ -315,9 +324,8 @@ class DICOMPlugin(AbstractPlugin):
                     roi.append(slice(d))
                 roi = tuple(roi)
                 si[roi] = pixels
-                return si
             else:
-                return pixels
+                si = pixels
         except UnboundLocalError:
             # A bug in pydicom appears when reading binary images
             if im.BitsAllocated == 1:
@@ -336,9 +344,14 @@ class DICOMPlugin(AbstractPlugin):
                         1, im.NumberOfFrames, im.Rows, im.Columns))
                 if 'RescaleSlope' in im:
                     si = float(im.RescaleSlope) * si + float(im.RescaleIntercept)
-                return si
             else:
                 raise
+        # Delete pydicom's pixel data to save memory
+        #im._pixel_array = None
+        #if 'PixelData' in im:
+        #    im[0x7fe00010].value = None
+        #    im[0x7fe00010].is_undefined_length = True
+        return si
 
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
@@ -591,6 +604,8 @@ class DICOMPlugin(AbstractPlugin):
     def process_member(self, imageDict, archive, member_name, member, opts, skip_pixels=True):
         import traceback
         try:
+            # defer_size: Do not load large attributes until requested
+            #im=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, defer_size=200)
             im=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
         except Exception:
             #traceback.print_exc()
@@ -715,6 +730,9 @@ class DICOMPlugin(AbstractPlugin):
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.serInsUid = si.header.seriesInstanceUID
         logging.debug("write_3d_series {}".format(self.serInsUid))
+        self.input_options = {}
+        if 'input_options' in opts:
+            self.input_options = opts['input_options']
 
         ifile = 0
         if _ndim < 3:
@@ -787,6 +805,9 @@ class DICOMPlugin(AbstractPlugin):
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.seriesTime = self.getDicomAttribute(tag_for_name("AcquisitionTime"))
         self.serInsUid = si.header.seriesInstanceUID
+        self.input_options = {}
+        if 'input_options' in opts:
+            self.input_options = opts['input_options']
 
         if self.output_sort == imagedata.formats.SORT_ON_SLICE:
             ifile = 0
@@ -799,7 +820,7 @@ class DICOMPlugin(AbstractPlugin):
                         dirn = "{0}{1:0{2}}".format(
                             imagedata.formats.input_order_to_dirname_str(si.input_order),
                             tag, digits)
-                        if tag == 0:
+                        if slice == 0:
                             # Restart file number in each subdirectory
                             ifile = 0
                         filename = os.path.join(dirn,
@@ -815,7 +836,7 @@ class DICOMPlugin(AbstractPlugin):
                         filename = filename_template % (ifile)
                     else: # self.output_dir == 'multi'
                         dirn = "slice{0:0{1}}".format(slice, digits)
-                        if slice == 0:
+                        if tag == 0:
                             # Restart file number in each subdirectory
                             ifile = 0
                         filename = os.path.join(dirn,
@@ -951,6 +972,10 @@ class DICOMPlugin(AbstractPlugin):
         ds.Columns = si.columns
         self.insert_pixeldata(ds, safe_si)
         # logging.debug("write_slice: filename {}".format(filename))
+
+        # Set tag
+        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0]) # safe_si will always have only the present tag
+
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
         else:
@@ -1110,10 +1135,6 @@ class DICOMPlugin(AbstractPlugin):
         tnew = tnow + tadd
         return tnew.strftime("%H%M%S.%f")
         
-    #def copy(self, other=None):
-    #    if other is None: other = DICOMPlugin()
-    #    return AbstractPlugin.copy(self, other=other)
-
     def get_tag(self, im, input_order, opts):
 
         #Example: _tag = choose_tag('b', 'csa_header')
@@ -1149,6 +1170,7 @@ class DICOMPlugin(AbstractPlugin):
             #b_tag = opts['input_options']['b'] if 'b' in opts['input_options'] else b_tag = 'csa_header'
             b_tag = choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
+                import nibabel.nicom.csareader as csa
                 csa_head = csa.get_csa_header(im)
                 try:
                     value = csa.get_b_value(csa_head)
@@ -1170,6 +1192,51 @@ class DICOMPlugin(AbstractPlugin):
                 _tag = opts['input_options'][input_order]
                 return float(im.data_element(_tag).value)
         raise(UnknownTag("Unknown input_order {}.".format(input_order)))
+
+    def _set_dicom_tag(self, im, input_order, value):
+
+        #Example: _tag = choose_tag('b', 'csa_header')
+        choose_tag = lambda tag, default: self.input_options[tag] if tag in self.input_options else default
+
+        if input_order is None:
+            pass
+        elif input_order == imagedata.formats.INPUT_ORDER_NONE:
+            pass
+        elif input_order == imagedata.formats.INPUT_ORDER_TIME:
+            # AcquisitionTime
+            time_tag = choose_tag('time', 'AcquisitionTime')
+            if im.data_element(time_tag).VR == 'TM':
+                time_str = datetime.utcfromtimestamp(float(value)).strftime("%H%M%S.%f")
+                im.data_element(time_tag).value = time_str
+            else:
+                im.data_element(time_tag).value = float(value)
+        elif input_order == imagedata.formats.INPUT_ORDER_B:
+            #b_tag = opts['input_options']['b'] if 'b' in opts['input_options'] else b_tag = 'csa_header'
+            b_tag = choose_tag('b', 'csa_header')
+            if b_tag == 'csa_header':
+                import nibabel.nicom.csareader as csa
+                csa_head = csa.get_csa_header(im)
+                try:
+                    if csa.get_b_value(csa_head) != float(value):
+                        raise ValueError('Replacing b value in CSA header has not been implemented.')
+                except Exception:
+                    raise ValueError('Replacing b value in CSA header has not been implemented.')
+            else:
+                im.data_element(b_tag).value = float(value)
+        elif input_order == imagedata.formats.INPUT_ORDER_FA:
+            #fa_tag = opts['input_options']['fa'] if 'fa' in opts['input_options'] else 'FlipAngle'
+            fa_tag = choose_tag('fa', 'FlipAngle')
+            im.data_element(fa_tag).value = float(value)
+        elif input_order == imagedata.formats.INPUT_ORDER_TE:
+            te_tag = choose_tag('te', 'EchoTime')
+            im.data_element(te_tag).value = float(value)
+        else:
+            # User-defined tag
+            if input_order in self.input_options:
+                _tag = self.input_options[input_order]
+                im.data_element(_tag).value = float(value)
+            else:
+                raise(UnknownTag("Unknown input_order {}.".format(input_order)))
 
     def simulateAffine(self):
         shape = (

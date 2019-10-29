@@ -287,43 +287,43 @@ class write_test_zip_archive_dicom(unittest.TestCase):
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
-    @unittest.skip("skipping test_read_single_file_relative")
+    #@unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
             'data/dicom/time.zip?time00/Image_00000.dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 
-    @unittest.skip("skipping test_read_single_file_wildcard")
+    #@unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
             'data/dicom/time.zip?.*time00/Image_00000.dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 
-    @unittest.skip("skipping test_read_two_files")
+    #@unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
             'data/dicom/time.zip?time/time00/Image_0000[01].dcm',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 192, 152))
 
-    @unittest.skip("skipping test_read_single_directory")
+    #@unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
         si1 = Series(
             'data/dicom/time.zip?time/time00/',
-            0,
+            'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
-    @unittest.skip("skipping test_read_two_directories")
+    #@unittest.skip("skipping test_read_two_directories")
     def test_read_two_directories(self):
         si1 = Series(
             'data/dicom/time.zip?time/time0[02]/',
@@ -332,7 +332,7 @@ class write_test_zip_archive_dicom(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 40, 192, 152))
 
-    @unittest.skip("skipping test_read_all_files")
+    #@unittest.skip("skipping test_read_all_files")
     def test_read_all_files(self):
         si1 = Series(
             'data/dicom/time.zip?time/',

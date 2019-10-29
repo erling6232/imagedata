@@ -55,7 +55,7 @@ class test_nifti_zip_read(unittest.TestCase):
     @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            'data/nifti/time.zip?.*Image_0000[01].mha',
+            'data/nifti/time_all.zip?.*Image_0000[01].mha',
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)

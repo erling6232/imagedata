@@ -76,7 +76,7 @@ class NiftiPlugin(AbstractPlugin):
         except Exception:
             raise
         info = img.header
-        si = self._reorder_to_dicom(img.get_data(), flip=True)
+        si = self._reorder_to_dicom(img.get_data(), flip=False, flipud=True)
         return (info, si)
 
     def _need_local_file(self):
@@ -114,42 +114,119 @@ class NiftiPlugin(AbstractPlugin):
         nifti_affine = info.get_qform()
         logging.debug('NiftiPlugin.read: get_qform\n{}'.format(info.get_qform()))
         logging.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
+        _xyzt_units = info.get_xyzt_units()
         _data_zooms = info.get_zooms()
+        _dim_info = info.get_dim_info()
+        logging.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
+        logging.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
         dt = dz = 1
         dx, dy = _data_zooms[:2]
         if len(_data_zooms) > 2:
             dz = _data_zooms[2]
         if len(_data_zooms) > 3:
             dt = _data_zooms[3]
+        if _xyzt_units[0] == 'meter':
+            dx,dy,dz = dx*1000., dy*1000., dz*1000.
+        elif _xyzt_units[0] == 'micron':
+            dx,dy,dz = dx/1000., dy/1000., dz/1000.
+        if _xyzt_units[1] == 'msec':
+            dt = dt/1000.
+        elif _xyzt_units[1] == 'usec':
+            dt = dt/1000000.
         self.spacing = (dz, dy, dx)
         hdr['spacing'] = (dz, dy, dx)
 
         # Simplify shape
         self._reduce_shape(si)
 
-        dim_info = info.get_dim_info()
-        #qform = info.get_qform()
-        #sform = info.get_sform()
-        xyzt_units = info.get_xyzt_units()
+        sform, scode = info.get_sform(coded=True)
+        qform, qcode = info.get_qform(coded=True)
+        qfac = info['pixdim'][0]
+        if qfac not in (-1, 1):
+            raise ValueError('qfac (pixdim[0]) should be 1 or -1')
+        if qform is not None:
+            qoffset_x, qoffset_y, qoffset_z = qform[0:3, 3]
 
-        #self.transformationMatrix = self.nifti_to_affine(nifti_affine, si.shape)
-        # Prerequisites for setQform: self.spacing and self.slices
-        # self.spacing is set already
-        #self.setQform(nifti_affine)
-        #hdr['transformationMatrix'] = self.transformationMatrix
+        # Image orientation
+        #sform = None
+        if sform is not None and scode != 0:
+            logging.debug("Method 3 - sform: orientation")
+
+            # Note: rz, ry, rx, cz, cy, cx
+            iop = np.array([
+                  sform[2,0] / dx,
+                - sform[1,0] / dx,     # NIfTI is RAS+, DICOM is LPS+
+                - sform[0,0] / dx,     # NIfTI is RAS+, DICOM is LPS+
+
+                  sform[2,1] / dy,
+                - sform[1,1] / dy,     # NIfTI is RAS+, DICOM is LPS+
+                - sform[0,1] / dy      # NIfTI is RAS+, DICOM is LPS+
+                #- sform[2,1] / dy,
+                #  sform[1,1] / dy,     # NIfTI is RAS+, DICOM is LPS+
+                #  sform[0,1] / dy      # NIfTI is RAS+, DICOM is LPS+
+            ])
+
+        elif qform is not None and qcode != 0:
+            logging.debug("Method 2 - qform: orientation")
+            a,b,c,d = info.get_qform_quaternion()
+
+            rx = - (a*a+b*b-c*c-d*d)
+            ry = - (2*b*c+2*a*d)
+            rz =   (2*b*d-2*a*c)
+
+            cx = - (2*b*c-2*a*d)
+            cy = - (a*a+c*c-b*b-d*d)
+            cz =   (2*c*d+2*a*b)
+
+            # normal from quaternion derived once and saved for position calculation ... do not handle qfac here ... do it later
+            tx = - (2*b*d+2*a*c)		# NIfTI is RAS+, DICOM is LPS+
+            ty = - (2*c*d-2*a*b)		# NIfTI is RAS+, DICOM is LPS+
+            tz =   (a*a+d*d-c*c-b*b)
+
+            iop = np.array([rz, ry, rx, cz, cy, cx])
+        else:
+            logging.debug("Method 1 - assume axial: orientation")
+            iop = np.array([0, 0, 1, 0, 1, 0])
+        hdr['orientation'] = iop
+
+        # Image positions
+        hdr['imagePositions'] = {}
+        if sform is not None and scode != 0:
+            for _slice in range(nz):
+                _p = np.array([
+                    - (sform[0,2] * _slice + sform[0,3]),  # NIfTI is RAS+, DICOM is LPS+
+                    - (sform[1,2] * _slice + sform[1,3]),  # NIfTI is RAS+, DICOM is LPS+
+                      (sform[2,2] * _slice + sform[2,3])
+                ])
+                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+        elif qform is not None and qcode != 0:
+            for _slice in range(nz):
+                _p = np.array([
+                    tx * qfac * dz * _slice - qoffset_x, # NIfTI is RAS+, DICOM is LPS+
+                    ty * qfac * dz * _slice - qoffset_y, # NIfTI is RAS+, DICOM is LPS+
+                    tz * qfac * dz * _slice + qoffset_z
+                ])
+                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+        else:
+            for _slice in range(nz):
+                _p = np.array([
+                    - qoffset_x,                    # NIfTI is RAS+, DICOM is LPS+
+                    - qoffset_y,                    # NIfTI is RAS+, DICOM is LPS+
+                      qoffset_z + dz * _slice
+                ])
+                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+
+        #A = info.get_best_affine()
+        ##origin = A[0:3,3]
+        #for _slice in range(nz):
+        #    _p = np.dot(A, np.array([[0],[0],[_slice],[1]]))[:3]
+        #    hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+
         self.shape = si.shape
-        self.getGeometryFromAffine(hdr, nifti_affine)
-        logging.debug("NiftiPlugin::read: hdr[orientation] {}".format(hdr['orientation']))
-        #logging.debug("NiftiPlugin::read: hdr[transformationMatrix]\n{}".format(hdr['transformationMatrix']))
+        #self.getGeometryFromAffine(hdr, nifti_affine)
 
-        logging.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
-        logging.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
         times = [0]
         if nt > 1:
-            #try:
-            #    times = info.get_slice_times()
-            #    print("_set_tags: times", times)
-            #except nibabel.spatialimages.HeaderDataError:
             times = np.arange(0, nt*dt, dt)
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logging.debug("_set_tags: times {}".format(times))
@@ -352,38 +429,37 @@ class NiftiPlugin(AbstractPlugin):
         """Create affine in xyz.
         """
 
-        #def normalize(v):
-        #    """Normalize a vector
+        def normalize(v):
+            """Normalize a vector
 
-        #    https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
 
-        #    :param v: 3D vector
-        #    :return: normalized 3D vector
-        #    """
-        #    norm=np.linalg.norm(v, ord=1)
-        #    if norm==0:
-        #        norm=np.finfo(v.dtype).eps
-        #    return v/norm
+            :param v: 3D vector
+            :return: normalized 3D vector
+            """
+            norm=np.linalg.norm(v, ord=1)
+            if norm==0:
+                norm=np.finfo(v.dtype).eps
+            return v/norm
 
-        #ds, dr, dc = self.spacing
-        #colr = normalize(np.array(self.orientation[3:6])).reshape((3,))
-        #colc = normalize(np.array(self.orientation[0:3])).reshape((3,))
-        #T0 = self.imagePositions[0][::-1].reshape(3,)  # x,y,z
-        #if self.slices > 1:
-        #    # Stack of multiple slices
-        #    Tn = self.imagePositions[self.slices-1][::-1].reshape(3,)  # x,y,z
-        #    k = -(T0-Tn)/(1-self.slices)
-        #else:
-        #    # Single slice
-        #    k = np.cross(colr, colc, axis=0)
-        #    k = k * ds
+        ds, dr, dc = self.spacing
+        colr = normalize(np.array(self.orientation[3:6])).reshape((3,)) * [-1, -1,  1]
+        colc = normalize(np.array(self.orientation[0:3])).reshape((3,)) * [-1, -1,  1]
+        T0 = self.imagePositions[0][::-1].reshape(3,)  # x,y,z
+        if self.slices > 1:
+            Tn = self.imagePositions[self.slices-1][::-1].reshape(3,) # x,y,z
+            k = Tn
+            k = np.cross(colc, colr, axis=0)
+            k = k * ds
+        else:
+            k = np.cross(colc, colr, axis=0)
+            k = k * ds
 
         L = np.zeros((4,4))
-        #self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
-        L[:3, 0] = self.orientation[3:]
-        L[:3, 1] = self.orientation[:3]
-        L[:3, 2] = self.normal
-        L[:3, 3] = self.origin
+        L[:3, 1] = colr * dr
+        L[:3, 0] = colc * dc
+        L[:3, 2] = k
+        L[:3, 3] = self.origin * [-1, -1, 1]
         L[ 3, 3] = 1
         return L
 
@@ -434,8 +510,8 @@ class NiftiPlugin(AbstractPlugin):
             L[ 3, 0] = 1
             L[:3, 1] = k
             L[ 3, 1] = 1 if self.slices > 1 else 0
-            L[:3, 2] = colr * dr
-            L[:3, 3] = colc * dc
+            L[:3, 2] = colr * [-1, -1, 1] * dr
+            L[:3, 3] = colc * [-1, -1, 1] * dc
             return L
 
         #M = self.transformationMatrix
@@ -703,31 +779,16 @@ class NiftiPlugin(AbstractPlugin):
         self.spacing              = si.spacing
         self.transformationMatrix = si.transformationMatrix
         self.imagePositions       = si.imagePositions
-        #self.orientation          = si.orientation
         self.tags                 = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
-        #if si.ndim == 2:
-        #    si.shape = (1,) + si.shape
-        #elif si.ndim == 3:
-        #    si.shape = (1,) + si.shape
-        #assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
         assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % (si.ndim)
-        #if si.shape[0] != 1:
-        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        #slices = si.shape[1]
-        #slices = si.shape[0]
-        #if slices != si.slices:
-        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        #fsi=self.reorder_data_in_3d(si)
-        fsi = self._reorder_to_dicom(si, flip=True)
+        fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
         shape = fsi.shape
 
         affine_xyz = self.create_affine_xyz()
-        # The Nifti patient space flips the x and y directions
-        qform = np.dot(np.diag([-1,-1,1,1]), affine_xyz)
         NiftiHeader = nibabel.Nifti1Header()
         NiftiHeader.set_dim_info(freq=0, phase=1, slice=2)
         NiftiHeader.set_data_shape(shape)
@@ -737,14 +798,9 @@ class NiftiPlugin(AbstractPlugin):
         else:
             NiftiHeader.set_zooms((dx,dy,dz))
         NiftiHeader.set_data_dtype(fsi.dtype)
-        NiftiHeader.set_qform(qform, code=1)
-        #NiftiHeader.set_slice_duration()
-        #NiftiHeader.set_slice_times(times)
-        #NiftiHeader.set_xyzt_units(xyz='mm', t='sec')
+        NiftiHeader.set_sform(affine_xyz, code=1)
         NiftiHeader.set_xyzt_units(xyz='mm')
         img = nibabel.Nifti1Image(fsi, None, NiftiHeader)
-        #if not os.path.isdir(dirname):
-        #    os.makedirs(dirname)
         try:
             filename = filename_template % (0)
         except TypeError:
@@ -777,15 +833,11 @@ class NiftiPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
-        #fsi=self.reorder_data_in_4d(si)
-        #shape = fsi.shape
-
         self.shape                = si.shape
         self.slices               = si.slices
         self.spacing              = si.spacing
         self.transformationMatrix = si.transformationMatrix
         self.imagePositions       = si.imagePositions
-        #self.orientation          = si.orientation
         self.tags                 = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
@@ -813,22 +865,17 @@ class NiftiPlugin(AbstractPlugin):
         if slices != si.slices:
             raise ValueError("write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
-        #fsi=self.reorder_data_in_4d(si)
-        fsi = self._reorder_to_dicom(si, flip=True)
+        fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
         shape = fsi.shape
 
         affine_xyz = self.create_affine_xyz()
-        # The Nifti patient space flips the x and y directions
-        qform = np.dot(np.diag([-1,-1,1,1]), affine_xyz)
-        logging.debug("write_4d_numpy: get qform")
-        logging.debug("write_4d_numpy: got qform")
         NiftiHeader = nibabel.Nifti1Header()
         NiftiHeader.set_dim_info(freq=0, phase=1, slice=2)
         NiftiHeader.set_data_shape(shape)
         dz,dy,dx = self.spacing
         NiftiHeader.set_zooms((dx, dy, dz, 1))
         NiftiHeader.set_data_dtype(fsi.dtype)
-        NiftiHeader.set_qform(qform, code=1)
+        NiftiHeader.set_sform(affine_xyz, code=1)
         #NiftiHeader.set_slice_duration()
         #NiftiHeader.set_slice_times(times)
         NiftiHeader.set_xyzt_units(xyz='mm', t='sec')

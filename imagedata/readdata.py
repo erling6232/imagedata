@@ -201,6 +201,7 @@ def write(si, url, opts=None, formats=None):
     # Call plugin writers in turn to store the data
     logging.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
     written = False
+    msg = ''
     for pname,ptype,pclass in imagedata.formats.get_plugins_list():
         if ptype in output_formats:
             logging.debug("Attempt plugin {}".format(ptype))
@@ -228,10 +229,15 @@ def write(si, url, opts=None, formats=None):
                 raise
             except Exception as e:
                 logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
+                msg = msg + '\n{}: {}'.format(ptype,e)
                 pass
             destination['archive'].close()
     if not written:
+        if len(msg) > 0:
+            raise IOError("Failed writing: {}".format(msg))
         raise ValueError("No writer plugin was found for {}".format(output_formats))
+    if len(msg) > 0:
+        logging.error(msg)
     #destination['archive'].close()
 
 def sorted_plugins_dicom_first(plugins):
