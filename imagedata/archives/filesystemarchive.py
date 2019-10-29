@@ -133,6 +133,7 @@ class FilesystemArchive(AbstractArchive):
                 #        root = root[len(self.__dirname)+1:] # Strip off dirname
                 #    self.__filelist[fname] = (root,filename)
                 #    logging.debug(fname)
+        self._sort_filelist()
         #logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
 
     @property
@@ -234,6 +235,7 @@ class FilesystemArchive(AbstractArchive):
                     exist_ok=True)
             shutil.copy(local_file, fname)
             self.__filelist.append(fname)
+            self._sort_filelist()
         else:
             raise imagedata.archives.FileAlreadyExistsError(
                     'File %s already exists' %
@@ -256,6 +258,7 @@ class FilesystemArchive(AbstractArchive):
         with self.__transport.open(fname, 'wb') as f:
             f.write(data)
         self.__filelist.append(fname)
+        self._sort_filelist()
 
     def close(self):
         """Close function.
@@ -278,3 +281,7 @@ class FilesystemArchive(AbstractArchive):
         """Leave context manager, cleaning up any open files.
         """
         self.close()
+
+    def _sort_filelist(self):
+        """Sort self.__filelist, usually after creation or insertion"""
+        self.__filelist = sorted(self.__filelist)
