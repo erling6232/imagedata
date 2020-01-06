@@ -120,11 +120,11 @@ def add_template(this, template):
         raise ValueError('Object is not Header or dict.')
     if issubclass(type(template), Header):
         for attr in template.__dict__:
-            if attr in header_tags:
+            if attr in header_tags and attr != 'seriesInstanceUID':
                 setattr(this, attr, getattr(template, attr, None))
     elif issubclass(type(template), dict):
         for attr in template:
-            if attr in header_tags:
+            if attr in header_tags and attr != 'seriesInstanceUID':
                 if issubclass(type(this), Header):
                     setattr(this, attr, copy.copy(template[attr]))
                 elif issubclass(type(this), dict):
