@@ -728,7 +728,9 @@ class DICOMPlugin(AbstractPlugin):
         logging.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
-        self.serInsUid = si.header.seriesInstanceUID
+        #self.serInsUid = si.header.seriesInstanceUID
+        # Set new series instance UID when writing
+        self.serInsUid = si.header.new_uid()
         logging.debug("write_3d_series {}".format(self.serInsUid))
         self.input_options = {}
         if 'input_options' in opts:
@@ -804,7 +806,9 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.seriesTime = self.getDicomAttribute(tag_for_name("AcquisitionTime"))
-        self.serInsUid = si.header.seriesInstanceUID
+        #self.serInsUid = si.header.seriesInstanceUID
+        # Set new series instance UID when writing
+        self.serInsUid = si.header.new_uid()
         self.input_options = {}
         if 'input_options' in opts:
             self.input_options = opts['input_options']
@@ -1018,7 +1022,8 @@ class DICOMPlugin(AbstractPlugin):
         copy_general_dicom_attributes(template, ds)
         ds.StudyInstanceUID = si.header.studyInstanceUID
         ds.StudyID = si.header.studyID
-        ds.SeriesInstanceUID = si.header.seriesInstanceUID
+        #ds.SeriesInstanceUID = si.header.seriesInstanceUID
+        ds.SeriesInstanceUID = self.serInsUid
         ds.SOPClassUID = template.SOPClassUID
         ds.SOPInstanceUID = SOPInsUID
 

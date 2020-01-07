@@ -30,7 +30,7 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
         np.testing.assert_array_equal(hdr.tags[k], newhdr.tags[k])
     if uid:
         compare_optional(self, hdr, newhdr, 'studyInstanceUID')
-        compare_optional(self, hdr, newhdr, 'seriesInstanceUID')
+        #compare_optional(self, hdr, newhdr, 'seriesInstanceUID')
         compare_optional(self, hdr, newhdr, 'frameOfReferenceUID')
     compare_optional(self, hdr, newhdr, 'seriesNumber')
     compare_optional(self, hdr, newhdr, 'seriesDescription')
