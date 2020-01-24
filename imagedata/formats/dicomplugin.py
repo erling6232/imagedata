@@ -878,7 +878,8 @@ class DICOMPlugin(AbstractPlugin):
         if np.issubdtype(si.dtype, np.floating):
             safe_si = np.nan_to_num(si)
         else:
-            safe_si = si.copy()
+            #safe_si = si.copy()
+            safe_si = si
 
         try:
             logging.debug("write_slice slice {}, tag {}".format(slice,tag))
@@ -952,7 +953,13 @@ class DICOMPlugin(AbstractPlugin):
         ds[0x0028,0x0109].VR='US'
         ds.WindowCenter = self.center
         ds.WindowWidth  = self.width
-        if np.issubdtype(safe_si.dtype, np.floating):
+        if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
+            ds.SmallestImagePixelValue    = np.uint16(safe_si.min().astype('uint16'))
+            ds.LargestImagePixelValue     = np.uint16(safe_si.max().astype('uint16'))
+            if 'RescaleSlope'     in ds: del ds.RescaleSlope
+            if 'RescaleIntercept' in ds: del ds.RescaleIntercept
+        else:
+            # if np.issubdtype(safe_si.dtype, np.floating):
             ds.SmallestImagePixelValue    = ((safe_si.min()-self.b)/self.a).astype('uint16')
             ds.LargestImagePixelValue     = ((safe_si.max()-self.b)/self.a).astype('uint16')
             try:
@@ -960,11 +967,6 @@ class DICOMPlugin(AbstractPlugin):
             except OverflowError:
                 ds.RescaleSlope = "%d" % int(self.a)
             ds.RescaleIntercept = "%f" % self.b
-        else:
-            ds.SmallestImagePixelValue    = np.uint16(safe_si.min().astype('uint16'))
-            ds.LargestImagePixelValue     = np.uint16(safe_si.max().astype('uint16'))
-            if 'RescaleSlope'     in ds: del ds.RescaleSlope
-            if 'RescaleIntercept' in ds: del ds.RescaleIntercept
         ds[0x0028,0x0106].VR='US'
         ds[0x0028,0x0107].VR='US'
         # General Image Module Attributes
@@ -1071,11 +1073,13 @@ class DICOMPlugin(AbstractPlugin):
                 ds.BitsAllocated = 8
                 ds.BitsStored = 8
                 ds.HighBit = 7
-            else:
+            elif arr.itemsize == 2:
                 ds[0x7fe0,0x0010].VR='OW'
                 ds.BitsAllocated = 16
                 ds.BitsStored = 16
                 ds.HighBit = 15
+            else:
+                raise TypeError('Cannot store {} itemsize {} without scaling'.format(arr.dtype, arr.itemsize))
         elif np.issubdtype(arr.dtype, np.bool_):
             # No scaling. Pack bits in 16-bit words
             ds.PixelData = arr.astype('uint16').tostring()
