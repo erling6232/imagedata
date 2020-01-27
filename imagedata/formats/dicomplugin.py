@@ -10,7 +10,7 @@ from datetime import date, datetime, time, timedelta
 import numpy as np
 import fs
 import pydicom, pydicom.uid
-from pydicom.datadict import tag_for_name
+from pydicom.datadict import tag_for_keyword
 
 from imagedata.series import Series
 import imagedata.formats
@@ -51,7 +51,7 @@ class DICOMPlugin(AbstractPlugin):
         - z,y,x: coordinate for origin of given slice (np.array)
         """
 
-        origin = self.getDicomAttribute(tag_for_name("ImagePositionPatient"), slice)
+        origin = self.getDicomAttribute(tag_for_keyword("ImagePositionPatient"), slice)
         if origin is not None:
             x=float(origin[0]); y=float(origin[1]); z=float(origin[2])
             return np.array([z, y, x])
@@ -74,28 +74,28 @@ class DICOMPlugin(AbstractPlugin):
             axes
         """
         hdr['studyInstanceUID'] = \
-            self.getDicomAttribute(tag_for_name('StudyInstanceUID'))
+            self.getDicomAttribute(tag_for_keyword('StudyInstanceUID'))
         hdr['studyID'] = \
-            self.getDicomAttribute(tag_for_name('StudyID'))
+            self.getDicomAttribute(tag_for_keyword('StudyID'))
         hdr['seriesInstanceUID'] = \
-            self.getDicomAttribute(tag_for_name('SeriesInstanceUID'))
-        frameUID = self.getDicomAttribute(tag_for_name('FrameOfReferenceUID'))
+            self.getDicomAttribute(tag_for_keyword('SeriesInstanceUID'))
+        frameUID = self.getDicomAttribute(tag_for_keyword('FrameOfReferenceUID'))
         if frameUID:
             hdr['frameOfReferenceUID'] = frameUID
-        hdr['seriesNumber'] = self.getDicomAttribute(tag_for_name("SeriesNumber"))
-        hdr['seriesDescription'] = self.getDicomAttribute(tag_for_name("SeriesDescription"))
-        hdr['imageType'] = self.getDicomAttribute(tag_for_name("ImageType"))
+        hdr['seriesNumber'] = self.getDicomAttribute(tag_for_keyword("SeriesNumber"))
+        hdr['seriesDescription'] = self.getDicomAttribute(tag_for_keyword("SeriesDescription"))
+        hdr['imageType'] = self.getDicomAttribute(tag_for_keyword("ImageType"))
 
-        hdr['accessionNumber'] = self.getDicomAttribute(tag_for_name('AccessionNumber'))
-        hdr['patientName'] = self.getDicomAttribute(tag_for_name('PatientName'))
-        hdr['patientID'] = self.getDicomAttribute(tag_for_name('PatientID'))
-        hdr['patientBirthDate'] = self.getDicomAttribute(tag_for_name('PatientBirthDate'))
+        hdr['accessionNumber'] = self.getDicomAttribute(tag_for_keyword('AccessionNumber'))
+        hdr['patientName'] = self.getDicomAttribute(tag_for_keyword('PatientName'))
+        hdr['patientID'] = self.getDicomAttribute(tag_for_keyword('PatientID'))
+        hdr['patientBirthDate'] = self.getDicomAttribute(tag_for_keyword('PatientBirthDate'))
 
         hdr['spacing'] = self.__get_voxel_spacing()
 
         ## Image position (patient)
         # Reverse orientation vectors from (x,y,z) to (z,y,x)
-        iop = self.getDicomAttribute(tag_for_name("ImageOrientationPatient"))
+        iop = self.getDicomAttribute(tag_for_keyword("ImageOrientationPatient"))
         if iop is not None:
             hdr['orientation'] = np.array((iop[2],iop[1],iop[0],
                                            iop[5],iop[4],iop[3]))
@@ -108,16 +108,16 @@ class DICOMPlugin(AbstractPlugin):
 
     def __get_voxel_spacing(self):
         # Spacing
-        pixel_spacing = self.getDicomAttribute(tag_for_name("PixelSpacing"))
+        pixel_spacing = self.getDicomAttribute(tag_for_keyword("PixelSpacing"))
         dy = 1.0; dx = 1.0
         if pixel_spacing is not None:
             # Notice that DICOM row spacing comes first, column spacing second!
             dy=float(pixel_spacing[0]); dx=float(pixel_spacing[1])
         try:
-            dz = float(self.getDicomAttribute(tag_for_name("SpacingBetweenSlices")))
+            dz = float(self.getDicomAttribute(tag_for_keyword("SpacingBetweenSlices")))
         except TypeError:
             try:
-                dz = float(self.getDicomAttribute(tag_for_name("SliceThickness")))
+                dz = float(self.getDicomAttribute(tag_for_keyword("SliceThickness")))
             except TypeError:
                 dz = 1.0
         return np.array([dz, dy, dx])
@@ -224,8 +224,8 @@ class DICOMPlugin(AbstractPlugin):
             #except ValueError:
             #    ds.PhotometricInterpretation = 'MONOCHROME2'
 
-        logging.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_name("SOPClassUID"))))
-        logging.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_name("TransferSyntaxUID"))))
+        logging.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
+        logging.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
         if 'headers_only' in opts and opts['headers_only']: return hdr,None
 
         # Load DICOM image data
@@ -571,7 +571,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             shape = (nz, rows, columns)
         spacing = self.__get_voxel_spacing()
-        ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
         if ipp is not None:
             ipp = np.array(list(map(float, ipp)))[::-1] # Reverse xyz
         else:
@@ -805,7 +805,7 @@ class DICOMPlugin(AbstractPlugin):
             self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
-        self.seriesTime = self.getDicomAttribute(tag_for_name("AcquisitionTime"))
+        self.seriesTime = self.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
         #self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
@@ -1249,9 +1249,9 @@ class DICOMPlugin(AbstractPlugin):
 
     def simulateAffine(self):
         shape = (
-            self.getDicomAttribute(tag_for_name('Rows')),
-            self.getDicomAttribute(tag_for_name('Columns')))
-        iop = self.getDicomAttribute(tag_for_name('ImageOrientationPatient'))
+            self.getDicomAttribute(tag_for_keyword('Rows')),
+            self.getDicomAttribute(tag_for_keyword('Columns')))
+        iop = self.getDicomAttribute(tag_for_keyword('ImageOrientationPatient'))
         if iop is None:
             return
         iop = np.array(list(map(float, iop)))
@@ -1265,10 +1265,10 @@ class DICOMPlugin(AbstractPlugin):
         if not np.allclose(np.eye(3), np.dot(R, R.T), atol=5e-5):
             raise ValueErrorWrapperPrecisionError('Rotation matrix not nearly orthogonal')
 
-        pix_space = self.getDicomAttribute(tag_for_name('PixelSpacing'))
-        zs = self.getDicomAttribute(tag_for_name('SpacingBetweenSlices'))
+        pix_space = self.getDicomAttribute(tag_for_keyword('PixelSpacing'))
+        zs = self.getDicomAttribute(tag_for_keyword('SpacingBetweenSlices'))
         if zs is None:
-            zs = self.getDicomAttribute(tag_for_name('SliceThickness'))
+            zs = self.getDicomAttribute(tag_for_keyword('SliceThickness'))
             if zs is None:
                 zs = 1
         zs = float(zs)
@@ -1276,7 +1276,7 @@ class DICOMPlugin(AbstractPlugin):
         vox = tuple(pix_space + [zs])
         logging.debug('simulateAffine: vox {}'.format(vox))
 
-        ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
         if ipp is None:
             return
         ipp = np.array(list(map(float, ipp)))
@@ -1301,22 +1301,22 @@ class DICOMPlugin(AbstractPlugin):
 
         # Create affine matrix
         # (http://nipy.sourceforge.net/nibabel/dicom/dicom_orientation.html#dicom-slice-affine)
-        iop = self.getDicomAttribute(tag_for_name('ImageOrientationPatient'))
+        iop = self.getDicomAttribute(tag_for_keyword('ImageOrientationPatient'))
         if iop is None:
             return
         image_orient1 = np.array(iop[0:3])
         image_orient2 = np.array(iop[3:6])
 
-        pix_space = self.getDicomAttribute(tag_for_name('PixelSpacing'))
+        pix_space = self.getDicomAttribute(tag_for_keyword('PixelSpacing'))
         delta_r = float(pix_space[0])
         delta_c = float(pix_space[1])
 
-        ipp = self.getDicomAttribute(tag_for_name('ImagePositionPatient'))
+        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
         if ipp is None:
             return
         image_pos = np.array(ipp)
 
-        ippn = self.getDicomAttribute(tag_for_name('ImagePositionPatient'),
+        ippn = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'),
                 slice=slices-1)
         if ippn is None:
             return
@@ -1360,7 +1360,7 @@ class DICOMPlugin(AbstractPlugin):
                 raise ValueError('Tag %s not found' % tag)
 
         def get_normal(im):
-            iop = np.array(get_attribute(im, tag_for_name('ImageOrientationPatient')))
+            iop = np.array(get_attribute(im, tag_for_keyword('ImageOrientationPatient')))
             normal = np.zeros(3)
             normal[0] = iop[1] * iop[5] - iop[2] * iop[4]
             normal[1] = iop[2] * iop[3] - iop[0] * iop[5]
@@ -1368,7 +1368,7 @@ class DICOMPlugin(AbstractPlugin):
             return normal
 
         try:
-            ipp = np.array(get_attribute(im, tag_for_name('ImagePositionPatient')))
+            ipp = np.array(get_attribute(im, tag_for_keyword('ImagePositionPatient')))
             normal = get_normal(im)
             return np.inner(normal, ipp)
         except ValueError as e:
