@@ -7,6 +7,8 @@
 import os, os.path
 import time
 
+_hostid = None
+
 def get_hostid():
     """
     import tempfile
@@ -18,7 +20,10 @@ def get_hostid():
     os.remove(tmpnam)
     return(hostid)
     """
-    return(os.popen('hostid').read().strip())
+    global _hostid
+    if _hostid is None:
+        _hostid = os.popen('hostid').read().strip()
+    return _hostid
 
 def get_uid():
     """Generator function which will return a unique UID"""

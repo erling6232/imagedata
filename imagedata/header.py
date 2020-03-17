@@ -29,6 +29,8 @@ class Header(object):
 
     def __init__(self):
         """Initialize image header attributes to defaults
+
+        This is created in Series.__array_finalize__() and Series.__new__()
         """
         object.__init__(self)
         self.input_order = imagedata.formats.INPUT_ORDER_NONE
