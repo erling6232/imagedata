@@ -74,8 +74,13 @@ class MatPlugin(AbstractPlugin):
                 names=[]
                 for name,shape,dtype in mdictlist: names.append(name)
                 logging.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
-                logging.debug('matplugin._read_image: Multiple variables in MAT file {}: {}'.format(f, names))
-                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: {}'.format(f, names))
+                str_names = '{}'.format(names)
+                if len(str_names) > 128:
+                    logging.debug('matplugin._read_image: Multiple variables in MAT file {}: (suppressed)'.format(f))
+                    raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: (suppressed)'.format(f))
+                else:
+                    logging.debug('matplugin._read_image: Multiple variables in MAT file {}: {}'.format(f, str_names))
+                    raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: {}'.format(f, str_names))
             name,shape,dtype = mdictlist[0]
             logging.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name,shape,dtype))
             mdict = scipy.io.loadmat(f, variable_names=(name,))

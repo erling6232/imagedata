@@ -9,7 +9,7 @@ import logging
 import argparse
 from pydicom.dataset import Dataset
 from pynetdicom import (
-    AE,
+    AE, evt,
     StoragePresentationContexts,
     PYNETDICOM_IMPLEMENTATION_UID,
     PYNETDICOM_IMPLEMENTATION_VERSION
@@ -23,46 +23,17 @@ from imagedata.series import Series
 from .compare_headers import compare_headers
 
 
-def on_c_store(ds, context, info):
-    """Store the pydicom Dataset `ds`.
+# Implement a handler evt.EVT_C_STORE
+def handle_store(event):
+    """Handle a C-STORE request event."""
+    # Decode the C-STORE request's *Data Set* parameter to a pydicom Dataset
+    ds = event.dataset
 
-    Parameters
-    ----------
-    ds : pydicom.dataset.Dataset
-        The dataset that the peer has requested be stored.
-    context : namedtuple
-        The presentation context that the dataset was sent under.
-    info : dict
-        Information about the association and storage request.
+    # Add the File Meta Information
+    ds.file_meta = event.file_meta
 
-    Returns
-    -------
-    status : int or pydicom.dataset.Dataset
-        The status returned to the peer AE in the C-STORE response. Must be
-        a valid C-STORE status value for the applicable Service Class as
-        either an ``int`` or a ``Dataset`` object containing (at a
-        minimum) a (0000,0900) *Status* element.
-    """
-    logging.debug('on_c_store: info {}'.format(info))
-    calling_aet = info['requestor']['ae_title']
-    called_aet = info['acceptor']['ae_title']
-    logging.debug('on_c_store: calling_aet {}'.format(calling_aet))
-    logging.debug('on_c_store: called_aet {}'.format(called_aet))
-
-    # Add the DICOM File Meta Information
-    meta = Dataset()
-    meta.MediaStorageSOPClassUID = ds.SOPClassUID
-    meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
-    meta.ImplementationClassUID = PYNETDICOM_IMPLEMENTATION_UID
-    meta.ImplementationVersionName = PYNETDICOM_IMPLEMENTATION_VERSION
-    meta.TransferSyntaxUID = context.transfer_syntax
-
-    # Add the file meta to the dataset
-    ds.file_meta = meta
-
-    # Set the transfer syntax attributes of the dataset
-    ds.is_little_endian = context.transfer_syntax.is_little_endian
-    ds.is_implicit_VR = context.transfer_syntax.is_implicit_VR
+    # Save the dataset using the SOP Instance UID as the filename
+    #ds.save_as(ds.SOPInstanceUID, write_like_original=False)
 
     # Save the dataset using the SOP Instance UID as the filename
     if not os.path.isdir('ttscp'):
@@ -73,7 +44,6 @@ def on_c_store(ds, context, info):
 
     # Return a 'Success' status
     return 0x0000
-
 
 class TestDicomTransport(unittest.TestCase):
     def setUp(self):
@@ -98,14 +68,14 @@ class TestDicomTransport(unittest.TestCase):
         self.setupDicomSCP(port=11112)
 
     def setupDicomSCP(self, port=11112):
+        handlers = [(evt.EVT_C_STORE, handle_store)]
         ae = AE()
         ae.ae_title = 'Temp'
         ae.supported_contexts = StoragePresentationContexts
-        ae.on_c_store = on_c_store
+        #ae.on_c_store = on_c_store
 
         # Returns a ThreadedAssociationServer instance
-        self.server = ae.start_server(('localhost', port), block=False)
-
+        self.server = ae.start_server(('', port), evt_handlers=handlers, block=False)
 
     def tearDown(self):
         self.server.shutdown()

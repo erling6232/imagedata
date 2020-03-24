@@ -5,8 +5,11 @@ Standard plugins provides support for DICOM and Nifti image file formats.
 
 # Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
+import time
 import logging
 import numpy as np
+import imagedata.formats.dicomlib.uid
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -220,5 +223,25 @@ def find_plugin(ftype):
         if ptype == ftype:
             return pclass()
     raise FormatPluginNotFound("Plugin for format {} not found.".format(ftype))
+
+def get_hostid():
+    global _hostid
+    if _hostid is None:
+        _hostid = os.popen('hostid').read().strip()
+    return _hostid
+
+def get_uid():
+    """Generator function which will return a unique UID"""
+
+    k = 0
+    hostid=get_hostid()[:-1]
+    ihostid=int(hostid, 16)
+    my_root = "2.16.578.1.37.1.1.2.%d.%d.%d" % (ihostid, os.getpid(), int(time.time()))
+    while True:
+        k += 1
+        yield "%s.%d" % (my_root, k)
+
+_hostid = None  # Will be set by get_hostid()
+uid_generator = get_uid()   # Used by imagedata.header.new_uid()
 
 plugins = load_plugins()

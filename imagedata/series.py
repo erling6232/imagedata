@@ -7,10 +7,10 @@ from numpy.compat import basestring
 import logging
 import pydicom.dataset
 import pydicom.datadict
+import pydicom.tag
 import imagedata.axis
 import imagedata.formats
 import imagedata.readdata as readdata
-import imagedata.formats.dicomlib.uid
 from imagedata.header import Header, add_template, add_geometry
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -1746,6 +1746,8 @@ class Series(np.ndarray):
             return None
         if issubclass(type(keyword), str):
             _tag = pydicom.datadict.tag_for_keyword(keyword)
+        elif issubclass(type(keyword), tuple):
+            _tag = pydicom.tag.Tag(keyword)
         else:
             _tag = keyword
         if _tag is None:
@@ -1756,6 +1758,52 @@ class Series(np.ndarray):
         else:
             return None
 
+    def setDicomAttribute(self, keyword, value, slice=None, tag=None):
+        """Set named DICOM attribute.
+
+        Input:
+        - keyword: name (str) or dicom tag
+        - value: new attribute value
+        - slice: optional slice to set attribute for (default: all slices)
+        - tag: optional tag to set attribute for (default: all tags)
+        Exceptions:
+        - ValueError: when no DicomHeaderDict exist
+        - IndexError: when no DICOM attribute tag is set
+        - AssertionError: when slice or tag index is out of range
+        """
+
+        if self.DicomHeaderDict is None:
+            raise ValueError('No DicomHeader exist')
+        if issubclass(type(keyword), str):
+            _dicomtag = pydicom.datadict.tag_for_keyword(keyword)
+        elif issubclass(type(keyword), tuple):
+            _dicomtag = pydicom.tag.Tag(keyword)
+        else:
+            _dicomtag = keyword
+        if _dicomtag is None:
+            raise IndexError('No DICOM attribute tag is set')
+        _slices = [i for i in range(self.slices)]
+        if slice is not None:
+            assert 0 <= slice < self.slices, "Slice index {} out of range".format(slice)
+            _slices = [slice]
+        _color = 1 if self.color else 0
+        if self.ndim > 3 + _color:
+            _tags = [i for i in range(len(self.axes[0]))]
+            if tag is not None:
+                assert 0 <= tag < self.tags, "Tag index {} out of range".format(tag)
+                _tags = [tag]
+        else:
+            _tags = [0]
+        for _slice in _slices:
+            for _tag in _tags:
+                tg,fname,im = self.DicomHeaderDict[_slice][_tag]
+                if _dicomtag in im:
+                    im[_dicomtag].value = value
+                else:
+                    im[_dicomtag] = pydicom.dataset.DataElement(
+                        _dicomtag,
+                        pydicom.datadict.dictionary_VR(_dicomtag),
+                        value)
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r

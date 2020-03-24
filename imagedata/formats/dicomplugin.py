@@ -17,6 +17,7 @@ import imagedata.formats
 import imagedata.axis
 #from imagedata.formats.dicomlib.uid import get_uid
 from imagedata.formats.dicomlib.copy_general_dicom_attributes import copy_general_dicom_attributes
+import imagedata.formats.dicomlib.uid
 from imagedata.formats.abstractplugin import AbstractPlugin
 from imagedata.transports.dicomtransport import DicomTransport
 
@@ -233,6 +234,7 @@ class DICOMPlugin(AbstractPlugin):
         si = np.zeros(shape, matrix_dtype)
         ##process = psutil.Process()
         ##print(process.memory_info())
+        _first = True
         for slice in hdr['DicomHeaderDict']:
             _done = [False for x in range(len(hdr['DicomHeaderDict'][slice]))]
             for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
@@ -261,15 +263,18 @@ class DICOMPlugin(AbstractPlugin):
                 with archive.open(member, mode='rb') as f:
                     im=pydicom.filereader.dcmread(f)
                 try:
+                    if _first:
+                        logging.debug('DICOMPlugin.read: TransferSyntaxUID {}'.format(im.file_meta.TransferSyntaxUID))
+                        _first = False
                     im.decompress()
                 except NotImplementedError as e:
                     logging.error("Cannot decompress pixel data: {}".format(e))
-                    raise
+                    raise ValueError('Cannot decompress pixel data: {}'.format(e))
                 try:
                     si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
                 except Exception as e:
                     logging.warning("Cannot read pixel data: {}".format(e))
-                    raise
+                    raise ValueError('Cannot read pixel data: {}'.format(e))
 
         # Simplify shape
         self._reduce_shape(si, hdr['axes'])
@@ -728,7 +733,6 @@ class DICOMPlugin(AbstractPlugin):
         logging.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
-        #self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
         logging.debug("write_3d_series {}".format(self.serInsUid))
@@ -806,7 +810,6 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now   = datetime.now().strftime("%H%M%S.%f")
         self.seriesTime = self.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
-        #self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
         self.input_options = {}
@@ -1024,7 +1027,6 @@ class DICOMPlugin(AbstractPlugin):
         copy_general_dicom_attributes(template, ds)
         ds.StudyInstanceUID = si.header.studyInstanceUID
         ds.StudyID = si.header.studyID
-        #ds.SeriesInstanceUID = si.header.seriesInstanceUID
         ds.SeriesInstanceUID = self.serInsUid
         ds.SOPClassUID = template.SOPClassUID
         ds.SOPInstanceUID = SOPInsUID
