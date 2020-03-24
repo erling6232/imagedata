@@ -6,6 +6,8 @@ import logging
 import pydicom.dataset
 import pydicom.datadict
 import imagedata.formats
+import imagedata.formats.dicomlib.uid
+#from imagedata.series import Series
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -38,15 +40,13 @@ class Header(object):
                 setattr(self, attr, None)
             except AttributeError:
                 pass
-        #self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
-        #self.__uid_generator = imagedata.formats.uid_generator()
+        self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
 
     def new_uid(self) -> str:
-        #return self.__uid_generator.__next__()
-        return imagedata.formats.uid_generator.__next__()
+        return self.__uid_generator.__next__()
 
     def set_default_values(self, shape, axes):
         self.color = False

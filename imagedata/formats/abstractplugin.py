@@ -101,13 +101,13 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         logging.debug("AbstractPlugin.read: sources {}".format(sources))
         image_list = list()
         for source in sources:
-            #logging.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
+            logging.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
             archive = source['archive']
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
                 scan_files = archive.getnames()
                 #scan_files = ['.*']
-            #logging.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
+            logging.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
                 logging.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
                 if self._need_local_file():
