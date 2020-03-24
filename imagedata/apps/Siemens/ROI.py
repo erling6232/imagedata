@@ -1,15 +1,13 @@
-#!/usr/bin/env python3
-
-# ROI objects
+"""ROI objects
+"""
 
 # Copyright (c) 2017-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 import numpy as np
-from scipy import ndimage
 import math
 from abc import ABCMeta, abstractmethod, abstractproperty
-from draw_antialiased import draw_circle_mask, draw_polygon_mask
+from imagedata.apps.Siemens.draw_antialiased import draw_circle_mask, draw_polygon_mask
 
 class ROI(object, metaclass=ABCMeta):
     """General ROI object."""
@@ -33,10 +31,10 @@ class ROI(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_points_matrix(self, hdr):
+    def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  hdr: image header with transformation matrix
+        Input:  si: Series with transformation matrix
         Output: np.array([points,3]) where each row is (z,y,x) in matrix coordinates
         """
         pass
@@ -103,19 +101,32 @@ class ROI(object, metaclass=ABCMeta):
                 #raise ValueError("Point %d,%d,%d is not in slice %d." % (z,y,x,iz))
         return iz
 
-    def transform_data_points_to_voxels(self, hdr, points):
+    def transform_data_points_to_voxels(self, si, points):
         voxels = []
         for point in points:
-            t = hdr.getVoxelForPosition(np.array(point))
-            logging.debug("transform_data_points_to_voxels: {} -> {}".format(point,t))
-            z,y,x = hdr.getVoxelForPosition(np.array(point))
-            voxels.append((z,y,x))
-        return np.asarray(voxels)
+            t = si.getVoxelForPosition(np.array(point))
+            #logging.debug("transform_data_points_to_voxels: {} -> {}".format(point,t))
+            #z,y,x = si.getVoxelForPosition(np.array(point))
+            #voxels.append((z,y,x))
+            voxels.append(t)
+        return np.asarray(voxels).reshape(len(points),3)
 
-    def get_timepoint(self, hdr):
-        slice,tag,fname,im = hdr.search_sop_ins_uid(self.sop_ins_uid)
-        timeline = hdr.getTagList()
-        return timeline.index(tag)
+    def get_timepoint(self, si):
+        if si.DicomHeaderDict is not None:
+            for _slice in si.DicomHeaderDict:
+                for time_index, item in enumerate(si.DicomHeaderDict[_slice]):
+                    tg,fname,im = item
+                    #sopuid = im['SOPInstanceUID'].value
+                    #print('Compare {} to {}'.format(
+                    #    sopuid, self.sop_ins_uid
+                    #))
+                    if im['SOPInstanceUID'].value == self.sop_ins_uid:
+                        return time_index
+        ## DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
+        #slice,tag,fname,im = si. search_sop_ins_uid(self.sop_ins_uid)
+        #timeline = si.getTagList()
+        #return timeline.index(tag)
+        raise IndexError("SOP Instance UID {} not found".format(self.sop_ins_uid))
 
 class PolygonROI(ROI):
     """Polygon ROI object."""
@@ -131,15 +142,15 @@ class PolygonROI(ROI):
         """
         return self.points
 
-    def get_points_matrix(self, hdr):
+    def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  hdr: image header with transformation matrix
+        Input:  si: Series with transformation matrix
         Output: np.array((points,3)) where each row is (z,y,x) in matrix coordinates
         """
         if self.points is None: _=self.get_points_cm()
         if self.points_matrix is None:
-            self.points_matrix = self.transform_data_points_to_voxels(hdr, self.points)
+            self.points_matrix = self.transform_data_points_to_voxels(si, self.points)
         return self.points_matrix
 
     def draw_roi_on_canvas(self, canvas, colour=1, threshold=0.5, fill=False):
@@ -154,7 +165,7 @@ class PolygonROI(ROI):
         - canvas
         """
 
-        #points_matrix = self.get_points_matrix(hdr)
+        #points_matrix = self.get_points_matrix(si)
         #print("polygon: points cm    ", points)
         #print("polygon: points matrix", polygon)
         self.slice = self.verify_all_voxels_in_slice()
@@ -211,18 +222,18 @@ class EllipseROI(ROI):
             #self.points[4,:] = self.centre_cm + self.radius_cm*np.array((1,0,0))
         return self.points
 
-    def get_points_matrix(self, hdr):
+    def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  hdr: image header with transformation matrix
+        Input:  si: Series with transformation matrix
         Output: np.array((points,3)) where each row is (z,y,x) in matrix coordinates
         """
         if self.points is None: _=self.get_points_cm()
         if self.points_matrix is None:
-            self.points_matrix = self.transform_data_points_to_voxels(hdr, self.points)
+            self.points_matrix = self.transform_data_points_to_voxels(si, self.points)
             self.slice = self.verify_all_voxels_in_slice()
             adjacent_cm = self.centre_cm + self.radius_cm*np.array((0,0,1))
-            adjacent_matrix = self.transform_data_points_to_voxels(hdr, adjacent_cm)
+            adjacent_matrix = self.transform_data_points_to_voxels(si, adjacent_cm)
             #print("self.points_matrix", self.points_matrix)
             #print("self.points_matrix[0]", self.points_matrix[0])
             #print("self.points_matrix[0][1]", self.points_matrix[0][1])
@@ -252,7 +263,10 @@ class EllipseROI(ROI):
         radius = self.radius_matrix
         print("EllipseROI::draw_roi_on_canvas xc,yc,radius", xc,yc,radius)
 
-        draw_circle_mask(canvas, xc, yc, radius, colour, threshold, fill=fill)
+        if radius > 0:
+            draw_circle_mask(canvas, xc, yc, radius, colour, threshold, fill=fill)
+        else:
+            canvas[yc,xc] = colour
         #canvas.save("/tmp/ellipse.png", "PNG")
 
     def calculate_radius_matrix(self):
