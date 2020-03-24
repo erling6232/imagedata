@@ -10,7 +10,7 @@ import scipy.cluster.vq
 import matplotlib.pyplot as plt
 #import bitarray
 import scipy.misc
-from ROI import PolygonROI, EllipseROI
+from imagedata.apps.Siemens.ROI import PolygonROI, EllipseROI
 
 """
 def save_rois(rois, filename):
@@ -96,11 +96,16 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
 
     try:
         measurement = presentationSQ[0][(0x0029, 0x10a7)]
-    except:
+    except KeyError:
         logging.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
-        return (rois, content)
+        #return (rois, content)
+        raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
 
-    findings = measurement[0][(0x0029, 0x1031)]
+    try:
+        findings = measurement[0][(0x0029, 0x1031)]
+    except KeyError:
+        logging.error('get_rois: no findings attribute (0x0029, 0x1031) in input data')
+        raise KeyError('No findings attribute (0x0029, 0x1031) in input data')
 
     contentSQ = presentationSQ[0][(0x0029,0x10a9)]
     content['label'] = contentSQ[0][(0x0070,0x0080)].value
@@ -112,7 +117,13 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
 
     for finding in findings:
         referenced_frame_seq = finding[(0x0029, 0x109a)][0]
-        referenced_syngo_uid = referenced_frame_seq[(0x0029, 0x1038)].value
+        if referenced_frame_seq[(0x0029, 0x1038)].VM > 1:
+            referenced_syngo_uid = []
+            for u in referenced_frame_seq[(0x0029, 0x1038)].value:
+                referenced_syngo_uid.append(u)
+            referenced_syngo_uid = referenced_frame_seq[(0x0029, 0x1038)].value
+        else:
+            referenced_syngo_uid = referenced_frame_seq[(0x0029, 0x1038)].value.decode().split('\\')
         if uid_table:
             stu_ins_uid = uid_table[referenced_syngo_uid[0]]
             ser_ins_uid = uid_table[referenced_syngo_uid[1]]
@@ -121,12 +132,13 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
             stu_ins_uid = referenced_syngo_uid[0]
             ser_ins_uid = referenced_syngo_uid[1]
             sop_ins_uid = referenced_syngo_uid[2]
-        sop_cla_uid = referenced_syngo_uid[3] # '1.2.840.10008.5.1.4.1.1.4'
+        #sop_cla_uid = referenced_syngo_uid[3] # '1.2.840.10008.5.1.4.1.1.4'
         # ROI number
-        meas_appl_number = finding[(0x0029, 0x1035)].value
+        #if finding[(0x0029, 0x1035)].VR == 'IS':
+        meas_appl_number = int(finding[(0x0029, 0x1035)].value)
         roi_type_value   = finding[(0x0029, 0x1032)].value.strip()
         try:
-            roi_name         = finding[(0x0029, 0x1030)].value
+            roi_name         = finding[(0x0029, 0x1030)].value.decode()
         except KeyError:
             roi_name         = 'NONAME'
         logging.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
@@ -181,7 +193,7 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
 
     return (rois, content)
 
-def make_mask_in_slice(roi_type, hdr, points, shape):
+def make_mask_in_slice(roi_type, si, points, shape):
     # Make a 3D mask [nz,ny,nx]
 
     if roi_type == 'polygon':
@@ -191,8 +203,8 @@ def make_mask_in_slice(roi_type, hdr, points, shape):
 
         for p in points:
             save_x(p)
-        polygon = transform_data_points_to_voxels(hdr, points)
-        points_matrix = roi.get_points_matrix(hdr)
+        polygon = transform_data_points_to_voxels(si, points)
+        points_matrix = roi.get_points_matrix(si)
         """
         print("polygon: points cm    {}".format(points))
         print("polygon: points matrix", polygon)
@@ -211,7 +223,7 @@ def make_mask_in_slice(roi_type, hdr, points, shape):
     elif roi_type == 'ellipse':
         #print("make_mask_in_slice: points", len(points), points)
         (centre_cm, angles, thickness) = points
-        centre = transform_data_points_to_voxels(hdr, centre_cm)[0]
+        centre = transform_data_points_to_voxels(si, centre_cm)[0]
         #print("make_mask_in_slice: centre (cm)", centre_cm)
         #print("make_mask_in_slice: centre     ", centre)
         slice = centre[0]
@@ -219,7 +231,7 @@ def make_mask_in_slice(roi_type, hdr, points, shape):
         mask = np.zeros(shape[1:], dtype=np.bool)
 
         #print("make_mask_in_slice: angles", angles.shape, angles)
-        #print("make_mask_in_slice: angles", transform_data_points_to_voxels(hdr, angles))
+        #print("make_mask_in_slice: angles", transform_data_points_to_voxels(si, angles))
 
         angle1=angles[1]
         radius_cm = math.sqrt(angle1[0]*angle1[0]+angle1[1]*angle1[1]+angle1[2]*angle1[2])
@@ -230,7 +242,7 @@ def make_mask_in_slice(roi_type, hdr, points, shape):
         save_x((centre_cm + np.array((radius_cm,0,0)))[0])
         save_x((centre_cm - np.array((radius_cm,0,0)))[0])
         #print("make_mask_in_slice: adjacent_cm", adjacent_cm)
-        adjacent = transform_data_points_to_voxels(hdr, adjacent_cm)[0]
+        adjacent = transform_data_points_to_voxels(si, adjacent_cm)[0]
         #print("make_mask_in_slice: adjacent ", adjacent)
         radius = abs(centre[1]-adjacent[1])
         #print("make_mask_in_slice: radius   ", radius)
@@ -250,10 +262,10 @@ def make_mask_in_slice(roi_type, hdr, points, shape):
     mask[slice,:,:] = np.array(img)
     return mask
 
-def transform_data_points_to_voxels(hdr, meas_data_points):
+def transform_data_points_to_voxels(si, meas_data_points):
     polygon = []
     for point in meas_data_points:
-        x,y,z = hdr.getVoxelForPosition(point)
+        x,y,z = si.getVoxelForPosition(point)
         polygon.append((z,y,x))
     return polygon
 
