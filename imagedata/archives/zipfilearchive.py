@@ -139,7 +139,11 @@ class ZipfileArchive(AbstractArchive):
         # logging.debug("ZipFile namelist:\n{}".format(self.__archive.namelist()))
         for fname in self.__archive.namelist():
             # logging.debug("ZipfileArchive fname: {}".format(fname))
-            if not self.__archive.getinfo(fname).is_dir():
+            try:
+                _is_dir = self.__archive.getinfo(fname).is_dir() # Works with Python >= 3.6
+            except AttributeError:
+                _is_dir = fname[-1] == '/'
+            if not _is_dir:
                 member = {'unpacked': False, 'name': fname, 'fh': None}
                 self.__files[fname] = member
         # logging.debug("ZipFile self.__files: {}".format(self.__files))
