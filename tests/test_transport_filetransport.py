@@ -43,7 +43,7 @@ class test_filetransport(unittest.TestCase):
 
         self.assertEqual(root, 'ps/pages')
         self.assertEqual(dirs, [])
-        self.assertEqual(files, expect)
+        self.assertEqual(sorted(files), expect)
 
     #@unittest.skip("test_isfile")
     def test_isfile(self):
