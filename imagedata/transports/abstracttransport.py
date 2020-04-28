@@ -6,13 +6,13 @@ Defines generic functions.
 
 # Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from abc import ABCMeta, abstractmethod, abstractproperty
-import copy
-import logging
-from datetime import date, datetime, time, timedelta
-import imagedata.transports
+from abc import ABCMeta, abstractmethod  # , abstractproperty
+# import imagedata.transports
 
-class NoOtherInstance(Exception): pass
+
+class NoOtherInstance(Exception):
+    pass
+
 
 class AbstractTransport(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata transport plugins.
@@ -27,12 +27,12 @@ class AbstractTransport(object, metaclass=ABCMeta):
 
     def __init__(self, name, description, authors, version, url, schemes):
         object.__init__(self)
-        self.__name              = name
-        self.__description       = description
-        self.__authors           = authors
-        self.__version           = version
-        self.__url               = url
-        self.__schemes           = schemes
+        self.__name = name
+        self.__description = description
+        self.__authors = authors
+        self.__version = version
+        self.__url = url
+        self.__schemes = schemes
 
     @property
     def name(self):
