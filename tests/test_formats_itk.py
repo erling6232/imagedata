@@ -4,8 +4,8 @@
 """
 
 import unittest
-import sys
-import shutil
+import os.path
+import tempfile
 import numpy as np
 import logging
 import argparse
@@ -17,137 +17,139 @@ import imagedata.formats
 from imagedata.series import Series
 from .compare_headers import compare_headers
 
+
 def list_files(startpath):
     import os
     for root, dirs, files in os.walk(startpath):
         level = root.replace(startpath, '').count(os.sep)
-        indent = ' ' * 4 * (level)
+        indent = ' ' * 4 * level
         print('{}{}/'.format(indent, os.path.basename(root)))
         subindent = ' ' * 4 * (level + 1)
         for f in files:
             print('{}{}'.format(subindent, f))
 
-class test_file_archive_itk(unittest.TestCase):
+
+class TestFileArchiveItk(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
-        if len(self.opts.output_format) < 1: self.opts.output_format=['itk']
+        if len(self.opts.output_format) < 1:
+            self.opts.output_format = ['itk']
 
-    def tearDown(self):
-        shutil.rmtree('tti3', ignore_errors=True)
-        shutil.rmtree('tti4', ignore_errors=True)
-
-    #@unittest.skip("skipping test_file_not_found")
+    # @unittest.skip("skipping test_file_not_found")
     def test_file_not_found(self):
         try:
-            si1 = Series('file_not_found')
+            _ = Series('file_not_found')
         except FileNotFoundError:
             pass
 
-    #@unittest.skip("skipping test_read_single_file")
+    # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
-            'data/itk/time/Image_00000.mha',
+            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 
-    #@unittest.skip("skipping test_read_2D")
+    # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
         si1 = Series(
-            'data/itk/time/Image_00000.mha',
+            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
-        si2 = si1[0,...]
-        si2.write('tti3?Image.mha', formats=['itk'])
-        si3 = Series('tti3')
+        si2 = si1[0, ...]
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(os.path.join(d, '?Image.mha'), formats=['itk'])
+            si3 = Series(d)
         self.assertEqual(si2.dtype, si3.dtype)
         self.assertEqual(si2.shape, si3.shape)
         np.testing.assert_array_equal(si2, si3)
 
-    #@unittest.skip("skipping test_read_two_files")
+    # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            ['data/itk/time/Image_00000.mha',
-             'data/itk/time/Image_00001.mha'],
+            [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00001.mha')],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 40, 192, 152))
 
-    #@unittest.skip("skipping test_read_single_directory")
+    # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
         si1 = Series(
-            'data/itk/time',
+            os.path.join('data', 'itk', 'time'),
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 
-    #@unittest.skip("skipping test_write_3d_single_file")
+    # @unittest.skip("skipping test_write_3d_single_file")
     def test_write_3d_single_file(self):
         si1 = Series(
-            'data/itk/time/Image_00000.mha',
+            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
             self.opts)
-        si1.write('tti3?Image.mha', formats=['itk'])
-        list_files('tti3')
-        si2 = Series('tti3/Image.mha')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image.mha'), formats=['itk'])
+            list_files(d)
+            si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
-    #@unittest.skip("skipping test_write_4d_single_directory")
+    # @unittest.skip("skipping test_write_4d_single_directory")
     def test_write_4d_single_directory(self):
         si1 = Series(
-            'data/itk/time/',
+            os.path.join('data', 'itk', 'time'),
             'none',
             self.opts)
-        si1.write('tti4?Image%05d.mha', formats=['itk'])
-        si2 = Series('tti4/')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image%05d.mha'), formats=['itk'])
+            si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
-    #@unittest.skip("skipping test_write_4d_single_directory_explicit")
+    # @unittest.skip("skipping test_write_4d_single_directory_explicit")
     def test_write_4d_single_directory_explicit(self):
         si1 = Series(
-            'data/itk/time/',
+            os.path.join('data', 'itk', 'time'),
             'none',
             self.opts)
-        si1.write('tti4/Image%05d.mha', formats=['itk'])
-        si2 = Series('tti4/')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image%05d.mha'), formats=['itk'])
+            si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
-class TestWritePluginITK_slice(unittest.TestCase):
+
+class TestWritePluginITKSlice(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
-        if len(self.opts.output_format) < 1: self.opts.output_format=['itk']
+        if len(self.opts.output_format) < 1:
+            self.opts.output_format = ['itk']
 
-    def tearDown(self):
-        shutil.rmtree('tti3', ignore_errors=True)
-        shutil.rmtree('tti4', ignore_errors=True)
-
-    #@unittest.skip("skipping test_write_3d_itk_no_opt")
+    # @unittest.skip("skipping test_write_3d_itk_no_opt")
     def test_write_3d_itk_no_opt(self):
-        si1 = Series('data/itk/time/Image_00000.mha')
-        si1.write('tti3/Image.mha', formats=['itk'])
-        si2 = Series('tti3')
+        si1 = Series(os.path.join('data', 'itk', 'time', 'Image_00000.mha'))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image.mha'), formats=['itk'])
+            si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_almost_equal(si1, si2, decimal=4)
 
-    #@unittest.skip("skipping test_write_3d_itk")
+    # @unittest.skip("skipping test_write_3d_itk")
     def test_write_3d_itk(self):
         si1 = Series(
-            'data/itk/time/Image_00000.mha',
+            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -180,50 +182,51 @@ class TestWritePluginITK_slice(unittest.TestCase):
         si1.imageType = ['AB', 'CD', 'EF']
         """
 
-        # Store image with modified header 'hdr'
-        si1.write('tti3/Image.mha', formats=['itk'], opts=self.opts)
+        with tempfile.TemporaryDirectory() as d:
+            # Store image with modified header 'hdr'
+            si1.write(d, formats=['itk'], opts=self.opts)
 
-        # Read back the ITK data and verify that the header was modified
-        si2 = Series(
-                'tti3/Image.mha',
+            # Read back the ITK data and verify that the header was modified
+            si2 = Series(
+                d,
                 'none',
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
         compare_headers(self, si1, si2, uid=False)
 
-    #@unittest.skip("skipping test_write_4d_itk")
+    # @unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_itk")
         log.debug("test_write_4d_itk")
         si = Series(
-                ['data/itk/time/Image_00000.mha',
-                 'data/itk/time/Image_00001.mha',
-                 'data/itk/time/Image_00002.mha',
-                 'data/itk/time/Image_00003.mha',
-                 'data/itk/time/Image_00004.mha',
-                 'data/itk/time/Image_00005.mha',
-                 'data/itk/time/Image_00006.mha',
-                 'data/itk/time/Image_00007.mha',
-                 'data/itk/time/Image_00008.mha',
-                 'data/itk/time/Image_00009.mha'],
-                imagedata.formats.INPUT_ORDER_TIME,
-                self.opts)
+            [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00002.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00003.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00004.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00005.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00006.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00007.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00008.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00009.mha')],
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
         self.assertEqual(si.dtype, np.uint16)
-        self.assertEqual(si.shape, (10,40,192,152))
+        self.assertEqual(si.shape, (10, 40, 192, 152))
 
         import copy
         deep_si = copy.deepcopy(si)
         np.testing.assert_array_equal(si, deep_si)
-        #np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
+        # np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
 
-        #log.debug("test_write_4d_itk: sliceLocations {}".format(
+        # log.debug("test_write_4d_itk: sliceLocations {}".format(
         #    hdr.sliceLocations))
-        #log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
-        #log.debug("test_write_4d_itk: spacing {}".format(hdr.spacing))
-        #log.debug("test_write_4d_itk: imagePositions {}".format(
+        # log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
+        # log.debug("test_write_4d_itk: spacing {}".format(hdr.spacing))
+        # log.debug("test_write_4d_itk: imagePositions {}".format(
         #    hdr.imagePositions))
-        #log.debug("test_write_4d_itk: orientation {}".format(hdr.orientation))
+        # log.debug("test_write_4d_itk: orientation {}".format(hdr.orientation))
 
         # Modify header
         """
@@ -249,51 +252,49 @@ class TestWritePluginITK_slice(unittest.TestCase):
         """
 
         si.sort_on = imagedata.formats.SORT_ON_SLICE
-        #si.sort_on = imagedata.formats.SORT_ON_TAG
+        # si.sort_on = imagedata.formats.SORT_ON_TAG
         log.debug("test_write_4d_itk: si.sort_on {}".format(
             imagedata.formats.sort_on_to_str(si.sort_on)))
         si.output_dir = 'single'
-        #si.output_dir = 'multi'
-        si.write('tti4/Image_%05d.mha', opts=self.opts)
-        np.testing.assert_array_equal(si, deep_si)
+        # si.output_dir = 'multi'
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts=self.opts)
+            np.testing.assert_array_equal(si, deep_si)
 
-        # Read back the DICOM data and verify that the header was modified
-        si2 = Series(
-                'tti4/',
+            # Read back the DICOM data and verify that the header was modified
+            si2 = Series(
+                d,
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
         compare_headers(self, si, si2, uid=False)
         logging.debug('si[0,0,0,0]={}, si2[0,0,0,0]={}'.format(
-            si[0,0,0,0], si2[0,0,0,0]))
+            si[0, 0, 0, 0], si2[0, 0, 0, 0]))
         logging.debug('si.dtype {}, si2.dtype {}'.format(
             si.dtype, si2.dtype))
         np.testing.assert_array_almost_equal(si, si2, decimal=4)
 
-class TestWritePluginITK_tag(unittest.TestCase):
+
+class TestWritePluginItkTag(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         imagedata.cmdline.add_argparse_options(parser)
         self.opts = parser.parse_args(['--of', 'itk', '--sort', 'tag'])
-        if len(self.opts.output_format) < 1: self.opts.output_format=['itk']
-
-    def tearDown(self):
-        shutil.rmtree('tti3', ignore_errors=True)
-        shutil.rmtree('tti3w', ignore_errors=True)
-        shutil.rmtree('tti4', ignore_errors=True)
+        if len(self.opts.output_format) < 1:
+            self.opts.output_format = ['itk']
 
     @unittest.skip("skipping test_write_3d_itk")
     def test_write_3d_itk(self):
         log = logging.getLogger("TestWritePluginITK.test_write_3d_itk")
         log.debug("test_write_3d_itk")
         si = Series(
-                'data/itk/time/Image_00000.mha',
-                'none',
-                self.opts)
+            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
+            'none',
+            self.opts)
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (40, 192, 152))
 
-        #log.debug("test_write_3d_itk: sliceLocations {}".format(
+        # log.debug("test_write_3d_itk: sliceLocations {}".format(
         #    si.sliceLocations))
         log.debug("test_write_3d_itk: tags {}".format(si.tags))
         log.debug("test_write_3d_itk: spacing {}".format(si.spacing))
@@ -303,104 +304,88 @@ class TestWritePluginITK_tag(unittest.TestCase):
 
         # Modify header
         si.sliceLocations = [i for i in range(40)]
-        #si.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
-        #for slice in range(len(si.sliceLocations)):
-        #   si.tags=
         si.spacing = (3, 2, 1)
         for slice in range(len(si.sliceLocations)):
             si.imagePositions = {
                 slice:
-                        np.array([slice,1,0])
+                    np.array([slice, 1, 0])
             }
-        #si.orientation=np.array([1, 0, 0, 0, 0, -1])
         for slice in range(si.shape[1]):
             si.imagePositions = {
-                    slice: si.getPositionForVoxel(np.array([slice,0,0]))
+                slice: si.getPositionForVoxel(np.array([slice, 0, 0]))
             }
-        #si.seriesNumber=1001
-        #si.seriesDescription="Test 1"
-        #si.imageType = ['AB', 'CD', 'EF']
 
-        # Store image with modified header 'hdr'
-        shutil.rmtree('tti3', ignore_errors=True)
-        si.write('tti3w/Image.mha', self.opts)
+        # Store image with modified header
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, self.opts)
 
-        # Read back the ITK data and verify that the header was modified
-        si2 = Series(
-                'tti3w/Image.mha',
+            # Read back the ITK data and verify that the header was modified
+            si2 = Series(
+                d,
                 'none',
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
         np.testing.assert_array_equal(si, si2)
-        #np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
+        # np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
         compare_headers(self, si, si2)
 
-    #@unittest.skip("skipping test_write_4d_itk")
+    # @unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_itk")
         log.debug("test_write_4d_itk")
         si = Series(
-                ['data/itk/time/Image_00000.mha',
-                 'data/itk/time/Image_00001.mha',
-                 'data/itk/time/Image_00002.mha',
-                 'data/itk/time/Image_00003.mha',
-                 'data/itk/time/Image_00004.mha',
-                 'data/itk/time/Image_00005.mha',
-                 'data/itk/time/Image_00006.mha',
-                 'data/itk/time/Image_00007.mha',
-                 'data/itk/time/Image_00008.mha',
-                 'data/itk/time/Image_00009.mha'],
-                imagedata.formats.INPUT_ORDER_TIME,
-                self.opts)
+            [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00002.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00003.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00004.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00005.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00006.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00007.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00008.mha'),
+             os.path.join('data', 'itk', 'time', 'Image_00009.mha')],
+            imagedata.formats.INPUT_ORDER_TIME,
+            self.opts)
         self.assertEqual(si.dtype, np.uint16)
-        self.assertEqual(si.shape, (10,40,192,152))
-        #np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
+        self.assertEqual(si.shape, (10, 40, 192, 152))
+        # np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
 
-        #log.debug("test_write_4d_itk: sliceLocations", hdr.sliceLocations)
-        #log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
-        #log.debug("test_write_4d_itk: spacing", hdr.spacing)
-        #log.debug("test_write_4d_itk: imagePositions", hdr.imagePositions)
-        #log.debug("test_write_4d_itk: orientation", hdr.orientation)
+        # log.debug("test_write_4d_itk: sliceLocations", hdr.sliceLocations)
+        # log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
+        # log.debug("test_write_4d_itk: spacing", hdr.spacing)
+        # log.debug("test_write_4d_itk: imagePositions", hdr.imagePositions)
+        # log.debug("test_write_4d_itk: orientation", hdr.orientation)
 
         # Modify header
-        si.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
-        #slices = len(hdr.sliceLocations)
-        #hdr.sliceLocations = np.arange(1, slices*1+0.5, 1).tolist()
-        #for slice in range(slices):
-        #   hdr.tags=
+        si.sliceLocations = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
         si.spacing = (3, 2, 1)
         for slice in range(si.shape[1]):
             si.imagePositions = {
                 slice:
-                        np.array([slice,1,0])
+                    np.array([slice, 1, 0])
             }
-        si.orientation=np.array([0, 0, 1, 0, 1, 0])
+        si.orientation = np.array([0, 0, 1, 0, 1, 0])
         for slice in range(si.shape[1]):
             si.imagePositions = {
-                slice: si.getPositionForVoxel(np.array([slice,0,0])).reshape((3,1))
+                slice: si.getPositionForVoxel(np.array([slice, 0, 0])).reshape((3, 1))
             }
-        #si.seriesNumber=1001
-        #si.seriesDescription="Test 1"
-        #si.imageType = ['AB', 'CD', 'EF']
 
-        #hdr.sort_on = imagedata.formats.SORT_ON_SLICE
         si.sort_on = imagedata.formats.SORT_ON_TAG
         log.debug("test_write_4d_itk: hdr.sort_on {}".format(
             imagedata.formats.sort_on_to_str(si.sort_on)))
         si.output_dir = 'single'
-        #hdr.output_dir = 'multi'
-        shutil.rmtree('tt4ds', ignore_errors=True)
-        si.write('tt4ds', self.opts)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, self.opts)
 
-        # Read back the ITK data and verify that the header was modified
-        si2 = Series(
-                'tt4ds/',
+            # Read back the ITK data and verify that the header was modified
+            si2 = Series(
+                d,
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual((40, 10, 192, 152), si2.shape)
-        #np.testing.assert_array_equal(si, si2)
-        #np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
-        #log.debug("hdr2.tags.keys(): {}".format(hdr2.tags.keys()))
+        # np.testing.assert_array_equal(si, si2)
+        # np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
+        # log.debug("hdr2.tags.keys(): {}".format(hdr2.tags.keys()))
         tags = {}
         for slice in range(10):
             tags[slice] = np.arange(40)
@@ -408,20 +393,13 @@ class TestWritePluginITK_tag(unittest.TestCase):
         for k in si2.tags.keys():
             np.testing.assert_array_equal(tags[k], si2.tags[k])
         np.testing.assert_array_equal(si.spacing, si2.spacing)
-        imagePositions = {}
+        image_positions = {}
         for slice in range(10):
-            imagePositions[slice] = np.array([0,1+3*slice,0])
-        self.assertEqual(imagePositions.keys(),
-                si2.imagePositions.keys())
-        #for k in imagePositions.keys():
-        #    log.debug("hdr2.imagePositions: {} {}".format(
-        #        k, si2.imagePositions[k]))
-        #    np.testing.assert_array_equal(imagePositions[k],
-        #        si2.imagePositions[k])
+            image_positions[slice] = np.array([0, 1 + 3 * slice, 0])
+        self.assertEqual(image_positions.keys(),
+                         si2.imagePositions.keys())
         np.testing.assert_array_equal(si.orientation, si2.orientation)
-        #self.assertEqual(hdr.seriesNumber, hdr2.seriesNumber)
-        #self.assertEqual(hdr.seriesDescription, hdr2.seriesDescription)
-        #self.assertEqual(hdr.imageType, hdr2.imageType)
+
 
 if __name__ == '__main__':
     unittest.main()
