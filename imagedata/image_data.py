@@ -8,38 +8,36 @@ import sys
 import os.path
 import argparse
 import logging
-import numpy as np
-import nibabel
-import pydicom
 import imagedata
 import imagedata.cmdline
 import imagedata.formats
+import imagedata.readdata
 from imagedata.series import Series
 
 logger = logging.getLogger()
-#handler = logging.StreamHandler()
-#formatter = logging.Formatter(
-#       '%(asctime)s %(name)-12s %(levelname)-8s %(message)s')
-#handler.setFormatter(formatter)
-#logger.addHandler(handler)
 
+
+# noinspection PyPep8Naming
 def dump():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
-            help="Input directories and files")
+                        help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    #if args.version:
+    # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1: args.output_format=['dicom']
-    print("Output format: %s, %s, in %s directory." % (args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
+    if len(args.output_format) < 1:
+        args.output_format = ['dicom']
+    print("Output format: %s, %s, in %s directory." % (
+        args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
     reader = imagedata.formats.find_plugin('dicom')
     logging.debug("in_dirs {}".format(args.in_dirs))
-    urls,files = imagedata.readdata.sanitize_urls(args.in_dirs)
+    # noinspection PyUnresolvedReferences
+    urls, files = imagedata.readdata.sanitize_urls(args.in_dirs)
 
-    hdr,shape = reader.read_headers(urls, files, args.input_order, args)
+    hdr, shape = reader.read_headers(urls, files, args.input_order, args)
 
     StuInsUID = {}
     SerInsUID = {}
@@ -48,10 +46,10 @@ def dump():
     AcqNum = {}
     ImaTyp = {}
     Echo = {}
-    f = open('files','w')
+    f = open('files', 'w')
     for slice in hdr['DicomHeaderDict']:
-        for tag,member_name,im in hdr['DicomHeaderDict'][slice]:
-            #print('{}'.format(im))
+        for tag, member_name, im in hdr['DicomHeaderDict'][slice]:
+            # print('{}'.format(image))
             f.write('{}\n'.format(member_name[1]))
             if im.StudyInstanceUID not in StuInsUID:
                 StuInsUID[im.StudyInstanceUID] = 0
@@ -100,36 +98,36 @@ def dump():
         print("ImaTyp {}: {} images".format(typ, ImaTyp[typ]))
     for num in Echo:
         print("Echo {}: {} images".format(num, Echo[num]))
-    return(0)
+    return 0
+
 
 def calculator():
+    # noinspection PyTypeChecker
     parser = argparse.ArgumentParser(description='Image calculator.',
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            epilog="""Expression examples:
+                                     formatter_class=argparse.RawDescriptionHelpFormatter,
+                                     epilog="""Expression examples:
         1  : New image, same shape, all ones
         a*2: Multiply first input by 2
         a+b: Add first and second image""")
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument('--mask',
-                help='Mask value', default=1)
+                        help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
     parser.add_argument("expression", help="Expression")
     parser.add_argument("indirs", help="Input arguments", nargs="+")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    #if args.version:
+    # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
     # Verify non-existing output directory, create
     if os.path.isdir(args.outdir):
         print("Output directory already exist. Aborted.")
-        return(2)
-    #else:
-    #	os.makedirs(args.outdir)
+        return 2
 
     ch = "abcdefghijklmnopqrstuvwxyz"
-    si={}
-    i=0
+    si = {}
+    i = 0
     for indir in args.indirs:
         key = ch[i]
         try:
@@ -137,7 +135,7 @@ def calculator():
             si[key] = Series(indir, args.input_order, args)
         except imagedata.formats.NotImageError:
             print("Could not determine input format of {}.".format(indir))
-            return(1)
+            return 1
         i += 1
 
     # si[key][tag,slice,rows,columns]
@@ -147,7 +145,7 @@ def calculator():
     """
 
     # Convert input to float64
-    #output_dtype
+    # output_dtype
     if args.dtype:
         print("Converting input...")
         for k in si.keys():
@@ -157,24 +155,26 @@ def calculator():
     out = si['a'].copy()
     for tag in range(si['a'].shape[0]):
         for key in si.keys():
-            exec("""{}=si['{}'][tag]""".format(key,key))
+            exec("""{}=si['{}'][tag]""".format(key, key))
         out[tag] = eval(args.expression)
     print("after", out.dtype, out.shape, out.min(), out.max())
 
     # Save masked image
     out.write(args.outdir, opts=args)
-    return(0)
+    return 0
+
 
 def statistics():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
-            help="Input directories and files")
+                        help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    #if args.version:
+    # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1: args.output_format=['dicom']
+    if len(args.output_format) < 1:
+        args.output_format = ['dicom']
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -182,22 +182,26 @@ def statistics():
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
-        return(1)
+        return 1
 
+    # noinspection PyArgumentList
     print('Min: {}, max: {}, mean: {}, points: {}, shape: {}, dtype: {}'.format(si.min(),
-        si.max(), si.mean(), si.size, si.shape, si.dtype))
-    return(0)
+                                                                                si.max(), si.mean(), si.size, si.shape,
+                                                                                si.dtype))
+    return 0
+
 
 def timeline():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
-            help="Input directories and files")
+                        help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    #if args.version:
+    # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1: args.output_format=['dicom']
+    if len(args.output_format) < 1:
+        args.output_format = ['dicom']
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -205,24 +209,27 @@ def timeline():
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
-        return(1)
+        return 1
 
     print('Timeline:\n{}'.format(si.timeline))
-    return(0)
+    return 0
+
 
 def conversion():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument("out_name",
-            help="Output directory")
+                        help="Output directory")
     parser.add_argument("in_dirs", nargs='+',
-            help="Input directories and files")
+                        help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    #if args.version:
+    # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1: args.output_format=['dicom']
-    print("Output format: %s, %s, in %s directory." % (args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
+    if len(args.output_format) < 1:
+        args.output_format = ['dicom']
+    print("Output format: %s, %s, in %s directory." % (
+        args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -230,10 +237,7 @@ def conversion():
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
-        return(1)
+        return 1
 
     si.write(args.out_name, opts=args)
-    return(0)
-
-if __name__ == '__main__':
-    pass
+    return 0
