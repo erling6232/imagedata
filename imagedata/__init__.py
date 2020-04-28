@@ -8,7 +8,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 __version__ = "unknown" 
 try: 
     from ._version import __version__ 
-except (ImportError,SystemError): 
+except (ImportError, SystemError):
     # We're running in a tree that didn't come with a 
     # _version.py, so we don't know what our version is. This
     # should not happen very often. 
