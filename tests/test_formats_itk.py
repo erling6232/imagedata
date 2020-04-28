@@ -97,7 +97,6 @@ class TestFileArchiveItk(unittest.TestCase):
             self.opts)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.mha'), formats=['itk'])
-            list_files(d)
             si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
