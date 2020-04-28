@@ -5,11 +5,18 @@
 
 # Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os, os.path, sys, shutil, tempfile, io
+import os
+import os.path
+import shutil
+import tempfile
+import io
 import re
 import urllib.parse
 import logging
+from abc import ABC
+
 import imagedata.archives
+import imagedata.transports
 from imagedata.archives.abstractarchive import AbstractArchive
 import zipfile
 
@@ -18,7 +25,7 @@ def list_files(startpath):
     import os
     for root, dirs, files in os.walk(startpath):
         level = root.replace(startpath, '').count(os.sep)
-        indent = ' ' * 4 * (level)
+        indent = ' ' * 4 * level
         print('{}{}/'.format(indent, os.path.basename(root)))
         subindent = ' ' * 4 * (level + 1)
         for f in files:
@@ -45,14 +52,13 @@ class WriteFileIO(io.FileIO):
         logging.debug("ZipfileArchive.WriteFileIO.close:")
         ret = super(WriteFileIO, self).close()
         self.__localfile.close()
-        #os.system('/bin/ls -l %s >/tmp/list3.txt' % os.path.dirname(self.__localfile))
         logging.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
                       (self.__localfile.name, self.__filename))
         self.__archive.write(self.__localfile.name, self.__filename)
         logging.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
                       self.__localfile.name)
         os.remove(self.__localfile.name)
-        return (ret)
+        return ret
 
     def __enter__(self):
         """Enter context manager.
@@ -69,7 +75,7 @@ class WriteFileIO(io.FileIO):
         self.close()
 
 
-class ZipfileArchive(AbstractArchive):
+class ZipfileArchive(AbstractArchive, ABC):
     """Read/write image files from a zipfile."""
 
     name = "zip"
@@ -95,9 +101,11 @@ class ZipfileArchive(AbstractArchive):
         'localfile': local filename of unpacked file
     """
 
-    def __init__(self, transport=None, url=None, mode='r', read_directory_only=False, opts={}):
-        super(ZipfileArchive, self).__init__(self.name, self.description,
-                                             self.authors, self.version, self.url, self.mimetypes)
+    def __init__(self, transport=None, url=None, mode='r', read_directory_only=False, opts=None):
+        super(ZipfileArchive, self).__init__(
+            self.name, self.description,
+            self.authors, self.version, self.url, self.mimetypes)
+        self.opts = opts
         logging.debug("ZipfileArchive.__init__ url: {}".format(url))
         urldict = urllib.parse.urlsplit(url, scheme="file")
         if transport is not None:
@@ -140,7 +148,7 @@ class ZipfileArchive(AbstractArchive):
         for fname in self.__archive.namelist():
             # logging.debug("ZipfileArchive fname: {}".format(fname))
             try:
-                _is_dir = self.__archive.getinfo(fname).is_dir() # Works with Python >= 3.6
+                _is_dir = self.__archive.getinfo(fname).is_dir()  # Works with Python >= 3.6
             except AttributeError:
                 _is_dir = fname[-1] == '/'
             if not _is_dir:
@@ -156,25 +164,22 @@ class ZipfileArchive(AbstractArchive):
 
     def use_query(self):
         """Do the plugin need the ?query part of the url?"""
-        return (True)
+        return True
 
     def getnames(self, files=None):
         """Return the members as a list of their names.
         It has the same order as the members of the archive.
         """
-        #logging.debug('ZipfileArchive.getnames:')
         if files:
             filelist = list()
             for filename in self.__files:
                 # logging.debug('ZipfileArchive.getmembers: member {}'.format(filename))
-                # filename = member['name']
                 for required_filename in files:
-                    # if filename.endswith(required_filename):
                     if re.search(required_filename, filename):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
-            return (filelist)
+            return filelist
         else:
             return sorted(self.__files.keys())
 
@@ -229,34 +234,27 @@ class ZipfileArchive(AbstractArchive):
         """Return the members of the archive as a list of member objects.
         The list has the same order as the members in the archive.
         """
-        #logging.debug('ZipfileArchive.getmembers: files {}'.format(files))
-        # logging.debug("ZipFileArchive.getmembers: self.__files: {}".format(self.__files))
         if files:
             if issubclass(type(files), list):
                 wanted_files = files
             else:
                 wanted_files = list((files,))
-            found_match = [False for i in range(len(wanted_files))]
-            #logging.debug('ZipfileArchive.getmembers: wanted_files {}'.format(wanted_files))
+            found_match = [False for _ in range(len(wanted_files))]
             filelist = list()
             for filename in self.__files:
-                #logging.debug('ZipfileArchive.getmembers: member {}'.format(filename))
-                # filename = member['name']
-                for i,required_filename in enumerate(wanted_files):
-                    # if filename.endswith(required_filename):
-                    #logging.debug('ZipfileArchive.getmembers: compare %s to %s' % (required_filename, filename))
+                for i, required_filename in enumerate(wanted_files):
                     if re.search(required_filename, filename):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found
-            for i,found in enumerate(found_match):
+            for i, found in enumerate(found_match):
                 if not found:
                     raise FileNotFoundError('No such file: %s' % wanted_files[i])
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
-            return (filelist)
+            return filelist
         else:
-            return (self.__files)
+            return self.__files
 
     def to_localfile(self, filehandle):
         """Access a member object through a local file.
@@ -311,17 +309,14 @@ class ZipfileArchive(AbstractArchive):
     def close(self):
         """Close zip file.
         """
-        #logging.debug('ZipfileArchive.close: {}'.format(self.__archive))
         self.__archive.close()
-        #logging.debug('ZipfileArchive.close: {}'.format(self.__fp))
         self.__fp.close()
-        #logging.debug('ZipfileArchive.close: {}'.format(self.__fp))
         shutil.rmtree(self.__tmpdir)
         logging.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
         self.__transport.close()
 
-    def is_file(self):
-        """Determine whether the archive points to a single file.
+    def is_file(self, filehandle):
+        """Determine whether the named file is a single file.
         """
         pass
 
