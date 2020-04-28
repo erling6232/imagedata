@@ -3,20 +3,32 @@
 
 # Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os, os.path, sys
+import os
+import os.path
 import re
-import collections
 import shutil
 import urllib.parse
 import logging
+from abc import ABC
+
 import imagedata.archives
+import imagedata.transports
 from imagedata.archives.abstractarchive import AbstractArchive
 
-class ReadOnlyError(Exception): pass
-class WriteOnFile(Exception): pass
-class NoSuchFile(Exception): pass
 
-class FilesystemArchive(AbstractArchive):
+class ReadOnlyError(Exception):
+    pass
+
+
+class WriteOnFile(Exception):
+    pass
+
+
+class NoSuchFile(Exception):
+    pass
+
+
+class FilesystemArchive(AbstractArchive, ABC):
     """Read/write local files."""
 
     name = "filesystem"
@@ -24,27 +36,28 @@ class FilesystemArchive(AbstractArchive):
     authors = "Erling Andersen"
     version = "1.0.0"
     url = "www.helse-bergen.no"
-    mimetypes = ['*'] # Disregards MIME types
+    mimetypes = ['*']  # Disregards MIME types
 
     # self.__dirname: root directory
     # self.__filelist: list of absolute filename
 
-    def _get_transport(self, url, mode, read_directory_only):
+    @staticmethod
+    def _get_transport(url, mode, read_directory_only):
         """Get transport plugin from url.
 
         If the url addressess a missing file in read mode,
         access the parent directory.
         """
 
+        url_tuple = urllib.parse.urlsplit(url, scheme='file')
+        logging.debug('FilesystemArchive._get_transport: scheme: %s, netloc: %s' %
+                      (url_tuple.scheme, url_tuple.path))
+
         try:
-            url_tuple = urllib.parse.urlsplit(url, scheme='file')
-            netloc = url_tuple.path
-            logging.debug('FilesystemArchive._get_transport: scheme: %s, netloc: %s' %
-                (url_tuple.scheme, netloc))
-            transport = imagedata.transports.find_scheme_plugin(
+            _transport = imagedata.transports.find_scheme_plugin(
                 url_tuple.scheme,
                 netloc=url_tuple.netloc,
-                path=netloc,
+                root=url_tuple.path,
                 mode=mode,
                 read_directory_only=read_directory_only)
         except imagedata.transports.RootDoesNotExist:
@@ -52,18 +65,19 @@ class FilesystemArchive(AbstractArchive):
             raise
         except imagedata.transports.RootIsNotDirectory:
             # Mode='r': Retry with parent directory
-            parent, filename = os.path.split(url_tuple.path)
-            transport = imagedata.transports.find_scheme_plugin(
+            parent, _ = os.path.split(url_tuple.path)
+            _transport = imagedata.transports.find_scheme_plugin(
                 url_tuple.scheme,
                 netloc=url_tuple.netloc,
                 root=parent,
                 mode=mode,
                 read_directory_only=read_directory_only)
-        return(transport)
+        return _transport
 
     def __init__(self, transport=None, url=None, mode='r',
-            read_directory_only=True, opts={}):
-        super(FilesystemArchive, self).__init__(self.name, self.description,
+                 read_directory_only=True, opts=None):
+        super(FilesystemArchive, self).__init__(
+            self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
         logging.debug("FilesystemArchive.__init__ url: {}".format(url))
         urldict = urllib.parse.urlsplit(url, scheme="file")
@@ -74,13 +88,13 @@ class FilesystemArchive(AbstractArchive):
             raise ValueError('url not given')
         else:
             # Determine transport from url
-            #self.__transport = self._get_transport(url, mode, read_directory_only)
+            # self.__transport = self._get_transport(url, mode, read_directory_only)
             # netloc = urldict.netloc
             # netloc = urldict.path
             # netloc: where is zipfile
             # self.__path: zipfile name
-            #netloc, self.__path = os.path.split(urldict.path)
-            #logging.debug('FilesystemArchive.__init__: scheme: %s, netloc: %s path: %s' %
+            # netloc, self.__path = os.path.split(urldict.path)
+            # logging.debug('FilesystemArchive.__init__: scheme: %s, netloc: %s path: %s' %
             #              (urldict.scheme, netloc, self.__path))
             self.__path = urldict.path
             logging.debug('FilesystemArchive.__init__: scheme: %s, path: %s' %
@@ -98,43 +112,43 @@ class FilesystemArchive(AbstractArchive):
         logging.debug("FilesystemArchive __init__: {}".format(type(transport)))
 
         logging.debug("FilesystemArchive path: {}".format(self.__path))
-        #self.__fp = self.__transport.open(
+        # self.__fp = self.__transport.open(
         #    self.__path, mode=self.__mode + "b")
-        #logging.debug("FilesystemArchive self.__fp: {}".format(type(self.__fp)))
+        # logging.debug("FilesystemArchive self.__fp: {}".format(type(self.__fp)))
         logging.debug("FilesystemArchive open zipfile mode %s" % self.__mode)
 
-        # If the URL refers to a single file, let dirname refer to the
+        # If the URL refers to a single file, let directory_name refer to the
         # directory and basename to the file
         logging.debug("FilesystemArchive __init__ verify : {}".format(self.__path))
         if os.path.isfile(self.__path):
-            self.__dirname  = os.path.dirname (self.__path)
+            self.__dirname = os.path.dirname(self.__path)
             self.__basename = os.path.basename(self.__path)
             self.__filelist = [self.__path]
-            logging.debug("FilesystemArchive __init__ dirname : {}".format(self.__dirname))
+            logging.debug("FilesystemArchive __init__ directory_name : {}".format(self.__dirname))
             logging.debug("FilesystemArchive __init__ basename: {}".format(self.__basename))
-            #logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
+            # logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
             return
 
-        # The URL refers to a directory. Let dirname refer to the directory
+        # The URL refers to a directory. Let directory_name refer to the directory
         self.__dirname = self.__path
         self.__basename = None
-        logging.debug("FilesystemArchive __init__ scan dirname : {}".format(self.__dirname))
+        logging.debug("FilesystemArchive __init__ scan directory_name : {}".format(self.__dirname))
         logging.debug("FilesystemArchive __init__ scan basename: {}".format(self.__basename))
         self.__filelist = list()
-        #logging.debug("FilesystemArchive walk root: {}".format(self.__urldict.path))
+        # logging.debug("FilesystemArchive walk root: {}".format(self.__urldict.path))
         for root, dirs, files in self.__transport.walk(self.__path):
-            #logging.debug("FilesystemArchive scan root: {} {}".format(root, files))
+            # logging.debug("FilesystemArchive scan root: {} {}".format(root, files))
             for filename in files:
                 fname = os.path.join(self.__path, root, filename)
-                #logging.debug("FilesystemArchive scan fname: {}".format(fname))
+                # logging.debug("FilesystemArchive scan fname: {}".format(fname))
                 self.__filelist.append(fname)
-                #if transport.isfile(fname):
+                # if transport.isfile(fname):
                 #    if root.startswith(self.__dirname):
-                #        root = root[len(self.__dirname)+1:] # Strip off dirname
+                #        root = root[len(self.__dirname)+1:] # Strip off directory_name
                 #    self.__filelist[fname] = (root,filename)
                 #    logging.debug(fname)
         self._sort_filelist()
-        #logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
+        # logging.debug("FilesystemArchive self.__filelist: {}".format(self.__filelist))
 
     @property
     def transport(self):
@@ -144,13 +158,13 @@ class FilesystemArchive(AbstractArchive):
 
     def use_query(self):
         """Do the plugin need the ?query part of the url?"""
-        return(False)
+        return False
 
     def getnames(self, files=None):
         """Return the members as a list of their names.
         It has the same order as the members of the archive.
         """
-        #logging.debug('FilesystemArchive getnames: self.__filelist: {}'.format(
+        # logging.debug('FilesystemArchive getnames: self.__filelist: {}'.format(
         #    self.__filelist))
         if files:
             filelist = list()
@@ -163,9 +177,9 @@ class FilesystemArchive(AbstractArchive):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
-            return (filelist)
+            return filelist
         else:
-            return(self.__filelist)
+            return self.__filelist
 
     def basename(self, filehandle):
         """Basename of file.
@@ -176,20 +190,20 @@ class FilesystemArchive(AbstractArchive):
         Input:
         - filehandle: reference to member object
         """
-        root,filename = filehandle
+        root, filename = filehandle
         return os.path.basename(filename)
 
     def open(self, filehandle, mode='rb'):
         """Open file. Return a member object for member with filehandle.
         """
-        #logging.debug("getmember: fname {}".format(filehandle))
-        return(self.__transport.open(filehandle, mode))
+        # logging.debug("getmember: fname {}".format(filehandle))
+        return self.__transport.open(filehandle, mode)
 
     def getmembers(self, files=None):
         """Return the members of the archive as a list of member objects.
         The list has the same order as the members in the archive.
         """
-        #logging.debug("getmembers: files {}".format(files))
+        # logging.debug("getmembers: files {}".format(files))
         if files:
             filelist = list()
             used = dict()
@@ -198,23 +212,23 @@ class FilesystemArchive(AbstractArchive):
                     if filename.endswith(required_filename):
                         filelist.append(filename)
                         used[required_filename] = True
-            #logging.debug("getmembers: filelist {}".format(filelist))
+            # logging.debug("getmembers: filelist {}".format(filelist))
             for required_filename in files:
                 if required_filename not in used:
                     raise FileNotFoundError('File %s not found.' %
-                            os.path.join(
-                                self.__path,
-                                required_filename))
-            return(filelist)
+                                            os.path.join(
+                                                self.__path,
+                                                required_filename))
+            return filelist
         else:
-            return(self.__filelist)
+            return self.__filelist
 
     def to_localfile(self, filehandle):
         """Access a member object through a local file.
         """
-        #logging.debug('FilesystemArchive to_localfile: filename %s' %
+        # logging.debug('FilesystemArchive to_localfile: filename %s' %
         #        filehandle)
-        return(filehandle)
+        return filehandle
 
     def add_localfile(self, local_file, filename):
         """Add a local file to the archive.
@@ -231,17 +245,17 @@ class FilesystemArchive(AbstractArchive):
             # Ensure the directory exists,
             # create it silently if not.
             os.makedirs(
-                    os.path.dirname(fname),
-                    exist_ok=True)
+                os.path.dirname(fname),
+                exist_ok=True)
             shutil.copy(local_file, fname)
             self.__filelist.append(fname)
             self._sort_filelist()
         else:
             raise imagedata.archives.FileAlreadyExistsError(
-                    'File %s already exists' %
-                    os.path.join(
-                        self.__path,
-                        filename))
+                'File %s already exists' %
+                os.path.join(
+                    self.__path,
+                    filename))
 
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
@@ -269,7 +283,7 @@ class FilesystemArchive(AbstractArchive):
     def is_file(self, filehandle):
         """Determine whether the named file is a single file.
         """
-        return(self.__transport.isfile(filehandle))
+        return self.__transport.isfile(filehandle)
 
     def __enter__(self):
         """Enter context manager.
