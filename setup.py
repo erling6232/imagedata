@@ -47,6 +47,7 @@ setup(name = 'imagedata',
         'ghostscript',
         'scandir',
         'pathfinder',
+        'matplotlib'
     ],
     python_requires='>=3.5, <4',
     tests_require = ['tests'],
