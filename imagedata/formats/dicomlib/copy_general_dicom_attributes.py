@@ -5,12 +5,12 @@
 
 def copy_general_dicom_attributes(ds_in, ds_out):
     # Patient Module Attributes
-    ds_out.PatientName               = ds_in.PatientName
-    ds_out.PatientID                 = ds_in.PatientID
+    ds_out.PatientName = ds_in.PatientName
+    ds_out.PatientID = ds_in.PatientID
     if 'PatientBirthDate' in ds_in: ds_out.PatientBirthDate = ds_in.PatientBirthDate
     if 'PatientSex' in ds_in: ds_out.PatientSex = ds_in.PatientSex
     # General Study Module Attributes
-    ds_out.StudyInstanceUID          = ds_in.StudyInstanceUID
+    ds_out.StudyInstanceUID = ds_in.StudyInstanceUID
     if 'StudyDate' in ds_in: ds_out.StudyDate = ds_in.StudyDate
     if 'StudyTime' in ds_in: ds_out.StudyTime = ds_in.StudyTime
     if 'ReferringPhysicianName' in ds_in: ds_out.ReferringPhysicianName = ds_in.ReferringPhysicianName
@@ -23,8 +23,8 @@ def copy_general_dicom_attributes(ds_in, ds_out):
     if 'PatientSize' in ds_in: ds_out.PatientSize = ds_in.PatientSize
     if 'PatientWeight' in ds_in: ds_out.PatientWeight = ds_in.PatientWeight
     # General Series Module Attributes
-    ds_out.Modality                  = ds_in.Modality
-    ds_out.SeriesInstanceUID         = ds_in.SeriesInstanceUID
+    ds_out.Modality = ds_in.Modality
+    ds_out.SeriesInstanceUID = ds_in.SeriesInstanceUID
     if 'SeriesNumber' in ds_in: ds_out.SeriesNumber = ds_in.SeriesNumber
     if 'Laterality' in ds_in: ds_out.Laterality = ds_in.Laterality
     if 'SeriesDate' in ds_in: ds_out.SeriesDate = ds_in.SeriesDate
@@ -38,7 +38,7 @@ def copy_general_dicom_attributes(ds_in, ds_out):
     if 'SmallestPixelValueInSeries' in ds_in: ds_out.SmallestPixelValueInSeries = ds_in.SmallestPixelValueInSeries
     if 'LargestPixelValueInSeries' in ds_in: ds_out.LargestPixelValueInSeries = ds_in.LargestPixelValueInSeries
     # Frame of Reference Module Attributes
-    ds_out.FrameOfReferenceUID       = ds_in.FrameOfReferenceUID
+    ds_out.FrameOfReferenceUID = ds_in.FrameOfReferenceUID
     if 'PositionReferenceIndicator' in ds_in: ds_out.PositionReferenceIndicator = ds_in.PositionReferenceIndicator
     # General Equipment Module Attributes
     if 'Manufacturer' in ds_in: ds_out.Manufacturer = ds_in.Manufacturer
@@ -208,5 +208,6 @@ def copy_general_dicom_attributes(ds_in, ds_out):
     if 'TemporalResolution' in ds_in: ds_out.TemporalResolution = ds_in.TemporalResolution
     if 'ImageLaterality' in ds_in: ds_out.ImageLaterality = ds_in.ImageLaterality
 
+
 if __name__ == '__main__':
-    exit(0)
+    pass
