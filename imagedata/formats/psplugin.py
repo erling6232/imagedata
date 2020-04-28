@@ -5,19 +5,16 @@
 # Bergen, Norway
 
 import os.path
-import sys
 import locale
 import logging
-import fs
 import magic
 import tempfile
 import numpy as np
-#import gfx
 import ghostscript
 
 import imagedata.formats
-#from imagedata.formats.abstractplugin import AbstractPlugin
 from imagedata.formats.itkplugin import ITKPlugin
+
 
 class ImageTypeError(Exception):
     """
@@ -25,11 +22,13 @@ class ImageTypeError(Exception):
     """
     pass
 
+
 class DependencyError(Exception):
     """
     Thrown when a required module could not be loaded.
     """
     pass
+
 
 class PSPlugin(ITKPlugin):
     """Read PostScript files.
@@ -43,7 +42,7 @@ class PSPlugin(ITKPlugin):
 
     def __init__(self):
         super(PSPlugin, self).__init__(self.name, self.description,
-            self.authors, self.version, self.url)
+                                       self.authors, self.version, self.url)
 
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
@@ -61,31 +60,29 @@ class PSPlugin(ITKPlugin):
         - si: numpy array (multi-dimensional)
         """
 
-        info = None
-        self.res = 150 # dpi
+        self.res = 150  # dpi
         if 'dpi' in opts:
             self.res = int(opts['dpi'])
         self.psopt = 'png16m'
         if 'psopt' in opts:
             self.psopt = opts['psopt']
-        #with tempfile.TemporaryDirectory() as tempdir:
-        tempdir = tempfile.TemporaryDirectory()
-        logging.debug("PSPlugin.read: tempdir {}".format(tempdir))
-        try:
-            # Convert filename to PNG
-            self._convert_to_png(f, tempdir.name, "fname%02d.png")
-            #self._pdf_to_png(f, os.path.join(tempdir.name, "fname.png"))
-        except imagedata.formats.NotImageError:
-            raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(f))
-        # Call ITKPlugin to read the PNG file(s)
-        image_list = list()
-        for fname in sorted(os.listdir(tempdir.name)):
-            filename = os.path.join(tempdir.name, fname)
-            logging.debug("PSPlugin.read: call ITKPlugin {}".format(filename))
-            info, img = super(PSPlugin, self)._read_image(filename, opts, hdr)
-            image_list.append((info, img))
-            logging.debug("PSPlugin.read: returned from ITKPlugin")
-            logging.debug("PSPlugin.read: returned from ITKPlugin, hdr\n{}".format(hdr))
+        with tempfile.TemporaryDirectory() as tempdir:
+            logging.debug("PSPlugin.read: tempdir {}".format(tempdir))
+            try:
+                # Convert filename to PNG
+                self._convert_to_png(f, tempdir, "fname%02d.png")
+                # self._pdf_to_png(f, os.path.join(tempdir.name, "fname.png"))
+            except imagedata.formats.NotImageError:
+                raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(f))
+            # Call ITKPlugin to read the PNG file(s)
+            image_list = list()
+            for fname in sorted(os.listdir(tempdir)):
+                filename = os.path.join(tempdir, fname)
+                logging.debug("PSPlugin.read: call ITKPlugin {}".format(filename))
+                info, img = super(PSPlugin, self)._read_image(filename, opts, hdr)
+                image_list.append((info, img))
+                logging.debug("PSPlugin.read: returned from ITKPlugin")
+                logging.debug("PSPlugin.read: returned from ITKPlugin, hdr\n{}".format(hdr))
         if len(image_list) < 1:
             raise ValueError('No image data read')
         info, img = image_list[0]
@@ -108,7 +105,7 @@ class PSPlugin(ITKPlugin):
         if si.ndim == 3 and si.shape[0] == 1:
             si.shape = si.shape[1:]
         logging.debug('read: si {}'.format(si.shape))
-        return(info, si)
+        return info, si
 
     def _need_local_file(self):
         """Do the plugin need access to local files?
@@ -118,7 +115,7 @@ class PSPlugin(ITKPlugin):
         - False: The plugin can access files given by an open file handle
         """
 
-        return(True)
+        return True
 
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
@@ -149,16 +146,16 @@ class PSPlugin(ITKPlugin):
             raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(filename))
 
         args = [
-            "gs", # actual value doesn't matter
+            "gs",  # actual value doesn't matter
             "-dNOPAUSE", "-dBATCH", "-dSAFER", "-dQUIET",
-            #"-sDEVICE=pnggray",
-            #"-sDEVICE=png16m",
+            # "-sDEVICE=pnggray",
+            # "-sDEVICE=png16m",
             "-r{}".format(self.res),
             "-sDEVICE={}".format(self.psopt),
             "-sOutputFile=" + os.path.join(tempdir, fname),
-            #"-c", ".setpdfwrite",
-            "-f",  filename
-            ]
+            # "-c", ".setpdfwrite",
+            "-f", filename
+        ]
 
         # arguments have to be bytes, encode them
         encoding = locale.getpreferredencoding()
@@ -167,29 +164,30 @@ class PSPlugin(ITKPlugin):
 
         ghostscript.Ghostscript(*args)
 
-    def _pdf_to_png(self, inputPath, outputPath):
-        """Convert from pdf to png by using python gfx
-        
-        The resolution of the output png can be adjusted in the config file 
-        under General -> zoom, typical value 150 
-        The quality of the output png can be adjusted in the config file under 
-        General -> antiAlise, typical value 5
-        
-        :param inputPath: path to a pdf file
-        :param outputPath: path to the location where the output png will be 
-            saved
-        """
-        print("converting pdf {} {}".format(inputPath, outputPath))
-        gfx.setparameter("zoom", config.readConfig("zoom")) #Gives the image higher resolution
-        doc = gfx.open("pdf", inputPath)
-        img = gfx.ImageList()
-        
-        img.setparameter("antialise", config.readConfig("antiAliasing")) # turn on antialising
-        page1 = doc.getPage(1)
-        img.startpage(page1.width,page1.height)
-        page1.render(img)
-        img.endpage()
-        img.save(outputPath)
+    # @staticmethod
+    # def _pdf_to_png(inputPath, outputPath):
+    #     """Convert from pdf to png by using python gfx
+    #
+    #     The resolution of the output png can be adjusted in the config file
+    #     under General -> zoom, typical value 150
+    #     The quality of the output png can be adjusted in the config file under
+    #     General -> antiAlise, typical value 5
+    #
+    #     :param inputPath: path to a pdf file
+    #     :param outputPath: path to the location where the output png will be
+    #         saved
+    #     """
+    #     print("converting pdf {} {}".format(inputPath, outputPath))
+    #     gfx.setparameter("zoom", config.readConfig("zoom"))  # Gives the image higher resolution
+    #     doc = gfx.open("pdf", inputPath)
+    #     img = gfx.ImageList()
+    #
+    #     img.setparameter("antialise", config.readConfig("antiAliasing"))  # turn on antialising
+    #     page1 = doc.getPage(1)
+    #     img.startpage(page1.width, page1.height)
+    #     page1.render(img)
+    #     img.endpage()
+    #     img.save(outputPath)
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as PostScript file
@@ -207,7 +205,7 @@ class PSPlugin(ITKPlugin):
         - opts: Output options (dict)
         """
         raise imagedata.formats.WriteNotImplemented(
-                'Writing PostScript files is not implemented.')
+            'Writing PostScript files is not implemented.')
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as PostScript files
@@ -225,4 +223,4 @@ class PSPlugin(ITKPlugin):
         - opts: Output options (dict)
         """
         raise imagedata.formats.WriteNotImplemented(
-                'Writing PostScript files is not implemented.')
+            'Writing PostScript files is not implemented.')
