@@ -57,10 +57,10 @@ class TestDicomZipRead(unittest.TestCase):
     def test_read_two_files2(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?.*0[01]/Image_0000[01].dcm'),
-            'none',
+            imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (4, 192, 152))
+        self.assertEqual(si1.shape, (2, 2, 192, 152))
 
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
