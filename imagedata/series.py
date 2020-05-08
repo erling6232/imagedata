@@ -1756,6 +1756,39 @@ class Series(np.ndarray):
         else:
             return None
 
+    def setDicomAttribute(self, keyword, value, slice=None, tag=None):
+        """Set named DICOM attribute.
+
+        Input:
+        - keyword: name (str) or dicom tag
+        - value: new value for DICOM attribute
+        - slice: optional slice to get attribute from (default: all)
+        - tag: optional tag to get attribute from (default: all)
+        """
+
+        if self.DicomHeaderDict is None:
+            return None
+        if issubclass(type(keyword), str):
+            _tag = pydicom.datadict.tag_for_keyword(keyword)
+        else:
+            _tag = keyword
+        if _tag is None:
+            raise ValueError('No DICOM tag set')
+        slices = [ i for i in range(self.slices)]
+        tags = [ i for i in range(len(self.tags[0]))]
+        if slice is not None:
+            slices = [slice]
+        if tag is not None:
+            tags = [tag]
+        for s in slices:
+            for t in tags:
+                tg, fname, im = self.DicomHeaderDict[s][t]
+                if _tag in im:
+                    im[_tag].value = value
+                else:
+                    VR = pydicom.datadict.dictionary_VR(_tag)
+                    im.add_new(_tag, VR, value)
+
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r
