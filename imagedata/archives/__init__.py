@@ -13,15 +13,25 @@ import urllib.parse
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-#class NotImageError(Exception): pass
-class ArchivePluginNotFound(Exception): pass
-class FileAlreadyExistsError(Exception): pass
 
-def add_plugin_dir(dir):
+# class NotImageError(Exception):
+#     pass
+
+
+class ArchivePluginNotFound(Exception):
+    pass
+
+
+class FileAlreadyExistsError(Exception):
+    pass
+
+
+def add_plugin_dir(directory_name):
     from pkgutil import extend_path
     global __path__, plugins
-    __path__ = extend_path(__path__, dir)
+    __path__ = extend_path(__path__, directory_name)
     plugins = load_plugins()
+
 
 def load_plugins(plugins_folder_list=None):
     """Searches the plugins folder and imports all valid plugins,
@@ -29,7 +39,10 @@ def load_plugins(plugins_folder_list=None):
     first element is the plugin name (e.g. MyPlugin),
     second element is the class of the plugin.
     """
-    import sys, os, imp, inspect
+    import sys
+    import os
+    import imp
+    import inspect
     from imagedata.archives.abstractarchive import AbstractArchive
 
     global __path__
@@ -39,7 +52,7 @@ def load_plugins(plugins_folder_list=None):
         if plugins_folder_list is None:
             plugins_folder_list = __path__
         if isinstance(plugins_folder_list, str):
-                plugins_folder_list=[plugins_folder_list,]
+            plugins_folder_list = [plugins_folder_list, ]
     except NameError:
         return
 
@@ -50,70 +63,79 @@ def load_plugins(plugins_folder_list=None):
 
     plugins = {}
     for plugins_folder in plugins_folder_list:
-        if not plugins_folder in sys.path:
+        if plugins_folder not in sys.path:
             sys.path.append(plugins_folder)
         for root, dirs, files in os.walk(plugins_folder):
             logging.debug("root %s dirs %s" % (root, dirs))
             for module_file in files:
                 module_name, module_extension = os.path.splitext(module_file)
+                module_hdl = False
                 if module_extension == os.extsep + "py":
                     try:
-                        #print("Attempt {}".format(module_name))
+                        # print("Attempt {}".format(module_name))
                         logging.debug("Attempt {}".format(module_name))
                         module_hdl, path_name, description = imp.find_module(module_name)
                         plugin_module = imp.load_module(module_name, module_hdl, path_name,
-                                                                                        description)
-                        #print("Attemp2 {}".format(plugin_module))
+                                                        description)
+                        # print("Attemp2 {}".format(plugin_module))
                         plugin_classes = inspect.getmembers(plugin_module, inspect.isclass)
-                        #print("Attemp3 {} {}".format(module_name, plugin_classes))
+                        # print("Attemp3 {} {}".format(module_name, plugin_classes))
                         for plugin_class in plugin_classes:
-                            #print("plugin_class {} ({})".format(plugin_class,type(plugin_class[1])))
+                            # print("plugin_class {} ({})".format(plugin_class,type(plugin_class[1])))
                             if issubclass(plugin_class[1], AbstractArchive):
                                 # Load only those plugins defined in the current module
                                 # (i.e. don't instantiate any parent plugins)
-                                #print("compare plugin_class[1].__module__ ({}) to module_name ({})".format(plugin_class[1].__module__, module_name))
+                                # print("compare plugin_class[1].__module__ ({}) to module_name ({})".format(plugin_class[1].__module__, module_name))
                                 if plugin_class[1].__module__ == module_name:
-                                    #plugin = plugin_class[1]()
-                                    pname,pclass = plugin_class
-                                    plugins[pclass.name] = (pname,pclass)
+                                    # plugin = plugin_class[1]()
+                                    pname, pclass = plugin_class
+                                    plugins[pclass.name] = (pname, pclass)
                     except ImportError as e:
                         logging.debug(e)
-                        #print(e)
+                        # print(e)
                         pass
                     except Exception as e:
                         logging.debug(e)
-                        #print(e)
+                        # print(e)
                         raise
                     finally:
                         if module_hdl:
                             module_hdl.close()
     return plugins
 
+
 def get_plugins_dict():
     global plugins
     return plugins
 
-def find_plugin(ptype, url, mode="r", opts={}):
+
+def find_plugin(ptype, url, mode="r", opts=None):
     """Return plugin for given image archive type."""
+    if opts is None:
+        opts = {}
     global plugins
     if ptype in plugins:
         pname, pclass = plugins[ptype]
         return pclass(url=url, mode=mode, opts=opts)
     raise ArchivePluginNotFound("Plugin for image archive {} not found.".format(ptype))
 
+
 def lookup_mimetype_plugin(mimetype):
-    """Return name of plugin that will handle given mimetype."""
+    """Return name of plugin that will handle given _mimetypes."""
 
     if mimetype is None:
         logging.debug("imagedata.archives.lookup_mimetype_plugin: filesystem")
-        return('filesystem')
+        return 'filesystem'
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
         if mimetype in pclass.mimetypes:
-            return(pname)
+            return pname
 
-def find_mimetype_plugin(mimetype, url, mode="r", opts={}):
+
+def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
     """Return plugin for given file type."""
+    if opts is None:
+        opts = {}
     global plugins
     urldict = urllib.parse.urlsplit(url, scheme="file")
     if mimetype is None:
@@ -124,19 +146,21 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts={}):
         pname, pclass = plugins[ptype]
         logging.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
-            logging.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype,mode))
+            logging.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype, mode))
             return pclass(url=url, mode=mode, opts=opts)
     if os.path.isfile(urldict.path):
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         try:
             return find_plugin('filesystem', url, mode, opts=opts)
-        except Exception:
+        except ArchivePluginNotFound:
             # Fall-through to fail with ArchivePluginNotFound
             pass
     raise ArchivePluginNotFound("Plugin for MIME type {} not found.".format(mimetype))
+
 
 plugins = load_plugins()
 
 if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

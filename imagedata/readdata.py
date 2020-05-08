@@ -3,22 +3,29 @@
 
 # Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import copy
 import os.path
 import logging
 import mimetypes
 import argparse
 import urllib.parse
-import numpy as np
 from imagedata.header import add_template, add_geometry
 import imagedata.formats
 import imagedata
 import imagedata.transports
 import imagedata.archives
 
-class NoTransportError(Exception): pass
-class NoArchiveError(Exception): pass
-class UnknownOptionType(Exception): pass
+
+class NoTransportError(Exception):
+    pass
+
+
+class NoArchiveError(Exception):
+    pass
+
+
+class UnknownOptionType(Exception):
+    pass
+
 
 def read(urls, order=None, opts=None):
     """Read image data, calling appropriate transport, archive and format plugins
@@ -33,10 +40,10 @@ def read(urls, order=None, opts=None):
     """
 
     logging.debug("reader.read: urls {}".format(urls))
-#    transport,my_urls,files = sanitize_urls(urls)
-#    if len(my_urls) < 1:
-#        raise ValueError("No URL(s) where given")
-#    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
+    #    transport,my_urls,files = sanitize_urls(urls)
+    #    if len(my_urls) < 1:
+    #        raise ValueError("No URL(s) where given")
+    #    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
     sources = _get_sources(urls, mode='r')
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
@@ -45,18 +52,20 @@ def read(urls, order=None, opts=None):
     # Let in_opts be a dict from opts
     if opts is None:
         in_opts = {}
-    elif issubclass(type(opts),dict):
+    elif issubclass(type(opts), dict):
         in_opts = opts
     elif issubclass(type(opts), argparse.Namespace):
         in_opts = vars(opts)
     else:
         raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
-            opts))
+                                                                    opts))
 
     # Let the calling party override a default input order
     input_order = imagedata.formats.INPUT_ORDER_NONE
-    if 'input_order' in in_opts: input_order = in_opts['input_order']
-    if order != 'none': input_order = order
+    if 'input_order' in in_opts:
+        input_order = in_opts['input_order']
+    if order != 'none':
+        input_order = order
     logging.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
 
     # Pre-fetch DICOM template
@@ -65,7 +74,7 @@ def read(urls, order=None, opts=None):
         logging.debug("readdata.read template {}".format(in_opts['template']))
         template_source = _get_sources(in_opts['template'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
-        pre_hdr,_ = reader.read_headers(template_source, input_order, in_opts)
+        pre_hdr, _ = reader.read_headers(template_source, input_order, in_opts)
 
     # Pre-fetch DICOM geometry
     geom_hdr = None
@@ -73,15 +82,15 @@ def read(urls, order=None, opts=None):
         logging.debug("readdata.read geometry {}".format(in_opts['geometry']))
         geometry_source = _get_sources(in_opts['geometry'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
-        geom_hdr,_ = reader.read_headers(geometry_source, input_order, in_opts)
-        #if pre_hdr is None:
+        geom_hdr, _ = reader.read_headers(geometry_source, input_order, in_opts)
+        # if pre_hdr is None:
         #    pre_hdr = {}
-        #_add_dicom_geometry(pre_hdr, geom_hdr)
+        # _add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(imagedata.formats.get_plugins_list())
     logging.debug("readdata.read plugins length {}".format(len(plugins)))
-    for pname,ptype,pclass in plugins:
+    for pname, ptype, pclass in plugins:
         logging.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
         try:
@@ -96,27 +105,28 @@ def read(urls, order=None, opts=None):
         except FileNotFoundError:
             raise
         except imagedata.formats.NotImageError as e:
-            logging.info("Giving up {}: {}".format(ptype,e))
+            logging.info("Giving up {}: {}".format(ptype, e))
             pass
         except Exception as e:
-            logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
+            logging.info("Giving up (OTHER) {}: {}".format(ptype, e))
             pass
 
     for source in sources:
         logging.debug("readdata.read: close archive {}".format(source['archive']))
         source['archive'].close()
 
-    if issubclass(type(urls),list):
+    if issubclass(type(urls), list):
         raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls[0])
     else:
         raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls)
 
-#def _add_template(hdr, pre_hdr):
+
+# def _add_template(hdr, pre_hdr):
 #    if pre_hdr is not None:
 #        for key in pre_hdr:
 #            hdr[key] = copy.copy(pre_hdr[key])
 
-#def _add_dicom_geometry(pre_hdr, geometry):
+# def _add_dicom_geometry(pre_hdr, geometry):
 #        """For each slice in geometry, use most of pre_hdr, adding a few attributes from geometry
 #        """
 #
@@ -138,30 +148,33 @@ def write(si, url, opts=None, formats=None):
 
     Input:
     - si[tag,slice,rows,columns]: Series array
-    - dirname_template: output directory name
-    - filename_template: template including %d for image number
+    - url: output destination url
     - opts: Output options (argparse.Namespace or dict)
     - formats: list of output formats, overriding opts.output_format (list or
       str)
     """
 
-    #logging.debug("write: dir(si): {}".format(dir(si)))
+    # logging.debug("write: directory_name(si): {}".format(directory_name(si)))
 
     # Let out_opts be a dict from opts
     if opts is None:
         out_opts = {}
-    elif issubclass(type(opts),dict):
-        out_opts = out_opts
+    elif issubclass(type(opts), dict):
+        out_opts = opts
     elif issubclass(type(opts), argparse.Namespace):
         out_opts = vars(opts)
     else:
         raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
-            opts))
+                                                                    opts))
 
-    if 'sernum' in out_opts and out_opts['sernum']: si.seriesNumber = out_opts['sernum']
-    if 'serdes' in out_opts and out_opts['serdes']: si.seriesDescription = out_opts['serdes']
-    if 'imageType' in out_opts and out_opts['imageType']: si.imageType = out_opts['imageType']
-    if 'frame' in out_opts and out_opts['frame']: si.frameOfReferenceUID = out_opts['frame']
+    if 'sernum' in out_opts and out_opts['sernum']:
+        si.seriesNumber = out_opts['sernum']
+    if 'serdes' in out_opts and out_opts['serdes']:
+        si.seriesDescription = out_opts['serdes']
+    if 'imageType' in out_opts and out_opts['imageType']:
+        si.imageType = out_opts['imageType']
+    if 'frame' in out_opts and out_opts['frame']:
+        si.frameOfReferenceUID = out_opts['frame']
 
     # Default output format is input format
     try:
@@ -186,23 +199,23 @@ def write(si, url, opts=None, formats=None):
     write_si = si
     if 'dtype' in out_opts and out_opts['dtype'] is not None:
         if out_opts['dtype'] != si.dtype:
-            #write_si = si.astype(str_to_dtype(out_opts['dtype']))
+            # write_si = si.astype(str_to_dtype(out_opts['dtype']))
             write_si = si.astype(out_opts['dtype'])
     _color = 0
     if write_si.color:
         _color = 1
 
     # Verify there is one destination only
-    #destinations = _get_sources(url, mode='w')
-    #if len(destinations) != 1:
+    # destinations = _get_sources(url, mode='w')
+    # if len(destinations) != 1:
     #    raise ValueError('Wrong number of destinations (%d) given' %
     #        len(destinations))
-    
+
     # Call plugin writers in turn to store the data
     logging.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
     written = False
     msg = ''
-    for pname,ptype,pclass in imagedata.formats.get_plugins_list():
+    for pname, ptype, pclass in imagedata.formats.get_plugins_list():
         if ptype in output_formats:
             logging.debug("Attempt plugin {}".format(ptype))
             # Create plugin to write data in specified format
@@ -212,7 +225,7 @@ def write(si, url, opts=None, formats=None):
             destinations = _get_sources(local_url, mode='w', opts=out_opts)
             if len(destinations) != 1:
                 raise ValueError('Wrong number of destinations (%d) given' %
-                    len(destinations))
+                                 len(destinations))
             destination = destinations[0]
             logging.debug('readdata.write: destination {}'.format(destination))
             try:
@@ -228,8 +241,8 @@ def write(si, url, opts=None, formats=None):
             except imagedata.formats.WriteNotImplemented:
                 raise
             except Exception as e:
-                logging.info("Giving up (OTHER) {}: {}".format(ptype,e))
-                msg = msg + '\n{}: {}'.format(ptype,e)
+                logging.info("Giving up (OTHER) {}: {}".format(ptype, e))
+                msg = msg + '\n{}: {}'.format(ptype, e)
                 pass
             destination['archive'].close()
     if not written:
@@ -238,26 +251,28 @@ def write(si, url, opts=None, formats=None):
         raise ValueError("No writer plugin was found for {}".format(output_formats))
     if len(msg) > 0:
         logging.error(msg)
-    #destination['archive'].close()
+    # destination['archive'].close()
+
 
 def sorted_plugins_dicom_first(plugins):
     """Sort plugins such that any Nifti plugin is used early."""
-    for pname,ptype,pclass in plugins:
+    for pname, ptype, pclass in plugins:
         if ptype == 'nifti':
-            plugins.remove((pname,ptype,pclass))
-            plugins.insert(0, (pname,ptype,pclass))
+            plugins.remove((pname, ptype, pclass))
+            plugins.insert(0, (pname, ptype, pclass))
             break
     """Sort plugins such that any DICOM plugin is used first."""
-    for pname,ptype,pclass in plugins:
+    for pname, ptype, pclass in plugins:
         if ptype == 'dicom':
-            plugins.remove((pname,ptype,pclass))
-            plugins.insert(0, (pname,ptype,pclass))
+            plugins.remove((pname, ptype, pclass))
+            plugins.insert(0, (pname, ptype, pclass))
             break
-    return(plugins)
+    return plugins
+
 
 def _get_location_part(url):
     """Get location part of URL: scheme, netloc and path"""
-    
+
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
     location = urllib.parse.urlunsplit((
@@ -272,17 +287,21 @@ def _get_location_part(url):
     logging.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
     logging.debug('readdata._get_location_part: path %s' % url_tuple.path)
     logging.debug('readdata._get_location_part: location %s' % location)
-    return(location)
+    return location
+
 
 def _get_query_part(url):
     """Get query part of URL. This may contain file name"""
-    
-    url_tuple = urllib.parse.urlsplit(url, scheme='file')
-    return(url_tuple.query)
 
-def _get_archive(url, mode='r', opts={}):
+    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    return url_tuple.query
+
+
+def _get_archive(url, mode='r', opts=None):
     """Get archive plugin for given URL."""
-    
+
+    if opts is None:
+        opts = {}
     logging.debug('readdata._get_archive: url %s' % url)
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(url_tuple.path)[0]
@@ -291,9 +310,10 @@ def _get_archive(url, mode='r', opts={}):
         url,
         mode,
         opts=opts)
-    logging.debug('readdata._get_archive: mimetype %s' % mimetype)
+    logging.debug('readdata._get_archive: _mimetypes %s' % mimetype)
     logging.debug('readdata._get_archive: archive %s' % archive.name)
-    return(archive)
+    return archive
+
 
 def _common_prefix(l):
     """This unlike the os.path.commonprefix version
@@ -301,14 +321,14 @@ def _common_prefix(l):
     path component wise
     https://stackoverflow.com/questions/21498939
     """
-    
+
     cp = []
     ls = [p.split('/') for p in l]
-    ml = min( len(p) for p in ls )
+    ml = min(len(p) for p in ls)
 
     for i in range(ml):
 
-        s = set( p[i] for p in ls )         
+        s = set(p[i] for p in ls)
         if len(s) != 1:
             break
 
@@ -316,9 +336,10 @@ def _common_prefix(l):
 
     return '/'.join(cp)
 
+
 def _simplify_locations(locations):
     """Simplify locations by joining file:/// locations to a common prefix."""
-    
+
     logging.debug('readdata._simplify_locations: locations {}'.format(locations))
     new_locations = {}
     paths = []
@@ -340,9 +361,10 @@ def _simplify_locations(locations):
             None))
         new_locations[prefix_url] = True
     logging.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
-    return(new_locations)
+    return new_locations
 
-def _get_sources(urls, mode, opts={}):
+
+def _get_sources(urls, mode, opts=None):
     """Determine transport, archive and file from each url.
     
     Handle both single url, a url tuple, and a url list
@@ -370,6 +392,8 @@ def _get_sources(urls, mode, opts={}):
     """
 
     # Ensure the input is a list: my_urls
+    if opts is None:
+        opts = {}
     if isinstance(urls, list):
         my_urls = urls
     elif isinstance(urls, tuple):
@@ -388,8 +412,7 @@ def _get_sources(urls, mode, opts={}):
     for location in locations:
         logging.debug('readdata._get_sources: location %s' % location)
         source_location = location
-        source = {}
-        source['files'] = []
+        source = {'files': []}
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         except (imagedata.transports.RootIsNotDirectory,
@@ -401,7 +424,7 @@ def _get_sources(urls, mode, opts={}):
         for url in my_urls:
             location_part = _get_location_part(url)
             logging.debug('readdata._get_sources: compare _get_location_part %s location %s' %
-                (location_part, source_location))
+                          (location_part, source_location))
             query = _get_query_part(url)
             logging.debug('readdata._get_sources: query %s' % query)
             if location_part.startswith(source_location):
@@ -411,15 +434,16 @@ def _get_sources(urls, mode, opts={}):
                     if query:
                         fname = query
                     else:
-                        fname = location_part[len(source_location)+1:]
+                        fname = location_part[len(source_location) + 1:]
                 # _get_query_part(url)
                 if len(fname) > 0:
                     source['files'].append(fname)
         sources.append(source)
     for source in sources:
         logging.debug('readdata._get_sources: sources %s' % source)
-    return(sources)
+    return sources
+
 
 def str_to_dtype(s):
     """Convert dtype string to numpy dtype."""
-    return eval('np.'+s)
+    return eval('np.' + s)

@@ -6,16 +6,16 @@ Defines generic functions.
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
 # Copyright (c) 2017-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from abc import ABCMeta, abstractmethod, abstractproperty
-import copy
+from abc import ABCMeta, abstractmethod  # , abstractproperty
 import logging
-from datetime import date, datetime, time, timedelta
-import math
 import numpy as np
-import pydicom.dataset
+# import pydicom.dataset
 import imagedata.formats
 
-class NoOtherInstance(Exception): pass
+
+class NoOtherInstance(Exception):
+    pass
+
 
 class AbstractPlugin(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata format plugins.
@@ -30,11 +30,14 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
     def __init__(self, name, description, authors, version, url):
         object.__init__(self)
-        self.__name              = name
-        self.__description       = description
-        self.__authors           = authors
-        self.__version           = version
-        self.__url               = url
+        self.__name = name
+        self.__description = description
+        self.__authors = authors
+        self.__version = version
+        self.__url = url
+        self.input_order = None
+        self.tags = None
+        self.transformationMatrix = None
 
     @property
     def name(self):
@@ -93,9 +96,10 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         - si[tag,slice,rows,columns]: numpy array
         """
 
-        hdr = {}
-        hdr['input_format'] = self.name
-        hdr['input_order'] = input_order
+        hdr = {
+            'input_format': self.name,
+            'input_order': input_order
+        }
 
         # image_list: list of tuples (hdr,si)
         logging.debug("AbstractPlugin.read: sources {}".format(sources))
@@ -106,7 +110,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
                 scan_files = archive.getnames()
-                #scan_files = ['.*']
+                # scan_files = ['.*']
             logging.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
                 logging.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
@@ -131,7 +135,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            #logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
+            # logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
             si[i] = img
             i += 1
         logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
@@ -146,19 +150,19 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             logging.debug('AbstractPlugin.read: color')
         logging.debug('AbstractPlugin.read: _shape {}'.format(_shape))
         _ndim = len(_shape)
-        nt = nz = 1
-        ny, nx = _shape[-2:]
+        nz = 1
+        # ny, nx = _shape[-2:]
         if _ndim > 2:
             nz = _shape[-3]
-        if _ndim > 3:
-            nt = _shape[-4]
-        #hdr['slices'] = nz
+        # if _ndim > 3:
+        #     nt = _shape[-4]
+        # hdr['slices'] = nz
         logging.debug('AbstractPlugin.read: slices {}'.format(nz))
 
         # hdr['spacing'], hdr['tags']
         logging.debug('AbstractPlugin.read: calling _set_tags')
         self._set_tags(image_list, hdr, si)
-        #logging.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
+        # logging.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
         logging.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
@@ -168,8 +172,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         logging.debug('AbstractPlugin.read: hdr {}'.format(
             hdr.keys()))
-        #logging.debug('AbstractPlugin.read: hdr {}'.format(hdr))
-        return hdr,si
+        # logging.debug('AbstractPlugin.read: hdr {}'.format(hdr))
+        return hdr, si
 
     def _need_local_file(self):
         """Do the plugin need access to local files?
@@ -179,7 +183,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         - False: The plugin can access files given by an open file handle
         """
 
-        return(False)
+        return False
 
     @abstractmethod
     def _read_image(self, f, opts, hdr):
@@ -215,7 +219,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
     @abstractmethod
     def write_3d_numpy(self, si, destination, opts):
-        #def write_3d_numpy(self, si, destination, filename_template, opts):
+        # def write_3d_numpy(self, si, destination, filename_template, opts):
         """Write 3D Series image
 
         Input:
@@ -229,7 +233,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
     @abstractmethod
     def write_4d_numpy(self, si, destination, opts):
-        #def write_4d_numpy(self, si, destination, filename_template, opts):
+        # def write_4d_numpy(self, si, destination, filename_template, opts):
         """Write 4D Series image
 
         Input:
@@ -252,8 +256,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         - ValueError: tags for dataset is not time tags
         """
         if self.input_order == imagedata.formats.INPUT_ORDER_TIME:
-            timeline = []
-            timeline.append(0.0)
+            timeline = [0.0]
             for t in range(1, len(self.tags[0])):
                 timeline.append(self.tags[0][t] - self.tags[0][0])
             return np.array(timeline)
@@ -296,7 +299,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         #print("ds,dr,dc={},{},{}".format(ds,dr,dc))
         #print("z ,y ,x ={},{},{}".format(z,y,x))
 
-        Q = np.eye(4)
+        q = np.eye(4)
         # Set column 3 and row 3 to zeros, except [3,3]
         colr=np.array([[orient[3]], [orient[4]], [orient[5]]])
         colc=np.array([[orient[0]], [orient[1]], [orient[2]]])
@@ -304,15 +307,15 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         colc = normalize_column(colc,1)
         k=np.cross(colr, colc, axis=0)
 
-        Q[:3, :3] = np.hstack((colr, colc, k))
+        q[:3, :3] = np.hstack((colr, colc, k))
         if debug:
-            logging.debug("Q")
-            logging.debug( Q)
+            logging.debug("q")
+            logging.debug( q)
 
         if debug:
-            logging.debug("determinant(Q) {}".format(np.linalg.det(Q)))
-        if np.linalg.det(Q) < 0:
-            Q[:3,2] = -Q[:3,2]
+            logging.debug("determinant(q) {}".format(np.linalg.det(q)))
+        if np.linalg.det(q) < 0:
+            q[:3,2] = -q[:3,2]
 
         # Scale matrix
         diagVox = np.eye(3)
@@ -322,21 +325,21 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if debug:
             logging.debug("diagVox")
             logging.debug( diagVox)
-            logging.debug("Q without scaling {}".format(Q.dtype))
-            logging.debug( Q)
-        Q[:3,:3] = np.dot(Q[:3,:3],diagVox)
+            logging.debug("q without scaling {}".format(q.dtype))
+            logging.debug( q)
+        q[:3,:3] = np.dot(q[:3,:3],diagVox)
         if debug:
-            logging.debug("Q with scaling {}".format(Q.dtype))
-            logging.debug( Q)
+            logging.debug("q with scaling {}".format(q.dtype))
+            logging.debug( q)
 
         # Add translations
-        Q[0,3] = x; Q[1,3] = y; Q[2,3] = z       # pos x,y,z
+        q[0,3] = x; q[1,3] = y; q[2,3] = z       # pos x,y,z
         if debug:
-            logging.debug("Q with translations")
-            logging.debug( Q)
-        # Q now equals dicom_to_patient in spm_dicom_convert
+            logging.debug("q with translations")
+            logging.debug( q)
+        # q now equals dicom_to_patient in spm_dicom_convert
 
-        return Q
+        return q
     '''
 
     '''
@@ -368,13 +371,13 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         if transformation is None:
             transformation = self.transformationMatrix
-        #Q = self.getTransformationMatrix()
+        # q = self.getTransformationMatrix()
 
-        #V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
+        # V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
 
         newpos = np.dot(transformation, np.hstack((r, [1])))
 
-        #return np.array([newpos[2,0],newpos[1,0],newpos[0,0]])   # z,y,x
+        # return np.array([newpos[2,0],newpos[1,0],newpos[0,0]])   # z,y,x
         return newpos[:3]
 
     def getVoxelForPosition(self, p, transformation=None):
@@ -392,36 +395,38 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         if transformation is None:
             transformation = self.transformationMatrix
-        #Q = self.getTransformationMatrix()
+        # q = self.getTransformationMatrix()
 
-        #V = np.array([[p[2]], [p[1]], [p[0]], [1]])    # V is [x,y,z,1]
+        # V = np.array([[p[2]], [p[1]], [p[0]], [1]])    # V is [x,y,z,1]
 
-        Qinv = np.linalg.inv(transformation)
-        r = np.dot(Qinv, np.hstack((p, [1])))
+        qinv = np.linalg.inv(transformation)
+        r = np.dot(qinv, np.hstack((p, [1])))
 
         # z,y,x
-        #return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
-        #return int(r+0.5)[:3]
-        return (r+0.5).astype(int)[:3]
+        # return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
+        # return int(r+0.5)[:3]
+        return (r + 0.5).astype(int)[:3]
 
+    @staticmethod
     def replace_geometry_attributes(im, gim):
-        """Replace geometry attributes in im with values from gim
+        """Replace geometry attributes in image with values from gim
         """
 
-        im.SliceLocation              = gim.SliceLocation
-        im.ImagePositionPatient       = gim.ImagePositionPatient
-        im.ImageOrientationPatient    = gim.ImageOrientationPatient
-        im.FrameOfReferenceUID        = gim.FrameOfReferenceUID
+        im.SliceLocation = gim.SliceLocation
+        im.ImagePositionPatient = gim.ImagePositionPatient
+        im.ImageOrientationPatient = gim.ImageOrientationPatient
+        im.FrameOfReferenceUID = gim.FrameOfReferenceUID
         im.PositionReferenceIndicator = gim.PositionReferenceIndicator
-        im.SliceThickness             = gim.SliceThickness
+        im.SliceThickness = gim.SliceThickness
         try:
             im.SpacingBetweenSlices = gim.SpacingBetweenSlices
-        except:
+        except AttributeError:
             pass
-        im.AcquisitionMatrix          = gim.AcquisitionMatrix
-        im.PixelSpacing               = gim.PixelSpacing
+        im.AcquisitionMatrix = gim.AcquisitionMatrix
+        im.PixelSpacing = gim.PixelSpacing
 
-    def _reduce_shape(self, si, axes=None):
+    @staticmethod
+    def _reduce_shape(si, axes=None):
         """Reduce shape when leading shape(s) are 1.
         Will not reduce to less than 2-dimensional image.
         Also reduce axes when reducing shape.
@@ -474,61 +479,62 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         logging.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
             data.shape))
         if data.ndim == 5:
-            rows,columns,slices,tags,d5 = data.shape
+            rows, columns, slices, tags, d5 = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((d5,tags,slices,rows,columns), data.dtype)
+            si = np.zeros((d5, tags, slices, rows, columns), data.dtype)
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        si[d,tag,slice,:,:] = self._reorder_slice(data[:,:,slice,tag,d], flip=flip, flipud=flipud)
-                        #if flip:
+                        si[d, tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag, d], flip=flip,
+                                                                      flipud=flipud)
+                        # if flip:
                         #    si[d,tag,slice,:,:] = \
                         #    (data[:,:,slice,tag,d]).T
                         #    #np.fliplr(data[:,:,slice,tag,d]).T
-                        #else:
+                        # else:
                         #    si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         elif data.ndim == 4:
-            rows,columns,slices,tags = data.shape
+            rows, columns, slices, tags = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((tags,slices,rows,columns), data.dtype)
+            si = np.zeros((tags, slices, rows, columns), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    si[tag,slice,:,:] = self._reorder_slice(data[:,:,slice,tag], flip=flip, flipud=flipud)
-                    #if flip:
+                    si[tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag], flip=flip, flipud=flipud)
+                    # if flip:
                     #    si[tag,slice,:,:] = (data[:,:,slice,tag]).T
                     #    #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
-                    #else:
+                    # else:
                     #    si[tag,slice,:,:] = data[:,:,slice,tag]
         elif data.ndim == 3:
-            rows,columns,slices = data.shape
+            rows, columns, slices = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((slices,rows,columns), data.dtype)
+            si = np.zeros((slices, rows, columns), data.dtype)
             for slice in range(slices):
-                si[slice,:,:] = self._reorder_slice(data[:,:,slice], flip=flip, flipud=flipud)
-                #if flip:
+                si[slice, :, :] = self._reorder_slice(data[:, :, slice], flip=flip, flipud=flipud)
+                # if flip:
                 #    si[slice,:,:] = (data[:,:,slice]).T
                 #    #si[slice,:,:] = np.fliplr(data[:,:,slice]).T
-                #else:
+                # else:
                 #    si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 2:
-            rows,columns = data.shape
+            rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((rows,columns), data.dtype)
+            si = np.zeros((rows, columns), data.dtype)
             si[:] = self._reorder_slice(data[:], flip=flip, flipud=flipud)
-            #if flip:
+            # if flip:
             #    si[:] = (data[:]).T
             #    #si[:] = np.fliplr(data[:]).T
-            #else:
+            # else:
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logging.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
             si.shape))
-        return(si)
+        return si
 
     def _reorder_from_dicom(self, data, flip=False, flipud=False):
         """Reorder data from internal DICOM format.
@@ -556,59 +562,61 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
         if data.ndim == 5:
-            d5,tags,slices,rows,columns = data.shape
+            d5, tags, slices, rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((rows,columns,slices,tags,d5), data.dtype)
+            si = np.zeros((rows, columns, slices, tags, d5), data.dtype)
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        si[:,:,slice,tag,d] = self._reorder_slice(data[d, tag, slice, :, :], flip=flip, flipud=flipud)
-                        #if flip:
+                        si[:, :, slice, tag, d] = self._reorder_slice(data[d, tag, slice, :, :], flip=flip,
+                                                                      flipud=flipud)
+                        # if flip:
                         #    si[:,:,slice,tag,d] = \
                         #    np.fliplr(data[d,tag,slice,:,:]).T
-                        #else:
+                        # else:
                         #    si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
         elif data.ndim == 4:
-            tags,slices,rows,columns = data.shape
+            tags, slices, rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((rows,columns,slices,tags), data.dtype)
+            si = np.zeros((rows, columns, slices, tags), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    si[:,:,slice,tag] = self._reorder_slice(data[tag,slice,:,:], flip=flip, flipud=flipud)
-                    #if flip:
+                    si[:, :, slice, tag] = self._reorder_slice(data[tag, slice, :, :], flip=flip, flipud=flipud)
+                    # if flip:
                     #    si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
-                    #else:
+                    # else:
                     #    si[:,:,slice,tag] = data[tag,slice,:,:]
         elif data.ndim == 3:
-            slices,rows,columns = data.shape
+            slices, rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((rows,columns,slices), data.dtype)
+            si = np.zeros((rows, columns, slices), data.dtype)
             for slice in range(slices):
-                si[:,:,slice] = self._reorder_slice(data[slice,:,:], flip=flip, flipud=flipud)
-                #if flip:
+                si[:, :, slice] = self._reorder_slice(data[slice, :, :], flip=flip, flipud=flipud)
+                # if flip:
                 #    si[:,:,slice] = np.fliplr(data[slice,:,:]).T
-                #else:
+                # else:
                 #    si[:,:,slice] = data[slice,:,:]
         elif data.ndim == 2:
-            rows,columns = data.shape
+            rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
-            si = np.zeros((rows,columns), data.dtype)
-            si[:,:] = self._reorder_slice(data[:,:], flip=flip, flipud=flipud)
-            #if flip:
+            si = np.zeros((rows, columns), data.dtype)
+            si[:, :] = self._reorder_slice(data[:, :], flip=flip, flipud=flipud)
+            # if flip:
             #    si[:] = np.fliplr(data[:]).T
-            #else:
+            # else:
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logging.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
             si.shape))
-        return(si)
+        return si
 
-    def _reorder_slice(self, data, flip, flipud):
+    @staticmethod
+    def _reorder_slice(data, flip, flipud):
         if flip and flipud:
             return np.fliplr(data).T
         elif flip:
@@ -618,53 +626,51 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         else:
             return data
 
-    def copy(self, other=None):
-        """Make a copy of the instance
-
-        Returns:
-        - new instance of imagedata format plugin
-        """
-
-        if other is None:
-            raise NoOtherInstance("No other instance to copy to.")
-
-        other.__input_order       = self.__input_order
-        #for attr in self.__dict__:
-        #    logging.debug("AbstractPlugin::copy {}".format(attr))
-        if self.__sort_on is not None:
-            other.__sort_on          = self.__sort_on
-        if self.__sliceLocations is not None:
-            other.__sliceLocations   = self.__sliceLocations.copy()
-        if self.__DicomHeaderDict is not None:
-            other.__DicomHeaderDict  = self.__DicomHeaderDict.copy()
-            for slice in self.__DicomHeaderDict:
-                other.__DicomHeaderDict[slice] = []
-                for tg,fname,im in self.__DicomHeaderDict[slice]:
-                    # Create new dataset by making a deep copy of im
-                    info = pydicom.dataset.Dataset()
-                    for key in im.keys():
-                        if key != (0x7fe0, 0x0010):
-                            el = im[key]
-                            info.add_new(el.tag, el.VR, el.value)
-                    other.__DicomHeaderDict[slice].append((tg,fname,info))
-        if self.__tags is not None:
-            other.__tags = {}
-            for slice in self.__tags.keys():
-                other.__tags[slice] = self.__tags[slice].copy()
-        if self.__spacing is not None:
-            other.__spacing          = self.__spacing.copy()
-        if self.__imagePositions is not None:
-            other.__imagePositions = {}
-            for slice in self.__imagePositions.keys():
-                other.__imagePositions[slice] = self.__imagePositions[slice].copy()
-        if self.__orientation is not None:
-            other.__orientation      = self.__orientation.copy()
-        if self.__seriesNumber is not None:
-            other.__seriesNumber     = self.__seriesNumber
-        if self.__seriesDescription is not None:
-            other.__seriesDescription= self.__seriesDescription
-        if self.__imageType is not None:
-            other.__imageType        = self.__imageType
-        return other
-
-
+    # def copy(self, other=None):
+    #     """Make a copy of the instance
+    #
+    #     Returns:
+    #     - new instance of imagedata format plugin
+    #     """
+    #
+    #     if other is None:
+    #         raise NoOtherInstance("No other instance to copy to.")
+    #
+    #     other.__input_order = self.__input_order
+    #     # for attr in self.__dict__:
+    #     #    logging.debug("AbstractPlugin::copy {}".format(attr))
+    #     if self.__sort_on is not None:
+    #         other.__sort_on = self.__sort_on
+    #     if self.__sliceLocations is not None:
+    #         other.__sliceLocations = self.__sliceLocations.copy()
+    #     if self.__DicomHeaderDict is not None:
+    #         other.__DicomHeaderDict = self.__DicomHeaderDict.copy()
+    #         for slice in self.__DicomHeaderDict:
+    #             other.__DicomHeaderDict[slice] = []
+    #             for tg, fname, im in self.__DicomHeaderDict[slice]:
+    #                 # Create new dataset by making a deep copy of image
+    #                 info = pydicom.dataset.Dataset()
+    #                 for key in im.keys():
+    #                     if key != (0x7fe0, 0x0010):
+    #                         el = im[key]
+    #                         info.add_new(el.tag, el.VR, el.value)
+    #                 other.__DicomHeaderDict[slice].append((tg, fname, info))
+    #     if self.__tags is not None:
+    #         other.__tags = {}
+    #         for slice in self.__tags.keys():
+    #             other.__tags[slice] = self.__tags[slice].copy()
+    #     if self.__spacing is not None:
+    #         other.__spacing = self.__spacing.copy()
+    #     if self.__imagePositions is not None:
+    #         other.__imagePositions = {}
+    #         for slice in self.__imagePositions.keys():
+    #             other.__imagePositions[slice] = self.__imagePositions[slice].copy()
+    #     if self.__orientation is not None:
+    #         other.__orientation = self.__orientation.copy()
+    #     if self.__seriesNumber is not None:
+    #         other.__seriesNumber = self.__seriesNumber
+    #     if self.__seriesDescription is not None:
+    #         other.__seriesDescription = self.__seriesDescription
+    #     if self.__imageType is not None:
+    #         other.__imageType = self.__imageType
+    #     return other

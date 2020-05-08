@@ -11,9 +11,9 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
-#logger.setLevel(logging.INFO)
-#logger.setLevel(logging.WARNING)
-#logger.setLevel(logging.ERROR)
+# logger.setLevel(logging.INFO)
+# logger.setLevel(logging.WARNING)
+# logger.setLevel(logging.ERROR)
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("sys.path = \n{}".format(sys.path))
@@ -26,15 +26,15 @@ if __name__ == '__main__':
     plugins = formats.get_plugins_list()
     print("Plugin Table List")
     print("=================")
-    for pname,ptype,pclass in plugins:
+    for pname, ptype, pclass in plugins:
         print("%20s (%8s) %s" % (pname, ptype, pclass.description))
 
-    #formats.add_plugin_dir('/hus/home/eran/src/image_data.py/packaging/imagedata/imagedata/formats')
-    #plugins = formats.get_plugins_list()
-    #print("Plugin Table 2")
-    #print("==============")
-    #for pname,ptype,pclass in plugins:
-    #    print("%20s (%8s) %s" % (pname, ptype, pclass.description))
+    # formats.add_plugin_dir('/hus/home/eran/src/image_data.py/packaging/imagedata/imagedata/formats')
+    # plugins = formats.get_plugins_list()
+    # print("Plugin Table 2")
+    # print("==============")
+    # for pname,ptype,pclass in plugins:
+    #     print("%20s (%8s) %s" % (pname, ptype, pclass.description))
 
     types = AbstractPlugin.__subclasses__()
     print("Subclasses of AbstractPlugin")

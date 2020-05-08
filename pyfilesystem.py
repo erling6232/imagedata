@@ -77,22 +77,22 @@ class PyFilesystemArchive(AbstractArchive):
         logging.debug("PyFilesystemArchive __init__ url: {}".format(url))
         self.__urldict = urllib.parse.urlsplit(url, scheme="file")
 
-        # If the URL refers to a single file, let dirname refer to the
+        # If the URL refers to a single file, let directory_name refer to the
         # directory and basename to the file
         logging.debug("PyFilesystemArchive __init__ verify : {}".format(self.__urldict.path))
         if os.path.isfile(self.__urldict.path):
             self.__dirname  = os.path.dirname (self.__urldict.path)
             self.__basename = os.path.basename(self.__urldict.path)
             self.__filelist = [self.__urldict.path]
-            logging.debug("PyFilesystemArchive __init__ dirname : {}".format(self.__dirname))
+            logging.debug("PyFilesystemArchive __init__ directory_name : {}".format(self.__dirname))
             logging.debug("PyFilesystemArchive __init__ basename: {}".format(self.__basename))
             #logging.debug("PyFilesystemArchive self.__filelist: {}".format(self.__filelist))
             return
 
-        # The URL refers to a directory. Let dirname refer to the directory
+        # The URL refers to a directory. Let directory_name refer to the directory
         self.__dirname = self.__urldict.path
         self.__basename = None
-        logging.debug("PyFilesystemArchive __init__ scan dirname : {}".format(self.__dirname))
+        logging.debug("PyFilesystemArchive __init__ scan directory_name : {}".format(self.__dirname))
         logging.debug("PyFilesystemArchive __init__ scan basename: {}".format(self.__basename))
         self.__filelist = list()
         #logging.debug("PyFilesystemArchive walk root: {}".format(self.__urldict.path))
@@ -104,7 +104,7 @@ class PyFilesystemArchive(AbstractArchive):
                 self.__filelist.append(fname)
                 #if transport.isfile(fname):
                 #    if root.startswith(self.__dirname):
-                #        root = root[len(self.__dirname)+1:] # Strip off dirname
+                #        root = root[len(self.__dirname)+1:] # Strip off directory_name
                 #    self.__filelist[fname] = (root,filename)
                 #    logging.debug(fname)
         #logging.debug("PyFilesystemArchive self.__filelist: {}".format(self.__filelist))

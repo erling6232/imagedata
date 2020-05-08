@@ -7,7 +7,8 @@ import pydicom.dataset
 import pydicom.datadict
 import imagedata.formats
 import imagedata.formats.dicomlib.uid
-#from imagedata.series import Series
+
+# from imagedata.series import Series
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -20,8 +21,9 @@ header_tags = ['input_format',
                'patientName', 'patientID', 'patientBirthDate',
                'input_sort']
 geometry_tags = ['sliceLocations', 'tags', 'spacing',
-                'imagePositions', 'orientation', 'transformationMatrix',
-                'color', 'photometricInterpretation', 'axes']
+                 'imagePositions', 'orientation', 'transformationMatrix',
+                 'color', 'photometricInterpretation', 'axes']
+
 
 class Header(object):
     """Image header object.
@@ -44,22 +46,26 @@ class Header(object):
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
+        self.color = False
+        self.DicomHeaderDict = None
+        self.tags = None
+        self.axes = None
 
     def new_uid(self) -> str:
         return self.__uid_generator.__next__()
 
-    def set_default_values(self, shape, axes):
+    def set_default_values(self, axes):
         self.color = False
         if self.DicomHeaderDict is not None:
             return
-        #self.axes = list()
-        #for d in range(len(shape)):
+        # self.axes = list()
+        # for d in range(len(shape)):
         #    self.axes.append(imagedata.axis.UniformAxis('%d' % d,
         #                                                0,
         #                                                shape[d]))
         self.axes = copy.copy(axes)
-        #logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
-        #logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
+        # logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
+        # logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
 
         slices = tags = 1
         if axes is not None:
@@ -71,21 +77,22 @@ class Header(object):
 
             self.DicomHeaderDict = {}
             i = 0
-            #logging.debug('Header.set_default_values %d tags' % tags)
-            #logging.debug('Header.set_default_values tags {}'.format(self.tags))
+            # logging.debug('Header.set_default_values %d tags' % tags)
+            # logging.debug('Header.set_default_values tags {}'.format(self.tags))
             for _slice in range(slices):
                 self.DicomHeaderDict[_slice] = []
                 for tag in range(tags):
-                        self.DicomHeaderDict[_slice].append(
-                            ( tag, None, self._empty_ds(i))
-                            )
-                        i += 1
+                    self.DicomHeaderDict[_slice].append(
+                        (tag, None, self._empty_ds())
+                    )
+                    i += 1
             if self.tags is None:
                 self.tags = {}
                 for _slice in range(slices):
                     self.tags[_slice] = [i for i in range(tags)]
 
-    def _empty_ds(self, i):
+    # noinspection PyPep8Naming
+    def _empty_ds(self):
         SOPInsUID = self.new_uid()
 
         ds = pydicom.dataset.Dataset()
@@ -94,7 +101,7 @@ class Header(object):
         ds.StudyInstanceUID = self.studyInstanceUID
         ds.StudyID = '1'
         ds.SeriesInstanceUID = self.seriesInstanceUID
-        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7' # SC
+        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # SC
         ds.SOPInstanceUID = SOPInsUID
         ds.FrameOfReferenceUID = self.frameOfReferenceUID
 
@@ -133,6 +140,7 @@ def add_template(this, template):
                     this[attr] = copy.copy(template[attr])
     else:
         raise ValueError('Template is not Header or dict.')
+
 
 def add_geometry(this, template):
     """Add geometry data to this header.

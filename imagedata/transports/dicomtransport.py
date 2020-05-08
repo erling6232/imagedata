@@ -3,17 +3,24 @@
 
 # Copyright (c) 2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os, os.path, io
-import sys, platform
+import platform
 import logging
-import pydicom, pynetdicom
+import pynetdicom
 from imagedata.transports.abstracttransport import AbstractTransport
-from imagedata.transports import RootIsNotDirectory, RootDoesNotExist, \
-            FunctionNotSupported
+from imagedata.transports import FunctionNotSupported
 
-class AssociationNotEstablished(Exception): pass
-class AssociationFailed(Exception): pass
-class AETitleNotGiven(Exception): pass
+
+class AssociationNotEstablished(Exception):
+    pass
+
+
+class AssociationFailed(Exception):
+    pass
+
+
+class AETitleNotGiven(Exception):
+    pass
+
 
 class DicomTransport(AbstractTransport):
     """Send DICOM images to DICOM Storage SCP
@@ -26,9 +33,10 @@ class DicomTransport(AbstractTransport):
     url = "www.helse-bergen.no"
     schemes = ["dicom"]
 
-    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts={}):
+    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts=None):
         super(DicomTransport, self).__init__(self.name, self.description,
-            self.authors, self.version, self.url, self.schemes)
+                                             self.authors, self.version, self.url, self.schemes)
+        self.read_directory_only = read_directory_only
         logging.debug("DicomTransport __init__ root: {} ({})".format(root, mode))
         if mode[0] == 'r':
             raise FunctionNotSupported('DICOM receive is not supported.')
@@ -39,16 +47,18 @@ class DicomTransport(AbstractTransport):
         self.__root = root
         self.__mode = mode
         # Open DICOM Storage Association as SCU
+        if opts is None:
+            opts = {}
         if 'calling_aet' in opts and opts['calling_aet'] is not None:
-            localAE = opts['calling_aet']
+            local_ae = opts['calling_aet']
         else:
             try:
                 hostname = platform.node()
-                localAE = hostname.split('.')[0]
-            except Exception:
-                    localAE = 'IMAGEDATA'
-        logging.debug("DicomTransport __init__ calling AET: {}".format(localAE))
-        self.__ae = pynetdicom.AE(ae_title=localAE)
+                local_ae = hostname.split('.')[0]
+            except IndexError:
+                local_ae = 'IMAGEDATA'
+        logging.debug("DicomTransport __init__ calling AET: {}".format(local_ae))
+        self.__ae = pynetdicom.AE(ae_title=local_ae)
         self.__ae.requested_contexts = \
             pynetdicom.StoragePresentationContexts
         host, port = netloc.split(':')
@@ -72,7 +82,7 @@ class DicomTransport(AbstractTransport):
         Return:
         - tuples of (root, dirs, files) 
         """
-        #raise FunctionNotSupported('Walking the DICOM server is not supported.')
+        # raise FunctionNotSupported('Walking the DICOM server is not supported.')
         return []
 
     def isfile(self, path):
