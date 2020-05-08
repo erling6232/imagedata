@@ -112,7 +112,7 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
     content['description'] = contentSQ[0][(0x0070,0x0081)].value
     content['date'   ] = contentSQ[0][(0x0070,0x0082)].value
     content['time'   ] = contentSQ[0][(0x0070,0x0083)].value
-    content['creator'] = presentationSQ[0][(0x0070,0x0084)].value
+    content['creator'] = '%s' % presentationSQ[0][(0x0070,0x0084)].value
     #print("get_rois: creator: {}".format(content['creator']))
 
     for finding in findings:
@@ -139,6 +139,8 @@ def evidence2roi(im, separate_laterality=False, uid_table=None, content={}):
         roi_type_value   = finding[(0x0029, 0x1032)].value.strip()
         try:
             roi_name         = finding[(0x0029, 0x1030)].value.decode()
+        except AttributeError:
+            roi_name         = finding[(0x0029, 0x1030)].value
         except KeyError:
             roi_name         = 'NONAME'
         logging.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
