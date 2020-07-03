@@ -540,14 +540,15 @@ class ITKPlugin(AbstractPlugin):
         else:
             logging.debug("get_image_from_numpy: SetOrigin float")
             if len(self.shape) < 3:
-                image.SetOrigin((float(x), float(y)))
+                image.SetOrigin([float(x), float(y)])
             else:
-                image.SetOrigin((float(x), float(y), float(z)))
+                image.SetOrigin([float(x), float(y), float(z)])
 
+        logging.debug("get_image_from_numpy: SetSpacing float")
         dz, dy, dx = self.spacing
-        # dx = float(dx)
-        # dy = float(dy)
-        # dz = float(dz)
+        dx = float(dx)
+        dy = float(dy)
+        dz = float(dz)
         if len(self.shape) < 3:
             image.SetSpacing([dx, dy])
         else:
