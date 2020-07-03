@@ -1,0 +1,68 @@
+# this file is *not* meant to cover or endorse the use of tox or pytest or
+# testing in general,
+#
+#  It's meant to show the use of:
+#
+#  - check-manifest
+#     confirm items checked into vcs are in your sdist
+#  - python setup.py check 
+#     confirm required package meta-data in setup.py
+#  - readme_renderer (when using a ReStructuredText README)
+#     confirms your long_description will render correctly on PyPI.
+#
+#  and also to help confirm pull requests to this project.
+
+[tox]
+envlist = py{35,36,37,38}
+
+# By default, .tox is the directory.
+# Putting it in a non-dot file allows opening the generated
+# documentation from file managers or browser open dialogs
+# that will sometimes hide dot files.
+toxworkdir = {toxinidir}/build/tox
+
+[testenv]
+basepython =
+    py35: python3.5
+    py36: python3.6
+    py37: python3.7
+    py38: python3.8
+deps =
+    check-manifest
+    # If your project uses README.rst, uncomment the following:
+    # readme_renderer
+    flake8
+    pytest
+commands =
+    check-manifest --ignore tox.ini,tests*
+    # This repository uses a Markdown long_description, so the -r flag to
+    # `setup.py check` is not needed. If your project contains a README.rst,
+    # use `python setup.py check -m -r -s` instead.
+    python setup.py check -m -s
+    flake8 .
+    py.test tests
+
+[testenv:docs]
+# Running sphinx from inside the "docs" directory
+# ensures it will not pick up any stray files that might
+# get into a virtual environment under the top-level directory
+# or other artifacts under build/
+changedir = docs
+# The only dependency is sphinx
+# If we were using extensions packaged separately,
+# we would specify them here.
+# A better practice is to specify a specific version of sphinx.
+deps =
+    sphinx
+# This is the sphinx command to generate HTML.
+# In other circumstances, we might want to generate a PDF or an ebook
+commands =
+    sphinx-build -W -b html -d {envtmpdir}/doctrees . {envtmpdir}/html
+# We use Python 3.7. Tox sometimes tries to autodetect it based on the name of
+# the testenv, but "docs" does not give useful clues so we have to be explicit.
+basepython = python3.7
+
+
+[flake8]
+exclude = .tox,*.egg,build,data
+select = E,W,F
