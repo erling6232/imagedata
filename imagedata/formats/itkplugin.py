@@ -181,11 +181,11 @@ class ITKPlugin(AbstractPlugin):
         v = spacing.GetVnlVector()
         logging.debug('ITKPlugin._set_tags: hdr {}'.format(hdr))
         logging.debug('ITKPlugin._set_tags: spacing {} {} {}'.format(v.get(2), v.get(1), v.get(0)))
-        hdr['spacing'] = (v.get(2), v.get(1), v.get(0))
+        hdr['spacing'] = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
         if v.size() > 3:
-            dt = v.get(3)
+            dt = float(v.get(3))
         else:
-            dt = 1
+            dt = 1.0
 
         # Set imagePositions for first slice
         v = origin.GetVnlVector()
@@ -545,9 +545,9 @@ class ITKPlugin(AbstractPlugin):
                 image.SetOrigin((float(x), float(y), float(z)))
 
         dz, dy, dx = self.spacing
-        dx = float(dx)
-        dy = float(dy)
-        dz = float(dz)
+        # dx = float(dx)
+        # dy = float(dy)
+        # dz = float(dz)
         if len(self.shape) < 3:
             image.SetSpacing([dx, dy])
         else:

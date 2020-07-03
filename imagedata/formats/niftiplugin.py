@@ -144,8 +144,8 @@ class NiftiPlugin(AbstractPlugin):
             dt = dt / 1000.
         elif _xyzt_units[1] == 'usec':
             dt = dt / 1000000.
-        self.spacing = (dz, dy, dx)
-        hdr['spacing'] = (dz, dy, dx)
+        self.spacing = (float(dz), float(dy), float(dx))
+        hdr['spacing'] = (float(dz), float(dy), float(dx))
 
         # Simplify shape
         self._reduce_shape(si)
