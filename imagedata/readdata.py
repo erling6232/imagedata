@@ -30,13 +30,19 @@ class UnknownOptionType(Exception):
 def read(urls, order=None, opts=None):
     """Read image data, calling appropriate transport, archive and format plugins
 
-    Input:
-    - urls: list of urls or url to read (list of str, or str)
-    - order: determine how to sort the images (default: auto-detect)
-    - opts: input options (argparse.Namespace or dict)
-    Output:
-    - hdr: header instance
-    - si[tag,slice,rows,columns]: numpy array
+    Args:
+        urls: list of urls or url to read (list of str, or str)
+        order: determine how to sort the images (default: auto-detect)
+        opts: input options (argparse.Namespace or dict)
+    Returns:
+        tuple of
+            - hdr: header instance
+            - si[tag,slice,rows,columns]: numpy array
+    Raises:
+        ValueError: When no sources are given.
+        UnknownOptionType: When opts cannot be made into a dict.
+        FileNotFoundError: When specified URL cannot be opened.
+        imagedata.formats.UnknownInputError: When the input format could not be determined.
     """
 
     logging.debug("reader.read: urls {}".format(urls))
@@ -146,12 +152,16 @@ def read(urls, order=None, opts=None):
 def write(si, url, opts=None, formats=None):
     """Write image data, calling appropriate format plugins
 
-    Input:
-    - si[tag,slice,rows,columns]: Series array
-    - url: output destination url
-    - opts: Output options (argparse.Namespace or dict)
-    - formats: list of output formats, overriding opts.output_format (list or
-      str)
+    Args:
+        si[tag,slice,rows,columns]: Series array
+        url: output destination url
+        opts: Output options (argparse.Namespace or dict)
+        formats: list of output formats, overriding opts.output_format (list or str)
+    Raises:
+        UnknownOptionType: When opts cannot be made into a dict.
+        TypeError: List of output format is not list().
+        ValueError: Wrong number of destinations given, or no way to write multidimensional image.
+        imagedata.formats.WriteNotImplemented: Cannot write this image format.
     """
 
     # logging.debug("write: directory_name(si): {}".format(directory_name(si)))
@@ -369,26 +379,26 @@ def _get_sources(urls, mode, opts=None):
     
     Handle both single url, a url tuple, and a url list
 
-    Input:
-    - urls: list, tuple or single string, e.g.:
+    Args:
+        urls: list, tuple or single string, e.g.:
             file://dicom
-              transport: file, archive: fs, url: dicom
+                transport: file, archive: fs, url: dicom
             file://dicom.zip?query
-              transport: file, archive: zip, files: query
+                transport: file, archive: zip, files: query
             file://dicom.tar.gz?query
-              transport: file, archive: tgz, files: query
+                transport: file, archive: tgz, files: query
             http://server:port/dicom.zip
-              transport: http, archive: zip
+                transport: http, archive: zip
             dicomscp://server:port/AET
-              transport: dicomscp, archive: fs
+                transport: dicomscp, archive: fs
             xnat://server:port
-             transport: xnat, archive: fs
-    - mode: 'r' or 'w' for Read or Write
-      When mode = 'r', the urls must exist.
-    Output:
-    - sources: list of dict for each url
-        'archive'  : archive plugin
-        'files'    : list of file names or regexp. May be empty list.
+               transport: xnat, archive: fs
+        mode: 'r' or 'w' for Read or Write
+            When mode = 'r', the urls must exist.
+    Returns:
+        sources: list of dict for each url
+            - 'archive'  : archive plugin
+            - 'files'    : list of file names or regexp. May be empty list.
     """
 
     # Ensure the input is a list: my_urls

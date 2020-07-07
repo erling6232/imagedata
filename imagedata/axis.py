@@ -1,3 +1,6 @@
+"""Axis defines a dimension of an images Series.
+"""
+
 from abc import ABCMeta  # , abstractmethod, abstractproperty
 # import logging
 import numpy as np
@@ -14,6 +17,9 @@ class Axis(object, metaclass=ABCMeta):
 class UniformAxis(Axis):
     """Define axis by giving start, stop and step (optional).
     Start, stop and step are given in actual values
+
+    Examples:
+        >>> ax = UniformAxis('row', 0, 128)
     """
 
     def __init__(self, name, start, stop, step=1):
@@ -57,6 +63,9 @@ class UniformAxis(Axis):
 class UniformLengthAxis(UniformAxis):
     """Define axis by giving start, length and step (optional).
     Start and step are given in actual values.
+
+    Examples:
+        >>> ax = UniformLengthAxis('row', 0, 128)
     """
 
     def __init__(self, name, start, n, step=1):
@@ -93,6 +102,9 @@ class UniformLengthAxis(UniformAxis):
 class VariableAxis(Axis):
     """Define axis by giving an array of values.
     values are actual values.
+
+    Examples:
+        >>> ax = VariableAxis('time', [0, 1, 4, 9, 11, 13])
     """
 
     def __init__(self, name, values):

@@ -1,4 +1,5 @@
-"""Image series
+"""Image series header
+
 """
 
 import copy
@@ -27,6 +28,40 @@ geometry_tags = ['sliceLocations', 'tags', 'spacing',
 
 class Header(object):
     """Image header object.
+
+    Attributes:
+        input_order
+        sort_on
+        input_format
+        DicomHeaderDict
+        seriesNumber
+        seriesDescription
+        imageType
+        frameOfReferenceUID
+        studyInstanceUID
+        studyID
+        seriesInstanceUID
+        accessionNumber
+        patientName
+        patientID
+        patientBirthDate
+        input_sort
+        sliceLocations
+        tags
+        spacing
+        imagePositions
+        orientation
+        transformationMatrix
+        color
+        photometricInterpretation
+        axes
+        __uid_generator
+        studyInstanceUID
+        seriesInstanceUID
+        frameOfReferenceUID
+        DicomHeaderDict
+        tags
+        axes
     """
 
     def __init__(self):
@@ -52,9 +87,13 @@ class Header(object):
         self.axes = None
 
     def new_uid(self) -> str:
+        """Return the next available UID from the UID generator.
+        """
         return self.__uid_generator.__next__()
 
     def set_default_values(self, axes):
+        """Set default values.
+        """
         self.color = False
         if self.DicomHeaderDict is not None:
             return
@@ -118,9 +157,11 @@ def add_template(this, template):
     """Add template data to this header.
     Does not add geometry data.
 
-    Input:
-    - this: header or dict
-    - template: template header or dict. Can be None.
+    Args:
+        this: header or dict
+        template: template header or dict. Can be None.
+    Raises:
+        ValueError: When the template is not a Header or dict.
     """
 
     if template is None:
@@ -145,9 +186,11 @@ def add_template(this, template):
 def add_geometry(this, template):
     """Add geometry data to this header.
 
-    Input:
-    - this: header or dict
-    - template: template header or dict. Can be None.
+    Args:
+        this: header or dict
+        template: template header or dict. Can be None.
+    Raises:
+        ValueError: When the template is not a Header or dict.
     """
 
     if template is None:

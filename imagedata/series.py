@@ -1,4 +1,11 @@
 """Image series
+
+The Series class is a subclassed Numpy.ndarray enhancing the array with relevant medical image methods and attributes.
+
+  Typical example usage:
+
+  si = Series('input')
+
 """
 
 import copy
@@ -37,12 +44,51 @@ def is_pathlib_path(obj):
 
 
 class Series(np.ndarray):
-    """Series class
+    """Series -- a multidimensional array of medical imaging pixels.
 
-    Load in image series.
+    The Series class is a subclassed Numpy.ndarray enhancing the ndarray
+    with relevant medical image methods and attributes.
 
-    Example:
-        image = Series('directory/')
+    Series(data, input_order='none', opts=None, shape=(0,), dtype=float, order=None, template=None, geometry=None)
+
+    Attributes:
+        shape: shape of array
+
+    Examples:
+
+        Read the contents of an input directory
+
+        >>> image = Series('directory/')
+
+        Make a Series instance from a Numpy.ndarray
+
+        >>> a = np.eye(128)
+        >>> image = Series(a)
+
+    Args:
+        data: (array_like or URL)
+            Input data, either explicit as np.ndarray, np.uint16, np.float32, or by URL to input data.
+        input_order: (str)
+            How to sort the input data. Typical values are:
+                * 'none' : 3D volume or 2D slice (default).
+                * 'time' : Time-resolved data.
+                * 'b' : Diffusion data with variable b values.
+                * 'te' : Varying echo times.
+                * 'fa' : Varying flip angles.
+        opts: (argparse.Namespace or dict)
+            Dict of input options, mostly for format specific plugins.
+        shape: Tuple of ints, specifying shape of input data.
+        dtype: Numpy data type.
+            Default: float
+        template: (Series, array_like or URL)
+            Input data to use as template for DICOM header.
+        geometry: (Series, array_like or URL)
+            Input data to use as template for geometry.
+        order: {'C', 'F'}, optional
+            Row-major (C-style) or column-major (Fortran-style) order.
+
+    Returns:
+        Series instance
     """
 
     name = "Series"
@@ -55,9 +101,6 @@ class Series(np.ndarray):
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None):
-        """
-        - opts: Input options (argparse.Namespace or dict)
-        """
 
         if issubclass(type(template), Series):
             template = template.header
@@ -483,15 +526,13 @@ class Series(np.ndarray):
     def write(self, url, opts=None, formats=None):
         """Write Series image
 
-        Input:
-        - self: Series array
-        - directory_name: directory name
-        - filename_template: template including %d for image number
-        - opts: Output options (argparse.Namespace or dict)
-        - formats: list of output formats, overriding opts.output_format (list
-          or str)
+        Args:
+            self: Series array
+            directory_name: directory name
+            filename_template: template including %d for image number
+            opts: Output options (argparse.Namespace or dict)
+            formats: list of output formats, overriding opts.output_format (list or str)
         """
-
         logging.debug('Series.write: url    : {}'.format(url))
         logging.debug('Series.write: formats: {}'.format(formats))
         logging.debug('Series.write: opts   : {}'.format(opts))
@@ -508,7 +549,8 @@ class Series(np.ndarray):
         INPUT_ORDER_FA: Sort on flip angle
         INPUT_ORDER_FAULTY: Correct erroneous attributes
 
-        Returns current input order.
+        Returns:
+            Current input order.
         """
         return self.header.input_order
 
@@ -516,10 +558,11 @@ class Series(np.ndarray):
     def input_order(self, order):
         """Set input order
 
-        Input:
-        - order: new input_order
+        Args:
+            order: new input_order
 
-        Raises ValueError when order is illegal.
+        Raises:
+            ValueError: when order is illegal.
         """
         if order in imagedata.formats.input_order_set:
             self.header.input_order = order
@@ -530,7 +573,8 @@ class Series(np.ndarray):
     def input_format(self):
         """Input format
 
-        Returns the input format (str).
+        Returns:
+            The input format (str).
         """
         return self.header.input_format
 
@@ -538,8 +582,8 @@ class Series(np.ndarray):
     def input_format(self, fmt):
         """Set input format
 
-        Input:
-        - fmt: new input_format
+        Args:
+            fmt: new input_format
         """
         self.header.input_format = fmt
 
@@ -551,8 +595,11 @@ class Series(np.ndarray):
         SORT_ON_SLICE: Run over slices first
         SORT_ON_TAG  : Run over input order first, then slices
 
-        Returns the input order.
-        Raises ValueError when input order is not defined.
+        Returns:
+            The input order.
+
+        Raises:
+            ValueError: when input order is not defined.
         """
         try:
             if self.header.input_sort is not None:
@@ -565,10 +612,11 @@ class Series(np.ndarray):
     def input_sort(self, order):
         """Set input sort order
 
-        Input:
-        - order: new input sort order
+        Args:
+            order: new input sort order
 
-        Raises ValueError when order is illegal.
+        Raises:
+            ValueError: when order is illegal.
         """
         if order is None or order in imagedata.formats.sort_on_set:
             self.header.input_sort = order
@@ -583,8 +631,10 @@ class Series(np.ndarray):
         SORT_ON_SLICE: Run over slices first
         SORT_ON_TAG  : Run over input order first, then slices
 
-        Returns current output order.
-        Raises ValueError when output order is not defined.
+        Returns:
+            Current output order.
+        Raises:
+            ValueError: when output order is not defined.
         """
         try:
             if self.header.sort_on is not None:
@@ -597,10 +647,10 @@ class Series(np.ndarray):
     def sort_on(self, order):
         """Set output sort order
 
-        Input:
-        - order: new output sort order
-
-        Raises ValueError when order is illegal.
+        Args:
+            order: new output sort order
+        Raises:
+            ValueError: when order is illegal.
         """
         if order in imagedata.formats.sort_on_set:
             self.header.sort_on = order
@@ -611,7 +661,8 @@ class Series(np.ndarray):
     def shape(self):
         """Matrix shape
 
-        Returns current matrix shape as tuple
+        Returns:
+            Current matrix shape as tuple
         """
         return super(Series, self).shape
 
@@ -619,8 +670,10 @@ class Series(np.ndarray):
     def shape(self, s):
         """Set matrix shape
 
-        Input:
-        - s: new shape tuple
+        Args:
+            s: new shape tuple
+        Raises:
+            IndexError: always (do not set shape)
         """
         raise IndexError('Should set axes instead of shape.')
         # prev_shape = super(Series, self).shape
@@ -643,8 +696,10 @@ class Series(np.ndarray):
     def rows(self):
         """Number of rows
 
-        Returns number of rows.
-        Raises ValueError when number of rows is not defined.
+        Returns:
+            Number of rows.
+        Raises:
+            ValueError: when number of rows is not defined.
         """
         try:
             row_axis = self.__find_axis('row')
@@ -661,8 +716,10 @@ class Series(np.ndarray):
     def columns(self):
         """Number of columns
 
-        Returns number of columns.
-        Raises ValueError when number of columns is not defined.
+        Returns:
+            Number of columns.
+        Raises:
+            ValueError: when number of columns is not defined.
         """
         try:
             column_axis = self.__find_axis('column')
@@ -679,8 +736,10 @@ class Series(np.ndarray):
     def slices(self):
         """Number of slices
 
-        Returns number of slices.
-        Raises ValueError when number of slices is not defined.
+        Returns:
+            Number of slices.
+        Raises:
+            ValueError: when number of slices is not defined.
         """
         try:
             slice_axis = self.__find_axis('slice')
@@ -702,10 +761,10 @@ class Series(np.ndarray):
     def slices(self, nslices):
         """Set number of slices
 
-        Input:
-        - nslices: number of slices
-
-        Raises ValueError when number of slices is illegal.
+        Args:
+            nslices: Number of slices.
+        Raises:
+            DoNotSetSlicesError: Always (do not set slices)
         """
         # if nslices > 0:
         #    if self.ndim > 2 and nslices != self.shape[-3]:
@@ -721,6 +780,11 @@ class Series(np.ndarray):
         """Slice locations
 
         Sorted numpy array of slice locations, in mm.
+
+        Returns:
+            List of slice locations as numpy array
+        Raises:
+            ValueError: When no slice locations are defined.
         """
         try:
             if self.header.sliceLocations is not None:
@@ -745,8 +809,8 @@ class Series(np.ndarray):
     def sliceLocations(self, loc):
         """Set slice locations
 
-        Input:
-        - loc: list or numpy array of slice locations, in mm.
+        Args:
+            loc: list or numpy array of slice locations, in mm.
         """
         if loc is not None:
             self.header.sliceLocations = np.sort(loc)
@@ -759,8 +823,14 @@ class Series(np.ndarray):
 
         DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
 
-        Returns DicomHeaderDict instance.
-        Raises ValueError when header is not set.
+        Returns:
+            DicomHeaderDict instance.
+        Raises:
+            ValueError: when DICOM header is not set.
+        Examples:
+            Get values for slice=0:
+
+            >>> tagvalue, filename, dicomheader = image.DicomHeaderDict()[0]
         """
         # logging.debug('Series.DicomHeaderDict: here')
         try:
@@ -777,8 +847,8 @@ class Series(np.ndarray):
     def DicomHeaderDict(self, dct):
         """Set DicomHeaderDict
 
-        Input:
-        - dct: DicomHeaderDict instance
+        Args:
+            dct: DicomHeaderDict instance
         """
         self.header.DicomHeaderDict = dct
 
@@ -787,17 +857,20 @@ class Series(np.ndarray):
         """Image tags for each slice
         
         Image tags can be an array of:
-        - time points
-        - diffusion weightings (b values)
-        - flip angles
+            - time points
+            - diffusion weightings (b values)
+            - flip angles
         
         tags is a dict with (slice keys, tag array)
+
         dict[slice] is np.array(tags)
 
-        Usage:
-        self.tags[slice][tag]
+        Examples:
 
-        Raises ValueError when tags are not set.
+            >>>self.tags[slice][tag]
+
+        Raises:
+            ValueError: when tags are not set.
         """
         try:
             if self.header.tags is not None:
@@ -811,9 +884,9 @@ class Series(np.ndarray):
         """Set tag(s) for given slice(s).
         Includes adjusting tags for DicomHeaderDict.
         
-        Input:
-        - tags: dict() of np.array(tags)
-          tags.keys() are slice numbers (int)
+        Args:
+            tags: dict() of np.array(tags)
+                tags.keys() are slice numbers (int)
         """
         self.header.tags = {}
         hdr = {}
@@ -841,10 +914,10 @@ class Series(np.ndarray):
 
         Return axis object for given dimension.
 
-        Return:
-        - List of Axis objects
-        Exceptions:
-        - ValueError: when axis object is not set.
+        Returns:
+            List of Axis objects
+        Raises:
+            ValueError: when the axis is not set.
         """
         try:
             if self.header.axes is not None:
@@ -879,8 +952,8 @@ class Series(np.ndarray):
     def axes(self, ax):
         """Set axes and shape
 
-        Input:
-        - ax: list of axis objects
+        Args:
+            ax: list of axis objects
         """
         self.header.axes = ax
         # shape = [len(axis) for axis in ax]
@@ -892,12 +965,12 @@ class Series(np.ndarray):
     def __find_axis(self, name):
         """Find axis with given name
 
-        Input:
-        - name: Axis name to search for
-        Returned value:
-        - axis object with given name
-        Exceptions:
-        - ValueError: when no axis object has given name
+        Args:
+            name: Axis name to search for
+        Returnes:
+            axis object with given name
+        Raises:
+            ValueError: when no axis object has given name
         """
         for axis in self.axes:
             if axis.name == name:
@@ -910,10 +983,10 @@ class Series(np.ndarray):
 
         Given as dz,dy,dx in mm.
 
-        Return:
-        - [dz,dy,dx] in mm, as numpy array
-        Exceptions:
-        - ValueError: when spacing is not set.
+        Returns:
+            spacing: [dz,dy,dx] in mm, as numpy array
+        Raises:
+            ValueError: when spacing is not set.
         """
         try:
             if self.header.spacing is not None:
@@ -926,10 +999,10 @@ class Series(np.ndarray):
     def spacing(self, *args):
         """Set spacing
 
-        Input:
-        - dz,dy,dx in mm, given as numpy array, list or separate arguments
-        Exceptions:
-        - ValueError: when spacing is not a tuple of 3 coordinates
+        Args:
+            spacing: dz,dy,dx in mm, given as numpy array, list or separate arguments
+        Raises:
+            ValueError: when spacing is not a tuple of 3 coordinates
         """
         if args[0] is None:
             self.header.spacing = None
@@ -966,13 +1039,13 @@ class Series(np.ndarray):
 
         dict(imagePositions[slice]) of [z,y,x] in mm, as numpy array
 
-        Usage:
-        z,y,x = self.imagePositions[slice]
+        Examples:
+            >>> z,y,x = self.imagePositions[slice]
 
-        Return:
-        - dict of imagePositions. dict.keys() are slice numbers (int)
-        Exceptions:
-        - ValueError: when imagePositions are not set.
+        Returns:
+            dict of imagePositions. dict.keys() are slice numbers (int)
+        Raises:
+            ValueError: when imagePositions are not set.
         """
         # logging.debug('Series.imagePositions.get:')
         try:
@@ -1001,7 +1074,7 @@ class Series(np.ndarray):
                                                      transformation=m)
                 return self.header.imagePositions
         except AttributeError:
-            raise
+            pass
         raise ValueError("No imagePositions set.")
 
     @imagePositions.setter
@@ -1011,16 +1084,16 @@ class Series(np.ndarray):
         poslist is added to existing imagePositions.
         Overlapping dict keys will replace exisiting imagePosition for given slice.
 
-        Usage:
-        for slice in range(slices):
-            self.imagePositions = {
-                slice: self.getPositionForVoxel(np.array([slice,0,0]))
-            }
+        Examples:
+            >>> for slice in range(slices):
+            >>>     self.imagePositions = {
+            >>>         slice: self.getPositionForVoxel(np.array([slice,0,0]))
+            >>>     }
 
-        Input:
-        - poslist: dict of imagePositions. dict.keys() are slice numbers (int)
-        Exceptions:
-        - AssertionError: when poslist has wrong shape or datatype.
+        Args:
+            poslist: dict of imagePositions. dict.keys() are slice numbers (int)
+        Raises:
+            AssertionError: when poslist has wrong shape or datatype.
         """
         if poslist is None:
             self.header.imagePositions = None
@@ -1052,9 +1125,9 @@ class Series(np.ndarray):
         followed by the column value (row index) for the z,y,x axes respectively.
 
         Returns:
-        - orientation as np.array with 6 elements.
-        Exceptions:
-        - ValueError: when orientation is not set.
+            orientation as np.array with 6 elements.
+        Raises:
+            ValueError: when orientation is not set.
         """
         try:
             if self.header.orientation is not None:
@@ -1067,10 +1140,10 @@ class Series(np.ndarray):
     def orientation(self, orient):
         """Set orientation
 
-        Input:
-        - orient: np.array or list of 6 elements
-        Exceptions:
-        - AssertionError: when len(orient) != 6
+        Args:
+            orient: np.array or list of 6 elements
+        Raises:
+            AssertionError: when len(orient) != 6
         """
         if orient is None:
             self.header.transformationMatrix = None
@@ -1088,9 +1161,9 @@ class Series(np.ndarray):
         DICOM series number.
 
         Returns:
-        - series number (int)
-        Exceptions:
-        - ValueError: when series number is not set.
+            series number (int)
+        Raises:
+            ValueError: when series number is not set.
         """
         try:
             if self.header.seriesNumber is not None:
@@ -1103,10 +1176,10 @@ class Series(np.ndarray):
     def seriesNumber(self, sernum):
         """Set series number
 
-        Input:
-        - sernum: numerical or string that can be converted to int
-        Exceptions:
-        - ValueError: when sernum cannot be converted to int
+        Args:
+            sernum: numerical or string that can be converted to int
+        Raises:
+            ValueError: when sernum cannot be converted to int
         """
         if sernum is None:
             self.header.seriesNumber = None
@@ -1123,9 +1196,9 @@ class Series(np.ndarray):
         DICOM series description.
         
         Returns:
-        - series description (string)
-        Exceptions:
-        - ValueError: When series description is not set.
+            series description (string)
+        Raises:
+            ValueError: When series description is not set.
         """
         try:
             if self.header.seriesDescription is not None:
@@ -1138,10 +1211,10 @@ class Series(np.ndarray):
     def seriesDescription(self, descr):
         """Set series description
 
-        Input:
-        - descr: series description (str)
-        Exceptions:
-        - AssertionError: when series description is not str
+        Args:
+            descr: series description (str)
+        Raises:
+            AssertionError: when series description is not str
         """
         if descr is None:
             self.header.seriesDescription = None
@@ -1156,9 +1229,9 @@ class Series(np.ndarray):
         DICOM image type
         
         Returns:
-        - image type, list of strings
-        Exceptions:
-        - ValueError: when image type is not set.
+            image type, list of strings
+        Raises:
+            ValueError: when image type is not set.
         """
         try:
             if self.header.imageType is not None:
@@ -1171,10 +1244,10 @@ class Series(np.ndarray):
     def imageType(self, imagetype):
         """Set image type
 
-        Input:
-        - imagetype: list of strings
-        Exceptions:
-        - TypeError: When imagetype is not printable
+        Args:
+            imagetype: list of strings
+        Raises:
+            TypeError: When imagetype is not printable.
         """
         if imagetype is None:
             self.header.imageType = None
@@ -1193,9 +1266,9 @@ class Series(np.ndarray):
         DICOM study instance UID
 
         Returns:
-        - uid type, study instance UID (str)
-        Exceptions:
-        - ValueError: when study instance UID is not set
+            uid type, study instance UID (str)
+        Raises:
+            ValueError: when study instance UID is not set.
         """
         try:
             if self.header.studyInstanceUID is not None:
@@ -1208,10 +1281,10 @@ class Series(np.ndarray):
     def studyInstanceUID(self, uid):
         """Set study instance UID
 
-        Input:
-        - uid: study instance UID
-        Exceptions:
-        - TypeError: When uid is not printable
+        Args:
+            uid: study instance UID
+        Raises:
+            TypeError: When uid is not printable.
         """
         if uid is None:
             self.header.studyInstanceUID = None
@@ -1228,9 +1301,9 @@ class Series(np.ndarray):
         DICOM study ID
         
         Returns:
-        - study ID (str)
-        Exceptions:
-        - ValueError: when study ID is not set
+            study ID (str)
+        Raises:
+            ValueError: when study ID is not set.
         """
         try:
             if self.header.studyID is not None:
@@ -1243,10 +1316,10 @@ class Series(np.ndarray):
     def studyID(self, id):
         """Set study ID
 
-        Input:
-        - id: study ID
-        Exceptions:
-        - TypeError: When id is not printable
+        Args:
+            id: study ID
+        Raises:
+            TypeError: When id is not printable
         """
         if id is None:
             self.header.studyID = None
@@ -1263,9 +1336,9 @@ class Series(np.ndarray):
         DICOM series instance UID
         
         Returns:
-        - uid type, series instance UID (str)
-        Exceptions:
-        - ValueError: when series instance UID is not set
+            uid type, series instance UID (str)
+        Raises:
+            ValueError: when series instance UID is not set
         """
         try:
             if self.header.seriesInstanceUID is not None:
@@ -1278,10 +1351,10 @@ class Series(np.ndarray):
     def seriesInstanceUID(self, uid):
         """Set series instance UID
 
-        Input:
-        - uid: series instance UID
-        Exceptions:
-        - TypeError: When uid is not printable
+        Args:
+            uid: series instance UID
+        Raises:
+            TypeError: When uid is not printable
         """
         if uid is None:
             self.header.seriesInstanceUID = None
@@ -1298,9 +1371,9 @@ class Series(np.ndarray):
         DICOM frame of reference UID
         
         Returns:
-        - uid type, frame of reference UID (str)
-        Exceptions:
-        - ValueError: when frame of reference UID is not set
+            uid type, frame of reference UID (str)
+        Raises:
+            ValueError: when frame of reference UID is not set
         """
         try:
             if self.header.frameOfReferenceUID is not None:
@@ -1313,10 +1386,10 @@ class Series(np.ndarray):
     def frameOfReferenceUID(self, uid):
         """Set frame of reference UID
 
-        Input:
-        - uid: frame of reference UID
-        Exceptions:
-        - TypeError: When uid is not printable
+        Args:
+            uid: frame of reference UID
+        Raises:
+            TypeError: When uid is not printable
         """
         if uid is None:
             self.header.frameOfReferenceUID = None
@@ -1333,9 +1406,9 @@ class Series(np.ndarray):
         DICOM accession number
 
         Returns:
-        - accession number (str)
-        Exceptions:
-        - ValueError: when accession number is not set
+            accession number (str)
+        Raises:
+            ValueError: when accession number is not set
         """
         try:
             if self.header.accessionNumber is not None:
@@ -1348,10 +1421,10 @@ class Series(np.ndarray):
     def accessionNumber(self, accno):
         """Set accession number
 
-        Input:
-        - accno: accession number
-        Exceptions:
-        - TypeError: When accno is not printable
+        Args:
+            accno: accession number
+        Raises:
+            TypeError: When accno is not printable
         """
         if accno is None:
             self.header.accessionNumber = None
@@ -1368,9 +1441,9 @@ class Series(np.ndarray):
         DICOM patient name
 
         Returns:
-        - patient name (str)
-        Exceptions:
-        - ValueError: when patient name is not set
+            patient name (str)
+        Raises:
+            ValueError: when patient name is not set
         """
         try:
             if self.header.patientName is not None:
@@ -1383,10 +1456,10 @@ class Series(np.ndarray):
     def patientName(self, patnam):
         """Set patient name
 
-        Input:
-        - patnam: patient name
-        Exceptions:
-        - TypeError: When patnam is not printable
+        Args:
+            patnam: patient name
+        Raises:
+            TypeError: When patnam is not printable
         """
         if patnam is None:
             self.header.patientName = None
@@ -1403,9 +1476,9 @@ class Series(np.ndarray):
         DICOM patient ID
 
         Returns:
-        - patient ID (str)
-        Exceptions:
-        - ValueError: when patient ID is not set
+            patient ID (str)
+        Raises:
+            ValueError: when patient ID is not set
         """
         try:
             if self.header.patientID is not None:
@@ -1418,10 +1491,10 @@ class Series(np.ndarray):
     def patientID(self, patid):
         """Set patient ID
 
-        Input:
-        - patID: patient ID
-        Exceptions:
-        - TypeError: When patID is not printable
+        Args:
+            patID: patient ID
+        Raises:
+            TypeError: When patID is not printable
         """
         if patid is None:
             self.header.patientID = None
@@ -1438,8 +1511,10 @@ class Series(np.ndarray):
         DICOM patient birth date
 
         Returns:
-        - patient birth date (str)
-          None: when no birth date is set
+            patient birth date (str)
+                None: when no birth date is set
+        Raises:
+            ValueError: when patient birth date is not set
         """
         try:
             if self.header.patientBirthDate is not None:
@@ -1452,10 +1527,10 @@ class Series(np.ndarray):
     def patientBirthDate(self, patbirdat):
         """Set patient birth date
 
-        Input:
-        - patbirdat: patient birth date
-        Exceptions:
-        - TypeError: When patbirdat is not printable
+        Args:
+            patbirdat: patient birth date
+        Raises:
+            TypeError: When patbirdat is not printable
         """
         if patbirdat is None:
             self.header.patientBirthDate = None
@@ -1473,9 +1548,9 @@ class Series(np.ndarray):
         last index represents the color components
         
         Returns:
-        - whether the array stores a color image (bool)
-        Exceptions:
-        - ValueError: when color interpretation is not set
+            whether the array stores a color image (bool)
+        Raises:
+            ValueError: when color interpretation is not set
         """
         try:
             if self.header.color is not None:
@@ -1488,10 +1563,10 @@ class Series(np.ndarray):
     def color(self, color):
         """Set color interpretation
 
-        Input:
-        - color: color interpretation (bool)
-        Exceptions:
-        - TypeError: When color is not bool
+        Args:
+            color: color interpretation (bool)
+        Raises:
+            TypeError: When color is not bool
         """
         if color is None:
             self.header.color = False
@@ -1508,9 +1583,9 @@ class Series(np.ndarray):
         DICOM Photometric Interpretation
         
         Returns:
-        - photometric interpretation (str)
-        Exceptions:
-        - ValueError: when photometric interpretation is not set
+            photometric interpretation (str)
+        Raises:
+            ValueError: when photometric interpretation is not set
         """
         try:
             if self.header.photometricInterpretation is not None:
@@ -1523,10 +1598,10 @@ class Series(np.ndarray):
     def photometricInterpretation(self, string):
         """Set photometric interpretation
 
-        Input:
-        - string: photometric interpretation
-        Exceptions:
-        - TypeError: When str is not printable
+        Args:
+            string: photometric interpretation
+        Raises:
+            TypeError: When str is not printable
         """
         if string is None:
             self.header.photometricInterpretation = None
@@ -1541,12 +1616,14 @@ class Series(np.ndarray):
     def transformationMatrix(self):
         """Transformation matrix
 
-        Input:
-        - self.spacing
-        - self.imagePositions
-        - self.orientation
+        Args:
+            self.spacing
+            self.imagePositions
+            self.orientation
         Returns:
-        - transformation matrix as numpy array
+            transformation matrix as numpy array
+        Raises:
+            ValueError: Transformation matrix cannot be constructed.
         """
 
         # def normalize(v):
@@ -1613,15 +1690,16 @@ class Series(np.ndarray):
     def transformationMatrix(self, m):
         """Set transformation matrix
 
-        Input:
-        - M: new transformation matrix
-        Output:
-        - self.orientation
-        - self.imagePositions
-        - self.transformationMatrix
         Requirements:
-        - self.spacing must be set before setting transformationMatrix
-        - self.slices  must be set before setting transformationMatrix
+            - self.spacing must be set before setting transformationMatrix
+            - self.slices  must be set before setting transformationMatrix
+
+        Args:
+            M: new transformation matrix
+        Returns:
+            self.orientation
+            self.imagePositions
+            self.transformationMatrix
         """
         self.header.transformationMatrix = m
         # if M is not None:
@@ -1648,13 +1726,13 @@ class Series(np.ndarray):
     def get_transformation_components_xyz(self):
         """Get origin and direction from transformation matrix in xyz convention.
 
-        Input:
-        - self.transformationMatrix
-        - self.spacing
+        Args:
+            self.transformationMatrix
+            self.spacing
         Returns:
-        - origin: np.array size 3
-        - orientation: np.array size 6 (row, then column directional cosines) (DICOM convention)
-        - normal vector: np.array size 3 (slice direction)
+            origin: np.array size 3
+            orientation: np.array size 6 (row, then column directional cosines) (DICOM convention)
+            normal vector: np.array size 3 (slice direction)
         """
         m = self.transformationMatrix
         ds, dr, dc = self.spacing
@@ -1693,11 +1771,11 @@ class Series(np.ndarray):
         """Get timeline
         
         Returns:
-        - timeline in seconds, as numpy array of floats
-          Delta time is given as seconds. First image is t=0.
-          Length of array is number of tags.
-        Exceptions:
-        - ValueError: tags for dataset is not time tags
+            timeline in seconds, as numpy array of floats
+                Delta time is given as seconds. First image is t=0.
+                Length of array is number of tags.
+        Raises:
+            ValueError: tags for dataset is not time tags
         """
         if self.input_order == imagedata.formats.INPUT_ORDER_TIME:
             timeline = [0.0]
@@ -1710,12 +1788,12 @@ class Series(np.ndarray):
     def getDicomAttribute(self, keyword, slice=0, tag=0):
         """Get named DICOM attribute.
 
-        Input:
-        - keyword: name (str) or dicom tag
-        - slice: optional slice to get attribute from (default: 0)
-        - tag: optional tag to get attribute from (default: 0)
+        Args:
+            keyword: name (str) or dicom tag
+            slice: optional slice to get attribute from (default: 0)
+            tag: optional tag to get attribute from (default: 0)
         Returns:
-        - DICOM attribute
+            DICOM attribute
         """
 
         if self.DicomHeaderDict is None:
@@ -1735,11 +1813,13 @@ class Series(np.ndarray):
     def setDicomAttribute(self, keyword, value, slice=None, tag=None):
         """Set named DICOM attribute.
 
-        Input:
-        - keyword: name (str) or dicom tag
-        - value: new value for DICOM attribute
-        - slice: optional slice to get attribute from (default: all)
-        - tag: optional tag to get attribute from (default: all)
+        Args:
+            keyword: name (str) or dicom tag
+            value: new value for DICOM attribute
+            slice: optional slice to get attribute from (default: all)
+            tag: optional tag to get attribute from (default: all)
+        Raises:
+            ValueError: When no DICOM tag is set.
         """
 
         if self.DicomHeaderDict is None:
@@ -1771,12 +1851,12 @@ class Series(np.ndarray):
 
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
-        Input:
-        - r: (s,r,c) of voxel in voxel coordinates as numpy.array
-        - transformation: transformation matrix when different from
+        Args:
+            r: (s,r,c) of voxel in voxel coordinates as numpy.array
+            transformation: transformation matrix when different from
                           self.transformationMatrix
-        Output:
-        - (z,y,x) of voxel in world coordinates (mm) as numpy.array
+        Returns:
+            (z,y,x) of voxel in world coordinates (mm) as numpy.array
         """
 
         if transformation is None:
@@ -1802,12 +1882,12 @@ class Series(np.ndarray):
 
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
-        Input:
-        - p: (z,y,x) of voxel in world coordinates (mm) as numpy.array
-        - transformation: transformation matrix when different from
+        Args:
+            p: (z,y,x) of voxel in world coordinates (mm) as numpy.array
+            transformation: transformation matrix when different from
                           self.transformationMatrix
-        Output:
-        - (s,r,c) of voxel in voxel coordinates as numpy.array
+        Returns:
+            (s,r,c) of voxel in voxel coordinates as numpy.array
         """
 
         if transformation is None:
