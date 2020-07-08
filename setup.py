@@ -1,22 +1,29 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
+import setuptools
 import os
 
-pkg_vars  = {}
+# this is only necessary when not using setuptools/distribute
+from sphinx.setup_command import BuildDoc
+cmdclass = {'build_sphinx': BuildDoc}
 
-with open("imagedata/_version.py") as fp:
-    exec(fp.read(), pkg_vars)
-
-here = os.path.abspath(os.path.dirname(__file__))
+# Version
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+VERSION_FILE = os.path.join(BASE_DIR, 'imagedata', '_version.py')
+with open(VERSION_FILE) as fp:
+    exec(fp.read())
 
 # Get the long description from the README file
-with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(BASE_DIR, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
-setup(name = 'imagedata',
-    packages = find_packages(exclude=['contrib', 'docs', 'tests', 'data']),
-    version = pkg_vars['__version__'],
+name = 'imagedata'
+version = __version__.public()
+release = version
+setuptools.setup(name = name,
+    packages = setuptools.find_packages(exclude=['contrib', 'docs', 'tests', 'data']),
+    #version = __version__.public(),
+    use_incremental=True,
     description = 'Read/write medical image data',
     author = 'Erling Andersen',
     author_email = 'Erling.Andersen@Helse-Bergen.NO',
@@ -35,7 +42,9 @@ setup(name = 'imagedata',
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Scientific/Engineering :: Medical Science Apps.",
     ],
-    install_requires = ['pydicom>=1.0.1',
+    setup_requires=['incremental'],
+    install_requires = ['incremental',
+        'pydicom>=1.0.1',
         'pynetdicom>=1.2.0',
         'itk>=5.0',
         'nibabel',
@@ -46,6 +55,7 @@ setup(name = 'imagedata',
         'ghostscript',
         'scandir',
         'pathfinder',
+        'xnat',
         'matplotlib'
     ],
     python_requires='>=3.5, <4',
@@ -62,6 +72,14 @@ setup(name = 'imagedata',
     # This field corresponds to the "Description-Content-Type" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#description-content-type-optional
     long_description_content_type='text/markdown',
+    cmdclass=cmdclass,
+    # these are optional and override conf.py settings
+    command_options={
+        'build_sphinx': {
+            'project': ('setup.py', name),
+            'version': ('setup.py', version),
+            'release': ('setup.py', release),
+            'source_dir': ('setup.py', 'docs')}},
     entry_points={
         'console_scripts': [
             'image_calculator = imagedata.image_data:calculator',
