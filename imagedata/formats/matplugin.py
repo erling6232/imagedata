@@ -60,17 +60,18 @@ class MatPlugin(AbstractPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                hdr: Header dict
+                    Return values:
+                        - info: Internal data for the plugin
+                            None if the given file should not be included (e.g. raw file)
+                si: numpy array (multi-dimensional)
         """
 
         info = {}
@@ -97,13 +98,13 @@ class MatPlugin(AbstractPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
         # Set spacing
@@ -153,14 +154,14 @@ class MatPlugin(AbstractPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as MAT file
 
-        Input:
-        - self: MATPlugin instance
-        - si: Series array (3D or 4D), including these attributes:
-            slices
-            spacing
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: MATPlugin instance
+            si: Series array (3D or 4D), including these attributes:
+                slices,
+                spacing,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -214,14 +215,14 @@ class MatPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as MAT files
 
-        Input:
-        - self: MATPlugin instance
-        - si[tag,slice,rows,columns]: Series array, including these attributes:
-            slices
-            spacing
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: MATPlugin instance
+            si[tag,slice,rows,columns]: Series array, including these attributes:
+                slices,
+                spacing,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:

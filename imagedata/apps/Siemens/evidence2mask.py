@@ -11,10 +11,11 @@ from imagedata.apps.Siemens.ROI import PolygonROI, EllipseROI
 
 def xyz_to_zyx(polygon):
     """Swap (x,y,z) with (z,y,x) for each point
-    Input:
-    - polygon: np.array shape (n,3)
-    Output:
-    - rearranged np.array shape (n,3)
+
+    Args:
+        polygon: np.array shape (n,3)
+    Returns:
+        rearranged np.array shape (n,3)
     """
     assert polygon.ndim == 2, "Array ndim should be 2, not {}".format(polygon.ndim)
     new_polygon = np.zeros_like(polygon)
@@ -159,7 +160,8 @@ def evidence2roi(im, uid_table=None, content=None):
 
 
 def make_mask_in_slice(roi_type, si, points, shape):
-    # Make a 3D mask [nz,ny,nx]
+    """Make a 3D mask [nz,ny,nx]
+    """
 
     if roi_type == 'polygon':
         # polygon = [(x1,y1),(x2,y2),...] or [x1,y1,x2,y2,...]

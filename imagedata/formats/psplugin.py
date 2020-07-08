@@ -47,17 +47,18 @@ class PSPlugin(ITKPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                hdr: Header dict
+                    Return values:
+                        - info: Internal data for the plugin
+                            None if the given file should not be included (e.g. raw file)
+                si: numpy array (multi-dimensional)
         """
 
         self.res = 150  # dpi
@@ -110,9 +111,10 @@ class PSPlugin(ITKPlugin):
     def _need_local_file(self):
         """Do the plugin need access to local files?
 
-        Return values:
-        - True: The plugin need access to local filenames
-        - False: The plugin can access files given by an open file handle
+        Returns:
+            Boolean
+                - True: The plugin need access to local filenames
+                - False: The plugin can access files given by an open file handle
         """
 
         return True
@@ -120,13 +122,13 @@ class PSPlugin(ITKPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
         super(PSPlugin, self)._set_tags(image_list, hdr, si)
@@ -134,10 +136,10 @@ class PSPlugin(ITKPlugin):
     def _convert_to_png(self, filename, tempdir, fname):
         """Convert file from PostScript to PNG
 
-        Input:
-        - filename: PostScript file
-        - tempdir:  Output directory
-        - fname:    Output filename
+        Args:
+            filename: PostScript file
+            tempdir:  Output directory
+            fname:    Output filename
                     Multi-page PostScript files will be converted to fname-N.png
         """
 
@@ -192,17 +194,19 @@ class PSPlugin(ITKPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as PostScript file
 
-        Input:
-        - self: ITKPlugin instance
-        - si: Series array (3D or 4D), including these attributes:
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: ITKPlugin instance
+            si: Series array (3D or 4D), including these attributes:
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
+        Raises:
+            imagedata.formats.WriteNotImplemented: Always, writing is not implemented.
         """
         raise imagedata.formats.WriteNotImplemented(
             'Writing PostScript files is not implemented.')
@@ -210,17 +214,19 @@ class PSPlugin(ITKPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as PostScript files
 
-        Input:
-        - self: ITKPlugin instance
-        - si[tag,slice,rows,columns]: Series array, including these attributes:
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: ITKPlugin instance
+            si[tag,slice,rows,columns]: Series array, including these attributes:
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
+        Raises:
+            imagedata.formats.WriteNotImplemented: Always, writing is not implemented.
         """
         raise imagedata.formats.WriteNotImplemented(
             'Writing PostScript files is not implemented.')

@@ -55,17 +55,18 @@ class NiftiPlugin(AbstractPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                hdr: Header dict
+                    Return values:
+                        - info: Internal data for the plugin
+                            None if the given file should not be included (e.g. raw file)
+                si: numpy array (multi-dimensional)
         """
 
         logging.debug("niftiplugin::read filehandle {}".format(f))
@@ -95,9 +96,10 @@ class NiftiPlugin(AbstractPlugin):
     def _need_local_file(self):
         """Do the plugin need access to local files?
 
-        Return values:
-        - True: The plugin need access to local filenames
-        - False: The plugin can access files given by an open file handle
+        Returns:
+            Boolean:
+                - True: The plugin need access to local filenames
+                - False: The plugin can access files given by an open file handle
         """
 
         return True
@@ -105,13 +107,13 @@ class NiftiPlugin(AbstractPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
         info, si = image_list[0]
@@ -264,108 +266,104 @@ class NiftiPlugin(AbstractPlugin):
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
 
-    '''
-    def nifti_to_affine(self, affine, shape):
+    # def nifti_to_affine(self, affine, shape):
+    #
+    #     if len(shape) != 4:
+    #         raise ValueError("4D only (was: %dD)" % len(shape))
+    #
+    #     q = affine.copy()
+    #
+    #     logging.debug("q from nifti_to_affine():\n{}".format(q))
+    #     # Swap row 0 (z) and 2 (x)
+    #     q[[0, 2],:] = q[[2, 0],:]
+    #     # Swap column 0 (z) and 2 (x)
+    #     q[:,[0, 2]] = q[:,[2, 0]]
+    #     logging.debug("q swap nifti_to_affine():\n{}".format(q))
+    #
+    #     analyze_to_dicom = np.eye(4)
+    #     analyze_to_dicom[0,3] = 1
+    #     analyze_to_dicom[1,3] = 1
+    #     analyze_to_dicom[2,3] = 1
+    #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
+    #     q = np.dot(q,dicom_to_analyze)
+    #     logging.debug("q after dicom_to_analyze:\n{}".format(q))
+    #
+    #     analyze_to_dicom = np.eye(4)
+    #     analyze_to_dicom[0,3] = -1
+    #     analyze_to_dicom[1,1] = -1
+    #     rows = shape[2]
+    #     analyze_to_dicom[1,3] = rows
+    #     analyze_to_dicom[2,3] = -1
+    #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
+    #     q = np.dot(q,dicom_to_analyze)
+    #     logging.debug("q after rows dicom_to_analyze:\n{}".format(q))
+    #
+    #     patient_to_tal = np.eye(4)
+    #     patient_to_tal[0,0] = -1
+    #     patient_to_tal[1,1] = -1
+    #     tal_to_patient = np.linalg.inv(patient_to_tal)
+    #     q = np.dot(tal_to_patient,q)
+    #     logging.debug("q after tal_to_patient:\n{}".format(q))
+    #
+    #     return q
 
-        if len(shape) != 4:
-            raise ValueError("4D only (was: %dD)" % len(shape))
-
-        q = affine.copy()
-
-        logging.debug("q from nifti_to_affine():\n{}".format(q))
-        # Swap row 0 (z) and 2 (x)
-        q[[0, 2],:] = q[[2, 0],:]
-        # Swap column 0 (z) and 2 (x)
-        q[:,[0, 2]] = q[:,[2, 0]]
-        logging.debug("q swap nifti_to_affine():\n{}".format(q))
-
-        analyze_to_dicom = np.eye(4)
-        analyze_to_dicom[0,3] = 1
-        analyze_to_dicom[1,3] = 1
-        analyze_to_dicom[2,3] = 1
-        dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
-        q = np.dot(q,dicom_to_analyze)
-        logging.debug("q after dicom_to_analyze:\n{}".format(q))
-
-        analyze_to_dicom = np.eye(4)
-        analyze_to_dicom[0,3] = -1
-        analyze_to_dicom[1,1] = -1
-        rows = shape[2]
-        analyze_to_dicom[1,3] = rows
-        analyze_to_dicom[2,3] = -1
-        dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
-        q = np.dot(q,dicom_to_analyze)
-        logging.debug("q after rows dicom_to_analyze:\n{}".format(q))
-
-        patient_to_tal = np.eye(4)
-        patient_to_tal[0,0] = -1
-        patient_to_tal[1,1] = -1
-        tal_to_patient = np.linalg.inv(patient_to_tal)
-        q = np.dot(tal_to_patient,q)
-        logging.debug("q after tal_to_patient:\n{}".format(q))
-
-        return q
-    '''
-
-    '''
-    def affine_to_nifti(self, shape):
-        q = self.transformationMatrix.copy()
-        logging.debug("Affine from self.transformationMatrix:\n{}".format(q))
-        # Swap row 0 (z) and 2 (x)
-        q[[0, 2],:] = q[[2, 0],:]
-        # Swap column 0 (z) and 2 (x)
-        q[:,[0, 2]] = q[:,[2, 0]]
-        logging.debug("Affine swap self.transformationMatrix:\n{}".format(q))
-
-        # q now equals dicom_to_patient in spm_dicom_convert
-
-        # Convert space
-        analyze_to_dicom = np.eye(4)
-        analyze_to_dicom[0,3] = -1
-        analyze_to_dicom[1,1] = -1
-        #if len(shape) == 3:
-        #    rows = shape[1]
-        #else:
-        #    rows = shape[2]
-        rows = shape[-2]
-        analyze_to_dicom[1,3] = rows
-        analyze_to_dicom[2,3] = -1
-        logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
-
-        patient_to_tal = np.eye(4)
-        patient_to_tal[0,0] = -1
-        patient_to_tal[1,1] = -1
-        logging.debug("patient_to_tal:\n{}".format(patient_to_tal))
-
-        q = np.dot(patient_to_tal,q)
-        logging.debug("q with patient_to_tal:\n{}".format(q))
-        q = np.dot(q,analyze_to_dicom)
-        # q now equals mat in spm_dicom_convert
-
-        analyze_to_dicom = np.eye(4)
-        analyze_to_dicom[0,3] = 1
-        analyze_to_dicom[1,3] = 1
-        analyze_to_dicom[2,3] = 1
-        logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
-        q = np.dot(q,analyze_to_dicom)
-
-        logging.debug("q nifti:\n{}".format(q))
-        return q
-    '''
+    # def affine_to_nifti(self, shape):
+    #     q = self.transformationMatrix.copy()
+    #     logging.debug("Affine from self.transformationMatrix:\n{}".format(q))
+    #     # Swap row 0 (z) and 2 (x)
+    #     q[[0, 2],:] = q[[2, 0],:]
+    #     # Swap column 0 (z) and 2 (x)
+    #     q[:,[0, 2]] = q[:,[2, 0]]
+    #     logging.debug("Affine swap self.transformationMatrix:\n{}".format(q))
+    #
+    #     # q now equals dicom_to_patient in spm_dicom_convert
+    #
+    #     # Convert space
+    #     analyze_to_dicom = np.eye(4)
+    #     analyze_to_dicom[0,3] = -1
+    #     analyze_to_dicom[1,1] = -1
+    #     #if len(shape) == 3:
+    #     #    rows = shape[1]
+    #     #else:
+    #     #    rows = shape[2]
+    #     rows = shape[-2]
+    #     analyze_to_dicom[1,3] = rows
+    #     analyze_to_dicom[2,3] = -1
+    #     logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
+    #
+    #     patient_to_tal = np.eye(4)
+    #     patient_to_tal[0,0] = -1
+    #     patient_to_tal[1,1] = -1
+    #     logging.debug("patient_to_tal:\n{}".format(patient_to_tal))
+    #
+    #     q = np.dot(patient_to_tal,q)
+    #     logging.debug("q with patient_to_tal:\n{}".format(q))
+    #     q = np.dot(q,analyze_to_dicom)
+    #     # q now equals mat in spm_dicom_convert
+    #
+    #     analyze_to_dicom = np.eye(4)
+    #     analyze_to_dicom[0,3] = 1
+    #     analyze_to_dicom[1,3] = 1
+    #     analyze_to_dicom[2,3] = 1
+    #     logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
+    #     q = np.dot(q,analyze_to_dicom)
+    #
+    #     logging.debug("q nifti:\n{}".format(q))
+    #     return q
 
     @staticmethod
     def _get_geometry_from_affine(hdr, q):
         """Extract geometry attributes from Nifti header
 
-        Input:
-        - self: NiftiPlugin instance
-        - q: nifti Qform
-        - hdr['spacing']
-        Output:
-        - hdr: header dict
-            hdr['imagePositions'][0]
-            hdr['orientation']
-            hdr['transformationMatrix']
+        Args:
+            self: NiftiPlugin instance
+            q: nifti Qform
+            hdr['spacing']
+        Returns:
+            hdr: header dict
+                - hdr['imagePositions'][0]
+                - hdr['orientation']
+                - hdr['transformationMatrix']
         """
 
         # Swap back from nifti patient space, flip x and y directions
@@ -401,8 +399,10 @@ class NiftiPlugin(AbstractPlugin):
 
             https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
 
-            :param v: 3D vector
-            :return: normalized 3D vector
+            Args:
+                v: 3D vector
+            Returns:
+                normalized 3D vector
             """
             norm = np.linalg.norm(v, ord=1)
             if norm == 0:
@@ -655,17 +655,17 @@ class NiftiPlugin(AbstractPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Nifti file
 
-        Input:
-        - self: NiftiPlugin instance
-        - si: Series array (3D or 4D), including these attributes:
-            slices*
-            spacing*
-            imagePositions*
-            transformationMatrix*
-            orientation*
-            tags*
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: NiftiPlugin instance
+            si: Series array (3D or 4D), including these attributes:
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -714,17 +714,17 @@ class NiftiPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Nifti file
 
-        Input:
-        - self: NiftiPlugin instance
-        - si[tag,slice,rows,columns]: Series array, including these attributes:
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: NiftiPlugin instance
+            si[tag,slice,rows,columns]: Series array, including these attributes:
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -798,17 +798,17 @@ class NiftiPlugin(AbstractPlugin):
     def write_numpy_nifti(img, archive, filename):
         """Write nifti data to file
 
-        Input:
-        - self: ITKPlugin instance, including these attributes:
-            slices (not used)
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation (not used)
-            tags (not used)
-        - img: Nifti1Image
-        - archive: archive object
-        - filename: file name, possibly without extentsion
+        Args:
+            self: ITKPlugin instance, including these attributes:
+                - slices (not used)
+                - spacing
+                - imagePositions
+                - transformationMatrix
+                - orientation (not used)
+                - tags (not used)
+            img: Nifti1Image
+            archive: archive object
+            filename: file name, possibly without extentsion
         """
 
         if len(os.path.splitext(filename)[1]) == 0:

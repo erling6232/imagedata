@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Read/Write image files from a zipfile
 """
 
@@ -37,10 +35,12 @@ class WriteFileIO(io.FileIO):
     archive before closing."""
 
     def __init__(self, archive, filename, localfile):
-        """Inputs:
-        archive - ZipFile object
-        filename - path name in zip archive
-        localfile - path name to local, temporary file
+        """Make a WriteFileIO object.
+
+        Args:
+            archive: ZipFile object
+            filename: path name in zip archive
+            localfile: path name to local, temporary file
         """
         super(WriteFileIO, self).__init__(localfile.name, mode='wb')
         self.__archive = archive
@@ -167,8 +167,11 @@ class ZipfileArchive(AbstractArchive, ABC):
         return True
 
     def getnames(self, files=None):
-        """Return the members as a list of their names.
-        It has the same order as the members of the archive.
+        """Get name list of the members.
+
+        Returns:
+            The members as a list of their names.
+                It has the same order as the members of the archive.
         """
         if files:
             filelist = list()
@@ -186,16 +189,19 @@ class ZipfileArchive(AbstractArchive, ABC):
     def basename(self, filehandle):
         """Basename of file.
 
-        Typical use:
-            if archive.basename(filehandle) == "DICOMDIR":
+        Examples:
+            >>> if archive.basename(filehandle) == "DICOMDIR":
 
-        Input:
-        - filehandle: reference to member object
+        Args:
+            filehandle: reference to member object
         """
         return os.path.basename(filehandle['name'])
 
     def open(self, filehandle, mode='rb'):
-        """Open file. Return a member object for member with filehandle.
+        """Open file.
+
+        Returns:
+             A member object for member with filehandle.
 
         Extract the member object to local file space.
         This is necessary to allow the seek() operation on open files.
@@ -231,8 +237,11 @@ class ZipfileArchive(AbstractArchive, ABC):
             raise ValueError('Unknown mode "%s"' % mode)
 
     def getmembers(self, files=None):
-        """Return the members of the archive as a list of member objects.
-        The list has the same order as the members in the archive.
+        """Get the members of the archive.
+
+        Returns:
+            The members of the archive as a list of member objects.
+                The list has the same order as the members in the archive.
         """
         if files:
             if issubclass(type(files), list):
@@ -272,11 +281,11 @@ class ZipfileArchive(AbstractArchive, ABC):
     def add_localfile(self, local_file, filename):
         """Add a local file to the archive.
 
-        Input:
-        - local_file: named local file
-        - filename: filename in the archive
-        Return:
-        - filehandle to file in the archive
+        Args:
+            local_file: named local file
+            filename: filename in the archive
+        Returns:
+            filehandle to file in the archive
         """
         if self.__mode[0] == 'r':
             raise PermissionError(
@@ -293,9 +302,10 @@ class ZipfileArchive(AbstractArchive, ABC):
 
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
-        Input:
-        - filename: named file in the archive
-        - data: data to write
+
+        Args:
+            filename: named file in the archive
+            data: data to write
         """
         if self.__mode[0] == 'r':
             raise PermissionError(

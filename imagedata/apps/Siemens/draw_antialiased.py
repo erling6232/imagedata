@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Library to draw an antialiased line.
   http://stackoverflow.com/questions/3122049/drawing-an-anti-aliased-line-with-thepython-imaging-library
   https://en.wikipedia.org/wiki/Xiaolin_Wu%27s_line_algorithm
@@ -7,6 +5,7 @@
   https://yellowsplash.wordpress.com/2009/10/23/fast-antialiased-circles-and-ellipses-from-xiaolin-wus-concepts/
   https://stackoverflow.com/questions/37589165/drawing-an-antialiased-circle-as-described-by-xaolin-wu#37714284
 """
+
 import math
 import numpy as np
 from matplotlib.path import Path
@@ -17,14 +16,13 @@ def draw_polygon_mask(canvas, points, colour, threshold, fill=True):
 
     Optionally, fill the polygon with the same colour.
 
-    Input:
-     - canvas: numpy array
-     - points: polygon points (list of tuples (x,y)) (float)
-     - colour: colour to draw (mask index) (int)
-     - threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
-     - fill: whether to fill the circle (boolean)
+    Args:
+        canvas: numpy array
+        points: polygon points (list of tuples (x,y)) (float)
+        colour: colour to draw (mask index) (int)
+        threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
+        fill: whether to fill the circle (boolean)
     """
-
     # points_matrix = self.get_points_matrix(hdr)
     """
     print("polygon: points cm    ", points)
@@ -91,11 +89,11 @@ def draw_line_mask(canvas, x1, y1, x2, y2, colour, threshold):
     Draw points only when the alpha blending is above a set threshold.
     Only given colour value is drawn. Intended usage is as a mask index.
 
-    Input:
-     - canvas: numpy array (2D)
-     - (x1,y1), (x2,y2): line end points (float)
-     - colour: colour to draw (mask index) (int)
-     - threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
+    Args:
+        canvas: numpy array (2D)
+        (x1,y1), (x2,y2): line end points (float)
+        colour: colour to draw (mask index) (int)
+        threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
     """
     dx = x2 - x1
     """
@@ -187,13 +185,13 @@ def draw_circle_mask(canvas, center_x, center_y, outer_radius, colour, threshold
     Reference:
       https://stackoverflow.com/questions/37589165/drawing-an-antialiased-circle-as-described-by-xaolin-wu#37714284
 
-    Input:
-     - _canvas: numpy array
-     - _cx, _cy: center of circle in array coordinates (int)
-     - outer_radius: radius of circle in array dimension (float)
-     - _colour: _colour to draw (mask index) (int)
-     - threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
-     - fill: whether to fill the circle (boolean)
+    Args:
+        canvas: numpy array
+        center_x, center_y: center of circle in array coordinates (int)
+        outer_radius: radius of circle in array dimension (float)
+        colour: _colour to draw (mask index) (int)
+        threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
+        fill: whether to fill the circle (boolean)
     """
     """
     def _draw_8point(_canvas, _cx, _cy, x, y, _colour):
@@ -269,13 +267,13 @@ def draw_ellipse_mask(canvas, center_x, center_y, outer_radius, colour, threshol
       https://yellowsplash.wordpress.com/2009/10/23/fast-antialiased-circles-and-ellipses-from-xiaolin-wus-concepts/
       https://stackoverflow.com/questions/37589165/drawing-an-antialiased-circle-as-described-by-xaolin-wu#37714284
 
-    Input:
-     - _canvas: numpy array
-     - _cx, _cy: center of ellipse in array coordinates (int)
-     - outer_radius: radius of circle in array dimension (float)
-     - _colour: _colour to draw (mask index) (int)
-     - threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
-     - fill: whether to fill the circle (boolean)
+    Args:
+        canvas: numpy array
+        center_x, center_y: center of ellipse in array coordinates (int)
+        outer_radius: radius of circle in array dimension (float)
+        colour: colour to draw (mask index) (int)
+        threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
+        fill: whether to fill the circle (boolean)
     """
 
     def _draw_4point(_canvas, _cx, _cy, x, y, _colour):
@@ -340,7 +338,3 @@ def boundary_fill4(canvas, start_x, start_y, boundary_value, fill_value):
             boundary_fill4(canvas, x, y + 1, boundary_value, fill_value)
             boundary_fill4(canvas, x - 1, y, boundary_value, fill_value)
             boundary_fill4(canvas, x + 1, y, boundary_value, fill_value)
-
-
-if __name__ == '__main__':
-    pass

@@ -11,7 +11,17 @@ from imagedata.apps.Siemens.draw_antialiased import draw_circle_mask, draw_polyg
 
 
 class ROI(object, metaclass=ABCMeta):
-    """General ROI object."""
+    """General ROI object.
+
+    Attributes:
+        points
+        points_matrix
+        slice
+        label
+        stu_ins_uid
+        ser_ins_uid
+        sop_ins_uid
+    """
 
     def __init__(self, label, stu_ins_uid, ser_ins_uid, sop_ins_uid):
         object.__init__(self)
@@ -27,7 +37,8 @@ class ROI(object, metaclass=ABCMeta):
     def get_points_cm(self):
         """Get ROI points as Numpy array in cm real coordinates
 
-        Output: np.array([points,3]) where each row is (z,y,x) in cm
+        Returns:
+            np.array([points,3]) where each row is (z,y,x) in cm
         """
         pass
 
@@ -35,8 +46,10 @@ class ROI(object, metaclass=ABCMeta):
     def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  si: Series with transformation matrix
-        Output: np.array([points,3]) where each row is (z,y,x) in matrix coordinates
+        Args:
+            si: Series with transformation matrix
+        Returns:
+            np.array([points,3]) where each row is (z,y,x) in matrix coordinates
         """
         pass
 
@@ -44,9 +57,11 @@ class ROI(object, metaclass=ABCMeta):
     def create_canvas(shape, mode=np.bool):
         """Make a 2D [ny,nx] canvas
 
-        Input:
-        - shape: 4D [nt,nz,ny,nx] or 3D [nz,ny,nx] shape
-        - mode: np.bool for binary image, np.uint8 for 8-bit grayscale image
+        Args:
+            shape:
+                4D [nt,nz,ny,nx] or 3D [nz,ny,nx] shape
+            mode:
+                np.bool for binary image, np.uint8 for 8-bit grayscale image
         """
         if len(shape) == 3:
             nz, ny, nx = shape
@@ -61,14 +76,14 @@ class ROI(object, metaclass=ABCMeta):
     def draw_roi_on_canvas(self, canvas, colour=1, threshold=0.5, fill=False):
         """Make a 2D mask [ny,nx] on canvas
 
-        Input:
-        - canvas: 2D [ny,nx]
-        - colour: mask color
-        - fill: whether to fill interior of ROI
-        - self.points_matrix: polygon points
-        - self.slice
-        Output:
-        - binary img of shape [ny,nx]
+        Args:
+            canvas: 2D [ny,nx]
+            colour: mask color
+            fill: whether to fill interior of ROI
+            self.points_matrix: polygon points
+            self.slice
+        Returns:
+            binary img of shape [ny,nx]
         """
         raise ValueError("Abstract ROI::draw_roi_on_canvas should not be called!")
         pass
@@ -76,13 +91,13 @@ class ROI(object, metaclass=ABCMeta):
     def draw_roi_on_numpy(self, mask, colour=1, threshold=0.5, fill=True):
         """Draw the ROI on an existing numpy array
 
-        Input:
-        - mask: numpy array [nz,ny,nx]
-        - colour: mask colour (int)
-        - threshold: alpha blend (float)
-        - fill: whether to fill interior of ROI (bool)
-        Output:
-        - mask: modified numpy array [nz,ny,nx]
+        Args:
+            mask: numpy array [nz,ny,nx]
+            colour: mask colour (int)
+            threshold: alpha blend (float)
+            fill: whether to fill interior of ROI (bool)
+        Returns:
+            mask: modified numpy array [nz,ny,nx]
         """
         canvas = self.create_canvas(mask.shape)
         self.draw_roi_on_canvas(canvas, colour=colour, threshold=threshold, fill=fill)
@@ -122,7 +137,11 @@ class ROI(object, metaclass=ABCMeta):
 
 
 class PolygonROI(ROI):
-    """Polygon ROI object."""
+    """Polygon ROI object.
+
+    Attributes:
+        points
+    """
 
     def __init__(self, polygon, label, stu_ins_uid, ser_ins_uid, sop_ins_uid):
         super(PolygonROI, self).__init__(label, stu_ins_uid, ser_ins_uid, sop_ins_uid)
@@ -131,15 +150,18 @@ class PolygonROI(ROI):
     def get_points_cm(self):
         """Get ROI points as Numpy array in cm real coordinates
 
-        Output: np.array((points,3)) where each row is (z,y,x) in cm
+        Returns:
+            np.array((points,3)) where each row is (z,y,x) in cm
         """
         return self.points
 
     def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  si: Series with transformation matrix
-        Output: np.array((points,3)) where each row is (z,y,x) in matrix coordinates
+        Args:
+            si: Series with transformation matrix
+        Returns:
+            np.array((points,3)) where each row is (z,y,x) in matrix coordinates
         """
         if self.points is None:
             _ = self.get_points_cm()
@@ -150,13 +172,13 @@ class PolygonROI(ROI):
     def draw_roi_on_canvas(self, canvas, colour=1, threshold=0.5, fill=False):
         """Make a 2D mask [ny,nx] on canvas
 
-        Input:
-        - canvas: 2D [ny,nx]
-        - self.points_matrix: polygon points
-        - self.slice
-        - fill: whether to fill polygon interior
-        Output:
-        - canvas
+        Args:
+            canvas: 2D [ny,nx]
+            self.points_matrix: polygon points
+            self.slice
+            fill: whether to fill polygon interior
+        Returns:
+            canvas
         """
 
         self.slice = self.verify_all_voxels_in_slice()
@@ -170,7 +192,15 @@ class PolygonROI(ROI):
 
 
 class EllipseROI(ROI):
-    """Ellipse ROI object."""
+    """Ellipse ROI object.
+
+    Attributes:
+        centre_cm
+        angles_cm
+        thickness_cm
+        radius_cm
+        radius_matrix
+    """
 
     def __init__(self, centre, angles, thickness, label, stu_ins_uid, ser_ins_uid, sop_ins_uid):
         super(EllipseROI, self).__init__(label, stu_ins_uid, ser_ins_uid, sop_ins_uid)
@@ -185,7 +215,8 @@ class EllipseROI(ROI):
     def get_points_cm(self):
         """Get ROI points as Numpy array in cm real coordinates
 
-        Output: np.array((points,3)) where each row is (z,y,x) in cm
+        Returns:
+            np.array((points,3)) where each row is (z,y,x) in cm
         """
         if self.points is None:
             self.points = np.zeros([25, 3])
@@ -199,8 +230,10 @@ class EllipseROI(ROI):
     def get_points_matrix(self, si):
         """Get ROI points as Numpy array in matrix coordinates
 
-        Input:  si: Series with transformation matrix
-        Output: np.array((points,3)) where each row is (z,y,x) in matrix coordinates
+        Args:
+            si: Series with transformation matrix
+        Returns:
+            np.array((points,3)) where each row is (z,y,x) in matrix coordinates
         """
         if self.points is None:
             _ = self.get_points_cm()
@@ -218,13 +251,13 @@ class EllipseROI(ROI):
     def draw_roi_on_canvas(self, canvas, colour=1, threshold=0.5, fill=False):
         """Make a 2D mask [ny,nx] on canvas
 
-        Input:
-        - canvas: 2D [ny,nx]
-        - fill: fill color
-        - self.points_matrix: polygon points
-        - self.slice
-        Output:
-        - canvas
+        Args:
+            canvas: 2D [ny,nx]
+            fill: fill color
+            self.points_matrix: polygon points
+            self.slice
+        Returns:
+            canvas
         """
 
         self.slice = self.verify_all_voxels_in_slice()

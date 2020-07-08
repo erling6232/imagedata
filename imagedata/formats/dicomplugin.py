@@ -41,7 +41,20 @@ class UnknownTag(Exception):
 
 # noinspection PyPep8Naming
 class DICOMPlugin(AbstractPlugin):
-    """Read/write DICOM files."""
+    """Read/write DICOM files.
+
+    Attributes:
+        input_order
+        DicomHeaderDict
+        instanceNumber
+        today
+        now
+        serInsUid
+        input_options
+        output_sort
+        output_dir
+        seriesTime
+    """
 
     name = "dicom"
     description = "Read and write DICOM files."
@@ -69,11 +82,11 @@ class DICOMPlugin(AbstractPlugin):
     def getOriginForSlice(self, slice):
         """Get origin of given slice.
 
-        Input:
-        - self: DICOMPlugin instance
-        - slice: slice number (int)
-        Output:
-        - z,y,x: coordinate for origin of given slice (np.array)
+        Args:
+            self: DICOMPlugin instance
+            slice: slice number (int)
+        Returns:
+            z,y,x: coordinate for origin of given slice (np.array)
         """
 
         origin = self.getDicomAttribute(tag_for_keyword("ImagePositionPatient"), slice)
@@ -87,18 +100,18 @@ class DICOMPlugin(AbstractPlugin):
     def extractDicomAttributes(self, hdr):
         """Extract DICOM attributes
 
-        Input:
-        - self: DICOMPlugin instance
-        - hdr: header dict
-        Output:
-        - hdr: header dict
-            seriesNumber
-            seriesDescription
-            imageType
-            spacing
-            orientation
-            imagePositions
-            axes
+        Args:
+            self: DICOMPlugin instance
+            hdr: header dict
+        Returns:
+            hdr: header dict
+                - seriesNumber
+                - seriesDescription
+                - imageType
+                - spacing
+                - orientation
+                - imagePositions
+                - axes
         """
         hdr['studyInstanceUID'] = \
             self.getDicomAttribute(tag_for_keyword('StudyInstanceUID'))
@@ -152,7 +165,14 @@ class DICOMPlugin(AbstractPlugin):
 
     # noinspection PyPep8Naming
     def setDicomAttribute(self, tag, value):
-        # Ignore if no real dicom header exists
+        """Set a given DICOM attribute to the provided value.
+
+        Ignore if no real dicom header exists.
+
+        Args:
+            tag: DICOM tag of addressed attribute.
+            value: Set attribute to this value.
+        """
         if self.DicomHeaderDict is not None:
             for slice in self.DicomHeaderDict:
                 for tg, fname, im in self.DicomHeaderDict[slice]:
@@ -163,7 +183,12 @@ class DICOMPlugin(AbstractPlugin):
                         im[tag].value = value
 
     def getDicomAttribute(self, tag, slice=0):
-        # Get DICOM attribute from first image for given slice
+        """Get DICOM attribute from first image for given slice.
+
+        Args:
+            tag: DICOM tag of requested attribute.
+            slice: which slice to access. Default: slice=0
+        """
         # logging.debug("getDicomAttribute: tag", tag, ", slice", slice)
         tg, fname, im = self.DicomHeaderDict[slice][0]
         if tag in im:
@@ -172,7 +197,10 @@ class DICOMPlugin(AbstractPlugin):
             return None
 
     def removePrivateTags(self):
-        # Ignore if no real dicom header exists
+        """Remove private DICOM attributes.
+
+        Ignore if no real dicom header exists.
+        """
         if self.DicomHeaderDict is not None:
             for slice in self.DicomHeaderDict:
                 for tg, fname, im in self.DicomHeaderDict[slice]:
@@ -181,27 +209,28 @@ class DICOMPlugin(AbstractPlugin):
     def read(self, sources, pre_hdr, input_order, opts):
         """Read image data
 
-        Input:
-        - self: DICOMPlugin instance
-        - sources: list of sources to image data
-        - pre_hdr: Pre-filled header dict. Can be None
-        - input_order: sort order
-        - opts: input options (dict)
-        Output:
-        - hdr: Header dict
-            input_format
-            input_order
-            slices
-            sliceLocations
-            DicomHeaderDict
-            tags
-            seriesNumber
-            seriesDescription
-            imageType
-            spacing
-            orientation
-            imagePositions
-        - si[tag,slice,rows,columns]: multi-dimensional numpy array
+        Args:
+            self: DICOMPlugin instance
+            sources: list of sources to image data
+            pre_hdr: Pre-filled header dict. Can be None
+            input_order: sort order
+            opts: input options (dict)
+        Returns:
+            Tuple of
+                - hdr: Header dict
+                    - input_format
+                    - input_order
+                    - slices
+                    - sliceLocations
+                    - DicomHeaderDict
+                    - tags
+                    - seriesNumber
+                    - seriesDescription
+                    - imageType
+                    - spacing
+                    - orientation
+                    - imagePositions
+                - si[tag,slice,rows,columns]: multi-dimensional numpy array
         """
 
         # import psutil
@@ -330,12 +359,12 @@ class DICOMPlugin(AbstractPlugin):
     def _get_pixels_with_shape(im, shape):
         """Get pixels from image object. Reshape image to given shape
 
-        Input:
-        - self: format plugin instance
-        - image: dicom image
-        - shape: requested image shape
-        Return value:
-        - si: numpy array of given shape
+        Args:
+            self: format plugin instance
+            image: dicom image
+            shape: requested image shape
+        Returns:
+            si: numpy array of given shape
         """
 
         try:
@@ -390,17 +419,18 @@ class DICOMPlugin(AbstractPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                - hdr: Header dict
+                    Return values:
+                    - info: Internal data for the plugin
+                          None if the given file should not be included (e.g. raw file)
+                - si: numpy array (multi-dimensional)
         """
 
         pass
@@ -408,13 +438,13 @@ class DICOMPlugin(AbstractPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
         pass
@@ -422,15 +452,16 @@ class DICOMPlugin(AbstractPlugin):
     def read_headers(self, sources, input_order, opts, skip_pixels=True):
         """Read DICOM headers only
 
-        Input:
-        - self: DICOMPlugin instance
-        - sources: list of sources to image data
-        - input_order: sort order
-        - opts: input options (dict)
-        - skip_pixels: Do not read pixel data (default: True)
-        Output:
-        - hdr: header dict
-        - shape: required shape of image data
+        Args:
+            self: DICOMPlugin instance
+            sources: list of sources to image data
+            input_order: sort order
+            opts: input options (dict)
+            skip_pixels: Do not read pixel data (default: True)
+        Returns:
+            Tuple of
+                - hdr: header dict
+                - shape: required shape of image data
         """
 
         logging.debug('DICOMPlugin.read_headers: sources %s' % sources)
@@ -457,17 +488,17 @@ class DICOMPlugin(AbstractPlugin):
     def get_dicom_headers(self, sources, input_order, opts=None, skip_pixels=True):
         """Get DICOM headers.
 
-        Input:
-         - self: DICOMPlugin instance
-         - sources: list of sources to image data
-         - input_order: Determine how to sort the input images
-         - opts: options (dict)
-         - skip_pixels: Do not read pixel data (default: True)
-        Output:
-         - hdr dict
-         - shape
+        Args:
+            self: DICOMPlugin instance
+            sources: list of sources to image data
+            input_order: Determine how to sort the input images
+            opts: options (dict)
+            skip_pixels: Do not read pixel data (default: True)
+        Returns:
+            Tuple of
+                - hdr: dict
+                - shape: tuple
         """
-
         logging.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
         self._default_opts(opts)
 
@@ -501,20 +532,21 @@ class DICOMPlugin(AbstractPlugin):
     def sort_images(self, header_dict, input_order, opts):
         """Sort DICOM images.
 
-        Input:
-        - self: DICOMPlugin instance
-        - header_dict: dict where sliceLocations are keys
-        - input_order: determine how to sort the input images
-        - opts: options (dict)
-        Output:
-        - hdr dict
-            input_format
-            input_order
-            slices
-            sliceLocations
-            DicomHeaderDict
-            tags
-        - shape
+        Args:
+            self: DICOMPlugin instance
+            header_dict: dict where sliceLocations are keys
+            input_order: determine how to sort the input images
+            opts: options (dict)
+        Returns:
+            Tuple of
+                - hdr dict
+                    - input_format
+                    - input_order
+                    - slices
+                    - sliceLocations
+                    - DicomHeaderDict
+                    - tags
+                - shape
         """
         hdr = {
             'input_format': self.name,
@@ -737,11 +769,11 @@ class DICOMPlugin(AbstractPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D Series image as DICOM files
 
-        Input:
-        - self: DICOMPlugin instance
-        - si: Series array (3D or 4D)
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: DICOMPlugin instance
+            si: Series array (3D or 4D)
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         logging.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
@@ -798,17 +830,21 @@ class DICOMPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
 
-        Input
-        - self: DICOMPlugin instance
-        - si[tag,slice,rows,columns]: Series array
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: DICOMPlugin instance
+            si[tag,slice,rows,columns]: Series array
+            destination: dict of archive and filenames
+            opts: Output options (dict)
 
-        - si.series_number is inserted into each dicom object
-        - si.series_description is inserted into each dicom object
-        - si.image_type: Dicom image type attribute
-        - opts['output_sort']: Which tag will sort the output images (slice or tag)
-        - opts['output_dir']: Store all images in a single or multiple directories
+        si.series_number is inserted into each dicom object
+
+        si.series_description is inserted into each dicom object
+
+        si.image_type: Dicom image type attribute
+
+        opts['output_sort']: Which tag will sort the output images (slice or tag)
+
+        opts['output_dir']: Store all images in a single or multiple directories
         """
 
         logging.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
@@ -893,26 +929,26 @@ class DICOMPlugin(AbstractPlugin):
     def write_slice(self, tag, slice, si, archive, filename, ifile):
         """Write single slice to DICOM file
 
-        Input:
-        - self: DICOMPlugin instance
-        - tag: tag index
-        - slice: slice index
-        - si: Series instance, including these attributes:
-            slices
-            sliceLocations
-            DicomHeaderDict
-            tags (not used)
-            seriesNumber
-            seriesDescription
-            imageType
-            frame
-            spacing
-            orientation
-            imagePositions
-            photometricInterpretation
-        - archive: archive object
-        - filename: file name, possible without '.dcm' extension
-        - ifile: instance number in series
+        Args:
+            self: DICOMPlugin instance
+            tag: tag index
+            slice: slice index
+            si: Series instance, including these attributes:
+                - slices
+                - sliceLocations
+                - DicomHeaderDict
+                - tags (not used)
+                - seriesNumber
+                - seriesDescription
+                - imageType
+                - frame
+                - spacing
+                - orientation
+                - imagePositions
+                - photometricInterpretation
+            archive: archive object
+            filename: file name, possible without '.dcm' extension
+            ifile: instance number in series
         """
 
         logging.debug("write_slice {} {}".format(filename, self.serInsUid))
@@ -1144,7 +1180,9 @@ class DICOMPlugin(AbstractPlugin):
             ds.HighBit = 15
 
     def _calculate_rescale(self, arr):
-        """y = ax + b
+        """Calculate rescale parameters.
+
+        y = ax + b
         x in 0:65535 correspond to y in ymin:ymax
         2^16 = 65536 possible steps in 16 bits dicom
         """
@@ -1176,11 +1214,12 @@ class DICOMPlugin(AbstractPlugin):
     @staticmethod
     def _add_time(now, add):
         """Add time to present time now
-        Input:
-        - now: string hhmmss.ms
-        - add: float [s]
-        Output:
-        - newtime: string hhmmss.ms
+
+        Args:
+            now: string hhmmss.ms
+            add: float [s]
+        Returns:
+            newtime: string hhmmss.ms
         """
         tnow = datetime.strptime(now, "%H%M%S.%f")
         s = int(add)
@@ -1392,12 +1431,12 @@ class DICOMPlugin(AbstractPlugin):
     def _calculate_slice_location(image) -> np.ndarray:
         """Function to calculate slicelocation from imageposition and orientation.
 
-        Input:
-        - image: image (pydicom dicom object)
+        Args:
+            image: image (pydicom dicom object)
         Returns:
-        - calculated slice location for this slice (float)
-        Exceptions:
-        - ValueError: when sliceLocation cannot be calculated
+            calculated slice location for this slice (float)
+        Raises:
+            ValueError: when sliceLocation cannot be calculated
         """
 
         def get_attribute(im, tag):

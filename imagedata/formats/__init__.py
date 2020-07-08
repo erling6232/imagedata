@@ -152,12 +152,12 @@ def str_to_input_order(s):
 def shape_to_str(shape):
     """Convert numpy image shape to printable string
 
-    Input:
-    - shape
+    Args:
+        shape
     Returns:
-    - printable shape (str)
-    Exceptions:
-    - ValueError: when shape cannot be converted to printable string
+        printable shape (str)
+    Raises:
+        ValueError: when shape cannot be converted to printable string
     """
     if len(shape) == 5:
         return "{}x{}tx{}x{}x{}".format(shape[0], shape[1], shape[2], shape[3], shape[4])

@@ -88,17 +88,18 @@ class BiffPlugin(AbstractPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                hdr: Header dict
+                    Return values:
+                        - info: Internal data for the plugin
+                              None if the given file should not be included (e.g. raw file)
+                si: numpy array (multi-dimensional)
         """
 
         info = {}
@@ -154,13 +155,13 @@ class BiffPlugin(AbstractPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
         hdr['photometricInterpretation'] = 'MONOCHROME2'
@@ -200,14 +201,14 @@ class BiffPlugin(AbstractPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Xite biff file
 
-        Input:
-        - self: BiffPlugin instance
-        - si: Series array (3D or 4D), including these attributes:
-            input_sort
-            slices
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: BiffPlugin instance
+            si: Series array (3D or 4D), including these attributes:
+                * input_sort
+                * slices
+                * tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -286,14 +287,14 @@ class BiffPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Xite biff file
 
-        Input:
-        - self: BiffPlugin instance
-        - si[tag,slice,rows,columns]: Series array, including these attributes:
-            input_sort
-            slices
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: BiffPlugin instance
+            si[tag,slice,rows,columns]: Series array, including these attributes:
+                * input_sort
+                * slices
+                * tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -424,13 +425,14 @@ class BiffPlugin(AbstractPlugin):
     def dtype_from_biff(self, pixtyp):
         """Return NumPy dtype for given Xite pixel type
 
-        Input:
-        - pixtyp: Xite pixel type
-        Output:
-        - dtype: Corresponding NumPy dtype
-        - dformat: Format code, to be used by the struct module
-                   Complex numbers are not supported directly by struct.
-                   These data types are coded as 'ff' and 'dd' (length 2)
+        Args:
+            pixtyp: Xite pixel type
+        Returns:
+            Tuple of
+                - dtype: Corresponding NumPy dtype
+                - dformat: Format code, to be used by the struct module
+                    Complex numbers are not supported directly by struct.
+                    These data types are coded as 'ff' and 'dd' (length 2)
         """
         pixtyp = pixtyp & self.Ipixtyp_mask
         if pixtyp == -1:
@@ -464,12 +466,12 @@ class BiffPlugin(AbstractPlugin):
 
     @staticmethod
     def _pixtyp_from_dtype(dtype):
-        """Return Xite pixel type for given NumPy dtype
+        """Get Xite pixel type for given NumPy dtype
 
-        Input:
-        - dtype:  NumPy dtype
-        Output:
-        - pixtyp: Corresponding Xite pixel type
+        Args:
+            dtype:  NumPy dtype
+        Returns:
+            pixtyp: Corresponding Xite pixel type
         """
         if dtype == np.uint8:
             return 3
@@ -496,11 +498,11 @@ class BiffPlugin(AbstractPlugin):
         """Open the file 'f' with 'mode' access, and
         connect it to self image
 
-        Input:
-        - f
-        - mode: access mode ('r' or 'w')
-        Output:
-        - self: image struct
+        Args:
+            f
+            mode: access mode ('r' or 'w')
+        Returns:
+            self: image struct
         """
         assert mode == 'r' or mode == 'w', "Wrong access mode {} given".format(mode)
 
@@ -522,14 +524,15 @@ class BiffPlugin(AbstractPlugin):
 
     def _read_info(self):
         """Initiate image info field with data from file.
+
         Called by _open_image when image is opened
         with readonly or readwrite access.
 
-        Input:
-        - self.f : file descriptor
-        Output:
-        - self : image info
-        - self.bands : band info (dict of bands)
+        Args:
+            self.f : file descriptor
+        Returns:
+            self: image info
+                - self.bands : band info (dict of bands)
         """
         header = self.f.read(96)
         magic = header[:4]
@@ -593,13 +596,14 @@ class BiffPlugin(AbstractPlugin):
 
     @staticmethod
     def _init_band(pt, xsize, ysize):
-        """Create an "absent" band. Storage for pixels will
-        not be allocated, but the band info field will
+        """Create an "absent" band.
+
+        Storage for pixels will not be allocated, but the band info field will
         be allocated and initialized
 
-        Input:
-        - pt : pixel type
-        - xsize, ysize: size of band
+        Args:
+            pt : pixel type
+            xsize, ysize: size of band
         """
         binfo = {
             'status': 'absent',
@@ -625,8 +629,8 @@ class BiffPlugin(AbstractPlugin):
         order of the host computer. If they don't match, the
         bytes are swapped after reading.
 
-        Input:
-        - bandnr : band number to read
+        Args:
+            bandnr : band number to read
         """
 
         # logging.debug('_read_band: band {}'.format(bandnr))
@@ -840,8 +844,8 @@ class BiffPlugin(AbstractPlugin):
     def _write_text(self):
         """Write text field from BIFF image to file
 
-        Input:
-        - self.text - text field
+        Args:
+            self.text: text field
         """
         self.f.write(self.text.encode('utf-8'))
         rest = 512 - len(self.text.encode('utf-8'))
@@ -853,9 +857,9 @@ class BiffPlugin(AbstractPlugin):
     def _write_band(self, bandnr, arr):
         """Write a BIFF band to file
 
-        Input:
-        - bandnr : band number
-        - arr    : pixel data, 2D NumPy array
+        Args:
+            bandnr: band number
+            arr: pixel data, 2D NumPy array
         """
 
         binfo = self.bands[bandnr]

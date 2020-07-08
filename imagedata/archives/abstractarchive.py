@@ -107,8 +107,11 @@ class AbstractArchive(object, metaclass=ABCMeta):
 
     @abstractmethod
     def getnames(self, files=None):
-        """Return the members as a list of their names.
-        It has the same order as the members of the archive.
+        """Get name list of the members.
+
+        Returns:
+            The members as a list of their names.
+                It has the same order as the members of the archive.
         """
         pass
 
@@ -116,24 +119,30 @@ class AbstractArchive(object, metaclass=ABCMeta):
     def basename(self, filehandle):
         """Basename of file.
 
-        Typical use:
-            if archive.basename(filehandle) == "DICOMDIR":
+        Examples:
+            >>> if archive.basename(filehandle) == "DICOMDIR":
 
-        Input:
-        - filehandle: reference to member object
+        Args:
+            filehandle: reference to member object
         """
         pass
 
     @abstractmethod
     def open(self, filehandle, mode='rb'):
-        """Open file. Return a member object for member given its filehandle.
+        """Open file.
+
+        Returns:
+             a member object for member given its filehandle.
         """
         pass
 
     @abstractmethod
     def getmembers(self, files=None):
-        """Return the members of the archive as an OrderedDict of member objects.
-        The keys are the member names as given by getnames().
+        """Get the members of the archive.
+
+        Returns:
+            The members of the archive as an OrderedDict of member objects.
+                The keys are the member names as given by getnames().
         """
         pass
 
@@ -147,11 +156,11 @@ class AbstractArchive(object, metaclass=ABCMeta):
     def add_localfile(self, local_file, filename):
         """Add a local file to the archive.
 
-        Input:
-        - local_file: named local file
-        - filename: filename in the archive
-        Return:
-        - filehandle to file in the archive
+        Args:
+            local_file: named local file
+            filename: filename in the archive
+        Returns:
+            filehandle to file in the archive
         """
         pass
 
@@ -159,9 +168,9 @@ class AbstractArchive(object, metaclass=ABCMeta):
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
 
-        Input:
-        - filename: named file in the archive
-        - data: data to write
+        Args:
+            filename: named file in the archive
+            data: data to write
         """
         pass
 

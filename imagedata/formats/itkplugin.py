@@ -66,17 +66,18 @@ class ITKPlugin(AbstractPlugin):
     def _read_image(self, f, opts, hdr):
         """Read image data from given file handle
 
-        Input:
-        - self: format plugin instance
-        - f: file handle or filename (depending on self._need_local_file)
-        - opts: Input options (dict)
-        - hdr: Header dict
-        Output:
-        - hdr: Header dict
-        Return values:
-        - info: Internal data for the plugin
-          None if the given file should not be included (e.g. raw file)
-        - si: numpy array (multi-dimensional)
+        Args:
+            self: format plugin instance
+            f: file handle or filename (depending on self._need_local_file)
+            opts: Input options (dict)
+            hdr: Header dict
+        Returns:
+            Tuple of
+                hdr: Header dict
+                    Return values:
+                        - info: Internal data for the plugin
+                              None if the given file should not be included (e.g. raw file)
+                si: numpy array (multi-dimensional)
         """
 
         logging.debug("itkplugin._read_image")
@@ -114,9 +115,8 @@ class ITKPlugin(AbstractPlugin):
     def _need_local_file(self):
         """Do the plugin need access to local files?
 
-        Return values:
-        - True: The plugin need access to local filenames
-        - False: The plugin can access files given by an open file handle
+        Returns:
+            Boolean. True: The plugin need access to local filenames. False: The plugin can access files given by an open file handle
         """
 
         return True
@@ -124,53 +124,49 @@ class ITKPlugin(AbstractPlugin):
     def _set_tags(self, image_list, hdr, si):
         """Set header tags.
 
-        Input:
-        - self: format plugin instance
-        - image_list: list with (info,img) tuples
-        - hdr: Header dict
-        - si: numpy array (multi-dimensional)
-        Output:
-        - hdr: Header dict
+        Args:
+            self: format plugin instance
+            image_list: list with (info,img) tuples
+            hdr: Header dict
+            si: numpy array (multi-dimensional)
+        Returns:
+            hdr: Header dict
         """
 
-        """
-        def transformMatrix(direction, origin):
-            matrix = itk.GetArrayFromMatrix(direction)
-            A = np.array([[matrix[2,2], matrix[1,2], matrix[0,2], origin[2]],
-                          [matrix[2,1], matrix[1,1], matrix[0,1], origin[1]],
-                          [matrix[2,0], matrix[1,0], matrix[0,0], origin[0]],
-                          [          0,           0,           0,         1]])
-            return A
-        """
+        # def transformMatrix(direction, origin):
+        #     matrix = itk.GetArrayFromMatrix(direction)
+        #     A = np.array([[matrix[2,2], matrix[1,2], matrix[0,2], origin[2]],
+        #                   [matrix[2,1], matrix[1,1], matrix[0,1], origin[1]],
+        #                   [matrix[2,0], matrix[1,0], matrix[0,0], origin[0]],
+        #                   [          0,           0,           0,         1]])
+        #     return A
 
-        """
-        orientation = self.orientation
-        rotation = np.zeros([3,3])
-        # X axis
-        rotation[0,0] = orientation[0]
-        rotation[0,1] = orientation[1]
-        rotation[0,2] = orientation[2]
-        # Y axis
-        rotation[1,0] = orientation[3]
-        rotation[1,1] = orientation[4]
-        rotation[1,2] = orientation[5]
-        # Z axis = X cross Y
-        rotation[2,0] = orientation[1]*orientation[5]-orientation[2]*orientation[4]
-        rotation[2,1] = orientation[2]*orientation[3]-orientation[0]*orientation[5]
-        rotation[2,2] = orientation[0]*orientation[4]-orientation[1]*orientation[3]
-        logging.debug(rotation)
-
-        # Set direction by modifying default orientation in place
-        d=image.GetDirection()
-        dv=d.GetVnlMatrix()
-        for col in range(3):
-            v=itk.vnl_vector.D()
-            v.set_size(3)
-            v.put(0, rotation[col,0])
-            v.put(1, rotation[col,1])
-            v.put(2, rotation[col,2])
-            dv.set_column(col,v)
-        """
+        # orientation = self.orientation
+        # rotation = np.zeros([3,3])
+        # # X axis
+        # rotation[0,0] = orientation[0]
+        # rotation[0,1] = orientation[1]
+        # rotation[0,2] = orientation[2]
+        # # Y axis
+        # rotation[1,0] = orientation[3]
+        # rotation[1,1] = orientation[4]
+        # rotation[1,2] = orientation[5]
+        # # Z axis = X cross Y
+        # rotation[2,0] = orientation[1]*orientation[5]-orientation[2]*orientation[4]
+        # rotation[2,1] = orientation[2]*orientation[3]-orientation[0]*orientation[5]
+        # rotation[2,2] = orientation[0]*orientation[4]-orientation[1]*orientation[3]
+        # logging.debug(rotation)
+        #
+        # # Set direction by modifying default orientation in place
+        # d=image.GetDirection()
+        # dv=d.GetVnlMatrix()
+        # for col in range(3):
+        #     v=itk.vnl_vector.D()
+        #     v.set_size(3)
+        #     v.put(0, rotation[col,0])
+        #     v.put(1, rotation[col,1])
+        #     v.put(2, rotation[col,2])
+        #     dv.set_column(col,v)
 
         o, img = image_list[0]
         spacing = o.GetSpacing()
@@ -260,17 +256,17 @@ class ITKPlugin(AbstractPlugin):
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as ITK file
 
-        Input:
-        - self: ITKPlugin instance
-        - si: Series array (3D or 4D), including these attributes:
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: ITKPlugin instance
+            si: Series array (3D or 4D), including these attributes:
+                - slices
+                - spacing
+                - imagePositions
+                - transformationMatrix
+                - orientation
+                - tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -317,17 +313,17 @@ class ITKPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as ITK files
 
-        Input:
-        - self: ITKPlugin instance
-        - si[tag,slice,rows,columns]: Series array, including these attributes:
-            slices
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation
-            tags
-        - destination: dict of archive and filenames
-        - opts: Output options (dict)
+        Args:
+            self: ITKPlugin instance
+            si[tag,slice,rows,columns]: Series array, including these attributes:
+                - slices
+                - spacing
+                - imagePositions
+                - transformationMatrix
+                - orientation
+                - tags
+            destination: dict of archive and filenames
+            opts: Output options (dict)
         """
 
         if si.color:
@@ -394,17 +390,17 @@ class ITKPlugin(AbstractPlugin):
     def write_numpy_itk(self, si, archive, filename):
         """Write single volume to file
 
-        Input:
-        - self: ITKPlugin instance, including these attributes:
-            slices (not used)
-            spacing
-            imagePositions
-            transformationMatrix
-            orientation (not used)
-            tags (not used)
-        - si: numpy 3D array [slice,row,column]
-        - archive: archive object
-        - filename: file name, possibly without extentsion
+        Args:
+            self: ITKPlugin instance, including these attributes:
+                - slices (not used)
+                - spacing
+                - imagePositions
+                - transformationMatrix
+                - orientation (not used)
+                - tags (not used)
+            si: numpy 3D array [slice,row,column]
+            archive: archive object
+            filename: file name, possibly without extentsion
         """
 
         if si.ndim != 2 and si.ndim != 3:
@@ -500,17 +496,18 @@ class ITKPlugin(AbstractPlugin):
 
     def get_image_from_numpy(self, image):
         """Returns an itk Image created from the supplied scipy ndarray.
+
         If the image_type is supported, will be automatically transformed to that type,
         otherwise the most suitable is selected.
         
-        @note always use this instead of directly the itk.PyBuffer, as that
+        Note: always use this instead of directly the itk.PyBuffer, as that
                 object transposes the image axes.
         
-        @param image an array
-        @type image np.ndarray
+        Args:
+            image an array, type image np.ndarray
 
-        @return an instance of itk.Image holding the array's data
-        @rtype itk.Image (instance)
+        Returns:
+            an instance of itk.Image holding the array's data, type itk.Image (instance)
         """
 
         def itkMatrix_from_orientation(orientation, normal):
@@ -558,12 +555,13 @@ class ITKPlugin(AbstractPlugin):
 
     @staticmethod
     def _get_image_type(image):
-        """
-        Returns the image type of the supplied image as itk.Image template.
-        @param image: an instance of itk.Image
+        """Returns the image type of the supplied image as itk.Image template.
 
-        @return a template of itk.Image
-        @rtype itk.Image
+        Args:
+            image: an instance of itk.Image
+
+        Returns:
+            a template of itk.Image, type itk.Image
         """
         try:
             return itk.Image[itk.template(image)[1][0],
