@@ -203,6 +203,8 @@ def write(si, url, opts=None, formats=None):
             raise TypeError("List of output format is not list() ({})".format(type(formats)))
     elif 'output_format' in out_opts and len(out_opts['output_format']):
         output_formats = out_opts['output_format']
+    if output_formats is None:
+        output_formats = ['dicom'] # Fall-back to dicom output
     logging.info("Output formats: {}".format(output_formats))
 
     # Determine output dtype
