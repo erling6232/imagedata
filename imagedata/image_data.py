@@ -8,6 +8,7 @@ import sys
 import os.path
 import argparse
 import logging
+import numpy as np
 import imagedata
 import imagedata.cmdline
 import imagedata.formats
@@ -165,6 +166,10 @@ def calculator():
 def statistics():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
+    parser.add_argument('--mask',
+                        help='Image mask', default=None)
+    parser.add_argument('--bash',
+                        help='Print bash commands', default=None)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -180,10 +185,32 @@ def statistics():
         traceback.print_exc(file=sys.stdout)
         return 1
 
-    # noinspection PyArgumentList
-    print('Min: {}, max: {}, mean: {}, points: {}, shape: {}, dtype: {}'.format(si.min(),
-                                                                                si.max(), si.mean(), si.size, si.shape,
-                                                                                si.dtype))
+    mask = None
+    if args.mask is not None:
+        try:
+            mask = Series(args.mask) > 0
+        except imagedata.formats.NotImageError:
+            print("Could not determine input format of %s." % args.mask)
+            return 1
+
+    if mask is None:
+        selection = si
+    else:
+        selection = si[mask]
+    _min = selection.min()
+    _max = selection.max()
+    _mean = selection.mean()
+    _std = selection.std()
+    _median = selection.median()
+    _size = selection.size
+    _dtype = selection.dtype
+
+    if args.bash is None:
+        print('Min: {}, max: {}, mean: {} +- {}, median: {}, points: {}, shape: {}, dtype: {}'.format(_min, _max,
+        _mean, _std, _median, _size, si.shape, _dtype))
+    else:
+        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}\n'.format(_min, _max, _mean, _std, _median))
+        print('export min max mean std\n')
     return 0
 
 
