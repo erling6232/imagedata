@@ -168,14 +168,12 @@ def statistics():
     imagedata.cmdline.add_argparse_options(parser)
     parser.add_argument('--mask',
                         help='Image mask', default=None)
-    parser.add_argument('--bash',
-                        help='Print bash commands', default=None)
+    parser.add_argument('--bash', action='store_true',
+                        help='Print bash commands')
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    # if args.version:
-    #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -197,20 +195,21 @@ def statistics():
         selection = si
     else:
         selection = si[mask]
-    _min = selection.min()
-    _max = selection.max()
-    _mean = selection.mean()
-    _std = selection.std()
-    _median = selection.median()
+    _min = np.min(selection)
+    _max = np.max(selection)
+    _mean = np.mean(selection)
+    _std = np.std(selection)
+    _median = np.median(np.array(selection))
     _size = selection.size
     _dtype = selection.dtype
 
-    if args.bash is None:
-        print('Min: {}, max: {}, mean: {} +- {}, median: {}, points: {}, shape: {}, dtype: {}'.format(_min, _max,
-        _mean, _std, _median, _size, si.shape, _dtype))
+    if args.bash:
+        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(_min, _max, _mean, _std, _median))
+        print('export min max mean std median')
     else:
-        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}\n'.format(_min, _max, _mean, _std, _median))
-        print('export min max mean std\n')
+        print('Min: {}, max: {}'.format(_min, _max))
+        print('Mean: {} +- {}, median: {}'.format( _mean, _std, _median))
+        print('Points: {}, shape: {}, dtype: {}'.format(_size, si.shape, _dtype))
     return 0
 
 
