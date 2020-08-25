@@ -220,8 +220,8 @@ def conversion():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    print("Output format: %s, %s, in %s directory." % (
-        args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
+    #print("Output format: %s, %s, in %s directory." % (
+    #    args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
