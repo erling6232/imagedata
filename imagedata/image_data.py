@@ -27,8 +27,6 @@ def dump():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1:
-        args.output_format = ['dicom']
     print("Output format: %s, %s, in %s directory." % (
         args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
@@ -173,8 +171,6 @@ def statistics():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1:
-        args.output_format = ['dicom']
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -200,8 +196,6 @@ def timeline():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1:
-        args.output_format = ['dicom']
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
@@ -226,8 +220,6 @@ def conversion():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    if len(args.output_format) < 1:
-        args.output_format = ['dicom']
     print("Output format: %s, %s, in %s directory." % (
         args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
