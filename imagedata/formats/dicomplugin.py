@@ -882,7 +882,7 @@ class DICOMPlugin(AbstractPlugin):
             self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
-        self.seriesTime = self.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
+        # Not used # self.seriesTime = self.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
         # self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
