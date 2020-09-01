@@ -1,11 +1,11 @@
 imagedata
 =========
 
-Read/write medical image data
-
-Python library to read and write image data into numpy arrays.
-
-Handles geometry information between the formats.
+Imagedata is a python library to read and write medical image data into numpy arrays.
+Imagedata will handle multi-dimensional data.
+In particular, imagedata will read and sort DICOM 3D and 4D series based on
+defined tags.
+Imagedata will handle geometry information between the formats.
 
 The following formats are included:
 
@@ -17,15 +17,70 @@ The following formats are included:
 
 Other formats can be added through a plugin architecture.
 
-Simple python3 code
+Example code
 -------------------
 
-A simple example reading a time series from in_dir, and writing it to out_dir::
+A simple example reading two time series from dirA and dirB, and writing their mean to dirMean::
 
   from imagedata.series import Series
-  a = Series('in_dir', 'time')
-  a.write('out_dir')
-  
+  a = Series('dirA', 'time')
+  b = Series('dirB', 'time')
+  assert a.shape == b.shape, "Shape of a and b differ"
+  # Notice how a and b are treated as numpy arrays
+  c = (dirA + dirB) / 2
+  c.write('dirMean')
+
+Sorting
+-------
+
+Sorting of DICOM slices is considered a major task. Imagedata will sort slices into volumes based on slice location.
+Volumes may be sorted on a number of DICOM tags:
+
+   * 'time': Dynamic time series, sorted on acquisition time
+   * 'b': Diffusion weighted series, sorted on diffusion b value
+   * 'fa': Flip angle series, sorted on flip angle
+   * 'te': Sort on echo time TE
+
+In addition, volumes can be sorted on user defined tags.
+
+Non-DICOM formats usually don't specify the labelling of the 4D data.
+In this case, you can specify the sorting manually.
+
+Converting data from DICOM and back
+-----------------------------------
+
+In many situations you need to process patient data using a tool that do not accept DICOM data.
+In order to maintain the coupling to patient data, you may convert your data to e.g. Nifti and back.
+
+Example using the command line utility image_data::
+
+  image_data --of nifti niftiDir dicomDir
+  # Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+
+  # Convert the niftiResult back to DICOM, using dicomDir as a template
+  image_data --of dicom --template dicomDir dicomResult niftiResult
+  # The resulting dicomResult will be a new DICOM series that could be added to a PACS
+
+  # Set series number and series description before transmitting to PACS using DICOM transport
+  image_data --sernum 1004 --serdes 'Processed data' \
+    dicom://server:104/AETITLE dicomResult
+
+The same example using python code::
+
+  from imagedata.series import Series
+  a = Series('dicomDir')
+  a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
+
+  # Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+
+  b = Series('niftiResult', template=a)    # Or template='dicomDir'
+  b.write('dicomResult')   # Here, DICOM is default output format
+
+  # Set series number and series description before transmitting to PACS using DICOM transport
+  b.seriesNumber = 1004
+  b.seriesDescription = 'Processed data'
+  b.write(' dicom://server:104/AETITLE')
+
 Series fields
 -------------
 
@@ -49,6 +104,9 @@ patientID, patientName, patientBirthDate
 accessionNumber
   Identifies study
 
+seriesNumber, seriesDescription, imageType
+  Labels DICOM data
+
 slices
   Returns number of slices
   
@@ -67,29 +125,31 @@ transformationMatrix
 Series instancing
 -----------------
 
-From image data file(s):
+From image data file(s)::
+
   a = Series('in_dir')
   
-From a list of directories:
+From a list of directories::
+
   a = Series(['1', '2', '3'])
 
-From a numpy array:
+From a numpy array::
+
   e = np.eye(128)
-  
   a = Series(e)
 
 Series methods
 --------------
 
 write
-  Write the image data as a Matlab file to out_dir:
+  Write the image data as a Matlab file to out_dir::
   
-  a.write('out_dir', formats=['mat'])
+    a.write('out_dir', formats=['mat'])
 
 slicing
-  The image data array can be sliced like numpy.ndarray. The axes will be adjusted accordingly:
+  The image data array can be sliced like numpy.ndarray. The axes will be adjusted accordingly::
   
-  b = a[0, ...]
+    b = a[0, ...]
   
   will give a 3D **b** image when **a** is 4D.
 
@@ -99,37 +159,37 @@ Archives
 The Series object can access image data in a number of **archives**. Some archives are:
 
 Filesystem
-  Access files in directories on the local file system
+  Access files in directories on the local file system::
   
-  a = Series('in_dir')
+    a = Series('in_dir')
   
 Zip
   Access files inside zip files.
   
-  Read all files inside file.zip:
+  Read all files inside file.zip::
   
-  a = Series('file.zip')
+    a = Series('file.zip')
   
-  Read named directory inside file.zip:
+  Read named directory inside file.zip::
   
-  b = Series('file.zip?dir_a')
+    b = Series('file.zip?dir_a')
   
-  Write the image data to DICOM files inside newfile.zip:
+  Write the image data to DICOM files inside newfile.zip::
   
-  b.write('newfile.zip', formats=['dicom'])
+    b.write('newfile.zip', formats=['dicom'])
 
 Transports
 ----------
 
 file
-  Access local files (default)
+  Access local files (default)::
   
-  a = Series('file:in_dir')
+    a = Series('file:in_dir')
   
 dicom
-  Access files using DICOM Storage protocols. Currently, writing (implies sending) DICOM images only.
+  Access files using DICOM Storage protocols. Currently, writing (implies sending) DICOM images only::
   
-  a.write('dicom://server:104/AETITLE')
+    a.write('dicom://server:104/AETITLE')
 
 Command line usage
 ------------------

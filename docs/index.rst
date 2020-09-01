@@ -6,7 +6,7 @@
 Imagedata Documentation
 =======================
 
-Imagedata is python library to read and write image data into numpy arrays.
+Imagedata is a python library to read and write medical image data into numpy arrays.
 Imagedata will handle multi-dimensional data.
 In particular, imagedata will read and sort DICOM 3D and 4D series based on
 defined tags.
