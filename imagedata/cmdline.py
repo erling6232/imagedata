@@ -112,12 +112,11 @@ def add_argparse_options(parser):
                         choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
                         default=None)
     parser.add_argument('--psopt',
-                        help="GhostScript device for reading PostScript file",
-                        choices=['png16m', 'pnggray'],
-                        default='png16m')
-    parser.add_argument('--dpi',
-                        help="Resolution in pixels/inch when creating image",
-                        default=150)
+                        help="Postscript options (opt=value,opt=value) where opt can be\n" +
+                             "dpi= (Resolution in pixels/inch of image, default=150\n" +
+                             "driver=png16m/pnggray (default=png16m)\n"
+                             "rotate=90 (default=0)",
+                        default=None)
     parser.add_argument('--odir', dest="output_dir",
                         help="Store all images in a single or multiple directories (default: single)",
                         choices=['single', 'multi'], default='single')
