@@ -21,7 +21,7 @@ class Test2DPSPlugin(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'ps', '--serdes', '1'])
         self.opts_gray = parser.parse_args(['--of', 'ps', '--serdes', '1',
-                                            '--psopt', 'pnggray'])
+                                            '--psopt', 'driver=pnggray'])
 
         plugins = imagedata.formats.get_plugins_list()
         self.ps_plugin = None
