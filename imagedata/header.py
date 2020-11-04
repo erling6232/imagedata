@@ -14,7 +14,6 @@ import imagedata.formats.dicomlib.uid
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 header_tags = ['input_format',
-               'DicomHeaderDict',
                'seriesNumber',
                'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
@@ -172,6 +171,11 @@ def add_template(this, template):
         for attr in template.__dict__:
             if attr in header_tags and attr != 'seriesInstanceUID':
                 setattr(this, attr, getattr(template, attr, None))
+        # Make sure DicomHeaderDict is set last
+        templateDHD = getattr(template,'DicomHeaderDict',None)
+        if templateDHD is not None:
+            setattr(this, 'DicomHeaderDict',
+                    __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
     elif issubclass(type(template), dict):
         for attr in template:
             if attr in header_tags and attr != 'seriesInstanceUID':
@@ -179,8 +183,48 @@ def add_template(this, template):
                     setattr(this, attr, copy.copy(template[attr]))
                 elif issubclass(type(this), dict):
                     this[attr] = copy.copy(template[attr])
+        # Make sure DicomHeaderDict is set last
+        if 'DicomHeaderDict' in template:
+            if issubclass(type(this), Header):
+                setattr(this, 'DicomHeaderDict',
+                        __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
+            elif issubclass(type(this), dict):
+                this['DicomHeaderDict'] = copy.copy(__make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
     else:
         raise ValueError('Template is not Header or dict.')
+
+
+def __get_tags_and_slices(obj):
+    slices = tags = 1
+    try:
+        if issubclass(type(obj), Header):
+            axes = obj.axes
+        elif issubclass(type(obj), dict):
+            axes = obj['axes']
+    except Exception as e:
+        print(e)
+        raise
+    for axis in axes:
+        if axis.name == 'slice':
+            slices = len(axis)
+        elif axis.name not in {'row', 'column', 'rgb'}:
+            tags = len(axis)
+    return tags, slices
+
+
+def __make_DicomHeaderDict_from_template(this, template):
+    DicomHeaderDict = {}
+    defaultHeader = template[0][0][2]
+    tags, slices = __get_tags_and_slices(this)
+    for _slice in range(slices):
+        DicomHeaderDict[_slice] = []
+        for tag in range(tags):
+            try:
+                templateHeader = template[_slice][tag][2]
+            except KeyError:
+                templateHeader = defaultHeader
+            DicomHeaderDict[_slice].append((tag, None, templateHeader))
+    return DicomHeaderDict
 
 
 def add_geometry(this, template):
