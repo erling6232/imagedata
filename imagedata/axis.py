@@ -2,6 +2,7 @@
 """
 
 from abc import ABCMeta  # , abstractmethod, abstractproperty
+import sys
 # import logging
 import numpy as np
 
@@ -50,7 +51,12 @@ class UniformAxis(Axis):
         return UniformAxis(self.name, start, stop, step)
 
     def __len__(self):
-        return abs(int((self.stop - self.start) / self.step))
+        try:
+            return abs(int((self.stop - self.start) / self.step))
+        except ValueError as e:
+            return sys.maxsize
+        except Exception:
+            raise
 
     @property
     def slice(self):
@@ -87,7 +93,12 @@ class UniformLengthAxis(UniformAxis):
             start = self.start + (item.start or 0) * self.step
             stop = self.start + (item.stop or self.n) * self.step
             step = (item.step or 1) * self.step
-            n = int(round((stop - start) / step))
+            try:
+                n = int(round((stop - start) / step))
+            except ValueError as e:
+                n = sys.maxsize
+            except Exception:
+                raise
             n = min(self.n, n)
         # logging.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformLengthAxis(self.name, start, n, step)
