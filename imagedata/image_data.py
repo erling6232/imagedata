@@ -259,3 +259,6 @@ def conversion():
 
     si.write(args.out_name, opts=args)
     return 0
+
+if __name__ == '__main__':
+    conversion()
