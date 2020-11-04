@@ -465,6 +465,7 @@ class Series(np.ndarray):
         except ValueError:
             return None
         slice_spec = slice(0, slices, 1)
+        assert len(self.tags) > 0, "No tags defined"
         tags = len(self.tags[0])
         tag_spec = slice(0, tags, 1)
         for d in range(len(specs)):
