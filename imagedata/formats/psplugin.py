@@ -11,9 +11,10 @@ import magic
 import tempfile
 import numpy as np
 import ghostscript
+import imageio
 
 import imagedata.formats
-from imagedata.formats.itkplugin import ITKPlugin
+from imagedata.formats.abstractplugin import AbstractPlugin
 
 
 class ImageTypeError(Exception):
@@ -30,7 +31,7 @@ class DependencyError(Exception):
     pass
 
 
-class PSPlugin(ITKPlugin):
+class PSPlugin(AbstractPlugin):
     """Read PostScript files.
     Writing PostScript files is not implemented."""
 
@@ -61,12 +62,21 @@ class PSPlugin(ITKPlugin):
                 si: numpy array (multi-dimensional)
         """
 
-        self.res = 150  # dpi
-        if 'dpi' in opts:
-            self.res = int(opts['dpi'])
-        self.psopt = 'png16m'
-        if 'psopt' in opts:
-            self.psopt = opts['psopt']
+        self.dpi = 150  # dpi
+        self.driver = 'png16m'
+        self.rotate = 0
+        legal_attributes = {'dpi', 'driver', 'rotate'}
+        if 'psopt' in opts and opts['psopt'] is not None:
+            for expr in opts['psopt'].split(','):
+                attr,value = expr.split('=')
+                if attr in legal_attributes:
+                    setattr(self, attr, value)
+                else:
+                    raise ValueError('Unknown attribute {} set in psopt'.format(attr))
+        self.dpi = int(self.dpi)
+        self.rotate = int(self.rotate)
+        if self.rotate not in {0, 90}:
+            raise ValueError('psopt rotate value {} is not implemented'.format(self.rotate))
         with tempfile.TemporaryDirectory() as tempdir:
             logging.debug("PSPlugin.read: tempdir {}".format(tempdir))
             try:
@@ -75,38 +85,37 @@ class PSPlugin(ITKPlugin):
                 # self._pdf_to_png(f, os.path.join(tempdir.name, "fname.png"))
             except imagedata.formats.NotImageError:
                 raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(f))
-            # Call ITKPlugin to read the PNG file(s)
+            # Read the PNG file(s)
             image_list = list()
             for fname in sorted(os.listdir(tempdir)):
                 filename = os.path.join(tempdir, fname)
                 logging.debug("PSPlugin.read: call ITKPlugin {}".format(filename))
-                info, img = super(PSPlugin, self)._read_image(filename, opts, hdr)
-                image_list.append((info, img))
-                logging.debug("PSPlugin.read: returned from ITKPlugin")
-                logging.debug("PSPlugin.read: returned from ITKPlugin, hdr\n{}".format(hdr))
+                img = imageio.imread(filename)
+                image_list.append(img)
         if len(image_list) < 1:
             raise ValueError('No image data read')
-        info, img = image_list[0]
+        img = image_list[0]
         shape = (len(image_list),) + img.shape
         dtype = img.dtype
         si = np.zeros(shape, dtype)
-        i = 0
-        for info, img in image_list:
+        for i, img in enumerate(image_list):
             logging.debug('read: img {} si {}'.format(img.shape, si.shape))
             si[i] = img
-            i += 1
+        hdr['spacing'] = np.array([1,1,1])
         # Color space: RGB
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
-        if self.psopt == 'png16m' and si.shape[-1] == 3:
+        if self.driver == 'png16m' and si.shape[-1] == 3:
             # Photometric interpretation = 'RGB'
             hdr['photometricInterpretation'] = 'RGB'
             hdr['color'] = True
+        if self.rotate == 90:
+            si = np.rot90(si, axes=(1,2))
         # Let a single page be a 2D image
         if si.ndim == 3 and si.shape[0] == 1:
             si.shape = si.shape[1:]
         logging.debug('read: si {}'.format(si.shape))
-        return info, si
+        return True, si
 
     def _need_local_file(self):
         """Do the plugin need access to local files?
@@ -131,7 +140,56 @@ class PSPlugin(ITKPlugin):
             hdr: Header dict
         """
 
-        super(PSPlugin, self)._set_tags(image_list, hdr, si)
+        #super(PSPlugin, self)._set_tags(image_list, hdr, si)
+
+        # Default spacing and orientation
+        hdr['spacing'] = np.array([1,1,1])
+        hdr['imagePositions'] = {}
+        hdr['imagePositions'][0] = np.array([0,0,0])
+        hdr['orientation'] = np.array([0,0,1,0,0,1])
+
+        # Set tags
+        axes = list()
+        _actual_shape = si.shape
+        _color = False
+        if 'color' in hdr and hdr['color']:
+            _actual_shape = si.shape[:-1]
+            _color = True
+            logging.debug('ITKPlugin.read: color')
+        _actual_ndim = len(_actual_shape)
+        nz = 1
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'row',
+            hdr['imagePositions'][0][1],
+            _actual_shape[-2],
+            hdr['spacing'][1])
+        )
+        axes.append(imagedata.axis.UniformLengthAxis(
+            'column',
+            hdr['imagePositions'][0][2],
+            _actual_shape[-1],
+            hdr['spacing'][2])
+        )
+        if _actual_ndim > 2:
+            nz = _actual_shape[-3]
+            axes.insert(0, imagedata.axis.UniformLengthAxis(
+                'slice',
+                hdr['imagePositions'][0][0],
+                nz,
+                hdr['spacing'][0])
+            )
+        if _color:
+            axes.append(imagedata.axis.VariableAxis(
+                'rgb',
+                ['r', 'g', 'b'])
+            )
+        hdr['axes'] = axes
+
+        tags = {}
+        for slice in range(nz):
+            tags[slice] = np.array([0])
+        hdr['tags'] = tags
+        return
 
     def _convert_to_png(self, filename, tempdir, fname):
         """Convert file from PostScript to PNG
@@ -144,16 +202,17 @@ class PSPlugin(ITKPlugin):
         """
 
         # Verify that the input file is a PostScript file
-        if magic.from_file(filename, mime=True) != 'application/postscript':
-            raise imagedata.formats.NotImageError('{} does not look like a PostScript file'.format(filename))
+        if magic.from_file(filename, mime=True) != 'application/postscript' and \
+           magic.from_file(filename, mime=True) != 'application/pdf':
+            raise imagedata.formats.NotImageError('{} does not look like a PostScript or PDF file'.format(filename))
 
         args = [
             "gs",  # actual value doesn't matter
             "-dNOPAUSE", "-dBATCH", "-dSAFER", "-dQUIET",
             # "-sDEVICE=pnggray",
             # "-sDEVICE=png16m",
-            "-r{}".format(self.res),
-            "-sDEVICE={}".format(self.psopt),
+            "-r{}".format(self.dpi),
+            "-sDEVICE={}".format(self.driver),
             "-sOutputFile=" + os.path.join(tempdir, fname),
             # "-c", ".setpdfwrite",
             "-f", filename
