@@ -66,7 +66,7 @@ class PSPlugin(AbstractPlugin):
         self.driver = 'png16m'
         self.rotate = 0
         legal_attributes = {'dpi', 'driver', 'rotate'}
-        if 'psopt' in opts and opts['psopt'] is not None:
+        if 'psopt' in opts and opts['psopt']:
             for expr in opts['psopt'].split(','):
                 attr,value = expr.split('=')
                 if attr in legal_attributes:
