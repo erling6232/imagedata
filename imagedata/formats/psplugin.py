@@ -146,7 +146,7 @@ class PSPlugin(AbstractPlugin):
         hdr['spacing'] = np.array([1,1,1])
         hdr['imagePositions'] = {}
         hdr['imagePositions'][0] = np.array([0,0,0])
-        hdr['orientation'] = np.array([0,0,1,0,0,1])
+        hdr['orientation'] = np.array([0,1,0,-1,0,0])
 
         # Set tags
         axes = list()
@@ -155,7 +155,6 @@ class PSPlugin(AbstractPlugin):
         if 'color' in hdr and hdr['color']:
             _actual_shape = si.shape[:-1]
             _color = True
-            logging.debug('ITKPlugin.read: color')
         _actual_ndim = len(_actual_shape)
         nz = 1
         axes.append(imagedata.axis.UniformLengthAxis(
