@@ -112,9 +112,9 @@ def add_argparse_options(parser):
                         choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
                         default=None)
     parser.add_argument('--psopt',
-                        help="Postscript options (opt=value,opt=value) where opt can be\n" +
-                             "dpi= (Resolution in pixels/inch of image, default=150\n" +
-                             "driver=png16m/pnggray (default=png16m)\n"
+                        help="Postscript options (opt=value,opt=value) where opt can be: " +
+                             "dpi= (Resolution in pixels/inch of image, default=150); " +
+                             "driver=png16m/pnggray (default=png16m); "
                              "rotate=90 (default=0)",
                         default=None)
     parser.add_argument('--odir', dest="output_dir",
