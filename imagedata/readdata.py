@@ -181,8 +181,8 @@ def write(si, url, opts=None, formats=None):
         si.seriesNumber = out_opts['sernum']
     if 'serdes' in out_opts and out_opts['serdes']:
         si.seriesDescription = out_opts['serdes']
-    if 'imageType' in out_opts and out_opts['imageType']:
-        si.imageType = out_opts['imageType']
+    if 'imagetype' in out_opts and out_opts['imagetype']:
+        si.imageType = out_opts['imagetype']
     if 'frame' in out_opts and out_opts['frame']:
         si.frameOfReferenceUID = out_opts['frame']
 
@@ -391,8 +391,8 @@ def _get_sources(urls, mode, opts=None):
                 transport: file, archive: tgz, files: query
             http://server:port/dicom.zip
                 transport: http, archive: zip
-            dicomscp://server:port/AET
-                transport: dicomscp, archive: fs
+            dicom://server:port/AET
+                transport: dicom, archive: fs
             xnat://server:port
                transport: xnat, archive: fs
         mode: 'r' or 'w' for Read or Write
