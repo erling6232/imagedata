@@ -468,7 +468,7 @@ class Series(np.ndarray):
         assert len(self.tags) > 0, "No tags defined"
         tags = len(self.tags[0])
         tag_spec = slice(0, tags, 1)
-        for d in range(len(specs)):
+        for d in specs:
             start, stop, step, axis = specs[d]
             if axis.name == 'slice':
                 slice_spec = slice(start, stop, step)
@@ -505,7 +505,7 @@ class Series(np.ndarray):
             return None
         slice_spec = slice(0, self.slices, 1)
         tag_spec = slice(0, tags, 1)
-        for d in range(len(specs)):
+        for d in specs:
             start, stop, step, axis = specs[d]
             if axis.name == "slice":
                 slice_spec = slice(start, stop, step)
