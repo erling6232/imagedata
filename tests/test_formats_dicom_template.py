@@ -43,9 +43,10 @@ class TestDicomTemplate(unittest.TestCase):
         self.assertIsNotNone(self.dicom_plugin)
 
         # Create a DICOM series with empty header
-        si0 = Series(os.path.join('data', 'biff', 'time', 'time00.biff'))
+        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'), input_order='time')
         self.emptydir = tempfile.TemporaryDirectory()
-        si0.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
+        si00 = Series(si0[0], input_order='none')
+        si00.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
 
     def tearDown(self):
         self.emptydir.cleanup()
