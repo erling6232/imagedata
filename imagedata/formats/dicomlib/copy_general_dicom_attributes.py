@@ -38,7 +38,7 @@ def copy_general_dicom_attributes(ds_in, ds_out):
     if 'SmallestPixelValueInSeries' in ds_in: ds_out.SmallestPixelValueInSeries = ds_in.SmallestPixelValueInSeries
     if 'LargestPixelValueInSeries' in ds_in: ds_out.LargestPixelValueInSeries = ds_in.LargestPixelValueInSeries
     # Frame of Reference Module Attributes
-    ds_out.FrameOfReferenceUID = ds_in.FrameOfReferenceUID
+    if 'FrameOfReferenceUID' in ds_in: ds_out.FrameOfReferenceUID = ds_in.FrameOfReferenceUID
     if 'PositionReferenceIndicator' in ds_in: ds_out.PositionReferenceIndicator = ds_in.PositionReferenceIndicator
     # General Equipment Module Attributes
     if 'Manufacturer' in ds_in: ds_out.Manufacturer = ds_in.Manufacturer
