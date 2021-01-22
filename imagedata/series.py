@@ -481,7 +481,10 @@ class Series(np.ndarray):
             _slice = min(s, slices - 1)
             hdr[j] = list()
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-                tag = self.tags[_slice][min(t, tags-1)]
+                try:
+                    tag = self.tags[_slice][t]
+                except IndexError:
+                    raise IndexError("Could not get tag for slice {}, tag {}".format(_slice, t))
                 hdr[j].append(
                     self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
                 )
@@ -519,17 +522,9 @@ class Series(np.ndarray):
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
                 # Limit slices to the known slices. Duplicates last slice and/or tag if too few.
                 try:
-                    if s > last_slice:
-                        print('__get_tags: replace slice {} for {}'.format(last_slice, s))
-                    if t > tags-1:
-                        print('__get_tags: replace tag {} for {}'.format(tags-1, t))
-                    new_tags[j].append(
-                        tmpl_tags[min(s, last_slice)][min(t, tags-1)]
-                    )
+                    new_tags[j].append(tmpl_tags[s][t])
                 except IndexError:
-                    raise IndexError("Could not get tag for slice {}, tag {}".format(
-                        min(s, last_slice), (t, tags-1)
-                    ))
+                    raise IndexError("Could not get tag for slice {}, tag {}".format(s, t))
             j += 1
         return new_tags
 
