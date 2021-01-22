@@ -481,7 +481,7 @@ class Series(np.ndarray):
             _slice = min(s, slices - 1)
             hdr[j] = list()
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-                tag = self.tags[_slice][t]
+                tag = self.tags[_slice][min(t, tags-1)]
                 hdr[j].append(
                     self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
                 )

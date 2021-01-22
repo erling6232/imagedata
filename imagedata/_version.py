@@ -7,5 +7,5 @@ Provides imagedata version information.
 
 from incremental import Version
 
-__version__ = Version('imagedata', 1, 1, 33)
+__version__ = Version('imagedata', 1, 1, 34)
 __all__ = ["__version__"]
