@@ -517,14 +517,18 @@ class Series(np.ndarray):
         for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
             new_tags[j] = list()
             for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-                # Limit slices to the known slices. Duplicates last tag if too few.
+                # Limit slices to the known slices. Duplicates last slice and/or tag if too few.
                 try:
+                    if s > last_slice:
+                        print('__get_tags: replace slice {} for {}'.format(last_slice, s))
+                    if t > tags-1:
+                        print('__get_tags: replace tag {} for {}'.format(tags-1, t))
                     new_tags[j].append(
-                        tmpl_tags[min(s, last_slice)][t]
+                        tmpl_tags[min(s, last_slice)][min(t, tags-1)]
                     )
                 except IndexError:
                     raise IndexError("Could not get tag for slice {}, tag {}".format(
-                        min(s, last_slice), t
+                        min(s, last_slice), (t, tags-1)
                     ))
             j += 1
         return new_tags
