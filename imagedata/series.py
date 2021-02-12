@@ -707,7 +707,7 @@ class Series(np.ndarray):
             ValueError: when number of rows is not defined.
         """
         try:
-            row_axis = self.__find_axis('row')
+            row_axis = self.find_axis('row')
             return len(row_axis)
         except ValueError:
             _color = 0
@@ -727,7 +727,7 @@ class Series(np.ndarray):
             ValueError: when number of columns is not defined.
         """
         try:
-            column_axis = self.__find_axis('column')
+            column_axis = self.find_axis('column')
             return len(column_axis)
         except ValueError:
             _color = 0
@@ -747,7 +747,7 @@ class Series(np.ndarray):
             ValueError: when number of slices is not defined.
         """
         try:
-            slice_axis = self.__find_axis('slice')
+            slice_axis = self.find_axis('slice')
             # logging.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
@@ -967,7 +967,7 @@ class Series(np.ndarray):
         # except AttributeError:
         #     pass
 
-    def __find_axis(self, name):
+    def find_axis(self, name):
         """Find axis with given name
 
         Args:
@@ -1913,3 +1913,33 @@ class Series(np.ndarray):
         # return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
+
+    def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
+        """Show image
+        Courtesy of Erlend Hodneland (2021)
+        """
+        from imagedata.viewer import Viewer, default_layout
+        import matplotlib.pyplot as plt
+
+        # im2 can be single image or list of images
+        images = list()
+        images.append(self)
+        if im2 is not None:
+            if issubclass(type(im2), list):
+                images += im2   # Join lists of Series
+            else:
+                images.append(im2)  # Append single Series instance
+
+        # Create or connect to canvas
+        if fig is None:
+            fig = plt.figure()
+
+        axes = default_layout(fig, len(images))
+        try:
+            viewer = Viewer(images, fig=fig, ax=axes,
+                        cmap=cmap, window=window, level=level, link=link)
+        except AssertionError:
+            raise
+        v = viewer.connect()
+        plt.tight_layout()
+        plt.show()
