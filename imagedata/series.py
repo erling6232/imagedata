@@ -493,14 +493,13 @@ class Series(np.ndarray):
         return hdr
 
     def __repr__(self):
-        return "Patient: {} {}\n".format(self.patientID, self.patientName) + \
-               "Study  Time: {} {}\n".format(
-                    self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime')) + \
-               "Series Time: {} {}\n".format(
-                    self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime')) + \
-               "Series #{}: {}\n".format(self.seriesNumber, self.seriesDescription) + \
-               "Shape: {}, dtype: {}, input order: {}".format(imagedata.formats.shape_to_str(self.shape),
-                                          self.dtype, imagedata.formats.input_order_to_dirname_str(self.input_order))
+        return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
+            self.patientID, self.patientName,
+            self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
+            self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
+            self.seriesNumber, self.seriesDescription,
+            imagedata.formats.shape_to_str(self.shape), self.dtype,
+            imagedata.formats.input_order_to_dirname_str(self.input_order))
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
@@ -1845,8 +1844,8 @@ class Series(np.ndarray):
             _tag = keyword
         if _tag is None:
             raise ValueError('No DICOM tag set')
-        slices = [ i for i in range(self.slices)]
-        tags = [ i for i in range(len(self.tags[0]))]
+        slices = [i for i in range(self.slices)]
+        tags = [i for i in range(len(self.tags[0]))]
         if slice is not None:
             slices = [slice]
         if tag is not None:
@@ -1859,7 +1858,6 @@ class Series(np.ndarray):
                 else:
                     VR = pydicom.datadict.dictionary_VR(_tag)
                     im.add_new(_tag, VR, value)
-
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r
@@ -1936,7 +1934,7 @@ class Series(np.ndarray):
         images.append(self)
         if im2 is not None:
             if issubclass(type(im2), list):
-                images += im2   # Join lists of Series
+                images += im2  # Join lists of Series
             else:
                 images.append(im2)  # Append single Series instance
 
@@ -1947,7 +1945,7 @@ class Series(np.ndarray):
         axes = default_layout(fig, len(images))
         try:
             viewer = Viewer(images, fig=fig, ax=axes,
-                        cmap=cmap, window=window, level=level, link=link)
+                            cmap=cmap, window=window, level=level, link=link)
         except AssertionError:
             raise
         v = viewer.connect()
