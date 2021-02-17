@@ -15,7 +15,6 @@ from pydicom.datadict import tag_for_keyword
 
 import imagedata.formats
 import imagedata.axis
-from imagedata.formats.dicomlib.copy_general_dicom_attributes import copy_general_dicom_attributes
 from imagedata.formats.abstractplugin import AbstractPlugin
 
 
@@ -1102,7 +1101,12 @@ class DICOMPlugin(AbstractPlugin):
 
         # Add the data elements
         # -- not trying to set all required here. Check DICOM standard
-        copy_general_dicom_attributes(template, ds)
+        # copy_general_dicom_attributes(template, ds)
+        for element in template.iterall():
+            if element.tag == 0x7fe00010:
+                continue    # Do not copy pixel data, will be added later
+            ds.add(element)
+
         ds.StudyInstanceUID = si.header.studyInstanceUID
         ds.StudyID = si.header.studyID
         # ds.SeriesInstanceUID = si.header.seriesInstanceUID
