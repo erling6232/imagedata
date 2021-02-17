@@ -10,7 +10,8 @@ import logging
 import magic
 import tempfile
 import numpy as np
-import ghostscript
+from ghostscript import _gsprint as gs
+from ghostscript import GhostscriptError
 import imageio
 
 import imagedata.formats
@@ -222,7 +223,18 @@ class PSPlugin(AbstractPlugin):
         args = [a.encode(encoding) for a in args]
         logging.debug('_convert_to_png: args {}'.format(args))
 
-        ghostscript.Ghostscript(*args)
+        try:
+            instance = gs.new_instance()
+            code = gs.init_with_args(instance, args)
+            code1 = gs.exit(instance)
+            if code == 0 or code == gs.e_Quit:
+                code = code1
+            gs.delete_instance(instance)
+            if not (code == 0 or code == gs.e_Quit):
+                raise DependencyError("Cannot run Ghostscript: {}".format(code))
+        except GhostscriptError as e:
+            logging.error('_convert_to_png: error: {}'.format(e))
+            raise DependencyError("Cannot run Ghostscript: {}".format(e))
 
     # @staticmethod
     # def _pdf_to_png(inputPath, outputPath):
