@@ -25,7 +25,8 @@ class DictAction(argparse.Action):
             raise argparse.ArgumentError(self, "Format must be key=value")
 
         # noinspection PyProtectedMember
-        items = copy.copy(argparse._ensure_value(namespace, self.dest, {}))  # Default mutables, use copy!
+        items = copy.copy(getattr(namespace, self.dest, {}))  # Default mutables, use copy!
+        # items = copy.copy(argparse._ensure_value(namespace, self.dest, {}))  # Default mutables, use copy!
         items[k] = v
         setattr(namespace, self.dest, items)
 
