@@ -493,17 +493,14 @@ class Series(np.ndarray):
         return hdr
 
     def __repr__(self):
-        return """Patient Name: {}
-            Patient ID: {}
-            Study Time: {} {}
-            Series Time: {} {}
-            Series Number: {}
-            Series Description: {}""".format(
-                self.header.patientName, self.header.patientID,
-                self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
-                self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
-                self.seriesNumber, self.seriesDescription
-        )
+        return "Patient: {} {}\n".format(self.patientID, self.patientName) + \
+               "Study  Time: {} {}\n".format(
+                    self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime')) + \
+               "Series Time: {} {}\n".format(
+                    self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime')) + \
+               "Series #{}: {}\n".format(self.seriesNumber, self.seriesDescription) + \
+               "Shape: {}, dtype: {}, input order: {}".format(imagedata.formats.shape_to_str(self.shape),
+                                          self.dtype, imagedata.formats.input_order_to_dirname_str(self.input_order))
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
