@@ -251,8 +251,8 @@ class Viewer:
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
-        else:
-            print('key_press: {}'.format(event.key))
+        #else:
+        #    print('key_press: {}'.format(event.key))
 
     def scroll(self, event):
         if event.button == 'up':
