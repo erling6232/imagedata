@@ -85,6 +85,9 @@ class Header(object):
         self.tags = None
         self.axes = None
 
+    def __repr__(self):
+        return "Header: Series Instance UID {}".format(self.seriesInstanceUID)
+
     def new_uid(self) -> str:
         """Return the next available UID from the UID generator.
         """
