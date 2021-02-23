@@ -3,6 +3,8 @@
 Getting Started
 ===============
 
-To install::
+To install:
+
+.. code-block:: bash
 
     pip install imagedata

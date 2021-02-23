@@ -1,5 +1,6 @@
+#########
 imagedata
-=========
+#########
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
 Imagedata will handle multi-dimensional data.
@@ -20,15 +21,17 @@ Other formats can be added through a plugin architecture.
 Example code
 -------------------
 
-A simple example reading two time series from dirA and dirB, and writing their mean to dirMean::
+A simple example reading two time series from dirA and dirB, and writing their mean to dirMean:
 
-  from imagedata.series import Series
-  a = Series('dirA', 'time')
-  b = Series('dirB', 'time')
-  assert a.shape == b.shape, "Shape of a and b differ"
-  # Notice how a and b are treated as numpy arrays
-  c = (dirA + dirB) / 2
-  c.write('dirMean')
+.. code-block:: python
+
+    from imagedata.series import Series
+    a = Series('dirA', 'time')
+    b = Series('dirB', 'time')
+    assert a.shape == b.shape, "Shape of a and b differ"
+    # Notice how a and b are treated as numpy arrays
+    c = (a + b) / 2
+    c.write('dirMean')
 
 Sorting
 -------
@@ -36,10 +39,10 @@ Sorting
 Sorting of DICOM slices is considered a major task. Imagedata will sort slices into volumes based on slice location.
 Volumes may be sorted on a number of DICOM tags:
 
-   * 'time': Dynamic time series, sorted on acquisition time
-   * 'b': Diffusion weighted series, sorted on diffusion b value
-   * 'fa': Flip angle series, sorted on flip angle
-   * 'te': Sort on echo time TE
+* 'time': Dynamic time series, sorted on acquisition time
+* 'b': Diffusion weighted series, sorted on diffusion b value
+* 'fa': Flip angle series, sorted on flip angle
+* 'te': Sort on echo time TE
 
 In addition, volumes can be sorted on user defined tags.
 
@@ -52,7 +55,9 @@ Converting data from DICOM and back
 In many situations you need to process patient data using a tool that do not accept DICOM data.
 In order to maintain the coupling to patient data, you may convert your data to e.g. Nifti and back.
 
-Example using the command line utility image_data::
+Example using the command line utility image_data:
+
+.. code-block:: bash
 
   image_data --of nifti niftiDir dicomDir
   # Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
@@ -65,7 +70,9 @@ Example using the command line utility image_data::
   image_data --sernum 1004 --serdes 'Processed data' \
     dicom://server:104/AETITLE dicomResult
 
-The same example using python code::
+The same example using python code:
+
+.. code-block:: python
 
   from imagedata.series import Series
   a = Series('dicomDir')
@@ -125,15 +132,21 @@ transformationMatrix
 Series instancing
 -----------------
 
-From image data file(s)::
+From image data file(s):
+
+.. code-block:: python
 
   a = Series('in_dir')
   
-From a list of directories::
+From a list of directories:
+
+.. code-block:: python
 
   a = Series(['1', '2', '3'])
 
-From a numpy array::
+From a numpy array:
+
+.. code-block:: python
 
   e = np.eye(128)
   a = Series(e)
@@ -142,16 +155,20 @@ Series methods
 --------------
 
 write
-  Write the image data as a Matlab file to out_dir::
+  Write the image data as a Matlab file to out_dir:
   
+.. code-block:: python
+
     a.write('out_dir', formats=['mat'])
 
 slicing
-  The image data array can be sliced like numpy.ndarray. The axes will be adjusted accordingly::
+  The image data array can be sliced like numpy.ndarray. The axes will be adjusted accordingly.
+  This will give a 3D **b** image when **a** is 4D.
+
+.. code-block:: python
+
+      b = a[0, ...]
   
-    b = a[0, ...]
-  
-  will give a 3D **b** image when **a** is 4D.
 
 Archives
 --------
@@ -159,41 +176,49 @@ Archives
 The Series object can access image data in a number of **archives**. Some archives are:
 
 Filesystem
-  Access files in directories on the local file system::
-  
+  Access files in directories on the local file system.
+
+.. code-block:: python
+
     a = Series('in_dir')
   
 Zip
   Access files inside zip files.
   
-  Read all files inside file.zip::
+
+.. code-block:: python
+
+  # Read all files inside file.zip:
+  a = Series('file.zip')
+
+  # Read named directory inside file.zip:
+  b = Series('file.zip?dir_a')
   
-    a = Series('file.zip')
-  
-  Read named directory inside file.zip::
-  
-    b = Series('file.zip?dir_a')
-  
-  Write the image data to DICOM files inside newfile.zip::
-  
-    b.write('newfile.zip', formats=['dicom'])
+  # Write the image data to DICOM files inside newfile.zip:
+  b.write('newfile.zip', formats=['dicom'])
 
 Transports
 ----------
 
 file
-  Access local files (default)::
+  Access local files (default):
   
+.. code-block:: python
+
     a = Series('file:in_dir')
   
 dicom
-  Access files using DICOM Storage protocols. Currently, writing (implies sending) DICOM images only::
+  Access files using DICOM Storage protocols. Currently, writing (implies sending) DICOM images only:
   
+.. code-block:: python
+
     a.write('dicom://server:104/AETITLE')
 
 Command line usage
 ------------------
 
-The command line program *image_data* can be used to convert between various image data formats::
+The command line program *image_data* can be used to convert between various image data formats:
+
+.. code-block:: bash
 
   image_data --order time out_dir in_dirs

@@ -1,8 +1,15 @@
 # Include the README
-include *.md
+include *.rst
 
 # Include the license file
 include LICENSE.txt
 
-# Include the data files
-recursive-include data *
+# Include version file
+include VERSION.txt
+
+# Do not distribute test data
+prune data
+prune .idea
+prune devtests
+prune docs
+prune tests

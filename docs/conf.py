@@ -20,13 +20,11 @@ sys.path.insert(0, os.path.abspath('../'))
 # -- Project information -----------------------------------------------------
 
 project = 'imagedata'
-copyright = '2020, Erling Andersen'
+copyright = '2021, Erling Andersen'
 author = 'Erling Andersen'
 
-# The short X.Y version
-version = '1.1'
-# The full version, including alpha/beta/rc tags
-release = '1.1.26'
+import importlib.metadata
+version = release = importlib.metadata.version('imagedata')
 
 
 # -- General configuration ---------------------------------------------------

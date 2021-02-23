@@ -26,7 +26,9 @@ Series Class
 
 The Series class holds an image series (3D or multi-dimensional) loaded
 or produced in Python. Figure 1 shows the steps to instantiate an image
-series ::
+series :
+
+.. code-block:: console
 
    >>> from imagedata.series import Series
    >>> si = Series(’dicom/volume/’)
@@ -76,7 +78,9 @@ to files in both original (DICOM) and ITK’s MetaImage formats.
 Like the ndarray, the Series object can be sliced. The imagedata package
 attempts to maintain the geometry of the sliced data. The example in
 Figure 2 extracts slice 5, showing that the sliceLocations attribute has
-been adjusted. Next, slice 5 is stored to disk::
+been adjusted. Next, slice 5 is stored to disk:
+
+.. code-block:: console
 
    >>> # Extract slice no. 5
    >>> slice5 = si[5,…]

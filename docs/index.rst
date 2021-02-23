@@ -22,7 +22,9 @@ Imagedata initially supports the following formats:
 
 Other formats can be added through a plugin architecture.
 
-A simple example reading a time series from in_dir, and writing it to out_dir::
+A simple example reading a time series from in_dir, and writing it to out_dir:
+
+.. code-block:: python
 
   from imagedata.series import Series
   a = Series('in_dir', 'time')

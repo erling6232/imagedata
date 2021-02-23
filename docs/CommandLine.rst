@@ -5,7 +5,9 @@ Imagedata on the Command Line
 
 A command line program can be as simple as copying input to output,
 selecting input and output formats by command line options.
-See Figure 4 for an example::
+See Figure for an example:
+
+.. code-block:: python
 
    import argparse
    import imagedata.cmdline
@@ -31,7 +33,7 @@ ITK MetaImage. Next, the ITK MetaImage is read, adding DICOM attributes
 from the original DICOM volume. After setting series number and
 description, the images are sent to PACS using the DICOM protocol.
 
-::
+.. code-block:: bash
 
    # Convert dicom/volume to itk/Image.mha
    image_data --of itk \

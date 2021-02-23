@@ -1,12 +1,11 @@
 MODULE=imagedata
 
-init:
-	pip3 install -r requirements.txt
-	git tag -a 0.0.1
-
 test:
 	#nosetests3 -v -s tests
 	nosetests3 tests
+
+dist:
+	python3 -m pep517.build .
 
 # remove optional 'v' and trailing hash "v1.0-N-HASH" -> "v1.0-N"
 git_describe_ver = $(shell git describe --tags | sed -E -e 's/^v//' -e 's/(.*)-.*/\1/')
