@@ -248,7 +248,7 @@ class MatPlugin(AbstractPlugin):
         # if si.ndim == 3:
         #    si.shape = (1,) + si.shape
         if si.ndim != 4:
-            raise ValueError("write_4d_numpy: input dimension %d is not 4D.".format(si.ndim))
+            raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
         logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
