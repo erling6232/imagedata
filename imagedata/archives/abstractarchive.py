@@ -120,7 +120,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         """Basename of file.
 
         Examples:
-            >>> if archive.basename(filehandle) == "DICOMDIR":
+            if archive.basename(filehandle) == "DICOMDIR":
 
         Args:
             filehandle: reference to member object
