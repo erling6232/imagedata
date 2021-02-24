@@ -1099,10 +1099,10 @@ class Series(np.ndarray):
         Overlapping dict keys will replace exisiting imagePosition for given slice.
 
         Examples:
-            >>> for slice in range(slices):
-            >>>     self.imagePositions = {
-            >>>         slice: self.getPositionForVoxel(np.array([slice,0,0]))
-            >>>     }
+            for slice in range(slices):
+                self.imagePositions = {
+                    slice: self.getPositionForVoxel(np.array([slice,0,0]))
+                }
 
         Args:
             poslist: dict of imagePositions. dict.keys() are slice numbers (int)
