@@ -1195,7 +1195,7 @@ class DICOMPlugin(AbstractPlugin):
         ymax = np.nanmax(arr)
         self.center = (ymax - ymin) / 2
         self.width = max(1, ymax - ymin)
-        # y = ax + b, 
+        # y = ax + b,
         if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_):
             # No need to rescale
             self.a = None
