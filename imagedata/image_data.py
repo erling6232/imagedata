@@ -208,7 +208,7 @@ def statistics():
         print('export min max mean std median')
     else:
         print('Min: {}, max: {}'.format(_min, _max))
-        print('Mean: {} +- {}, median: {}'.format( _mean, _std, _median))
+        print('Mean: {} +- {}, median: {}'.format(_mean, _std, _median))
         print('Points: {}, shape: {}, dtype: {}'.format(_size, si.shape, _dtype))
     return 0
 
@@ -259,6 +259,7 @@ def conversion():
 
     si.write(args.out_name, opts=args)
     return 0
+
 
 if __name__ == '__main__':
     conversion()

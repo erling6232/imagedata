@@ -204,7 +204,7 @@ def write(si, url, opts=None, formats=None):
     elif 'output_format' in out_opts and len(out_opts['output_format']):
         output_formats = out_opts['output_format']
     if output_formats is None:
-        output_formats = ['dicom'] # Fall-back to dicom output
+        output_formats = ['dicom']  # Fall-back to dicom output
     logging.info("Output formats: {}".format(output_formats))
 
     # Determine output dtype
@@ -327,7 +327,7 @@ def _get_archive(url, mode='r', opts=None):
     return archive
 
 
-def _common_prefix(l):
+def _common_prefix(level):
     """This unlike the os.path.commonprefix version
     always returns path prefixes as it compares
     path component wise
@@ -335,7 +335,7 @@ def _common_prefix(l):
     """
 
     cp = []
-    ls = [p.split('/') for p in l]
+    ls = [p.split('/') for p in level]
     ml = min(len(p) for p in ls)
 
     for i in range(ml):
