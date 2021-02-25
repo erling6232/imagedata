@@ -103,9 +103,9 @@ def evidence2roi(im, uid_table=None, content=None):
         meas_appl_number = int(finding[(0x0029, 0x1035)].value)
         roi_type_value = finding[(0x0029, 0x1032)].value.strip()
         try:
-            roi_name         = finding[(0x0029, 0x1030)].value.decode()
+            roi_name = finding[(0x0029, 0x1030)].value.decode()
         except AttributeError:
-            roi_name         = finding[(0x0029, 0x1030)].value
+            roi_name = finding[(0x0029, 0x1030)].value
         except KeyError:
             roi_name = 'NONAME'
         logging.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
@@ -209,6 +209,7 @@ def make_mask_in_slice(roi_type, si, points, shape):
         ImageDraw.Draw(img).ellipse(ellipse2D, outline=0, fill=1)
     mask[slice, :, :] = np.array(img)
     return mask
+
 
 def transform_data_points_to_voxels(si, meas_data_points):
     polygon = []

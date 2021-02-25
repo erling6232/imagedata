@@ -7,8 +7,8 @@ if __name__ == '__main__':
 	try:
 		out_name = sys.argv[1]
 		evidence_name = sys.argv[2]
-		in_dirs  = sys.argv[3:]
-	except:
+		in_dirs = sys.argv[3:]
+	except Exception:
 		print("Usage:",sys.argv[0], "<options> [-laterality sep] out evidence in...")
 		print("\nWhere <options> are:\n", image_data.options_to_text())
 		print("  [-laterality separate|combined] - Separate left and right ROIs in separate files. Other combine both (default).")
@@ -34,7 +34,7 @@ if __name__ == '__main__':
 	mask,content = evidence2mask(mask, reading, hdr, si, separate_laterality)
 	print(content)
 
-	serNum=5000
+	serNum = 5000
 	imageType = ['DERIVED', 'SECONDARY', 'MASK']
 
 	f = open(os.path.join(out_name, "timepoint.txt"), "w")
