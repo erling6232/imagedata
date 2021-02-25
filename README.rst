@@ -49,6 +49,28 @@ In addition, volumes can be sorted on user defined tags.
 Non-DICOM formats usually don't specify the labelling of the 4D data.
 In this case, you can specify the sorting manually.
 
+Viewing
+-------
+
+A simple viewer. Scroll through the image stack, step through the tags of a 4D dataset.
+These operations are possible:
+
+* Window/level adjustment: Move mouse with left key pressed.
+* Scroll through slices of an image stack: Mouse scroll wheel, or up/down array keys.
+* Step through tags (time, b-values, etc.): Left/right array keys.
+* Move through series when many series are displayed: PageUp/PageDown keys.
+
+.. code-block:: python
+
+      # View a Series instance
+      a.view()
+
+      # View both a and b Series
+      a.view(b)
+
+      # View several Series
+      a.view([b, c, d])
+
 Converting data from DICOM and back
 -----------------------------------
 
@@ -154,7 +176,7 @@ From a numpy array:
 Series methods
 --------------
 
-write
+write()
   Write the image data as a Matlab file to out_dir:
   
 .. code-block:: python
@@ -169,7 +191,6 @@ slicing
 
       b = a[0, ...]
   
-
 Archives
 --------
 
