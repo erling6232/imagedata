@@ -11,7 +11,7 @@ try:
 except Exception:
     import imagedata as _
     from os.path import join
-    with open(join(_.__path__[0],"..","VERSION.txt"), 'r') as fh:
+    with open(join(_.__path__[0],"..","..","VERSION.txt"), 'r') as fh:
         __version__ = fh.readline()
 
 __author__ = 'Erling Andersen, Haukeland University Hospital, Bergen, Norway'
