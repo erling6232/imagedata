@@ -1,7 +1,7 @@
-import matplotlib.pyplot as plt
-from matplotlib.widgets import CheckButtons
 from matplotlib.offsetbox import AnchoredText
-from matplotlib.widgets import Slider
+
+
+# from matplotlib.widgets import Slider
 
 
 def get_slice_axis(im):
@@ -55,11 +55,11 @@ def build_info(im, cmap, window, level):
         'im': im,  # Image Series instance
         'input_order': im.input_order,
         'modified': True,  # update()
-        'slider': None,    # 4D slider
+        'slider': None,  # 4D slider
         'lower_left_text': None,  # AnchoredText object
         'lower_left_data': None,  # Tuple of present data
-        'lower_right_text': None, # AnchoredText object
-        'lower_right_data': None, # Tuple of present data
+        'lower_right_text': None,  # AnchoredText object
+        'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
         'taggable': tag_axis is not None,  # Can we slide through tags
         'slices': im.slices,  # Number of slices
@@ -71,7 +71,7 @@ def build_info(im, cmap, window, level):
         'window': window,  # Window center
         'level': level,  # Window level
         'vmin': vmin,  # Lower window value
-        'vmax': vmax   # Upper window value
+        'vmax': vmax  # Upper window value
     }
 
 
@@ -166,11 +166,11 @@ class Viewer:
                 im['lower_right_data'] = (im['tag'],)
             # Lower left text
             fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-            w = int(im['window'])
-            l = int(im['level'])
-            if im['lower_left_text'] is not None and im['lower_left_data'] != (w, l, im['idx']):
-                im['lower_left_text'].txt.set_text(fmt.format(im['idx'], w, l))
-                im['lower_left_data'] = (w, l, im['idx'])
+            window = int(im['window'])
+            level = int(im['level'])
+            if im['lower_left_text'] is not None and im['lower_left_data'] != (window, level, im['idx']):
+                im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
+                im['lower_left_data'] = (window, level, im['idx'])
             vp['ax'].axes.figure.canvas.draw()
             im['modified'] = False
 
@@ -186,28 +186,28 @@ class Viewer:
         else:
             # 4D viewer
             h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
-            #EA# h.figure.subplots_adjust(bottom=0.15)
-            #EA# ax_tag = plt.axes([0.23, 0.02, 0.56, 0.04])
-            #EA# im['slider'] = Slider(ax_tag, im['input_order'], 0, im['im'].shape[0] - 1, valinit=im['tag'], valstep=1)
-            #EA# im['slider'].on_changed(self.update_tag)
+            # EA# h.figure.subplots_adjust(bottom=0.15)
+            # EA# ax_tag = plt.axes([0.23, 0.02, 0.56, 0.04])
+            # EA# im['slider'] = Slider(ax_tag, im['input_order'], 0, im['im'].shape[0] - 1, valinit=im['tag'], valstep=1)
+            # EA# im['slider'].on_changed(self.update_tag)
             # Lower right text
             fmt = '{}[{}]: {}'.format(im['input_order'], im['tag'], pretty_tag_value(im))
             im['lower_right_data'] = (im['tag'],)
             im['lower_right_text'] = AnchoredText(fmt,
-                                                 prop=dict(size=6, color='white', backgroundcolor='black'),
-                                                 frameon=False,
-                                                 loc='lower right'
-                                                 )
+                                                  prop=dict(size=6, color='white', backgroundcolor='black'),
+                                                  frameon=False,
+                                                  loc='lower right'
+                                                  )
             ax.add_artist(im['lower_right_text'])
         fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-        w = int(im['window'])
-        l = int(im['level'])
-        im['lower_left_data'] = (w, l, im['idx'])
-        im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], w, l),
-                                           prop=dict(size=6, color='white', backgroundcolor='black'),
-                                           frameon=False,
-                                           loc='lower left'
-                                           )
+        window = int(im['window'])
+        level = int(im['level'])
+        im['lower_left_data'] = (window, level, im['idx'])
+        im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
+                                             prop=dict(size=6, color='white', backgroundcolor='black'),
+                                             frameon=False,
+                                             loc='lower left'
+                                             )
         ax.add_artist(im['lower_left_text'])
         im['modified'] = True
 
@@ -251,7 +251,7 @@ class Viewer:
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
-        #else:
+        # else:
         #    print('key_press: {}'.format(event.key))
 
     def scroll(self, event):
@@ -285,7 +285,7 @@ class Viewer:
         im = self.find_image_from_event(inaxes)
         if im is None:
             return
-        im['idx'] = min(max(im['idx'] + increment, 0), im['slices']-1)
+        im['idx'] = min(max(im['idx'] + increment, 0), im['slices'] - 1)
         im['modified'] = True
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
@@ -301,7 +301,7 @@ class Viewer:
         im = self.find_image_from_event(inaxes)
         if im is None or im['tag_axis'] is None:
             return
-        im['tag'] = min(max(im['tag'] + increment, 0), len(im['tag_axis'])-1)
+        im['tag'] = min(max(im['tag'] + increment, 0), len(im['tag_axis']) - 1)
         im['modified'] = True
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
@@ -314,36 +314,36 @@ class Viewer:
 
     def viewport_advance(self, inaxes, increment):
         viewports = len(self.viewport.keys())
-        #for vp_idx in range(viewports):
+        # for vp_idx in range(viewports):
         #    if vp_idx in self.viewport:
         #        print('enter', self.viewport[vp_idx]['next'])
         images = len(self.im)
-        #print('viewport_advance: viewports {}'.format(viewports))
+        # print('viewport_advance: viewports {}'.format(viewports))
         vp_idx = 0
         if increment == 1:
-            if self.viewport[viewports-1] is None:
+            if self.viewport[viewports - 1] is None:
                 return
-            next_im = self.viewport[viewports-1]['present'] + increment
+            next_im = self.viewport[viewports - 1]['present'] + increment
             if next_im >= images:
                 return  # Don't move outside range of series
             # Drop first series, move other series forward
-            for vp_idx in range(viewports-1):
-                #print('increment vp_idx: {}'.format(vp_idx))
+            for vp_idx in range(viewports - 1):
+                # print('increment vp_idx: {}'.format(vp_idx))
                 self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx+1]['present']
+                self.viewport[vp_idx]['next'] = self.viewport[vp_idx + 1]['present']
                 self.viewport[vp_idx]['h'] = None
             # Append new series when available
-            self.viewport[viewports-1]['next'] = next_im
-            self.viewport[viewports-1]['present'] = None
-            self.viewport[viewports-1]['h'] = None
+            self.viewport[viewports - 1]['next'] = next_im
+            self.viewport[viewports - 1]['present'] = None
+            self.viewport[viewports - 1]['h'] = None
         elif increment == -1:
             next_im = self.viewport[0]['present'] + increment
             if next_im < 0:
                 return  # Don't move in-front of first image
             # Move other series backwards
-            for vp_idx in range(viewports-1,0,-1):
-                #print('decrement vp_idx: {}'.format(vp_idx))
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx-1]['present']
+            for vp_idx in range(viewports - 1, 0, -1):
+                # print('decrement vp_idx: {}'.format(vp_idx))
+                self.viewport[vp_idx]['next'] = self.viewport[vp_idx - 1]['present']
                 self.viewport[vp_idx]['present'] = None
                 self.viewport[vp_idx]['h'] = None
             # Insert new series at front when available
@@ -353,7 +353,7 @@ class Viewer:
         else:
             raise ValueError('Increment shall be +/-1')
         # im['modified'] = True
-        #for vp_idx in range(viewports):
+        # for vp_idx in range(viewports):
         #    if vp_idx in self.viewport:
         #        print('leave', self.viewport[vp_idx]['next'])
         self.update()
@@ -436,7 +436,7 @@ def default_layout(fig, n):
         raise ValueError("No layout when no axes are required")
     for rows in range(1, 9):
         if rows * rows >= n:
-            return fig.subplots(rows, rows, squeeze=False) # columns = rows
-        if rows * (rows+1) >= n:
-            return fig.subplots(rows, rows+1)   # columns = rows+1
+            return fig.subplots(rows, rows, squeeze=False)  # columns = rows
+        if rows * (rows + 1) >= n:
+            return fig.subplots(rows, rows + 1)  # columns = rows+1
     raise ValueError("Too many axes required (n={})".format(n))

@@ -2,12 +2,13 @@
 
 import unittest
 import numpy as np
-import logging
+# import logging
 import pydicom.datadict
 
 from .context import imagedata
 from imagedata.series import Series
 import imagedata.axis
+
 
 class TestSeries(unittest.TestCase):
 
@@ -240,6 +241,7 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, s.slices)
         self.assertEqual(len(s_slice.tags[0]), 2)
+
 
 if __name__ == '__main__':
     unittest.main()

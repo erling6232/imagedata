@@ -19,7 +19,6 @@ import imagedata.cmdline
 import imagedata.readdata
 import imagedata.formats
 from imagedata.series import Series
-from .compare_headers import compare_headers
 
 scpdir = None
 

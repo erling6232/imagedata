@@ -12,7 +12,6 @@ import imagedata.cmdline
 import imagedata.readdata
 import imagedata.formats
 from imagedata.series import Series
-from .compare_headers import compare_headers
 
 
 def list_files(startpath):
@@ -224,7 +223,8 @@ class Test4DMatPlugin(unittest.TestCase):
         plugins = imagedata.formats.get_plugins_list()
         self.mat_plugin = None
         for pname, ptype, pclass in plugins:
-            if ptype == 'mat': self.mat_plugin = pclass
+            if ptype == 'mat':
+                self.mat_plugin = pclass
         self.assertIsNotNone(self.mat_plugin)
 
     # @unittest.skip("skipping test_write_4d_mat")

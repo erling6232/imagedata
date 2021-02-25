@@ -8,8 +8,27 @@ include LICENSE.txt
 include VERSION.txt
 
 # Do not distribute test data
-prune data
+include data
+# prune data
 prune .idea
 prune devtests
-prune docs
-prune tests
+include docs
+recursive-include docs *
+recursive-include tests *.py
+
+# include *.py
+include *.yml
+include Makefile
+include pylintrc
+recursive-include imagedata *.py
+exclude load_data.py
+
+recursive-include data *.dcm
+recursive-include data *.gif
+recursive-include data *.gz
+recursive-include data *.jpg
+recursive-include data *.mat
+recursive-include data *.mha
+recursive-include data *.pdf
+recursive-include data *.ps
+recursive-include data *.zip
