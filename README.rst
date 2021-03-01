@@ -18,6 +18,13 @@ The following formats are included:
 
 Other formats can be added through a plugin architecture.
 
+Install
+-------------------
+
+.. code-block::
+
+    pip install imagedata
+
 Example code
 -------------------
 
