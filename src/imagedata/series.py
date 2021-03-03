@@ -1951,3 +1951,47 @@ class Series(np.ndarray):
         v = viewer.connect()
         plt.tight_layout()
         plt.show()
+        viewer.disconnect()
+
+    def get_roi(self, roi=None, color='r', follow=False, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
+        """Let user draw ROI on image
+
+        Output:
+            Series object with shape (nz,ny,nx) from original image, dtype ubyte. Voxel inside ROI is 1, 0 outside.
+        """
+        from imagedata.viewer import Viewer, default_layout
+        import matplotlib.pyplot as plt
+
+        # im2 can be single image or list of images
+        images = list()
+        images.append(self)
+        if im2 is not None:
+            if issubclass(type(im2), list):
+                images += im2  # Join lists of Series
+            else:
+                images.append(im2)  # Append single Series instance
+
+        # Create or connect to canvas
+        if fig is None:
+            fig = plt.figure()
+
+        axes = default_layout(fig, len(images))
+        try:
+            viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
+                            cmap=cmap, window=window, level=level, link=link)
+        except AssertionError:
+            raise
+        v = viewer.connect_draw(roi=roi, color=color)
+        plt.tight_layout()
+        plt.show()
+        # vertices = viewer.get_roi()
+        viewer.disconnect_draw()
+        if follow:
+            input_order = self.input_order
+        else:
+            input_order = 'none'
+        new_roi = Series(viewer.grid_from_roi(), input_order=input_order, template=self, geometry=self)
+        new_roi.seriesDescription = 'ROI'
+        new_roi.setDicomAttribute('WindowCenter',.5)
+        new_roi.setDicomAttribute('WindowWidth',1)
+        return new_roi, viewer.get_roi()  # Return grid and vertices
