@@ -1,4 +1,4 @@
-importlib
+importlib.metadata
 pydicom
 pynetdicom
 itk
