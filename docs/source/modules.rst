@@ -5,7 +5,5 @@ imagedata
    :maxdepth: 4
 
    devtests
-   imagedata
-   pyfilesystem
    setup
    tests
