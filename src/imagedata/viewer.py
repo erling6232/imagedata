@@ -1,7 +1,12 @@
+import copy
+from imagedata.series import Series
+import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
-
-
+from matplotlib.widgets import PolygonSelector, ToolHandles
+from matplotlib.lines import Line2D
 # from matplotlib.widgets import Slider
+from matplotlib.path import Path as MplPath
+import numpy as np
 
 
 def get_slice_axis(im):
@@ -45,6 +50,8 @@ def get_window_level(si, window, level):
 def build_info(im, cmap, window, level):
     if im is None:
         return None
+    if not issubclass(type(im), Series):
+        raise ValueError('Cannot display image of type {}'.format(type(im)))
     if cmap is None:
         cmap = 'gray'
     window, level, vmin, vmax = get_window_level(im, window, level)
@@ -62,7 +69,10 @@ def build_info(im, cmap, window, level):
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
         'taggable': tag_axis is not None,  # Can we slide through tags
+        'tags': len(im.tags[0]),  # Number of tags
         'slices': im.slices,  # Number of slices
+        'rows': im.rows, #Number of rows
+        'columns': im.columns, # Number of columns
         'tag': 0,  # Displayed tag index
         'idx': im.slices // 2,  # Displayed slice index
         'tag_axis': tag_axis,  # Axis instance of im
@@ -90,7 +100,7 @@ def pretty_tag_value(im):
 
 
 class Viewer:
-    def __init__(self, images, fig=None, ax=None,
+    def __init__(self, images, fig=None, ax=None, follow=False,
                  cmap='gray', window=None, level=None, link=False):
         self.fig = fig
         self.ax = ax
@@ -99,10 +109,13 @@ class Viewer:
         self.im = {}
         for i, im in enumerate(images):
             self.im[i] = build_info(im, cmap, window, level)
+        self.follow = follow
         self.link = link
         self.cidenter = None
         self.cidleave = None
         self.cidscroll = None
+        self.vertices = None # The polygon vertices, as a dictonary of tags of (x,y)
+        self.poly = None
         self.viewport = {}
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
@@ -219,6 +232,44 @@ class Viewer:
         #    self.linkclicked = self.linkbutton.on_clicked(self.toggle_button)
         return h
 
+    def connect_draw(self, roi=None, color='w'):
+        self.poly_color = color
+        if roi is None:
+            self.poly = {}
+            self.vertices = {}
+            #if self.follow:  # 4D
+            #    self.poly = {}
+            #    self.vertices = {}
+            #    # Array = [ [0] * c for i in range(r) ]
+            #    #for t in range(self.im[0]['tags']):
+            #    #    self.poly.append([None for idx in range(self.im[0]['slices'])])
+            #    #    self.vertices.append([None for idx in range(self.im[0]['slices'])])
+            #else:
+            #    self.poly = [None for idx in range(self.im[0]['slices'])]
+            #    self.vertices = [None for idx in range(self.im[0]['slices'])]
+        else:
+            raise Exception('Not implemented: connect_draw(roi)')
+        idx = self.im[0]['idx']
+        if self.follow:
+            self.poly[0, idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+        else:
+            self.poly[idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+        self.cidscroll = self.fig.canvas.mpl_connect('scroll_event', self.scroll)
+        self.cidkeypress = self.fig.canvas.mpl_connect('key_press_event', self.key_press)
+
+    def disconnect_draw(self):
+        if self.follow:
+            for t in range(self.im[0]['tags']):
+                for idx in range(self.im[0]['slices']):
+                    if (t, idx) in self.poly and self.poly[t, idx] is not None:
+                        self.poly[t, idx].disconnect_events()
+        else:
+            for idx in range(self.im[0]['slices']):
+                if idx in self.poly and self.poly[idx] is not None:
+                    self.poly[idx].disconnect_events()
+        self.fig.canvas.mpl_disconnect(self.scroll)
+        self.fig.canvas.mpl_disconnect(self.cidkeypress)
+
     def connect(self):
         # Connect to all the events we need
         # self.cidenter = self.fig.canvas.mpl_connect('axes_enter_event', self.enter_axes)
@@ -228,6 +279,68 @@ class Viewer:
         self.cidpress = self.fig.canvas.mpl_connect('button_press_event', self.on_press)
         self.cidrelease = self.fig.canvas.mpl_connect('button_release_event', self.on_release)
         self.cidmotion = self.fig.canvas.mpl_connect('motion_notify_event', self.on_motion)
+
+    def disconnect(self):
+        self.fig.canvas.mpl_disconnect(self.scroll)
+        self.fig.canvas.mpl_disconnect(self.cidkeypress)
+        self.fig.canvas.mpl_disconnect(self.cidpress)
+        self.fig.canvas.mpl_disconnect(self.cidrelease)
+        self.fig.canvas.mpl_disconnect(self.cidmotion)
+
+    def onselect(self, verts):
+        idx = self.im[0]['idx']
+        if self.follow:
+            tag = self.im[0]['tag']
+            self.vertices[tag, idx] = copy.copy(verts)
+        else:
+            self.vertices[idx] = copy.copy(verts)
+
+    def grid_from_roi(self):
+        """Return drawn ROI as grid.
+
+        Returns:
+            Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
+            Voxels inside ROI is 1, 0 outside.
+        """
+        nt, nz, ny, nx = self.im[0]['tags'], self.im[0]['slices'], self.im[0]['rows'], self.im[0]['columns']
+        if self.follow:
+            grid = np.zeros((nt, nz, ny, nx), dtype=np.ubyte)
+            for idx in range(nz):
+                last_used_tag = None
+                for t in range(nt):
+                    tag = t, idx
+                    if tag not in self.vertices or self.vertices[tag] is None:
+                        if last_used_tag is None:
+                            # Most probably a slice with no ROIs
+                            continue
+                        # Propagate last drawn ROI to unfilled tags
+                        self.vertices[tag] = self.vertices[last_used_tag]
+                    else:
+                        last_used_tag = tag
+                    path = MplPath(self.vertices[tag])
+                    x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+                    x, y = x.flatten(), y.flatten()
+                    points = np.vstack((x, y)).T
+                    grid[t, idx] = path.contains_points(points).reshape((ny, nx))
+        else:
+            grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
+            for idx in range(nz):
+                if idx not in self.vertices or self.vertices[idx] is None:
+                    continue
+                path = MplPath(self.vertices[idx])
+                x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+                x, y = x.flatten(), y.flatten()
+                points = np.vstack((x, y)).T
+                grid[idx] = path.contains_points(points).reshape((ny, nx))
+        return grid
+
+    def get_roi(self):
+        """Return drawn ROI.
+
+        Returns:
+            Dict of slices, index as [tag,slice] or [slice], each is list of (x,y) pairs.
+        """
+        return self.vertices
 
     # def enter_axes(self, event):
     #    if event.inaxes == self.im['ax']:
@@ -285,8 +398,25 @@ class Viewer:
         im = self.find_image_from_event(inaxes)
         if im is None:
             return
+        old_idx = im['idx']
         im['idx'] = min(max(im['idx'] + increment, 0), im['slices'] - 1)
-        im['modified'] = True
+        im['modified'] = old_idx != im['idx']
+        if self.poly is not None:
+            new_idx = im['idx']
+            if self.follow:
+                old_idx = im['tag'], old_idx
+                new_idx = im['tag'], new_idx
+            if im['modified']:
+                self.poly[old_idx].disconnect_events()
+                self.poly[old_idx].set_visible(False)
+                self.poly[old_idx].update()
+            if new_idx in self.poly and self.poly[new_idx] is not None:
+                # self.poly[im['idx']].connect_event(event, self.onselect)
+                self.poly[new_idx].connect_default_events()
+                self.poly[new_idx].set_visible(True)
+                self.poly[new_idx].update()
+            else:
+                self.poly[new_idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
@@ -301,8 +431,24 @@ class Viewer:
         im = self.find_image_from_event(inaxes)
         if im is None or im['tag_axis'] is None:
             return
+        old_tag = im['tag']
         im['tag'] = min(max(im['tag'] + increment, 0), len(im['tag_axis']) - 1)
-        im['modified'] = True
+        im['modified'] = old_tag != im['tag']
+        if self.poly is not None and self.follow and im['modified']:
+            new_tag = im['tag']
+            idx = im['idx']
+            self.onselect(self.poly[old_tag, idx].verts)
+            if (new_tag, idx) not in self.poly and (old_tag, idx) in self.poly and self.poly[old_tag, idx] is not None:
+                # Copy the polygon to next tag when there is none
+                self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
+                                                            lineprops={'color': self.poly_color},
+                                                            verts=self.poly[old_tag, idx].verts)
+            self.poly[old_tag, idx].disconnect_events()
+            self.poly[old_tag, idx].set_visible(False)
+            self.poly[old_tag, idx].update()
+            self.poly[new_tag, idx].connect_default_events()
+            self.poly[new_tag, idx].set_visible(True)
+            self.poly[new_tag, idx].update()
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
@@ -417,6 +563,55 @@ class Viewer:
             im['vmax'] = im['level'] + im['window'] / 2
             im['modified'] = True
             self.update()
+
+
+class MyPolygonSelector(PolygonSelector):
+    """Select a polygon region of an axes.
+
+    Place vertices with each mouse click, and make the selection by completing
+    the polygon (clicking on the first vertex). Hold the *ctrl* key and click
+    and drag a vertex to reposition it (the *ctrl* key is not necessary if the
+    polygon has already been completed). Hold the *shift* key and click and
+    drag anywhere in the axes to move all vertices. Press the *esc* key to
+    start a new polygon.
+
+    For the selector to remain responsive you must keep a reference to it.
+
+    Class MyPolygonSelector subclasses matplotlib.widgets.PolygonSelector.
+    Allows to set an initial polygon.
+    """
+
+    def __init__(self, ax, onselect, useblit=False,
+                 lineprops=None, markerprops=None, vertex_select_radius=15, verts=None):
+        super().__init__(ax, onselect, useblit=useblit,
+                         lineprops=lineprops, markerprops=markerprops, vertex_select_radius=vertex_select_radius)
+
+        if verts is not None and len(verts):
+            self._xs = [x for x,y in verts]
+            self._ys = [y for x,y in verts]
+            # Append end-point of closed polygon
+            self._xs.append(self._xs[0])
+            self._ys.append(self._ys[0])
+            self._polygon_completed = True
+
+            if lineprops is None:
+                lineprops = dict(color='k', linestyle='-', linewidth=2, alpha=0.5)
+            lineprops['animated'] = self.useblit
+            self.line = Line2D(self._xs, self._ys, **lineprops)
+            self.ax.add_line(self.line)
+
+            if markerprops is None:
+                markerprops = dict(markeredgecolor='k',
+                                   markerfacecolor=lineprops.get('color', 'k'))
+            self._polygon_handles = ToolHandles(self.ax, self._xs, self._ys,
+                                                useblit=self.useblit,
+                                                marker_props=markerprops)
+
+            self._active_handle_idx = -1
+            self.vertex_select_radius = vertex_select_radius
+
+            self.artists = [self.line, self._polygon_handles.artist]
+            self.set_visible(True)
 
 
 def default_layout(fig, n):
