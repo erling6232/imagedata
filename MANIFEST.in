@@ -17,7 +17,7 @@ recursive-include docs *
 recursive-include tests *.py
 
 # include *.py
-include *.yml
+include *.yaml
 include Makefile
 include pylintrc
 recursive-include imagedata *.py
