@@ -100,6 +100,20 @@ def pretty_tag_value(im):
 
 
 class Viewer:
+    """Viewer -- a graphical tool to display and interact with Series objects.
+
+    Args:
+        images: Series object or list of Series objects to view.
+        fig: matplotlib.plt.figure if already exist (optional).
+        ax: matplotlib axis if already exist (optional).
+        follow: Copy ROI to next tag. Default: False.
+        cmap: Colour map for display. Default: gray.
+        windows: Window width of signal intensities. Default: DICOM Window Width.
+        level: Window level of signal intensities. Default: DICOM Window Center.
+        link: Whether scrolling is linked between displayed objects. Default: False.
+
+    """
+
     def __init__(self, images, fig=None, ax=None, follow=False,
                  cmap='gray', window=None, level=None, link=False):
         self.fig = fig
@@ -248,6 +262,7 @@ class Viewer:
             #    self.poly = [None for idx in range(self.im[0]['slices'])]
             #    self.vertices = [None for idx in range(self.im[0]['slices'])]
         else:
+            # TODO
             raise Exception('Not implemented: connect_draw(roi)')
         idx = self.im[0]['idx']
         if self.follow:
