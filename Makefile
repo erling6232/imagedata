@@ -17,3 +17,11 @@ upload:
 git:
 	#git tag -a $(call next_patch_ver)
 	git push origin master --tags
+
+html:
+	cd docs; \
+	sphinx-apidoc -o source/ ../; \
+	make html
+
+test_install:
+	pip install --upgrade --index-url https://test.pypi.org/simple/ imagedata

@@ -23,8 +23,11 @@ project = 'imagedata'
 copyright = '2021, Erling Andersen'
 author = 'Erling Andersen'
 
-import importlib.metadata
-version = release = importlib.metadata.version('imagedata')
+def get_version():
+    version_file = open('../VERSION.txt')
+    return version_file.read().strip()
+version = get_version()
+release = version
 
 
 # -- General configuration ---------------------------------------------------
@@ -69,7 +72,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '*tests', 'setup.py']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -184,6 +187,8 @@ epub_exclude_files = ['search.html']
 
 
 # -- Extension configuration -------------------------------------------------
+
+autodoc_mock_imports = ["numpy", "scipy", "scipy.linalg"]
 
 # -- Options for todo extension ----------------------------------------------
 

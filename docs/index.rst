@@ -50,6 +50,8 @@ information matters.*
    CommandLine
    Plugins
    APIReference
+      APIReferenceSeries
+      APIReferenceViewer
    DeveloperDocumentation
 
 Indices and tables
