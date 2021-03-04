@@ -981,7 +981,7 @@ class Series(np.ndarray):
 
         Args:
             name: Axis name to search for
-        Returnes:
+        Returns:
             axis object with given name
         Raises:
             ValueError: when no axis object has given name
@@ -1925,6 +1925,17 @@ class Series(np.ndarray):
     def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
         """Show image
         Courtesy of Erlend Hodneland (2021)
+
+        Args:
+            im2: Series or list of Series which will be displayed in addition to self.
+            fig: matplotlib.plt.figure if already exist (optional).
+            cmap: color map for display. Default: gray
+            window: window width of signal intensities. Default is DICOM Window Width.
+            level: window level of signal intensities. Default is DICOM Window Center.
+            link: whether scrolling is linked between displayed images. Default: False
+        Raises:
+            ValueError: when image is not a subclass of Series, or too many viewports are requested.
+            IndexError: when there is a mismatch with images and viewports.
         """
         from imagedata.viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
@@ -1956,8 +1967,23 @@ class Series(np.ndarray):
     def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
         """Let user draw ROI on image
 
-        Output:
-            Series object with shape (nz,ny,nx) from original image, dtype ubyte. Voxel inside ROI is 1, 0 outside.
+        Args:
+            roi: Predefined ROI (optional) (NOT IMPLEMENTED).
+            color: Color of polygon ROI. Default: r.
+            follow: Copy ROI to next tag. Default: False.
+            vertices: Return both grid mask and dictionary of vertices. Default: False.
+            im2: Series or list of Series which will be displayed in addition to self.
+            fig: matplotlib.plt.figure if already exist (optional).
+            cmap: colour map for display. Default: gray
+            window: window width of signal intensities. Default is DICOM Window Width.
+            level: window level of signal intensities. Default is DICOM Window Center.
+            link: whether scrolling is linked between displayed images. Default: False
+        Returns:
+            grid mask: Series object with voxel=1 inside ROI. Series object with shape (nz,ny,nx) from original image, dtype ubyte. Voxel inside ROI is 1, 0 outside.
+            vertices_dict: if vertices: Dictionary of vertices.
+        Raises:
+            ValueError: when image is not a subclass of Series, or too many viewports are requested.
+            IndexError: when there is a mismatch with images and viewports.
         """
         from imagedata.viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
