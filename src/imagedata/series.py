@@ -1953,7 +1953,7 @@ class Series(np.ndarray):
         plt.show()
         viewer.disconnect()
 
-    def get_roi(self, roi=None, color='r', follow=False, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
+    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
         """Let user draw ROI on image
 
         Output:
@@ -1994,4 +1994,7 @@ class Series(np.ndarray):
         new_roi.seriesDescription = 'ROI'
         new_roi.setDicomAttribute('WindowCenter',.5)
         new_roi.setDicomAttribute('WindowWidth',1)
-        return new_roi, viewer.get_roi()  # Return grid and vertices
+        if vertices:
+            return new_roi, viewer.get_roi()  # Return grid and vertices
+        else:
+            return new_roi  # Return grid only
