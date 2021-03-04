@@ -10,7 +10,7 @@ The Series class is a subclassed Numpy.ndarray enhancing the array with relevant
 
 import copy
 import numpy as np
-from numpy.compat import basestring
+# from numpy.compat import basestring
 import logging
 import pydicom.dataset
 import pydicom.datadict
@@ -75,15 +75,20 @@ class Series(np.ndarray):
                 * 'b' : Diffusion data with variable b values.
                 * 'te' : Varying echo times.
                 * 'fa' : Varying flip angles.
+
         opts: (argparse.Namespace or dict)
             Dict of input options, mostly for format specific plugins.
+
         shape: Tuple of ints, specifying shape of input data.
         dtype: Numpy data type.
             Default: float
+
         template: (Series, array_like or URL)
             Input data to use as template for DICOM header.
+
         geometry: (Series, array_like or URL)
             Input data to use as template for geometry.
+
         order: {'C', 'F'}, optional
             Row-major (C-style) or column-major (Fortran-style) order.
 
@@ -137,7 +142,7 @@ class Series(np.ndarray):
             return obj
 
         # Assuming data is url to input data
-        if isinstance(data, basestring):
+        if isinstance(data, np.compat.basestring):
             urls = data
         elif isinstance(data, list):
             urls = data
@@ -1864,10 +1869,12 @@ class Series(np.ndarray):
 
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
+
         Args:
             r: (s,r,c) of voxel in voxel coordinates as numpy.array
             transformation: transformation matrix when different from
                           self.transformationMatrix
+
         Returns:
             (z,y,x) of voxel in world coordinates (mm) as numpy.array
         """
@@ -1895,10 +1902,12 @@ class Series(np.ndarray):
 
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
+
         Args:
             p: (z,y,x) of voxel in world coordinates (mm) as numpy.array
             transformation: transformation matrix when different from
                           self.transformationMatrix
+
         Returns:
             (s,r,c) of voxel in voxel coordinates as numpy.array
         """
@@ -1977,7 +1986,7 @@ class Series(np.ndarray):
             cmap: colour map for display. Default: gray
             window: window width of signal intensities. Default is DICOM Window Width.
             level: window level of signal intensities. Default is DICOM Window Center.
-            link: whether scrolling is linked between displayed images. Default: False
+            link: whether scrolling is linked between displayed objects. Default: False.
         Returns:
             grid mask: Series object with voxel=1 inside ROI. Series object with shape (nz,ny,nx) from original image, dtype ubyte. Voxel inside ROI is 1, 0 outside.
             vertices_dict: if vertices: Dictionary of vertices.
