@@ -1,3 +1,5 @@
+|Docs Badge|
+
 #########
 imagedata
 #########
@@ -24,6 +26,12 @@ Install
 .. code-block::
 
     pip install imagedata
+
+Documentation
+----------------
+See the Documentation_ page for info.
+
+.. _Documentation: https://imagedata.readthedocs.io
 
 Example code
 -------------------
@@ -250,3 +258,8 @@ The command line program *image_data* can be used to convert between various ima
 .. code-block:: bash
 
   image_data --order time out_dir in_dirs
+
+.. |Docs Badge| image:: https://readthedocs.org/projects/imagedata/badge/
+    :alt: Documentation Status
+    :scale: 100%
+    :target: https://imagedata.readthedocs.io
