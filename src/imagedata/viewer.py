@@ -71,8 +71,8 @@ def build_info(im, cmap, window, level):
         'taggable': tag_axis is not None,  # Can we slide through tags
         'tags': len(im.tags[0]),  # Number of tags
         'slices': im.slices,  # Number of slices
-        'rows': im.rows, #Number of rows
-        'columns': im.columns, # Number of columns
+        'rows': im.rows,  # Number of rows
+        'columns': im.columns,  # Number of columns
         'tag': 0,  # Displayed tag index
         'idx': im.slices // 2,  # Displayed slice index
         'tag_axis': tag_axis,  # Axis instance of im
@@ -114,7 +114,7 @@ class Viewer:
         self.cidenter = None
         self.cidleave = None
         self.cidscroll = None
-        self.vertices = None # The polygon vertices, as a dictonary of tags of (x,y)
+        self.vertices = None  # The polygon vertices, as a dictionary of tags of (x,y)
         self.poly = None
         self.viewport = {}
         self.set_default_viewport(self.ax)  # Set wanted viewport
