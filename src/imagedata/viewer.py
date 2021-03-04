@@ -629,7 +629,7 @@ def default_layout(fig, n):
         raise ValueError("No Figure given")
     if n < 1:
         raise ValueError("No layout when no axes are required")
-    for rows in range(1, 9):
+    for rows in range(1, 5):
         if rows * rows >= n:
             return fig.subplots(rows, rows, squeeze=False)  # columns = rows
         if rows * (rows + 1) >= n:
