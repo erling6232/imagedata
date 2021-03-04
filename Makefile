@@ -9,10 +9,10 @@ sdist:
 	python3 -m pep517.build .
 
 test_upload:
-	twine upload --repository testpypi dist/*
+	twine upload --skip-existing --repository testpypi dist/*
 
 upload:
-	twine upload dist/*
+	twine upload --skip-existing dist/*
 
 git:
 	#git tag -a $(call next_patch_ver)
