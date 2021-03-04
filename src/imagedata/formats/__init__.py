@@ -236,9 +236,10 @@ def load_plugins(plugins_folder_list=None):
                                     # plugin = plugin_class[1]()
                                     pname, pclass = plugin_class
                                     plugins.append((pname, pclass.name, pclass))
-                    except (ImportError, RuntimeError) as e:
+                    # except (ImportError, TypeError, RuntimeError) as e:
+                    except (ImportError, TypeError, RuntimeError):
                         # print("  ImportError: {}".format(e))
-                        logging.debug("  ImportError: {}".format(e))
+                        # logging.debug("  ImportError: {}".format(e))
                         pass
                     except Exception as e:
                         # print("  Exception: {}".format(e))
