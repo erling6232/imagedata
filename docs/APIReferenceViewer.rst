@@ -1,7 +1,9 @@
 .. _APIReferenceViewer:
 
-API Reference for class Viewer
+Viewer Class
 ==============================
+
+Viewer -- a graphical tool to display and interact with Series objects.
 
 .. autoclass:: imagedata.viewer.Viewer
     :members:

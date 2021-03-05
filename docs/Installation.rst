@@ -1,6 +1,6 @@
-.. _GettingStarted:
+.. _Installation:
 
-Getting Started
+Installation
 ===============
 
 To install:

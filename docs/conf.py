@@ -12,8 +12,10 @@
 #
 import os
 import sys
-# sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('..'))
+docs = os.path.dirname(__file__)
+root = os.path.dirname(docs)
+sys.path.insert(0, root)
+sys.path.insert(0, os.path.join(root, 'src'))
 
 
 # -- Project information -----------------------------------------------------
@@ -22,8 +24,9 @@ project = 'imagedata'
 copyright = '2021, Erling Andersen'
 author = 'Erling Andersen'
 
-# The full version, including alpha/beta/rc tags
 def get_version():
+    """The full version, including alpha/beta/rc tags"""
+
     version_file = open('../VERSION.txt')
     return version_file.read().strip()
 version = get_version()
@@ -52,7 +55,7 @@ templates_path = ['_templates']
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tests', 'test_*']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tests/*']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
@@ -77,7 +80,7 @@ html_static_path = ['_static']
 
 # -- Extension configuration -------------------------------------------------
 
-autodoc_mock_imports = ["numpy", "scipy", "scipy.linalg", "numpy.core.multiarray"]
+autodoc_mock_imports = ["numpy", "scipy", "scipy.linalg", "numpy.core.multiarray", "nibabel"]
 
 # -- Options for todo extension ----------------------------------------------
 

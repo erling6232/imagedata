@@ -31,7 +31,7 @@ A simple example reading a time series from in_dir, displaying it, and writing i
   a.show()
   a.write('out_dir')
 
-The :ref:`Getting Started <GettingStarted>` section explains how to install and
+The :ref:`User Guide <UserGuide>` explains how to install and
 use imagedata.
 
 *Loading image data with this imagedata Python package simplify image
@@ -45,13 +45,7 @@ information matters.*
    :maxdepth: 2
    :caption: Contents:
 
-   GettingStarted
-   Tutorial
-   DICOMAttributes
-   Introduction
-   CommandLine
-   Plugins
-   APIReference
+   UserGuide
    DeveloperDocumentation
 
 
