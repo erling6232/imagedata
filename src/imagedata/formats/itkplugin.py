@@ -265,6 +265,7 @@ class ITKPlugin(AbstractPlugin):
                 - transformationMatrix
                 - orientation
                 - tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -322,6 +323,7 @@ class ITKPlugin(AbstractPlugin):
                 - transformationMatrix
                 - orientation
                 - tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -398,6 +400,7 @@ class ITKPlugin(AbstractPlugin):
                 - transformationMatrix
                 - orientation (not used)
                 - tags (not used)
+
             si: numpy 3D array [slice,row,column]
             archive: archive object
             filename: file name, possibly without extentsion

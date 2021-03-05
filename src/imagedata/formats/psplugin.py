@@ -273,6 +273,7 @@ class PSPlugin(AbstractPlugin):
                 transformationMatrix,
                 orientation,
                 tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         Raises:
@@ -293,6 +294,7 @@ class PSPlugin(AbstractPlugin):
                 transformationMatrix,
                 orientation,
                 tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         Raises:

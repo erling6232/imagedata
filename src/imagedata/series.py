@@ -51,9 +51,6 @@ class Series(np.ndarray):
 
     Series(data, input_order='none', opts=None, shape=(0,), dtype=float, order=None, template=None, geometry=None)
 
-    Attributes:
-        shape: shape of array
-
     Examples:
 
         Read the contents of an input directory
@@ -76,21 +73,12 @@ class Series(np.ndarray):
                 * 'te' : Varying echo times.
                 * 'fa' : Varying flip angles.
 
-        opts: (argparse.Namespace or dict)
-            Dict of input options, mostly for format specific plugins.
-
+        opts: Dict of input options, mostly for format specific plugins (argparse.Namespace or dict)
         shape: Tuple of ints, specifying shape of input data.
-        dtype: Numpy data type.
-            Default: float
-
-        template: (Series, array_like or URL)
-            Input data to use as template for DICOM header.
-
-        geometry: (Series, array_like or URL)
-            Input data to use as template for geometry.
-
-        order: {'C', 'F'}, optional
-            Row-major (C-style) or column-major (Fortran-style) order.
+        dtype: Numpy data type. Default: float
+        template: Input data to use as template for DICOM header (Series, array_like or URL)
+        geometry: Input data to use as template for geometry (Series, array_like or URL)
+        order: Row-major (C-style) or column-major (Fortran-style) order, {'C', 'F'}, optional
 
     Returns:
         Series instance
@@ -1870,8 +1858,7 @@ class Series(np.ndarray):
 
         Args:
             r: (s,r,c) of voxel in voxel coordinates as numpy.array
-            transformation: transformation matrix when different from
-                          self.transformationMatrix
+            transformation: transformation matrix when different from self.transformationMatrix
 
         Returns:
             (z,y,x) of voxel in world coordinates (mm) as numpy.array
@@ -1903,8 +1890,7 @@ class Series(np.ndarray):
 
         Args:
             p: (z,y,x) of voxel in world coordinates (mm) as numpy.array
-            transformation: transformation matrix when different from
-                          self.transformationMatrix
+            transformation: transformation matrix when different from self.transformationMatrix
 
         Returns:
             (s,r,c) of voxel in voxel coordinates as numpy.array
@@ -1931,6 +1917,7 @@ class Series(np.ndarray):
 
     def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
         """Show image
+
         Courtesy of Erlend Hodneland (2021)
 
         Args:

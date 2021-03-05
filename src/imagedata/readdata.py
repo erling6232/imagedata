@@ -34,10 +34,12 @@ def read(urls, order=None, opts=None):
         urls: list of urls or url to read (list of str, or str)
         order: determine how to sort the images (default: auto-detect)
         opts: input options (argparse.Namespace or dict)
+
     Returns:
         tuple of
             - hdr: header instance
             - si[tag,slice,rows,columns]: numpy array
+
     Raises:
         ValueError: When no sources are given.
         UnknownOptionType: When opts cannot be made into a dict.

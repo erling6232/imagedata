@@ -829,12 +829,6 @@ class DICOMPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
 
-        Args:
-            self: DICOMPlugin instance
-            si[tag,slice,rows,columns]: Series array
-            destination: dict of archive and filenames
-            opts: Output options (dict)
-
         si.series_number is inserted into each dicom object
 
         si.series_description is inserted into each dicom object
@@ -844,6 +838,13 @@ class DICOMPlugin(AbstractPlugin):
         opts['output_sort']: Which tag will sort the output images (slice or tag)
 
         opts['output_dir']: Store all images in a single or multiple directories
+
+        Args:
+            self: DICOMPlugin instance
+            si[tag,slice,rows,columns]: Series array
+            destination: dict of archive and filenames
+            opts: Output options (dict)
+
         """
 
         logging.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
@@ -933,18 +934,19 @@ class DICOMPlugin(AbstractPlugin):
             tag: tag index
             slice: slice index
             si: Series instance, including these attributes:
-                - slices
-                - sliceLocations
-                - DicomHeaderDict
-                - tags (not used)
-                - seriesNumber
-                - seriesDescription
-                - imageType
-                - frame
-                - spacing
-                - orientation
-                - imagePositions
-                - photometricInterpretation
+                slices
+                sliceLocations
+                DicomHeaderDict
+                tags (not used)
+                seriesNumber
+                seriesDescription
+                imageType
+                frame
+                spacing
+                orientation
+                imagePositions
+                photometricInterpretation
+
             archive: archive object
             filename: file name, possible without '.dcm' extension
             ifile: instance number in series

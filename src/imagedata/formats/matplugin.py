@@ -160,6 +160,7 @@ class MatPlugin(AbstractPlugin):
                 slices,
                 spacing,
                 tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -221,6 +222,7 @@ class MatPlugin(AbstractPlugin):
                 slices,
                 spacing,
                 tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """

@@ -85,21 +85,20 @@ class ZipfileArchive(AbstractArchive, ABC):
     url = "www.helse-bergen.no"
     mimetypes = ['application/zip']
 
-    """Internal data
-    self.__transport: file transport object.
-    self.__fp: zip file object in transport object
-    self.__archive: ZipFile object.
-    self.__path: path to the zip file using given transport.
-    self.__mode: 'r' or 'w': read or write access.
-    self.__tmpdir: Local directory where zip file is unpacked.
-    self.__files: dict of files in the zip archive.
-      key is path name in the zip archive.
-      value is a dict of member info:
-        'unpacked': whether the file is unpacked in tmpdir (boolean)
-        'name': path name in the zip archive
-        'fh': file handle when open, otherwise None
-        'localfile': local filename of unpacked file
-    """
+    # Internal data
+    # self.__transport: file transport object.
+    # self.__fp: zip file object in transport object
+    # self.__archive: ZipFile object.
+    # self.__path: path to the zip file using given transport.
+    # self.__mode: 'r' or 'w': read or write access.
+    # self.__tmpdir: Local directory where zip file is unpacked.
+    # self.__files: dict of files in the zip archive.
+    #   key is path name in the zip archive.
+    #   value is a dict of member info:
+    #     'unpacked': whether the file is unpacked in tmpdir (boolean)
+    #     'name': path name in the zip archive
+    #     'fh': file handle when open, otherwise None
+    #     'localfile': local filename of unpacked file
 
     def __init__(self, transport=None, url=None, mode='r', read_directory_only=False, opts=None):
         super(ZipfileArchive, self).__init__(
