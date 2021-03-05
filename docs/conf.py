@@ -10,9 +10,10 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
+import os
+import sys
 # sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('..'))
 
 
 # -- Project information -----------------------------------------------------
@@ -76,7 +77,7 @@ html_static_path = ['_static']
 
 # -- Extension configuration -------------------------------------------------
 
-autodoc_mock_imports = ["numpy", "scipy", "scipy.linalg"]
+autodoc_mock_imports = ["numpy", "scipy", "scipy.linalg", "numpy.core.multiarray"]
 
 # -- Options for todo extension ----------------------------------------------
 
