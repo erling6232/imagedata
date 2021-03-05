@@ -1,5 +1,4 @@
 import copy
-from imagedata.series import Series
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.widgets import PolygonSelector, ToolHandles
@@ -8,6 +7,7 @@ from matplotlib.lines import Line2D
 from matplotlib.path import Path as MplPath
 import numpy as np
 
+from imagedata.series import Series
 
 def get_slice_axis(im):
     try:
