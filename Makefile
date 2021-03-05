@@ -20,6 +20,7 @@ git:
 
 html:
 	cd docs; \
+	make clean; \
 	sphinx-apidoc -o source/ ../; \
 	make html
 
