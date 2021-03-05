@@ -1,10 +1,10 @@
 .. imagedata documentation master file, created by
-   sphinx-quickstart on Fri Jun 26 13:35:42 2020.
+   sphinx-quickstart on Thu Mar  4 14:58:46 2021.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 Imagedata Documentation
-=======================
+=====================================
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
 Imagedata will handle multi-dimensional data.
@@ -40,12 +40,14 @@ modules that require different image file formats. This is especially
 important when setting up pipelines for clinical data where patient
 information matters.*
 
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    GettingStarted
    Tutorial
+   DICOMAttributes
    Introduction
    CommandLine
    Plugins
@@ -53,6 +55,8 @@ information matters.*
       APIReferenceSeries
       APIReferenceViewer
    DeveloperDocumentation
+
+
 
 Indices and tables
 ==================
