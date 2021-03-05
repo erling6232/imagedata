@@ -929,14 +929,12 @@ class Series(np.ndarray):
 
     @property
     def axes(self):
-        """axes
-
-        Return axis object for given dimension.
+        """axes -- Return list of axis objects.
 
         Returns:
             List of Axis objects
         Raises:
-            ValueError: when the axis is not set.
+            ValueError: when the axes are not set.
         """
         try:
             if self.header.axes is not None:
@@ -1715,7 +1713,7 @@ class Series(np.ndarray):
 
         Args:
             M: new transformation matrix
-        Returns:
+        Side effects:
             self.orientation
             self.imagePositions
             self.transformationMatrix
@@ -1835,8 +1833,8 @@ class Series(np.ndarray):
         Args:
             keyword: name (str) or dicom tag
             value: new value for DICOM attribute
-            slice: optional slice to get attribute from (default: all)
-            tag: optional tag to get attribute from (default: all)
+            slice: optional slice to set attribute for (default: all)
+            tag: optional tag to set attribute for (default: all)
         Raises:
             ValueError: When no DICOM tag is set.
         """
