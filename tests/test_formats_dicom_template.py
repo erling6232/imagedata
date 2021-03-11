@@ -2,6 +2,7 @@
 
 import unittest
 import os.path
+from datetime import datetime
 import numpy as np
 import tempfile
 import argparse
@@ -46,7 +47,15 @@ class TestDicomTemplate(unittest.TestCase):
         si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'), input_order='time')
         self.emptydir = tempfile.TemporaryDirectory()
         si00 = Series(si0[0], input_order='none')
+        si01 = Series(si0[:2], input_order='time')
         si00.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
+
+        # Provide sensible time tags
+        for s in range(40):
+            for t in range(2):
+                time_str = datetime.utcfromtimestamp(float(t)).strftime("%H%M%S.%f")
+                si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)
+        si01.write(os.path.join(self.emptydir.name, 'empty_header_time'), formats=['dicom'])
 
     def tearDown(self):
         self.emptydir.cleanup()
@@ -182,6 +191,27 @@ class TestDicomTemplate(unittest.TestCase):
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
         compare_headers(self, si1, si2)
+
+    # @unittest.skip("skipping test_dicom_temp_slice")
+    def test_dicom_temp_slice(self):
+        # Read the DICOM empty header series,
+        # adding DICOM template in Series constructor
+        # Then slice the si1 Series
+        template = Series(os.path.join('data', 'dicom', 'time'), input_order='time')
+        geometry = Series(os.path.join('data', 'dicom', 'time'), input_order='time')
+        si1 = Series(
+            os.path.join(self.emptydir.name, 'empty_header_time'),
+            input_order='time',
+            template=template,
+            geometry=geometry)
+        si1_0 = si1[0]
+        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        # Compare constructed series si1_0 to original series si2
+        self.assertEqual(si1_0.dtype, si2.dtype)
+        np.testing.assert_array_equal(si1_0, si2)
+        # Tags do not match, so copy them to enable header comparison.
+        si1_0.tags = si2.tags
+        compare_headers(self, si1_0, si2)
 
 
 if __name__ == '__main__':
