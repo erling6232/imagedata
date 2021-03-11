@@ -11,6 +11,9 @@ class Axis(object, metaclass=ABCMeta):
     def __init__(self, name):
         self.name = name
 
+    def __repr__(self):
+        return ("{0}({1})".format(self.__class__.__name__, self.name))
+
     def __str__(self):
         return "{0.name!s}".format(self)
 
@@ -62,6 +65,11 @@ class UniformAxis(Axis):
     def slice(self):
         return self.start, self.stop, self.step
 
+    def __repr__(self):
+        return("{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
+            self.__class__.__name__, self
+        ))
+
     def __str__(self):
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
 
@@ -106,6 +114,11 @@ class UniformLengthAxis(UniformAxis):
     def __len__(self):
         return self.n
 
+    def __repr__(self):
+        return("{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
+            self.__class__.__name__, self
+        ))
+
     def __str__(self):
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
 
@@ -146,6 +159,11 @@ class VariableAxis(Axis):
 
     def __len__(self):
         return len(self.values)
+
+    def __repr__(self):
+        return("{0}({1.name!s},{1.values!r})".format(
+            self.__class__.__name__, self
+        ))
 
     def __str__(self):
         return "{0.name!s}: {0.values!s}".format(self)

@@ -86,7 +86,13 @@ class Header(object):
         self.axes = None
 
     def __repr__(self):
-        return "Header: Series Instance UID {}".format(self.seriesInstanceUID)
+        return object.__repr__(self)
+
+    def __str__(self):
+        items = []
+        for attr in header_tags + geometry_tags:
+            items.append("{0!r}: {1!r}".format(attr, getattr(self, attr, "")))
+        return "{" + ", ".join(items) + "}"
 
     def new_uid(self) -> str:
         """Return the next available UID from the UID generator.
@@ -223,10 +229,14 @@ def __make_DicomHeaderDict_from_template(this, template):
         DicomHeaderDict[_slice] = []
         for tag in range(tags):
             try:
+                template_tag = template[_slice][tag][0]
+            except KeyError:
+                template_tag = tag
+            try:
                 templateHeader = template[_slice][tag][2]
             except KeyError:
                 templateHeader = defaultHeader
-            DicomHeaderDict[_slice].append((tag, None, templateHeader))
+            DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
     return DicomHeaderDict
 
 

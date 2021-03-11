@@ -9,6 +9,7 @@ import numpy as np
 
 from imagedata.series import Series
 
+
 def get_slice_axis(im):
     try:
         return im.find_axis('slice')
@@ -133,6 +134,12 @@ class Viewer:
         self.viewport = {}
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
+
+    def __repr__(self):
+        return object.__repr__(self)
+
+    def __str__(self):
+        return "{" + "{0:s} images".format(len(self.im)) + "}"
 
     def set_default_viewport(self, axes):
         """View as many Series as there are axes"""
