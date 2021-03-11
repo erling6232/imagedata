@@ -24,11 +24,14 @@ project = 'imagedata'
 copyright = '2021, Erling Andersen'
 author = 'Erling Andersen'
 
+
 def get_version():
     """The full version, including alpha/beta/rc tags"""
 
     version_file = open('../VERSION.txt')
     return version_file.read().strip()
+
+
 version = get_version()
 release = version
 
