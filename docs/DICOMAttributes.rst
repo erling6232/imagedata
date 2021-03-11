@@ -9,7 +9,7 @@ Series properties
 A handful of DICOM attributes are available directly as Series properties.
 The table below lists the available Series properties.
 
-These attributes can be set and interrogated in Python:
+These attributes can be set and interrogated directly from the Series object:
 
 .. code-block:: python
 
@@ -115,6 +115,9 @@ and/or tag can be targeted.
 
 .. code-block:: python
 
+  # Fetch the MR Repetition Time
   TR = a.getDicomAttribute('RepetitionTime')
+
+  # Fetch the Acquisition Time from tag 9, and duplicate this for tag 10
   acqTime = a.getDicomAttribute('AcquisitionTime', slice=5, tag=9)
   a.setDicomAttribute('AcquisitionTime', acqTime, slice=5, tag=10)
