@@ -658,12 +658,13 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: NiftiPlugin instance
             si: Series array (3D or 4D), including these attributes:
-                slices,
-                spacing,
-                imagePositions,
-                transformationMatrix,
-                orientation,
-                tags
+            -   slices,
+            -   spacing,
+            -   imagePositions,
+            -   transformationMatrix,
+            -   orientation,
+            -   tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -717,12 +718,13 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: NiftiPlugin instance
             si[tag,slice,rows,columns]: Series array, including these attributes:
-                slices,
-                spacing,
-                imagePositions,
-                transformationMatrix,
-                orientation,
-                tags
+            -   slices,
+            -   spacing,
+            -   imagePositions,
+            -   transformationMatrix,
+            -   orientation,
+            -   tags
+
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -800,12 +802,13 @@ class NiftiPlugin(AbstractPlugin):
 
         Args:
             self: ITKPlugin instance, including these attributes:
-                - slices (not used)
-                - spacing
-                - imagePositions
-                - transformationMatrix
-                - orientation (not used)
-                - tags (not used)
+            - slices (not used)
+            - spacing
+            - imagePositions
+            - transformationMatrix
+            - orientation (not used)
+            - tags (not used)
+
             img: Nifti1Image
             archive: archive object
             filename: file name, possibly without extentsion

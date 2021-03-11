@@ -267,12 +267,12 @@ class PSPlugin(AbstractPlugin):
         Args:
             self: ITKPlugin instance
             si: Series array (3D or 4D), including these attributes:
-                slices,
-                spacing,
-                imagePositions,
-                transformationMatrix,
-                orientation,
-                tags
+            -   slices,
+            -   spacing,
+            -   imagePositions,
+            -   transformationMatrix,
+            -   orientation,
+            -   tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)
@@ -288,12 +288,12 @@ class PSPlugin(AbstractPlugin):
         Args:
             self: ITKPlugin instance
             si[tag,slice,rows,columns]: Series array, including these attributes:
-                slices,
-                spacing,
-                imagePositions,
-                transformationMatrix,
-                orientation,
-                tags
+            -   slices,
+            -   spacing,
+            -   imagePositions,
+            -   transformationMatrix,
+            -   orientation,
+            -   tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)

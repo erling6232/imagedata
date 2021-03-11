@@ -157,9 +157,9 @@ class MatPlugin(AbstractPlugin):
         Args:
             self: MATPlugin instance
             si: Series array (3D or 4D), including these attributes:
-                slices,
-                spacing,
-                tags
+            -   slices,
+            -   spacing,
+            -   tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)
@@ -219,9 +219,9 @@ class MatPlugin(AbstractPlugin):
         Args:
             self: MATPlugin instance
             si[tag,slice,rows,columns]: Series array, including these attributes:
-                slices,
-                spacing,
-                tags
+            -   slices,
+            -   spacing,
+            -   tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)
