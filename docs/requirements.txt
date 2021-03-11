@@ -14,3 +14,4 @@ scandir
 pathfinder
 pillow
 matplotlib
+flake8
