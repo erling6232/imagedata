@@ -15,7 +15,7 @@ upload:
 	twine upload --skip-existing dist/*
 
 git:
-	#git tag -a $(call next_patch_ver)
+	git tag -a `cat VERSION.txt`
 	git push origin master --tags
 
 html:
