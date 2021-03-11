@@ -934,18 +934,18 @@ class DICOMPlugin(AbstractPlugin):
             tag: tag index
             slice: slice index
             si: Series instance, including these attributes:
-                slices
-                sliceLocations
-                DicomHeaderDict
-                tags (not used)
-                seriesNumber
-                seriesDescription
-                imageType
-                frame
-                spacing
-                orientation
-                imagePositions
-                photometricInterpretation
+            -   slices
+            -   sliceLocations
+            -   DicomHeaderDict
+            -   tags (not used)
+            -   seriesNumber
+            -   seriesDescription
+            -   imageType
+            -   frame
+            -   spacing
+            -   orientation
+            -   imagePositions
+            -   photometricInterpretation
 
             archive: archive object
             filename: file name, possible without '.dcm' extension
@@ -972,8 +972,8 @@ class DICOMPlugin(AbstractPlugin):
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         logging.debug("write_slice member_name {}".format(member_name))
         ds = self.construct_dicom(filename, im, safe_si)
-        self._copy_dicom_group(0x21, im, ds)
-        self._copy_dicom_group(0x29, im, ds)
+        # self._copy_dicom_group(0x21, im, ds)
+        # self._copy_dicom_group(0x29, im, ds)
 
         # Add header information
         try:
@@ -1106,7 +1106,7 @@ class DICOMPlugin(AbstractPlugin):
         # copy_general_dicom_attributes(template, ds)
         for element in template.iterall():
             if element.tag == 0x7fe00010:
-                continue    # Do not copy pixel data, will be added later
+                continue  # Do not copy pixel data, will be added later
             ds.add(element)
 
         ds.StudyInstanceUID = si.header.studyInstanceUID
@@ -1305,6 +1305,16 @@ class DICOMPlugin(AbstractPlugin):
         elif input_order == imagedata.formats.INPUT_ORDER_TIME:
             # AcquisitionTime
             time_tag = choose_tag("time", "AcquisitionTime")
+            if time_tag not in im:
+                VR = pydicom.datadict.dictionary_VR(_tag)
+                if VR == 'TM':
+                    im.add_new(time_tag, VR,
+                               datetime.utcfromtimestamp(float(0.0)).strftime("%H%M%S.%f")
+                               )
+                else:
+                    im.add_new(time_tag, VR, 0.0)
+                # elem = pydicom.dataelem.DataElement(time_tag, 'TM', 0)
+                # im.add(elem)
             if im.data_element(time_tag).VR == 'TM':
                 time_str = datetime.utcfromtimestamp(float(value)).strftime("%H%M%S.%f")
                 im.data_element(time_tag).value = time_str
