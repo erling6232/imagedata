@@ -380,6 +380,7 @@ class Series(np.ndarray):
         slicing, spec = _calculate_spec(self, items)
 
         todo = []  # Collect header changes, apply after ndarray slicing
+        reduce_dim = False  # Whether the slicing reduces the dimension
         if slicing:
             # Here we slice the header information
             new_axes = []
@@ -401,6 +402,8 @@ class Series(np.ndarray):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
+                    if len(tags[0]) == 1:
+                        reduce_dim = True
             # Select slice of DicomHeaderDict
             hdr = self.__get_DicomHeaderDict(spec)
             todo.append(('DicomHeaderDict', hdr))
@@ -410,6 +413,10 @@ class Series(np.ndarray):
         if slicing and isinstance(ret, Series):
             # noinspection PyUnboundLocalVariable
             todo.append(('axes', new_axes[-ret.ndim:]))
+            if reduce_dim:
+                # Must copy the ret object before modifying. Otherwise, ret is a view to self.
+                ret = copy.copy(ret)
+                ret.input_order = imagedata.formats.INPUT_ORDER_NONE
             _set_geometry(ret, todo)
         return ret
 
@@ -478,14 +485,20 @@ class Series(np.ndarray):
                     tag = self.tags[_slice][t]
                 except IndexError:
                     raise IndexError("Could not get tag for slice {}, tag {}".format(_slice, t))
-                hdr[j].append(
-                    self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
-                )
+                try:
+                    hdr[j].append(
+                        self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
+                    )
+                except TypeError:
+                    return None
             j += 1
 
         return hdr
 
     def __repr__(self):
+        return object.__repr__(self)
+
+    def __str__(self):
         return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
             self.patientID, self.patientName,
             self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
