@@ -27,7 +27,10 @@ def get_tag_axis(im):
 def get_level(si, level):
     if level is None:
         # First, attempt to get DICOM attribute
-        level = si.getDicomAttribute('WindowCenter')
+        try:
+            level = si.getDicomAttribute('WindowCenter')
+        except (KeyError, AttributeError):
+            pass
     if level is None:
         level = (si.max() - si.min()) / 2
     return level
@@ -38,7 +41,7 @@ def get_window_level(si, window, level):
         # First, attempt to get DICOM attribute
         try:
             window = si.getDicomAttribute('WindowWidth')
-        except AttributeError:
+        except (KeyError, AttributeError):
             pass
     if window is None:
         window = si.max() - si.min()
@@ -145,7 +148,13 @@ class Viewer:
         """View as many Series as there are axes"""
 
         try:
-            rows, columns = axes.shape
+            if len(axes.shape) == 2:
+                rows, columns = axes.shape
+            elif len(axes.shape) == 1:
+                columns = axes.shape[0]
+                rows = 1
+            else:
+                raise ValueError('Cannot set default viewport')
         except AttributeError:
             rows = columns = 1
         vp_idx = 0
@@ -655,5 +664,5 @@ def default_layout(fig, n):
         if rows * rows >= n:
             return fig.subplots(rows, rows, squeeze=False)  # columns = rows
         if rows * (rows + 1) >= n:
-            return fig.subplots(rows, rows + 1)  # columns = rows+1
+            return fig.subplots(rows, rows + 1, squeeze=False)  # columns = rows+1
     raise ValueError("Too many axes required (n={})".format(n))
