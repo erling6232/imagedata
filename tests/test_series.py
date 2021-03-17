@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
+from nose.tools import *
 import unittest
 import numpy as np
+import copy
 # import logging
 import pydicom.datadict
 
@@ -114,6 +116,42 @@ class TestSeries(unittest.TestCase):
         s_slice = s[:,3:5,...]
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, 3)
+
+    #@unittest.skip("skipping test_assign_slice_x")
+    def test_assign_slice_x(self):
+        a1 = np.eye(128)
+        a1.shape = (1,128,128)
+        a = np.vstack([a1, a1, a1])
+        s = Series(a)
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
+        n = np.ones_like(a) * 4
+        p = Series(n)
+        p.spacing = (1,1,1)
+        p.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, p.shape[0])
+
+        a[:,3:5,...] = n[:,3:5,...]
+        s[:,3:5,...] = p[:,3:5,...]
+        np.testing.assert_array_equal(a, s)
+        np.testing.assert_array_equal(s[:,3:5,...], p[:,3:5,...])
+        self.assertEqual(s.slices, 3)
+
+    #@unittest.skip("skipping test_assign_slice")
+    def test_assign_slice(self):
+        a = np.array(range(4*5*6), dtype=np.uint16)
+        a.shape = (4,5,6)
+        s = Series(a)
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
+        n = np.zeros((2,2,2), dtype=np.uint16)
+        p = Series(n)
+        p.spacing = (1,1,1)
+        p.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, p.shape[0])
+
+        a[1:3,2:4,2:4] = n[:]
+        s[1:3,2:4,2:4] = p[:]
+        np.testing.assert_array_equal(a, s)
+        self.assertEqual(s.slices, 4)
 
     #@unittest.skip("skipping test_slicing_z")
     def test_slicing_z(self):
@@ -241,6 +279,39 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, s.slices)
         self.assertEqual(len(s_slice.tags[0]), 2)
+
+    #@unittest.skip("skipping test_cross_talk")
+    def test_cross_talk(self):
+        si = Series('data/dicom/time', 'time')
+        si1 = si[0]
+        si1.seriesNumber = si.seriesNumber + 10
+        self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
+
+        si2 = Series('data/dicom/time', 'time')
+        si2.seriesNumber += 10
+        self.assertNotEqual(si.seriesNumber, si2.seriesNumber)
+
+    @raises(AssertionError)
+    #@unittest.skip("skipping test_cross_talk_spacing")
+    def test_cross_talk_spacing(self):
+        si = Series('data/dicom/time', 'time')
+        si1 = si[0]
+        si1.spacing = (1,1,1)
+        np.testing.assert_array_equal(si.spacing, si1.spacing)
+
+    #@unittest.skip("skipping test_cross_talk_2")
+    def test_cross_talk_2(self):
+        si1 = Series('data/dicom/time/time00')
+        si2 = si1
+        si2.seriesNumber += 10
+        self.assertEqual(si1.seriesNumber, si2.seriesNumber)
+
+    #@unittest.skip("skipping test_cross_talk_3")
+    def test_cross_talk_3(self):
+        si1 = Series('data/dicom/time00')
+        si2 = copy.copy(si1)
+        si2.seriesNumber += 10
+        self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
 
 
 if __name__ == '__main__':
