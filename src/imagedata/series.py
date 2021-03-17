@@ -415,7 +415,7 @@ class Series(np.ndarray):
             todo.append(('axes', new_axes[-ret.ndim:]))
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
-                ret = copy.copy(ret)
+                ret.header = copy.copy(ret.header)
                 ret.input_order = imagedata.formats.INPUT_ORDER_NONE
             _set_geometry(ret, todo)
         return ret
@@ -973,6 +973,16 @@ class Series(np.ndarray):
         Args:
             ax: list of axis objects
         """
+        # Verify that axes shape match ndarray shape
+        # Verify that axis names are used once only
+        used_name = {}
+        for i, axis in enumerate(ax):
+            # if len(axis) != self.shape[i]:
+            #     raise IndexError("Axis length {}  must match array shape {}".format(
+            #         [len(x) for x in ax], self.shape))
+            if axis.name in used_name:
+                raise ValueError("Axis name {} is used multiple times.".format(axis.name))
+            used_name[axis.name] = True
         self.header.axes = ax
         # shape = [len(axis) for axis in ax]
         # try:
