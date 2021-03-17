@@ -1027,8 +1027,8 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             pass
 
-        ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries.astype('uint16'))
-        ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries.astype('uint16'))
+        ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries)
+        ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries)
         ds[0x0028, 0x0108].VR = 'US'
         ds[0x0028, 0x0109].VR = 'US'
         ds.WindowCenter = self.center
@@ -1042,8 +1042,10 @@ class DICOMPlugin(AbstractPlugin):
                 del ds.RescaleIntercept
         else:
             # if np.issubdtype(safe_si.dtype, np.floating):
-            ds.SmallestImagePixelValue = ((safe_si.min() - self.b) / self.a).astype('uint16')
-            ds.LargestImagePixelValue = ((safe_si.max() - self.b) / self.a).astype('uint16')
+            # ds.SmallestImagePixelValue = ((safe_si.min() - self.b) / self.a).astype('uint16')
+            # ds.LargestImagePixelValue = ((safe_si.max() - self.b) / self.a).astype('uint16')
+            ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
+            ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
             try:
                 ds.RescaleSlope = "%f" % self.a
             except OverflowError:
@@ -1193,8 +1195,8 @@ class DICOMPlugin(AbstractPlugin):
         2^16 = 65536 possible steps in 16 bits dicom
         """
         # Window center/width
-        ymin = np.nanmin(arr)
-        ymax = np.nanmax(arr)
+        ymin = np.nanmin(arr).item()
+        ymax = np.nanmax(arr).item()
         self.center = (ymax - ymin) / 2
         self.width = max(1, ymax - ymin)
         # y = ax + b,
