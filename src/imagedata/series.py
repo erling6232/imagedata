@@ -1940,6 +1940,9 @@ class Series(np.ndarray):
 
     def to_rgb(self):
         """Create an RGB color image of self.
+
+        Returns:
+            RGB Series object
         """
 
         if self.color:
@@ -1962,6 +1965,7 @@ class Series(np.ndarray):
         rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.color = True
+        add_template(rgb.header, self.header)
         return rgb
 
     def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
