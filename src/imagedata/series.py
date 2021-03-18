@@ -999,6 +999,8 @@ class Series(np.ndarray):
             axis object with given name
         Raises:
             ValueError: when no axis object has given name
+        Usage:
+            >>> axis = si.find_axis('slice')
         """
         for axis in self.axes:
             if axis.name == name:
@@ -1009,31 +1011,45 @@ class Series(np.ndarray):
     def spacing(self):
         """spacing
 
-        Given as dz,dy,dx in mm.
+        Given as ds,dr,dc in mm.
 
         Returns:
-            spacing: [dz,dy,dx] in mm, as numpy array
+            spacing: [ds,dr,dc] in mm, as numpy array. 2D image will return ds=1.
         Raises:
             ValueError: when spacing is not set.
+        Usage:
+            >>> ds, dr, dc = si.spacing
         """
         try:
+            #if self.header.spacing is not None:
+            #    return self.header.spacing
+            slice_axis = self.find_axis('slice')
+            ds = slice_axis.step
+        except ValueError as e:
             if self.header.spacing is not None:
-                return self.header.spacing
-        except AttributeError:
-            pass
-        raise ValueError("Spacing is unknown")
+                ds = self.header.spacing[0]
+            else:
+                raise ValueError("Spacing is unknown: {}".format(e))
+        try:
+            row_axis = self.find_axis('row')
+            column_axis = self.find_axis('column')
+            return np.array((ds, row_axis.step, column_axis.step))
+        except ValueError as e:
+            raise ValueError("Spacing is unknown: {}".format(e))
 
     @spacing.setter
     def spacing(self, *args):
         """Set spacing
 
         Args:
-            spacing: dz,dy,dx in mm, given as numpy array, list or separate arguments
+            spacing: ds,dr,dc in mm, given as numpy array, list or separate arguments
         Raises:
             ValueError: when spacing is not a tuple of 3 coordinates
+        Usage:
+            >>> si.spacing = ds, dr, dc
         """
         if args[0] is None:
-            self.header.spacing = None
+            # self.header.spacing = None
             return
         logging.debug("spacing.setter {} {}".format(len(args), args))
         for arg in args:
@@ -1042,21 +1058,35 @@ class Series(np.ndarray):
         self.header.transformationMatrix = None
         # Handle both tuple and component spacings
         if len(args) == 3:
-            self.header.spacing = np.array(args)
+            spacing = np.array(args)
         elif len(args) == 1:
             arg = args[0]
             if len(arg) == 3:
-                self.header.spacing = np.array(arg)
+                spacing = np.array(arg)
             elif len(arg) == 1:
                 arg0 = arg[0]
                 if len(arg0) == 3:
-                    self.header.spacing = np.array(arg0)
+                    spacing = np.array(arg0)
                 else:
                     raise ValueError("Length of spacing in setSpacing(): %d" % len(arg0))
             else:
                 raise ValueError("Length of spacing in setSpacing(): %d" % len(arg))
         else:
             raise ValueError("Length of spacing in setSpacing(): %d" % len(args))
+        try:
+            slice_axis = self.find_axis('slice')
+            slice_axis.step = spacing[0]
+        except ValueError as e:
+            # Assume 2D image with no slice dimension
+            pass
+        try:
+            row_axis = self.find_axis('row')
+            column_axis = self.find_axis('column')
+            row_axis.step = spacing[1]
+            column_axis.step = spacing[2]
+            self.header.spacing = np.array(spacing)
+        except ValueError as e:
+            raise ValueError("Spacing cannot be set: {}".format(e))
 
     @property
     def imagePositions(self):
@@ -1756,10 +1786,13 @@ class Series(np.ndarray):
 
         Args:
             self.transformationMatrix
+
             self.spacing
         Returns:
             origin: np.array size 3
+
             orientation: np.array size 6 (row, then column directional cosines) (DICOM convention)
+
             normal vector: np.array size 3 (slice direction)
         """
         m = self.transformationMatrix
