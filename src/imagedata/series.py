@@ -1938,6 +1938,32 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
+    def to_rgb(self):
+        """Create an RGB color image of self.
+        """
+
+        if self.color:
+            return self
+
+        shape = self.shape + (3,)
+        largest_image_pixel_value = (self.max().item())
+        img = np.zeros(shape, dtype=np.uint8)
+        if largest_image_pixel_value > 255:
+            scaling = 256 / largest_image_pixel_value
+            img[...,0] = np.uint8(self[:] * scaling)
+            img[...,1] = np.uint8(self[:] * scaling)
+            img[...,2] = np.uint8(self[:] * scaling)
+        else:
+            img[...,0] = self[:]
+            img[...,1] = self[:]
+            img[...,2] = self[:]
+        # rgb = Series(img, template=self, geometry=self)
+        rgb = Series(img, geometry=self)
+        rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+        rgb.header.photometricInterpretation = 'RGB'
+        rgb.header.color = True
+        return rgb
+
     def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
         """Show image
 
