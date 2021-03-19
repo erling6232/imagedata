@@ -893,11 +893,19 @@ class Series(np.ndarray):
                 raise ValueError("Axis name {} is used multiple times.".format(axis.name))
             used_name[axis.name] = True
         self.header.axes = ax
-        # shape = [len(axis) for axis in ax]
-        # try:
-        #     super(Series, self).resize(tuple(shape))
-        # except AttributeError:
-        #     pass
+
+        # Update spacing from new axes
+        try:
+            spacing = self.spacing
+        except ValueError:
+            spacing = np.array((1.0, 1.0, 1.0))
+        for i, direction in enumerate(['slice', 'row', 'column']):
+            try:
+                axis = self.find_axis(direction)
+                spacing[i] = axis.step
+            except ValueError:
+                pass
+        self.header.spacing = spacing
 
     def find_axis(self, name):
         """Find axis with given name
