@@ -63,8 +63,8 @@ exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tests/*']
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
-napoleon_google_docstring = False
-napoleon_use_param = False
+napoleon_google_docstring = True
+napoleon_use_param = True
 napoleon_use_ivar = True
 
 
