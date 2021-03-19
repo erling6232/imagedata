@@ -107,14 +107,14 @@ class Viewer:
     """Viewer -- a graphical tool to display and interact with Series objects.
 
     Args:
-        images: Series object or list of Series objects to view.
-        fig: matplotlib.plt.figure if already exist (optional).
-        ax: matplotlib axis if already exist (optional).
-        follow: Copy ROI to next tag. Default: False.
-        cmap: Colour map for display. Default: gray.
-        windows: Window width of signal intensities. Default: DICOM Window Width.
-        level: Window level of signal intensities. Default: DICOM Window Center.
-        link: Whether scrolling is linked between displayed objects. Default: False.
+        images (Series or list): Series object or list of Series objects to view.
+        fig (Figure): matplotlib.plt.figure if already exist (optional).
+        ax (Axes): matplotlib axis if already exist (optional).
+        follow (bool): Copy ROI to next tag. Default: False.
+        cmap (str): Colour map for display. Default: gray.
+        windows (number): Window width of signal intensities. Default: DICOM Window Width.
+        level (number): Window level of signal intensities. Default: DICOM Window Center.
+        link (bool): Whether scrolling is linked between displayed objects. Default: False.
 
     """
 
