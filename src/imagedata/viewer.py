@@ -264,27 +264,30 @@ class Viewer:
 
     def connect_draw(self, roi=None, color='w'):
         self.poly_color = color
+        idx = self.im[0]['idx']
         if roi is None:
             self.poly = {}
             self.vertices = {}
-            #if self.follow:  # 4D
-            #    self.poly = {}
-            #    self.vertices = {}
-            #    # Array = [ [0] * c for i in range(r) ]
-            #    #for t in range(self.im[0]['tags']):
-            #    #    self.poly.append([None for idx in range(self.im[0]['slices'])])
-            #    #    self.vertices.append([None for idx in range(self.im[0]['slices'])])
-            #else:
-            #    self.poly = [None for idx in range(self.im[0]['slices'])]
-            #    self.vertices = [None for idx in range(self.im[0]['slices'])]
+            if self.follow:
+                self.poly[0, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+            else:
+                self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
         else:
-            # TODO
-            raise Exception('Not implemented: connect_draw(roi)')
-        idx = self.im[0]['idx']
-        if self.follow:
-            self.poly[0, idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
-        else:
-            self.poly[idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+            self.poly = {}
+            self.vertices = roi
+            if self.follow:
+                for tag in range(self.im[0]['tags']):
+                    for idx in range(self.im[0]['slices']):
+                        verts = None
+                        if (tag, idx) in self.vertices:
+                            verts = self.vertices[tag, idx]
+                        self.poly[tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+            else:
+                for idx in range(self.im[0]['slices']):
+                    verts = None
+                    if idx in self.vertices:
+                        verts = self.vertices[idx]
+                    self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
         self.cidscroll = self.fig.canvas.mpl_connect('scroll_event', self.scroll)
         self.cidkeypress = self.fig.canvas.mpl_connect('key_press_event', self.key_press)
 
@@ -447,7 +450,7 @@ class Viewer:
                 self.poly[new_idx].set_visible(True)
                 self.poly[new_idx].update()
             else:
-                self.poly[new_idx] = PolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+                self.poly[new_idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
