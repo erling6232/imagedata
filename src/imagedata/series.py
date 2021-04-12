@@ -750,7 +750,7 @@ class Series(np.ndarray):
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
                 for _slice in range(self.slices):
-                    loc[_slice] = np.inner(normal, self.imagePositions[_slice])
+                    loc[_slice] = np.inner(normal, self.imagePositions[_slice].flatten())
                 self.header.sliceLocations = loc
                 return self.header.sliceLocations
         except AttributeError:
@@ -1822,7 +1822,7 @@ class Series(np.ndarray):
         """Let user draw ROI on image
 
         Args:
-            roi: Predefined ROI (optional) (NOT IMPLEMENTED).
+            roi: Predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice], each is list of (x,y) pairs.
             color (str): Color of polygon ROI. Default: 'r'.
             follow: (bool) Copy ROI to next tag. Default: False.
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
