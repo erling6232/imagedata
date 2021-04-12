@@ -242,6 +242,8 @@ class DICOMPlugin(AbstractPlugin):
         # pydicom.config.debug(True)
         try:
             hdr, shape = self.read_headers(sources, input_order, opts, skip_pixels=True)
+        except imagedata.formats.CannotSort:
+            raise
         except Exception as e:
             logging.debug('DICOMPlugin.read: exception\n%s' % e)
             raise imagedata.formats.NotImageError('{}'.format(e))
@@ -304,8 +306,8 @@ class DICOMPlugin(AbstractPlugin):
                 # idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
-                        'AcceptDuplicateTag' in opts['input_options'] and \
-                        opts['input_options']['AcceptDuplicateTag'] == 'True':
+                        'AcceptDuplicateTag' in opts and \
+                        opts['AcceptDuplicateTag'] == 'True':
                     while _done[idx]:
                         idx += 1
                 _done[idx] = True
@@ -499,7 +501,6 @@ class DICOMPlugin(AbstractPlugin):
                 - shape: tuple
         """
         logging.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
-        self._default_opts(opts)
 
         image_dict = {}
         for source in sources:
@@ -564,11 +565,11 @@ class DICOMPlugin(AbstractPlugin):
             islice += 1
         logging.debug("sort_images: tags per slice: {}".format(count))
         accept_uneven_slices = accept_duplicate_tag = False
-        if 'accept_uneven_slices' in opts['input_options'] and \
-                opts['input_options']['accept_uneven_slices'] == 'True':
+        if 'accept_uneven_slices' in opts and \
+                opts['accept_uneven_slices'] == 'True':
             accept_uneven_slices = True
-        if 'accept_duplicate_tag' in opts['input_options'] and \
-                opts['input_options']['accept_duplicate_tag'] == 'True':
+        if 'accept_duplicate_tag' in opts and \
+                opts['accept_duplicate_tag'] == 'True':
             accept_duplicate_tag = True
         if min(count) != max(count) and accept_uneven_slices:
             logging.error("sort_images: tags per slice: {}".format(count))
@@ -588,7 +589,7 @@ class DICOMPlugin(AbstractPlugin):
                 if tag not in tag_list[islice] or accept_duplicate_tag:
                     tag_list[islice].append(tag)
                 else:
-                    print("WARNING: Duplicate tag", tag)
+                    raise imagedata.formats.CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
                 i += 1
             islice += 1
         for islice in range(len(header_dict)):
@@ -685,7 +686,7 @@ class DICOMPlugin(AbstractPlugin):
                 return
 
         try:
-            sloc = im.SliceLocation
+            sloc = float(im.SliceLocation)
         except AttributeError:
             # traceback.print_exc()
             # logging.debug("process_member: no SliceLocation in {}".format(member_name))
@@ -757,14 +758,6 @@ class DICOMPlugin(AbstractPlugin):
                 raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
         return timesteps.max()
 
-    @staticmethod
-    def _default_opts(opts):
-        """Make sure that required options are set.
-        """
-
-        if 'input_options' not in opts:
-            opts['input_options'] = {}
-
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D Series image as DICOM files
 
@@ -804,9 +797,7 @@ class DICOMPlugin(AbstractPlugin):
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
         logging.debug("write_3d_series {}".format(self.serInsUid))
-        self.input_options = {}
-        if 'input_options' in opts:
-            self.input_options = opts['input_options']
+        self.input_options = opts
 
         ifile = 0
         if _ndim < 3:
@@ -886,9 +877,7 @@ class DICOMPlugin(AbstractPlugin):
         # self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
-        self.input_options = {}
-        if 'input_options' in opts:
-            self.input_options = opts['input_options']
+        self.input_options = opts
 
         if self.output_sort == imagedata.formats.SORT_ON_SLICE:
             ifile = 0
@@ -1240,19 +1229,17 @@ class DICOMPlugin(AbstractPlugin):
     def _get_tag(im, input_order, opts):
 
         # Example: _tag = choose_tag('b', 'csa_header')
-        choose_tag = lambda tag, default: opts['input_options'][tag] if tag in opts['input_options'] else default
+        choose_tag = lambda tag, default: opts[tag] if tag in opts else default
 
         if input_order is None:
             return 0
         if input_order == imagedata.formats.INPUT_ORDER_NONE:
             return 0
         elif input_order == imagedata.formats.INPUT_ORDER_TIME:
-            # return image.AcquisitionTime
-            assert 'input_options' in opts, 'No input_options in opts'
             time_tag = choose_tag('time', 'AcquisitionTime')
-            # if 'TriggerTime' in opts['input_options']:
+            # if 'TriggerTime' in opts:
             #    return(float(image.TriggerTime))
-            # elif 'InstanceNumber' in opts['input_options']:
+            # elif 'InstanceNumber' in opts:
             #    return(float(image.InstanceNumber))
             # else:
             if im.data_element(time_tag).VR == 'TM':
@@ -1269,20 +1256,23 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 return float(im.data_element(time_tag).value)
         elif input_order == imagedata.formats.INPUT_ORDER_B:
-            # b_tag = opts['input_options']['b'] if 'b' in opts['input_options'] else b_tag = 'csa_header'
+            b_tag = choose_tag('b', 'DiffusionBValue')
+            try:
+                return float(im.data_element(b_tag).value)
+            except (KeyError, TypeError):
+                pass
             b_tag = choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
                 import nibabel.nicom.csareader as csa
                 csa_head = csa.get_csa_header(im)
                 try:
                     value = csa.get_b_value(csa_head)
-                except Exception:
-                    raise ValueError("Unable to extract b value from header.")
+                except TypeError:
+                    raise imagedata.formats.CannotSort("Unable to extract b value from header.")
             else:
                 value = float(im.data_element(b_tag).value)
             return value
         elif input_order == imagedata.formats.INPUT_ORDER_FA:
-            # fa_tag = opts['input_options']['fa'] if 'fa' in opts['input_options'] else 'FlipAngle'
             fa_tag = choose_tag('fa', 'FlipAngle')
             return float(im.data_element(fa_tag).value)
         elif input_order == imagedata.formats.INPUT_ORDER_TE:
@@ -1290,8 +1280,8 @@ class DICOMPlugin(AbstractPlugin):
             return float(im.data_element(te_tag).value)
         else:
             # User-defined tag
-            if input_order in opts['input_options']:
-                _tag = opts['input_options'][input_order]
+            if input_order in opts:
+                _tag = opts[input_order]
                 return float(im.data_element(_tag).value)
         raise (UnknownTag("Unknown input_order {}.".format(input_order)))
 
@@ -1323,7 +1313,7 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 im.data_element(time_tag).value = float(value)
         elif input_order == imagedata.formats.INPUT_ORDER_B:
-            # b_tag = opts['input_options']['b'] if 'b' in opts['input_options'] else b_tag = 'csa_header'
+            # b_tag = opts['b'] if 'b' in opts else b_tag = 'csa_header'
             b_tag = choose_tag('b', "csa_header")
             if b_tag == "csa_header":
                 import nibabel.nicom.csareader as csa
@@ -1336,7 +1326,6 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 im.data_element(b_tag).value = float(value)
         elif input_order == imagedata.formats.INPUT_ORDER_FA:
-            # fa_tag = opts['input_options']['fa'] if 'fa' in opts['input_options'] else 'FlipAngle'
             fa_tag = choose_tag('fa', 'FlipAngle')
             im.data_element(fa_tag).value = float(value)
         elif input_order == imagedata.formats.INPUT_ORDER_TE:
