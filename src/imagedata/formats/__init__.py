@@ -45,6 +45,10 @@ class NotTimeOrder(Exception):
     pass
 
 
+class CannotSort(Exception):
+    pass
+
+
 class SOPInstanceUIDNotFound(Exception):
     pass
 
