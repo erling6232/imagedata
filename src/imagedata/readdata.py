@@ -45,6 +45,7 @@ def read(urls, order=None, opts=None):
         UnknownOptionType: When opts cannot be made into a dict.
         FileNotFoundError: When specified URL cannot be opened.
         imagedata.formats.UnknownInputError: When the input format could not be determined.
+        imagedata.formats.CannotSort: When input data cannot be sorted.
     """
 
     logging.debug("reader.read: urls {}".format(urls))
@@ -110,7 +111,7 @@ def read(urls, order=None, opts=None):
             add_template(hdr, pre_hdr)
             add_geometry(hdr, geom_hdr)
             return hdr, si
-        except FileNotFoundError:
+        except (FileNotFoundError, imagedata.formats.CannotSort):
             raise
         except imagedata.formats.NotImageError as e:
             logging.info("Giving up {}: {}".format(ptype, e))
