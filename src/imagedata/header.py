@@ -181,7 +181,7 @@ def add_template(this, template):
             if attr in header_tags and attr != 'seriesInstanceUID':
                 setattr(this, attr, getattr(template, attr, None))
         # Make sure DicomHeaderDict is set last
-        templateDHD = getattr(template,'DicomHeaderDict',None)
+        templateDHD = getattr(template, 'DicomHeaderDict', None)
         if templateDHD is not None:
             setattr(this, 'DicomHeaderDict',
                     __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
@@ -198,9 +198,11 @@ def add_template(this, template):
                 setattr(this, 'DicomHeaderDict',
                         __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
             elif issubclass(type(this), dict):
-                this['DicomHeaderDict'] = copy.copy(__make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
+                this['DicomHeaderDict'] = copy.copy(
+                    __make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
     else:
         raise ValueError('Template is not Header or dict.')
+
 
 def __get_tags_and_slices(obj):
     slices = tags = 1
@@ -218,6 +220,7 @@ def __get_tags_and_slices(obj):
         elif axis.name not in {'row', 'column', 'rgb'}:
             tags = len(axis)
     return tags, slices
+
 
 def __make_DicomHeaderDict_from_template(this, template):
     DicomHeaderDict = {}
@@ -237,6 +240,7 @@ def __make_DicomHeaderDict_from_template(this, template):
             DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
     return DicomHeaderDict
 
+
 def __make_tags_from_template(this, template):
     tag_dict = {}
     tags, slices = __get_tags_and_slices(this)
@@ -254,6 +258,7 @@ def __make_tags_from_template(this, template):
             tag_dict[_slice].append(template_tag)
     return tag_dict
 
+
 def __make_axes_from_template(this, template_axes):
     axes = []
     # tags, slices = __get_tags_and_slices(this)
@@ -266,6 +271,7 @@ def __make_axes_from_template(this, template_axes):
     else:
         raise ValueError("Too few dimension in geometry template.")
     return axes
+
 
 def add_geometry(this, template):
     """Add geometry data to this header.
@@ -311,4 +317,3 @@ def add_geometry(this, template):
                 this['axes'] = copy.copy(__make_axes_from_template(this, template['axes']))
     else:
         raise ValueError('Template is not Header or dict.')
-
