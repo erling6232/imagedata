@@ -247,12 +247,25 @@ def __make_tags_from_template(this, template):
                 template_tag = template[_slice][tag][0]
             except KeyError:
                 template_tag = tag
-            except TypeError:
+            except (TypeError, IndexError):
                 template_tag = template[_slice][tag]
             except Exception as e:
                 raise
             tag_dict[_slice].append(template_tag)
     return tag_dict
+
+def __make_axes_from_template(this, template_axes):
+    axes = []
+    # tags, slices = __get_tags_and_slices(this)
+    if issubclass(type(this), Header):
+        ndim = len(this.axes)
+    else:
+        ndim = len(this['axes'])
+    if len(template_axes) >= ndim:
+        axes = template_axes[-ndim:]
+    else:
+        raise ValueError("Too few dimension in geometry template.")
+    return axes
 
 def add_geometry(this, template):
     """Add geometry data to this header.
@@ -270,14 +283,16 @@ def add_geometry(this, template):
         raise ValueError('Object is not Header or dict.')
     if issubclass(type(template), Header):
         for attr in template.__dict__:
-            if attr in geometry_tags:
+            if attr in geometry_tags and attr not in ['tags', 'axes']:
                 setattr(this, attr, getattr(template, attr, None))
-        # Make sure tags are set last
+        # Make sure tags and axes are set last
         setattr(this, 'tags',
                 __make_tags_from_template(this, getattr(template, 'tags', None)))
+        setattr(this, 'axes',
+                __make_axes_from_template(this, getattr(template, 'axes', None)))
     elif issubclass(type(template), dict):
         for attr in template:
-            if attr in geometry_tags:
+            if attr in geometry_tags and attr not in ['tags', 'axes']:
                 if issubclass(type(this), Header):
                     setattr(this, attr, copy.copy(template[attr]))
                 elif issubclass(type(this), dict):
@@ -288,6 +303,12 @@ def add_geometry(this, template):
                         __make_tags_from_template(this, getattr(template, 'tags', None)))
             elif issubclass(type(this), dict):
                 this['tags'] = copy.copy(__make_tags_from_template(this, template['tags']))
+        if 'axes' in template:
+            if issubclass(type(this), Header):
+                setattr(this, 'axes',
+                        __make_axes_from_template(this, getattr(template, 'axes', None)))
+            elif issubclass(type(this), dict):
+                this['axes'] = copy.copy(__make_axes_from_template(this, template['axes']))
     else:
         raise ValueError('Template is not Header or dict.')
 
