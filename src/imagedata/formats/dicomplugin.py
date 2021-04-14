@@ -121,9 +121,10 @@ class DICOMPlugin(AbstractPlugin):
         frame_uid = self.getDicomAttribute(tag_for_keyword('FrameOfReferenceUID'))
         if frame_uid:
             hdr['frameOfReferenceUID'] = frame_uid
-        hdr['seriesNumber'] = self.getDicomAttribute(tag_for_keyword("SeriesNumber"))
-        hdr['seriesDescription'] = self.getDicomAttribute(tag_for_keyword("SeriesDescription"))
-        hdr['imageType'] = self.getDicomAttribute(tag_for_keyword("ImageType"))
+        hdr['SOPClassUID'] = self.getDicomAttribute(tag_for_keyword('SOPClassUID'))
+        hdr['seriesNumber'] = self.getDicomAttribute(tag_for_keyword('SeriesNumber'))
+        hdr['seriesDescription'] = self.getDicomAttribute(tag_for_keyword('SeriesDescription'))
+        hdr['imageType'] = self.getDicomAttribute(tag_for_keyword('ImageType'))
 
         hdr['accessionNumber'] = self.getDicomAttribute(tag_for_keyword('AccessionNumber'))
         hdr['patientName'] = self.getDicomAttribute(tag_for_keyword('PatientName'))
@@ -141,8 +142,8 @@ class DICOMPlugin(AbstractPlugin):
 
         # Extract imagePositions
         hdr['imagePositions'] = {}
-        for slice in hdr['DicomHeaderDict']:
-            hdr['imagePositions'][slice] = self.getOriginForSlice(slice)
+        for _slice in hdr['DicomHeaderDict']:
+            hdr['imagePositions'][_slice] = self.getOriginForSlice(_slice)
 
     def __get_voxel_spacing(self):
         # Spacing
@@ -173,8 +174,8 @@ class DICOMPlugin(AbstractPlugin):
             value: Set attribute to this value.
         """
         if self.DicomHeaderDict is not None:
-            for slice in self.DicomHeaderDict:
-                for tg, fname, im in self.DicomHeaderDict[slice]:
+            for _slice in self.DicomHeaderDict:
+                for tg, fname, im in self.DicomHeaderDict[_slice]:
                     if tag not in im:
                         VR = pydicom.datadict.dictionary_VR(tag)
                         im.add_new(tag, VR, value)
@@ -201,8 +202,8 @@ class DICOMPlugin(AbstractPlugin):
         Ignore if no real dicom header exists.
         """
         if self.DicomHeaderDict is not None:
-            for slice in self.DicomHeaderDict:
-                for tg, fname, im in self.DicomHeaderDict[slice]:
+            for _slice in self.DicomHeaderDict:
+                for tg, fname, im in self.DicomHeaderDict[_slice]:
                     im.remove_private_tags()
 
     def read(self, sources, pre_hdr, input_order, opts):
@@ -293,17 +294,17 @@ class DICOMPlugin(AbstractPlugin):
         si = np.zeros(shape, matrix_dtype)
         # process = psutil.Process()
         # print(process.memory_info())
-        for slice in hdr['DicomHeaderDict']:
+        for _slice in hdr['DicomHeaderDict']:
             # noinspection PyUnusedLocal
-            _done = [False for x in range(len(hdr['DicomHeaderDict'][slice]))]
-            for tag, member_name, im in hdr['DicomHeaderDict'][slice]:
+            _done = [False for x in range(len(hdr['DicomHeaderDict'][_slice]))]
+            for tag, member_name, im in hdr['DicomHeaderDict'][_slice]:
                 archive, fname = member_name
                 member = archive.getmembers([fname, ])
                 if len(member) != 1:
                     raise IndexError('Should not be multiple files for a filename')
                 member = member[0]
-                tgs = np.array(hdr['tags'][slice])
-                # idx = np.where(hdr.tags[slice] == tag)[0][0] # tags is not numpy array
+                tgs = np.array(hdr['tags'][_slice])
+                # idx = np.where(hdr.tags[_slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
                         'AcceptDuplicateTag' in opts and \
@@ -313,9 +314,9 @@ class DICOMPlugin(AbstractPlugin):
                 _done[idx] = True
                 if 'NumberOfFrames' in im:
                     if im.NumberOfFrames == 1:
-                        idx = (idx, slice)
+                        idx = (idx, _slice)
                 else:
-                    idx = (idx, slice)
+                    idx = (idx, _slice)
                 # Simplify index when image is 3D, remove tag index
                 if si.ndim == 3 + _color:
                     idx = idx[1:]
@@ -361,8 +362,7 @@ class DICOMPlugin(AbstractPlugin):
         """Get pixels from image object. Reshape image to given shape
 
         Args:
-            self: format plugin instance
-            image: dicom image
+            im: dicom image
             shape: requested image shape
         Returns:
             si: numpy array of given shape
@@ -713,34 +713,34 @@ class DICOMPlugin(AbstractPlugin):
         new_shape = (timesteps, slices, si.shape[2], si.shape[3])
         newsi = np.zeros(new_shape, dtype=si.dtype)
         acq = np.zeros([slices, timesteps])
-        for slice in hdr['DicomHeaderDict']:
+        for _slice in hdr['DicomHeaderDict']:
             t = 0
-            for tg, fname, im in hdr['DicomHeaderDict'][slice]:
-                # logging.debug(slice, tg, fname)
-                acq[slice, t] = tg
+            for tg, fname, im in hdr['DicomHeaderDict'][_slice]:
+                # logging.debug(_slice, tg, fname)
+                acq[_slice, t] = tg
                 t += 1
 
         # Correct acqtimes by setting acqtime for each slice of a volume to
         # the smallest time
         for t in range(acq.shape[1]):
             min_acq = np.min(acq[:, t])
-            for slice in range(acq.shape[0]):
-                acq[slice, t] = min_acq
+            for _slice in range(acq.shape[0]):
+                acq[_slice, t] = min_acq
 
         # Set new acqtime for each image
-        for slice in hdr['DicomHeaderDict']:
+        for _slice in hdr['DicomHeaderDict']:
             t = 0
-            for tg, fname, im in hdr['DicomHeaderDict'][slice]:
-                im.AcquisitionTime = "%f" % acq[slice, t]
-                newsi[t, slice, :, :] = si[t, slice, :, :]
+            for tg, fname, im in hdr['DicomHeaderDict'][_slice]:
+                im.AcquisitionTime = "%f" % acq[_slice, t]
+                newsi[t, _slice, :, :] = si[t, _slice, :, :]
                 t += 1
 
         # Update taglist in hdr
         new_tag_list = {}
-        for slice in hdr['DicomHeaderDict']:
-            new_tag_list[slice] = []
+        for _slice in hdr['DicomHeaderDict']:
+            new_tag_list[_slice] = []
             for t in range(acq.shape[1]):
-                new_tag_list[slice].append(acq[0, t])
+                new_tag_list[_slice].append(acq[0, t])
         hdr['tags'] = new_tag_list
         return newsi
 
@@ -749,11 +749,11 @@ class DICOMPlugin(AbstractPlugin):
     def _count_timesteps(hdr):
         slices = len(hdr['sliceLocations'])
         timesteps = np.zeros([slices], dtype=int)
-        for slice in hdr['DicomHeaderDict']:
-            # for tg, fname, image in hdr['DicomHeaderDict'][slice]:
-            # for _ in hdr['DicomHeaderDict'][slice]:
-            #    timesteps[slice] += 1
-            timesteps[slice] = len(hdr['DicomHeaderDict'][slice])
+        for _slice in hdr['DicomHeaderDict']:
+            # for tg, fname, image in hdr['DicomHeaderDict'][_slice]:
+            # for _ in hdr['DicomHeaderDict'][_slice]:
+            #    timesteps[_slice] += 1
+            timesteps[_slice] = len(hdr['DicomHeaderDict'][_slice])
             if timesteps.min() != timesteps.max():
                 raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
         return timesteps.max()
@@ -799,23 +799,29 @@ class DICOMPlugin(AbstractPlugin):
         logging.debug("write_3d_series {}".format(self.serInsUid))
         self.input_options = opts
 
-        ifile = 0
-        if _ndim < 3:
-            logging.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
-            try:
-                filename = filename_template % 0
-            except TypeError:
-                filename = filename_template
-            self.write_slice(0, 0, si, archive, filename, ifile)
+        if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
+                pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedCTImageStorage':
+            # Write Enhanced CT/MR
+            self.write_enhanced(si, archive, filename_template)
         else:
-            logging.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
-            for slice in range(si.slices):
+            # Either legacy CT/MR, or another modality
+            ifile = 0
+            if _ndim < 3:
+                logging.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
                 try:
-                    filename = filename_template % slice
+                    filename = filename_template % 0
                 except TypeError:
-                    filename = filename_template + "_{}".format(slice)
-                self.write_slice(0, slice, si[slice], archive, filename, ifile)
-                ifile += 1
+                    filename = filename_template
+                self.write_slice(0, 0, si, archive, filename, ifile)
+            else:
+                logging.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
+                for _slice in range(si.slices):
+                    try:
+                        filename = filename_template % _slice
+                    except TypeError:
+                        filename = filename_template + "_{}".format(_slice)
+                    self.write_slice(0, _slice, si[_slice], archive, filename, ifile)
+                    ifile += 1
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
@@ -832,7 +838,7 @@ class DICOMPlugin(AbstractPlugin):
 
         Args:
             self: DICOMPlugin instance
-            si[tag,slice,rows,columns]: Series array
+            si: Series array si[tag,slice,rows,columns]
             destination: dict of archive and filenames
             opts: Output options (dict)
 
@@ -879,40 +885,175 @@ class DICOMPlugin(AbstractPlugin):
         self.serInsUid = si.header.new_uid()
         self.input_options = opts
 
-        if self.output_sort == imagedata.formats.SORT_ON_SLICE:
-            ifile = 0
-            digits = len("{}".format(steps))
-            for tag in range(steps):
-                for slice in range(si.slices):
-                    if self.output_dir == 'single':
-                        filename = filename_template % ifile
-                    else:  # self.output_dir == 'multi'
-                        dirn = "{0}{1:0{2}}".format(
-                            imagedata.formats.input_order_to_dirname_str(si.input_order),
-                            tag, digits)
-                        if slice == 0:
-                            # Restart file number in each subdirectory
-                            ifile = 0
-                        filename = os.path.join(dirn,
-                                                filename_template % ifile)
-                    self.write_slice(tag, slice, si[tag, slice], archive, filename, ifile)
-                    ifile += 1
-        else:  # self.output_sort == imagedata.formats.SORT_ON_TAG:
-            ifile = 0
-            digits = len("{}".format(si.slices))
-            for slice in range(si.slices):
+        if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
+                pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedCTImageStorage':
+            # Write Enhanced CT/MR
+            self.write_enhanced(si, archive, filename_template)
+        else:
+            # Either legacy CT/MR, or another modality
+            if self.output_sort == imagedata.formats.SORT_ON_SLICE:
+                ifile = 0
+                digits = len("{}".format(steps))
                 for tag in range(steps):
-                    if self.output_dir == 'single':
-                        filename = filename_template % ifile
-                    else:  # self.output_dir == 'multi'
-                        dirn = "slice{0:0{1}}".format(slice, digits)
-                        if tag == 0:
-                            # Restart file number in each subdirectory
-                            ifile = 0
-                        filename = os.path.join(dirn,
-                                                filename_template % ifile)
-                    self.write_slice(tag, slice, si[tag, slice], archive, filename, ifile)
-                    ifile += 1
+                    for _slice in range(si.slices):
+                        if self.output_dir == 'single':
+                            filename = filename_template % ifile
+                        else:  # self.output_dir == 'multi'
+                            dirn = "{0}{1:0{2}}".format(
+                                imagedata.formats.input_order_to_dirname_str(si.input_order),
+                                tag, digits)
+                            if _slice == 0:
+                                # Restart file number in each subdirectory
+                                ifile = 0
+                            filename = os.path.join(dirn,
+                                                    filename_template % ifile)
+                        self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
+                        ifile += 1
+            else:  # self.output_sort == imagedata.formats.SORT_ON_TAG:
+                ifile = 0
+                digits = len("{}".format(si.slices))
+                for _slice in range(si.slices):
+                    for tag in range(steps):
+                        if self.output_dir == 'single':
+                            filename = filename_template % ifile
+                        else:  # self.output_dir == 'multi'
+                            dirn = "slice{0:0{1}}".format(_slice, digits)
+                            if tag == 0:
+                                # Restart file number in each subdirectory
+                                ifile = 0
+                            filename = os.path.join(dirn,
+                                                    filename_template % ifile)
+                        self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
+                        ifile += 1
+
+    def write_enhanced(self, si, archive, filename_template):
+        """Write enhanced CT/MR object to DICOM file
+
+        Args:
+            self: DICOMPlugin instance
+            si: Series instance, including these attributes:
+            archive: archive object
+            filename_template: file name template, possible without '.dcm' extension
+        Raises:
+
+        """
+        logging.debug("write_enhanced {} {}".format(filename, self.serInsUid))
+
+        if np.issubdtype(si.dtype, np.floating):
+            safe_si = np.nan_to_num(si)
+        else:
+            safe_si = si
+
+        try:
+            tg, member_name, im = si.DicomHeaderDict[0][0]
+        except (KeyError, IndexError):
+            raise IndexError("Cannot address dicom_template.DicomHeaderDict[0][0]")
+        except ValueError:
+            raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
+        logging.debug("write_enhanced member_name {}".format(member_name))
+        ds = self.construct_enhanced_dicom(filename_template, im, safe_si)
+
+        # Add header information
+        try:
+            ds.SliceLocation = si.sliceLocations[0]
+        except (AttributeError, ValueError):
+            # Dont know the SliceLocation, attempt to calculate from image geometry
+            try:
+                ds.SliceLocation = self._calculate_slice_location(im)
+            except ValueError:
+                # Dont know the SliceLocation, so will set this to be the slice index
+                ds.SliceLocation = slice
+        try:
+            dz, dy, dx = si.spacing
+        except ValueError:
+            dz, dy, dx = 1, 1, 1
+        ds.PixelSpacing = [str(dy), str(dx)]
+        ds.SliceThickness = str(dz)
+        try:
+            ipp = si.imagePositions
+            if len(ipp) > 0:
+                ipp = ipp[0]
+            else:
+                ipp = np.array([0, 0, 0])
+        except ValueError:
+            ipp = np.array([0, 0, 0])
+        if ipp.shape == (3, 1):
+            ipp.shape = (3,)
+        z, y, x = ipp[:]
+        ds.ImagePositionPatient = [str(x), str(y), str(z)]
+        # Reverse orientation vectors from zyx to xyz
+        try:
+            ds.ImageOrientationPatient = [
+                si.orientation[2], si.orientation[1], si.orientation[0],
+                si.orientation[5], si.orientation[4], si.orientation[3]]
+        except ValueError:
+            ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
+        try:
+            ds.SeriesNumber = si.seriesNumber
+        except ValueError:
+            ds.SeriesNumber = 1
+        try:
+            ds.SeriesDescription = si.seriesDescription
+        except ValueError:
+            ds.SeriesDescription = ''
+        try:
+            ds.ImageType = "\\".join(si.imageType)
+        except ValueError:
+            ds.ImageType = 'DERIVED\\SECONDARY'
+        try:
+            ds.FrameOfReferenceUID = si.frameOfReferenceUID
+        except ValueError:
+            pass
+
+        ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries)
+        ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries)
+        ds[0x0028, 0x0108].VR = 'US'
+        ds[0x0028, 0x0109].VR = 'US'
+        ds.WindowCenter = self.center
+        ds.WindowWidth = self.width
+        if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
+            ds.SmallestImagePixelValue = np.uint16(safe_si.min().astype('uint16'))
+            ds.LargestImagePixelValue = np.uint16(safe_si.max().astype('uint16'))
+            if 'RescaleSlope' in ds:
+                del ds.RescaleSlope
+            if 'RescaleIntercept' in ds:
+                del ds.RescaleIntercept
+        else:
+            ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
+            ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
+            try:
+                ds.RescaleSlope = "%f" % self.a
+            except OverflowError:
+                ds.RescaleSlope = "%d" % int(self.a)
+            ds.RescaleIntercept = "%f" % self.b
+        ds[0x0028, 0x0106].VR = 'US'
+        ds[0x0028, 0x0107].VR = 'US'
+        # General Image Module Attributes
+        ds.InstanceNumber = 1
+        ds.ContentDate = self.today
+        ds.ContentTime = self.now
+        # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
+        ds.Rows = si.rows
+        ds.Columns = si.columns
+        self._insert_pixeldata(ds, safe_si)
+        # logging.debug("write_slice: filename {}".format(filename))
+
+        # Set tag
+        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
+
+        if len(os.path.splitext(filename)[1]) > 0:
+            fn = filename
+        else:
+            fn = filename + '.dcm'
+        logging.debug("write_slice: filename {}".format(fn))
+        # if archive.transport.name == 'dicom':
+        #     # Store dicom set ds directly
+        #     archive.transport.store(ds)
+        # else:
+        #     # Store dicom set ds as file
+        #     with archive.open(fn, 'wb') as f:
+        #         ds.save_as(f, write_like_original=False)
+        raise ValueError("write_enhanced: to be implemented")
 
     # noinspection PyPep8Naming,PyArgumentList
     def write_slice(self, tag, slice, si, archive, filename, ifile):
@@ -946,7 +1087,6 @@ class DICOMPlugin(AbstractPlugin):
         if np.issubdtype(si.dtype, np.floating):
             safe_si = np.nan_to_num(si)
         else:
-            # safe_si = si.copy()
             safe_si = si
 
         try:
@@ -1298,7 +1438,7 @@ class DICOMPlugin(AbstractPlugin):
             # AcquisitionTime
             time_tag = choose_tag("time", "AcquisitionTime")
             if time_tag not in im:
-                VR = pydicom.datadict.dictionary_VR(_tag)
+                VR = pydicom.datadict.dictionary_VR(time_tag)
                 if VR == 'TM':
                     im.add_new(time_tag, VR,
                                datetime.utcfromtimestamp(float(0.0)).strftime("%H%M%S.%f")
