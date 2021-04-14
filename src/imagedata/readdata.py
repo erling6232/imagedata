@@ -188,6 +188,8 @@ def write(si, url, opts=None, formats=None):
         si.imageType = out_opts['imagetype']
     if 'frame' in out_opts and out_opts['frame']:
         si.frameOfReferenceUID = out_opts['frame']
+    if 'SOPClassUID' in out_opts and out_opts['SOPClassUID']:
+        si.SOPClassUID = out_opts['SOPClassUID']
 
     # Default output format is input format
     try:
