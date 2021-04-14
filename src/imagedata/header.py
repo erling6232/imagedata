@@ -17,6 +17,7 @@ header_tags = ['input_format',
                'seriesNumber',
                'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
+               'SOPClassUID',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
                'input_sort']
@@ -40,6 +41,7 @@ class Header(object):
         studyInstanceUID
         studyID
         seriesInstanceUID
+        SOPClassUID
         accessionNumber
         patientName
         patientID
@@ -80,6 +82,10 @@ class Header(object):
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
+        self.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
+        # pydicom.datadict.DicomDictionary
+        # from pydicom.uid import UID
+        # UID.
         self.color = False
         self.DicomHeaderDict = None
         self.tags = None
@@ -148,7 +154,7 @@ class Header(object):
         ds.StudyInstanceUID = self.studyInstanceUID
         ds.StudyID = '1'
         ds.SeriesInstanceUID = self.seriesInstanceUID
-        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # SC
+        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
         ds.SOPInstanceUID = SOPInsUID
         ds.FrameOfReferenceUID = self.frameOfReferenceUID
 
