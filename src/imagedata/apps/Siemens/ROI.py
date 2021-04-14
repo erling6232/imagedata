@@ -81,7 +81,7 @@ class ROI(object, metaclass=ABCMeta):
             colour: mask color
             fill: whether to fill interior of ROI
             self.points_matrix: polygon points
-            self.slice
+            self._slice
         Returns:
             binary img of shape [ny,nx]
         """
@@ -102,7 +102,7 @@ class ROI(object, metaclass=ABCMeta):
         canvas = self.create_canvas(mask.shape)
         self.draw_roi_on_canvas(canvas, colour=colour, threshold=threshold, fill=fill)
         if not self.slice:
-            print("ROI::draw_roi_on_numpy: no self.slice")
+            print("ROI::draw_roi_on_numpy: no self._slice")
         if self.slice:
             mask[self.slice, :, :] = np.logical_or(mask[self.slice, :, :], canvas)
         return mask
@@ -114,8 +114,8 @@ class ROI(object, metaclass=ABCMeta):
         for p in self.points_matrix:
             z, y, x = p
             if z != iz:
-                logging.debug("Point %d,%d,%d is not in slice %d." % (z, y, x, iz))
-                # raise ValueError("Point %d,%d,%d is not in slice %d." % (z,y,x,iz))
+                logging.debug("Point %d,%d,%d is not in _slice %d." % (z, y, x, iz))
+                # raise ValueError("Point %d,%d,%d is not in _slice %d." % (z,y,x,iz))
         return iz
 
     @staticmethod
@@ -175,7 +175,7 @@ class PolygonROI(ROI):
         Args:
             canvas: 2D [ny,nx]
             self.points_matrix: polygon points
-            self.slice
+            self._slice
             fill: whether to fill polygon interior
         Returns:
             canvas
@@ -255,7 +255,7 @@ class EllipseROI(ROI):
             canvas: 2D [ny,nx]
             fill: fill color
             self.points_matrix: polygon points
-            self.slice
+            self._slice
         Returns:
             canvas
         """
