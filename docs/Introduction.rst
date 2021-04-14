@@ -82,9 +82,9 @@ been adjusted. Next, slice 5 is stored to disk:
 
 .. code-block:: console
 
-   >>> # Extract slice no. 5
+   >>> # Extract _slice no. 5
    >>> slice5 = si[5,…]
    >>> slice5.sliceLocations
    array(6.8320046343748)
-   >>> # Save slice 5 to slice5/ directory
+   >>> # Save _slice 5 to slice5/ directory
    >>> slice5.write(’slice5/’)
