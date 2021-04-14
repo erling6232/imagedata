@@ -1,8 +1,6 @@
 import numpy as np
 
 
-# import logging
-
 def compare_headers(self, hdr, newhdr, uid=True):
     compare_template_headers(self, hdr, newhdr, uid)
     compare_geometry_headers(self, hdr, newhdr)
