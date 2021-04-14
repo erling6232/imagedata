@@ -127,6 +127,7 @@ def add_argparse_options(parser):
                         help="Second DICOM template for geometry attributes")
     parser.add_argument('--frame',
                         help="Set DICOM frame of reference uid")
+    parser.add_argument('--SOPClassUID', help="Set DICOM SOP Class UID", default=None)
     parser.add_argument('--sernum', type=int,
                         help="Set DICOM series number")
     parser.add_argument('--serdes',
