@@ -1072,7 +1072,7 @@ class Series(np.ndarray):
         # logging.debug("imagePositions set for keys {}".format(poslist.keys()))
         for _slice in poslist.keys():
             pos = poslist[_slice]
-            # logging.debug("imagePositions set slice {} to {}".format(slice,pos))
+            # logging.debug("imagePositions set _slice {} to {}".format(_slice,pos))
             assert isinstance(pos, np.ndarray), "Wrong datatype of position (%s)" % type(pos)
             assert len(pos) == 3, "Wrong size of pos (is %d, should be 3)" % len(pos)
             self.header.imagePositions[_slice] = np.array(pos)
@@ -1297,6 +1297,30 @@ class Series(np.ndarray):
             self.header.frameOfReferenceUID = str(uid)
         except AttributeError:
             raise TypeError("Given frame of reference UID is not printable")
+
+    @property
+    def SOPClassUID(self):
+        """DICOM SOP Class UID
+
+        Raises:
+            ValueError: when SOP Class UID is not set
+        """
+        try:
+            if self.header.SOPClassUID is not None:
+                return self.header.SOPClassUID
+        except AttributeError:
+            pass
+        raise ValueError("No SOP Class UID set.")
+
+    @SOPClassUID.setter
+    def SOPClassUID(self, uid):
+        if uid is None:
+            self.header.SOPClassUID = None
+            return
+        try:
+            self.header.SOPClassUID = imagedata.formats.dicomlib.uid.get_uid_for_storage_class(uid)
+        except ValueError:
+            raise
 
     @property
     def accessionNumber(self):
@@ -1554,9 +1578,9 @@ class Series(np.ndarray):
         #    orient.append(M[0,1]/dc)
         #    self.orientation = orient
         #    # Set imagePositions for additional slices
-        #    for slice in range(1,self.slices):
+        #    for _slice in range(1,self.slices):
         #        self.imagePositions = {
-        #            slice: self.getPositionForVoxel(np.array([slice,0,0]),
+        #            _slice: self.getPositionForVoxel(np.array([_slice,0,0]),
         #                transformation=M)
         #        }
 
