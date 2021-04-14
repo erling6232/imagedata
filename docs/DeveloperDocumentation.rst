@@ -18,8 +18,7 @@ Generate distribution packages for the imagedata:
 
 .. code-block:: bash
 
-    python3 setup.py sdist bdist_wheel
-    ls -l dist/
+    make all
 
 Uploading the distribution archives
 -----------------------------------
@@ -38,13 +37,13 @@ Run Twine to upload all of the archives under dist:
 
 .. code-block:: bash
 
-    python3 -m twine upload --repository testpypi dist/*
+    make test_upload
 
 You will be prompted for a username and password. For the username, use
 __token__. For the password, use the token value, including the pypi- prefix.
 
 Once uploaded your package should be viewable on TestPyPI, for example,
-https://test.pypi.org/project/example-pkg-YOUR-USERNAME-HERE
+https://test.pypi.org/project/imagedata
 
 Installing your newly uploaded package
 --------------------------------------
@@ -55,16 +54,16 @@ package from TestPyPI:
 
 .. code-block:: bash
 
-    python3 -m pip install --index-url https://test.pypi.org/simple/ --no-deps example-pkg-YOUR-USERNAME-HERE
+    python3 -m pip install --upgrade --index-url https://test.pypi.org/simple/ imagedata
 
 You can test that it was installed correctly by importing the package. Run the Python interpreter (make sure you’re still in your virtualenv):
 
 .. code-block:: console
 
     python3
-    import example_pkg
+    import imagedata
 
-Note that the import package is example_pkg regardless of what name you
+Note that the import package is imagedata regardless of what name you
 gave your distribution package in setup.py (in this case,
 example-pkg-YOUR-USERNAME-HERE).
 
@@ -75,31 +74,36 @@ From the package directory:
 
 .. code-block:: bash
 
-    python3 setup.py build_sphinx
+    make html
 
 Version numbers
 ---------------
 
 Bump patch number:
 
-.. code-block:: bash
+Edit VERSION.txt.
 
-    python3 -m incremental.update imagedata --patch
+Use version number 1.2.9dev0, ..dev1, etc., for development work.
 
-Set a new version:
+Use version number 1.2.9rc0, etc., for release candidates.
 
-.. code-block:: bash
+Use version number 1.2.9 for official release.
 
-    python3 -m incremental.update imagedata --newversion=<version>
-
-Set as release candidate:
+To label the github storage with VERSION.txt version:
 
 .. code-block:: bash
 
-    python3 -m incremental.update imagedata --patch --rc
+    make git
 
-Set as final release:
+Uploading official release
+-----------------------------------
+
+Make sure VERSION.txt has a valid version number.
 
 .. code-block:: bash
 
-    python3 -m incremental.update imagedata
+    make all
+    make git
+    make upload
+
+Then go to https://readthedocs.org/projects/imagedata/ and build documentation.
