@@ -23,6 +23,10 @@ These attributes can be set and interrogated directly from the Series object:
 | Series property         | DICOM                   | Usage                 |
 | name                    | Attribute Name          |                       |
 +=========================+=========================+=======================+
+|**SOP Common Module**                                                      |
++-------------------------+-------------------------+-----------------------+
+|SOPClassUID              |SOPClassUID              |str                    |
++-------------------------+-------------------------+-----------------------+
 |**Patient Module Attributes**                                              |
 +-------------------------+-------------------------+-----------------------+
 |patientName              |PatientName              |str                    |
