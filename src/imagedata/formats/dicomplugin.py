@@ -1036,7 +1036,7 @@ class DICOMPlugin(AbstractPlugin):
         ds.Rows = si.rows
         ds.Columns = si.columns
         self._insert_pixeldata(ds, safe_si)
-        # logging.debug("write_slice: filename {}".format(filename))
+        # logging.debug("write_enhanced: filename {}".format(filename))
 
         # Set tag
         self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
@@ -1045,7 +1045,7 @@ class DICOMPlugin(AbstractPlugin):
             fn = filename
         else:
             fn = filename + '.dcm'
-        logging.debug("write_slice: filename {}".format(fn))
+        logging.debug("write_enhanced: filename {}".format(fn))
         # if archive.transport.name == 'dicom':
         #     # Store dicom set ds directly
         #     archive.transport.store(ds)
