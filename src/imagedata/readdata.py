@@ -398,8 +398,8 @@ def _get_sources(urls, mode, opts=None):
                 transport: http, archive: zip
             dicom://server:port/AET
                 transport: dicom, archive: fs
-            xnat://server:port
-               transport: xnat, archive: fs
+            xnat://server:port/project/subject/experiment/scan
+               transport: xnat, archive: zip
         mode: 'r' or 'w' for Read or Write
             When mode = 'r', the urls must exist.
     Returns:
