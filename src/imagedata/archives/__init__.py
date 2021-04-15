@@ -138,6 +138,8 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
         opts = {}
     global plugins
     urldict = urllib.parse.urlsplit(url, scheme="file")
+    if urldict.scheme == 'xnat':
+        mimetype = 'application/zip'
     if mimetype is None:
         logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         return find_plugin('filesystem', url, mode, opts=opts)
