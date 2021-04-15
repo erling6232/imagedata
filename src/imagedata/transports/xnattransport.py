@@ -54,7 +54,14 @@ class XnatTransport(AbstractTransport):
         """Close the transport
         """
         if self.__must_upload:
-            raise IOError('Upload not implemented')
+            # Upload zip file to xnat
+            logging.debug("Upload to {}".format(self.__subject.label))
+            self.__session.services.import_(self.__zipfile,
+                                            project=self.__project,
+                                            subject=self.__subject.label,
+                                            experiment=self.__experiment,
+                                            trigger_pipelines=False,
+                                            overwrite='delete')
         if self.__tmpdir is not None:
             shutil.rmtree(self.__tmpdir)
 
