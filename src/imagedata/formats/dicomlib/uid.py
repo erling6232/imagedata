@@ -1,11 +1,10 @@
-#!/usr/bin/env python
-
 """DICOM UID tool."""
 
-# Copyright (c) 2013 Erling Andersen, Haukeland University Hospital
+# Copyright (c) 2013-2021 Erling Andersen, Haukeland University Hospital
 
-import os
+# import os
 import os.path
+import uuid
 import time
 import pydicom._uid_dict
 # from pydicom.uid import UID
@@ -18,7 +17,8 @@ def get_hostid() -> str:
     """
     global _hostid
     if _hostid is None:
-        _hostid = os.popen('hostid').read().strip()
+        # _hostid = os.popen('hostid').read().strip()
+        _hostid = hex(uuid.getnode())[2:]
     return _hostid
 
 
