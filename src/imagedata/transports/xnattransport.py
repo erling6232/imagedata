@@ -33,14 +33,16 @@ class XnatTransport(AbstractTransport):
         self.netloc = netloc
         self.opts = opts
         logging.debug("XnatTransport __init__ root: {}".format(root))
-        project, subject, experiment = root.split('/')[1:4]
+        try:
+            project, subject, experiment = root.split('/')[1:4]
+        except ValueError:
+            raise ValueError('Too few values in URL {}'.format(root))
         self.__mode = mode
         self.__local = False
         self.__must_upload = False
         self.__tmpdir = None
 
         self.__session = xnat.connect('https://'+self.netloc, verify=False)
-        # self.__session = xnat.connect(self.__root, verify=False)
         logging.debug("XnatTransport __init__ session: {}".format(self.__session))
         self.__project = self.__session.projects[project]
         logging.debug("XnatTransport __init__ project: {}".format(self.__project))
@@ -57,9 +59,9 @@ class XnatTransport(AbstractTransport):
             # Upload zip file to xnat
             logging.debug("Upload to {}".format(self.__subject.label))
             self.__session.services.import_(self.__zipfile,
-                                            project=self.__project,
-                                            subject=self.__subject.label,
-                                            experiment=self.__experiment,
+                                            project=self.__project.id,
+                                            subject=self.__subject.id,
+                                            experiment=self.__experiment.label,
                                             trigger_pipelines=False,
                                             overwrite='delete')
         if self.__tmpdir is not None:
@@ -74,12 +76,8 @@ class XnatTransport(AbstractTransport):
         """
         scan_id = top.split('/')[4]
 
-        filelist = []
         scan = self.__experiment.scans[scan_id]
         logging.debug("Scan: {}".format(scan))
-        # for file in scan.files:
-        #     filelist.append(file)
-        # return [(top, scan_id, filelist)]
         return [(top, scan_id, scan.files)]
 
     def isfile(self, path):
@@ -90,9 +88,9 @@ class XnatTransport(AbstractTransport):
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
-        scan_id = path.split('/')[4]
-        scan = self.__experiment.scans[scan_id]
         if mode[0] == 'r' and not self.__local:
+            scan_id = path.split('/')[4]
+            scan = self.__experiment.scans[scan_id]
             self.__tmpdir = tempfile.mkdtemp()
             if scan.quality == 'usable':
                 # scan.download_dir(self.__tmpdir)
@@ -100,7 +98,9 @@ class XnatTransport(AbstractTransport):
                 scan.download(self.__zipfile)
                 self.__local = True
         elif mode[0] == 'w' and not self.__local:
-            pass
+            self.__tmpdir = tempfile.mkdtemp()
+            self.__zipfile = os.path.join(self.__tmpdir, 'upload.zip')
+            self.__local = True
             self.__must_upload = True
         if self.__local:
             return io.FileIO(self.__zipfile, mode)
