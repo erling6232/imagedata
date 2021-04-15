@@ -50,7 +50,6 @@ class XnatTransport(AbstractTransport):
         self.__experiment = self.__subject.experiments[experiment]
         logging.debug("Experiment: {}".format(experiment))
 
-
     def close(self):
         """Close the transport
         """
