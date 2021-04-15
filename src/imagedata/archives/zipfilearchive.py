@@ -118,14 +118,26 @@ class ZipfileArchive(AbstractArchive, ABC):
             # netloc = urldict.path
             # netloc: where is zipfile
             # self.__path: zipfile name
-            netloc, self.__path = os.path.split(urldict.path)
-            logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
-                          (urldict.scheme, netloc))
-            self.__transport = imagedata.transports.find_scheme_plugin(
-                urldict.scheme,
-                root=netloc,
-                mode=mode,
-                read_directory_only=read_directory_only)
+            if urldict.scheme == 'xnat':
+                netloc = urldict.netloc + urldict.path
+                self.__path = urldict.path
+                logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
+                              (urldict.scheme, netloc))
+                self.__transport = imagedata.transports.find_scheme_plugin(
+                    urldict.scheme,
+                    netloc=urldict.netloc,
+                    root=urldict.path,
+                    mode=mode,
+                    read_directory_only=read_directory_only)
+            else:
+                netloc, self.__path = os.path.split(urldict.path)
+                logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
+                              (urldict.scheme, netloc))
+                self.__transport = imagedata.transports.find_scheme_plugin(
+                    urldict.scheme,
+                    root=netloc,
+                    mode=mode,
+                    read_directory_only=read_directory_only)
         self.__mode = mode
         self.__files = {}
 
