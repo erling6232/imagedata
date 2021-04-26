@@ -203,7 +203,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -212,7 +212,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?.*time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00000.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -276,7 +276,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -285,7 +285,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?.*time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00000.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)

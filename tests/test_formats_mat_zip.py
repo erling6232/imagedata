@@ -37,7 +37,7 @@ class TestMatZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'mat', 'time.zip?.*Image_00000.mat'),
+            os.path.join('data', 'mat', 'time.zip?*Image_00000.mat'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -46,7 +46,7 @@ class TestMatZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'mat', 'time.zip?Image_00000.mat'),
+            os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -55,7 +55,7 @@ class TestMatZipRead(unittest.TestCase):
     @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            os.path.join('data', 'mat', 'time.zip?.*Image_0000[01].mat'),
+            os.path.join('data', 'mat', 'time.zip?*Image_0000[01].mat'),
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)

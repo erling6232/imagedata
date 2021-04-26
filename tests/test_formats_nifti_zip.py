@@ -40,7 +40,7 @@ class TestNiftiZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'nifti', 'time_all.zip?.*/.*_14.nii.gz'),
+            os.path.join('data', 'nifti', 'time_all.zip?*/*_14.nii.gz'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
@@ -49,7 +49,7 @@ class TestNiftiZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'nifti', 'time_all.zip?time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            os.path.join('data', 'nifti', 'time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
@@ -58,7 +58,7 @@ class TestNiftiZipRead(unittest.TestCase):
     @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            os.path.join('data', 'nifti', 'time_all.zip?.*Image_0000[01].mha'),
+            os.path.join('data', 'nifti', 'time_all.zip?*Image_0000[01].mha'),
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)

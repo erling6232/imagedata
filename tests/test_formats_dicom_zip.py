@@ -37,7 +37,7 @@ class TestDicomZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?.*00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*00/Image_00000.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -46,7 +46,7 @@ class TestDicomZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?.*00/Image_0000[01].dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*00/Image_0000[01].dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -55,7 +55,7 @@ class TestDicomZipRead(unittest.TestCase):
     # @unittest.skip("skipping test_read_two_files2")
     def test_read_two_files2(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?.*0[01]/Image_0000[01].dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*0[01]/Image_0000[01].dcm'),
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
