@@ -131,7 +131,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_slicing_y_neg")
     def test_slicing_y_neg(self):
         from numpy.random import default_rng
-        rng=default_rng()
+        rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
@@ -160,7 +160,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_slicing_x_neg")
     def test_slicing_x_neg(self):
         from numpy.random import default_rng
-        rng=default_rng()
+        rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
@@ -240,7 +240,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_slicing_z_neg")
     def test_slicing_z_neg(self):
         from numpy.random import default_rng
-        rng=default_rng()
+        rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
@@ -282,7 +282,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_slicing_t_neg")
     def test_slicing_t_neg(self):
         from numpy.random import default_rng
-        rng=default_rng()
+        rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)))
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
