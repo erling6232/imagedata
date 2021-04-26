@@ -508,7 +508,7 @@ class DICOMPlugin(AbstractPlugin):
             scan_files = source['files']
             logging.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
             if scan_files is None or len(scan_files) == 0:
-                scan_files = ['.*']
+                scan_files = ['*']
             logging.debug("get_dicom_headers: source: {} {}".format(type(source), source))
             logging.debug("get_dicom_headers: scan_files: {}".format(scan_files))
             # for member in archive.getmembers(scan_files):
