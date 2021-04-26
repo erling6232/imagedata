@@ -513,7 +513,6 @@ class Series(np.ndarray):
         return hdr
 
     def __repr__(self):
-    #     return object.__repr__(self)
         return super().__repr__()
 
     def __str__(self):
