@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Add standard command line options."""
 
 # Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
