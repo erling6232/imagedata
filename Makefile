@@ -6,7 +6,8 @@ test:
 	tox
 
 sdist:
-	python3 -m pep517.build .
+	# python3 -m pep517.build .
+	python3 -m build --sdist --wheel .
 
 test_upload:
 	twine upload --skip-existing --repository testpypi dist/*
