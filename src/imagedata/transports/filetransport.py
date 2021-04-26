@@ -1,7 +1,7 @@
 """Read/Write local image files
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
@@ -17,7 +17,7 @@ class FileTransport(AbstractTransport):
     name = "file"
     description = "Read and write local image files."
     authors = "Erling Andersen"
-    version = "1.0.0"
+    version = "1.1.0"
     url = "www.helse-bergen.no"
     schemes = ["file"]
 
@@ -59,15 +59,11 @@ class FileTransport(AbstractTransport):
         Return:
         - tuples of (root, dirs, files) 
         """
-        walk_list = []
         for root, dirs, files in os.walk(self._get_path(top)):
             local_root = root
             if local_root.startswith(self.__root):
                 local_root = root[len(self.__root) + 1:]  # Strip off root
-            # logging.debug('FileTransport.walk: dirs %s, files %s' %
-            #        (dirs, files))
-            walk_list.append((local_root, dirs, files))
-        return walk_list
+            yield local_root, dirs, files
 
     def isfile(self, path):
         """Return True if path is an existing regular file.
