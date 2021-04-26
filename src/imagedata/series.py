@@ -256,6 +256,8 @@ class Series(np.ndarray):
             return
 
         if ufunc.nout == 1:
+            if np.isscalar(results):
+                return results  # Do not pack scalar results as Series object
             results = (results,)
 
         results = tuple((np.asarray(result).view(Series)
@@ -330,8 +332,11 @@ class Series(np.ndarray):
             _spec = {}
             if isinstance(obj, Series):
                 # Calculate slice range
-                for _dim in range(obj.ndim):  # Loop over actual array shape
-                    _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])  # Initial start,stop,step,axis
+                try:
+                    for _dim in range(obj.ndim):  # Loop over actual array shape
+                        _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])  # Initial start,stop,step,axis
+                except (AttributeError, NameError):
+                    raise ValueError('No header in _calculate_spec')
 
                 # Determine how to loop over slice spec and items
                 if _number_of_ellipses(_items) > 1:
@@ -353,25 +358,33 @@ class Series(np.ndarray):
                     raise IndexError('Index problem: spec length %d, items length %d' %
                                      (len(index_spec), len(index_item)))
 
-                for i_item in index_item:
+                for _item in index_item:
                     # If any item is of unknown type, we will not slice the data
-                    if not isinstance(_items[i_item], slice) and not isinstance(_items[i_item], int):
+                    if not isinstance(_items[_item], slice) and not isinstance(_items[_item], int):
                         return _slicing, _spec
-                for i_spec, i_item in zip(index_spec, index_item):
-                    if isinstance(_items[i_item], slice):
-                        _start = _items[i_item].start or _spec[i_spec][0]
-                        _stop = _items[i_item].stop or _spec[i_spec][1]
-                        _step = _items[i_item].step or _spec[i_spec][2]
-                        _spec[i_spec] = (_start, _stop, _step, obj.axes[i_spec])
+                for _dim, _item in zip(index_spec, index_item):
+                    if isinstance(_items[_item], slice):
+                        _start = _items[_item].start or _spec[_dim][0]
+                        _stop = _items[_item].stop or _spec[_dim][1]
+                        _step = _items[_item].step or _spec[_dim][2]
+                        if _start < 0:
+                            _start = obj.shape[_dim] + _start
+                        if _stop < 0:
+                            _stop = obj.shape[_dim] + _stop
+                        _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
-                    elif isinstance(_items[i_item], int):
-                        _start = _items[i_item] or _spec[i_spec][0]
+                    elif isinstance(_items[_item], int):
+                        _start = _items[_item] or _spec[_dim][0]
+                        if _start < 0:
+                            _start = obj.shape[_dim] + _start
                         _stop = _start + 1
                         _step = 1
-                        _spec[i_spec] = (_start, _stop, _step, obj.axes[i_spec])
+                        _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
             return _slicing, _spec
 
+        if getattr(self, 'header', None) is None:
+            return super(Series, self).__getitem__(item)
         if isinstance(item, tuple):
             items = item
         else:
@@ -415,7 +428,10 @@ class Series(np.ndarray):
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
-                ret.input_order = imagedata.formats.INPUT_ORDER_NONE
+                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column', 'color']:
+                    ret.input_order = imagedata.formats.INPUT_ORDER_NONE
+                else:
+                    raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
         return ret
 
@@ -453,6 +469,8 @@ class Series(np.ndarray):
         j = 0
         # logging.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
         for i in range(start, stop, step):
+            if i < 0:
+                raise ValueError('i < 0')
             ippdict[j] = ipp[i]
             j += 1
         # logging.debug('__get_imagePositions: exit')
@@ -495,7 +513,8 @@ class Series(np.ndarray):
         return hdr
 
     def __repr__(self):
-        return object.__repr__(self)
+    #     return object.__repr__(self)
+        return super().__repr__()
 
     def __str__(self):
         return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
@@ -1641,6 +1660,19 @@ class Series(np.ndarray):
             return np.array(timeline)
         else:
             raise ValueError("No timeline tags are available. Input order: {}".format(self.input_order))
+
+    @property
+    def bvalues(self):
+        """numpy.array: b-values in s/mm2, as numpy array of floats
+                Length of array is number of tags.
+
+        Raises:
+            ValueError: tags for dataset is not b tags
+        """
+        if self.input_order == imagedata.formats.INPUT_ORDER_B:
+            return np.array(self.tags[0])
+        else:
+            raise ValueError("No b-value tags are available. Input order: {}".format(self.input_order))
 
     def getDicomAttribute(self, keyword, slice=0, tag=0):
         """Get named DICOM attribute.
