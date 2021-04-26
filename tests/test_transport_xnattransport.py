@@ -1,10 +1,12 @@
 import unittest
-# from imagedata.series import Series
+from imagedata.series import Series
+from imagedata.transports import Transport
 
 
 class TestXNATTransport(unittest.TestCase):
 
-    def test_something(self):
+    # @unittest.skip("skipping test_something")
+    def test_transport(self):
         # si1 = Series('xnat://xnat.server/project/subject/experiment/scan')
         # si1.seriesNumber = 9999
         # si1.seriesDescription = 'tttt'
