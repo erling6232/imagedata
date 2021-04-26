@@ -59,8 +59,11 @@ These attributes can be set and interrogated directly from the Series object:
 +-------------------------+-------------------------+-----------------------+
 |imageType                |ImageType                |List of str            |
 +-------------------------+-------------------------+-----------------------+
-|timeline                 |AcquisitionTime          |Read-only              |
+|timeline                 |AcquisitionTime          |Read-only numpy array  |
 |                         |                         |(can be set using tags)|
++-------------------------+-------------------------+-----------------------+
+|bvalues                  |DiffusionBValue          |Read-only numpy array  |
+|                         |or propietary            |                       |
 +-------------------------+-------------------------+-----------------------+
 |**Image Plane Module**                                                     |
 +-------------------------+-------------------------+-----------------------+
