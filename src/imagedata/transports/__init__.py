@@ -6,6 +6,7 @@ Standard plugins provides support for file, http/https and xnat transports.
 # Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
+import urllib
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
@@ -114,7 +115,7 @@ def find_plugin(ptype):
     raise TransportPluginNotFound("Plugin for transport {} not found.".format(ptype))
 
 
-def find_scheme_plugin(
+def Transport(
         scheme,
         netloc=None,
         root=None,
@@ -124,6 +125,11 @@ def find_scheme_plugin(
     """Return plugin for given transport scheme."""
     if opts is None:
         opts = {}
+    if netloc is None and root is None:
+        url_tuple = urllib.parse.urlsplit(scheme)
+        scheme = url_tuple.scheme
+        netloc = url_tuple.netloc
+        root = url_tuple.path
     global plugins
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
