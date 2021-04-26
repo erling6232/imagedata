@@ -245,7 +245,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
 #             # dirname = os.path.dirname(urldict.path)
 #             basename = os.path.basename(urldict.path)
 #             logging.debug("ArchiveCollection: transport root: '{}'".format(os.curdir))
-#             # transport = imagedata.transports.find_scheme_plugin(
+#             # transport = imagedata.transports.Transport(
 #             #     urldict.scheme, root=os.curdir)
 #             logging.debug("ArchiveCollection: archive url: '{}'".format(url))
 #             archive = imagedata.archives.find_mimetype_plugin(
