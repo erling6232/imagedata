@@ -1,14 +1,14 @@
 """Read/Write image files from a zipfile
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
 import shutil
 import tempfile
 import io
-import re
+import fnmatch
 import urllib.parse
 import logging
 from abc import ABC
@@ -123,7 +123,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 self.__path = urldict.path
                 logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                               (urldict.scheme, netloc))
-                self.__transport = imagedata.transports.find_scheme_plugin(
+                self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
                     netloc=urldict.netloc,
                     root=urldict.path,
@@ -133,7 +133,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 netloc, self.__path = os.path.split(urldict.path)
                 logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                               (urldict.scheme, netloc))
-                self.__transport = imagedata.transports.find_scheme_plugin(
+                self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
                     root=netloc,
                     mode=mode,
@@ -155,9 +155,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         logging.debug("Extract zipfile {} to {}".format(
             self.__archive, self.__tmpdir))
         # Get filelist in self.__files
-        # logging.debug("ZipFile namelist:\n{}".format(self.__archive.namelist()))
         for fname in self.__archive.namelist():
-            # logging.debug("ZipfileArchive fname: {}".format(fname))
             try:
                 _is_dir = self.__archive.getinfo(fname).is_dir()  # Works with Python >= 3.6
             except AttributeError:
@@ -189,7 +187,9 @@ class ZipfileArchive(AbstractArchive, ABC):
             for filename in self.__files:
                 # logging.debug('ZipfileArchive.getmembers: member {}'.format(filename))
                 for required_filename in files:
-                    if re.search(required_filename, filename):
+                    if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
+                        filelist.append(filename)
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+'/*'):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
@@ -207,6 +207,20 @@ class ZipfileArchive(AbstractArchive, ABC):
             filehandle: reference to member object
         """
         return os.path.basename(filehandle['name'])
+
+    @staticmethod
+    def _longest_prefix(keys, required):
+        prefix = ''
+        for folder in keys:
+            new_prefix = os.path.commonprefix([folder, os.path.normpath(required)])
+            if len(new_prefix) > len(prefix):
+                prefix = new_prefix
+        return prefix
+
+    def _filehandle_in_files(self, filehandle):
+        fname = filehandle['name']
+        prefix = self._longest_prefix(self.__files.keys(), fname)
+        return prefix in self.__files
 
     def open(self, filehandle, mode='rb'):
         """Open file.
@@ -263,7 +277,10 @@ class ZipfileArchive(AbstractArchive, ABC):
             filelist = list()
             for filename in self.__files:
                 for i, required_filename in enumerate(wanted_files):
-                    if re.search(required_filename, filename):
+                    if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
+                        filelist.append(self.__files[filename])
+                        found_match[i] = True
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+'/*'):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found
@@ -279,7 +296,7 @@ class ZipfileArchive(AbstractArchive, ABC):
     def to_localfile(self, filehandle):
         """Access a member object through a local file.
         """
-        if filehandle['name'] not in self.__files:
+        if not self._filehandle_in_files(filehandle):
             raise FileNotFoundError(
                 'No such file: %s' % filehandle['name'])
         if not filehandle['unpacked']:
