@@ -28,19 +28,19 @@ class TestFiletransport(unittest.TestCase):
         tree = imagedata.transports.filetransport.FileTransport(
             root='data', mode='r', read_directory_only=False)
         walk_list = tree.walk('ps/pages')
-        self.assertEqual(len(walk_list), 1)
-        root, dirs, files = walk_list[0]
-        logging.debug('test_walk: root {}'.format(root))
-        logging.debug('test_walk: dirs {}'.format(dirs))
-        logging.debug('test_walk: files {}'.format(files))
-        expect = ['A_Lovers_Complaint_1.ps',
-                  'A_Lovers_Complaint_2.ps', 'A_Lovers_Complaint_3.ps',
-                  'A_Lovers_Complaint_4.ps', 'A_Lovers_Complaint_5.ps',
-                  'A_Lovers_Complaint_6.ps']
+        # self.assertEqual(len(walk_list), 1)
+        for root, dirs, files in walk_list:
+            logging.debug('test_walk: root {}'.format(root))
+            logging.debug('test_walk: dirs {}'.format(dirs))
+            logging.debug('test_walk: files {}'.format(files))
+            expect = ['A_Lovers_Complaint_1.ps',
+                      'A_Lovers_Complaint_2.ps', 'A_Lovers_Complaint_3.ps',
+                      'A_Lovers_Complaint_4.ps', 'A_Lovers_Complaint_5.ps',
+                      'A_Lovers_Complaint_6.ps']
 
-        self.assertEqual(root, 'ps/pages')
-        self.assertEqual(dirs, [])
-        self.assertEqual(sorted(files), expect)
+            self.assertEqual(root, 'ps/pages')
+            self.assertEqual(dirs, [])
+            self.assertEqual(sorted(files), expect)
 
     # @unittest.skip("test_isfile")
     def test_isfile(self):
