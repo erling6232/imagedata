@@ -7,12 +7,14 @@
 import sys
 import os.path
 import argparse
+import urllib
 import logging
 import numpy as np
 import imagedata
 import imagedata.cmdline
 import imagedata.formats
 import imagedata.readdata
+import imagedata.transports
 from imagedata.series import Series
 
 logger = logging.getLogger()
@@ -259,6 +261,37 @@ def conversion():
 
     si.write(args.out_name, opts=args)
     return 0
+
+
+def image_list():
+    parser = argparse.ArgumentParser()
+    imagedata.cmdline.add_argparse_options(parser)
+    parser.add_argument("input", help="Input URL")
+    args = parser.parse_args()
+    logger.setLevel(args.loglevel)
+
+    print('input: {}'.format(args.input))
+    url_tuple = urllib.parse.urlsplit(args.input)
+    netloc = '{}://{}'.format(url_tuple.scheme, url_tuple.netloc)
+    transport = imagedata.transports.Transport(args.input)
+    found = False
+    for root, dirs, files in transport.walk('*'):
+        found = True
+        if len(files):
+            for dir in dirs:
+                for filename in files:
+                    info = transport.info('{}/{}/{}'.format(root, dir, filename))
+                    print('{}{}/{}/{} {}'.format(netloc, root, dir, filename, info))
+        else:
+            for dir in dirs:
+                info = transport.info('{}/{}'.format(root, dir))
+                print('{}{}/{} {}'.format(netloc, root, dir, info))
+
+    if found:
+        return 0
+    else:
+        print('No matching data found.')
+        return 1
 
 
 if __name__ == '__main__':
