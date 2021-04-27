@@ -39,9 +39,10 @@ class XnatTransport(AbstractTransport):
         try:
             project = root_split[1]
         except IndexError:
-            raise ValueError('Too few values in URL {}'.format(root))
-        subject = root_split[2] if len(root_split) > 2 else None
-        experiment = root_split[3] if len(root_split) > 3 else None
+            raise ValueError('No project given in URL {}'.format(root))
+        subject = root_split[2] if len(root_split) > 2 and len(root_split[2]) else None
+        experiment = root_split[3] if len(root_split) > 3 and len(root_split[3]) else None
+        scan = root_split[4] if len(root_split) > 4 and len(root_split[4]) else None
         self.__mode = mode
         self.__local = False
         self.__must_upload = False
@@ -61,6 +62,10 @@ class XnatTransport(AbstractTransport):
         if experiment is not None:
             self.root += '/' + experiment
             logging.debug("Experiment: {}".format(experiment))
+        self.__scan = self.__experiment.scans[scan] if scan is not None else None
+        if scan is not None:
+            self.root += '/' + scan
+            logging.debug("Scan: {}".format(scan))
 
     def close(self):
         """Close the transport
@@ -114,6 +119,17 @@ class XnatTransport(AbstractTransport):
                 experiment = subject.experiments[experiment_label]
                 scans = self._get_scans(experiment, scan_search)
                 yield '/{}/{}/{}'.format(self.__project.id, subject_id, experiment_label), scans, []
+        elif len(url) == 6:
+            # Walk the file list
+            subject_id, experiment_search, scan_search = url[2:5]
+            subject = self.__project.subjects[subject_id]
+            experiments = self._get_experiments(subject, experiment_search)
+            for experiment_label in experiments:
+                experiment = subject.experiments[experiment_label]
+                scans = self._get_scans(experiment, scan_search)
+                for scan in scans:
+                    files = self._get_files(experiment.scans[scan])
+                    yield '/{}/{}/{}'.format(self.__project.id, subject_id, experiment_label), [scan], files
 
     def _get_experiments(self, subject, search):
         experiments = []
@@ -127,9 +143,16 @@ class XnatTransport(AbstractTransport):
         scans = []
         for id in experiment.scans:
             scan = experiment.scans[id]
-            if scan.quality == 'usable' and fnmatch.fnmatch(scan.type, search):
+            if scan.quality == 'usable' and (
+                    fnmatch.fnmatch(scan.type, search) or fnmatch.fnmatch(scan.id, search)):
                 scans.append(scan.id)
         return scans
+
+    def _get_files(self, scan):
+        files = []
+        for filename in scan.files:
+            files.append(filename)
+        return files
 
     def isfile(self, path):
         """Return True if path is an existing regular file.
@@ -171,3 +194,67 @@ class XnatTransport(AbstractTransport):
             return io.FileIO(self.__zipfile, mode)
         else:
             raise IOError('Could not download scan {}'.format(scan_id))
+
+    def info(self, path) -> str:
+        """Return info describing the object
+
+        Args:
+            path (str): object path
+
+        Returns:
+            description (str): Preferably a one-line string describing the object
+        """
+        if path[0] != '/':
+            # Add self.root to relative path
+            path = self.root + '/' + path
+        url_tuple = urllib.parse.urlsplit(path)
+        url = url_tuple.path.split('/')
+        if len(url) < 2:
+            raise ValueError('Too few terms in directory tree {}'.format(path))
+        elif len(url) == 2:
+            # Describe project
+            return self.__project
+            subject_search = url[2]
+            for id in self.__project.subjects:
+                subject = self.__project.subjects[id]
+                if fnmatch.fnmatch(subject.label, subject_search):
+                    return '/{}'.format(self.__project.id), [subject.label], []
+        elif len(url) == 3:
+            # Describe subject
+            subject_id = url[2]
+            subject = self.__project.subjects[subject_id]
+            if len(subject.experiments) == 1:
+                exp_str = 'experiment'
+            else:
+                exp_str = 'experiments'
+            return '{}, {} {}'.format(subject.id, len(subject.experiments), exp_str)
+        elif len(url) == 4:
+            # Describe experiment
+            subject_id, experiment_label = url[2:4]
+            subject = self.__project.subjects[subject_id]
+            experiment = subject.experiments[experiment_label]
+            return '{}, {} {}, {}, {} scans'.format(
+                experiment.id, experiment.date, experiment.time, experiment.modality, len(experiment.scans)
+            )
+        elif len(url) == 5:
+            # Describe scan
+            subject_id, experiment_label, scan_id = url[2:5]
+            subject = self.__project.subjects[subject_id]
+            experiment = subject.experiments[experiment_label]
+            scan = experiment.scans[scan_id]
+            frame_str = 'frames'
+            if scan.frames == 1:
+                frame_str = 'frame'
+            return '{}, {} {}'.format(scan.series_description, scan.frames, frame_str)
+        elif len(url) == 6:
+            # Describe file
+            subject_id, experiment_label, scan_id, file_id = url[2:6]
+            subject = self.__project.subjects[subject_id]
+            experiment = subject.experiments[experiment_label]
+            scan = experiment.scans[scan_id]
+            filedescription = scan.files[file_id]
+            return '{}, {}, {}'.format(
+                filedescription.file_format,
+                filedescription.collection,
+                filedescription.file_size
+            )
