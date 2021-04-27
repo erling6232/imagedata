@@ -110,3 +110,15 @@ class AbstractTransport(object, metaclass=ABCMeta):
         """Close the transport
         """
         pass
+
+    @abstractmethod
+    def info(self, path) -> str:
+        """Return info describing the object
+
+        Args:
+            path (str): object path
+
+        Returns:
+            description (str): Preferably a one-line string describing the object
+        """
+        pass

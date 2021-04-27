@@ -79,3 +79,14 @@ class FileTransport(AbstractTransport):
             os.makedirs(os.path.dirname(filename), exist_ok=True)
         logging.debug("FileTransport open: {} ({})".format(filename, mode))
         return io.FileIO(filename, mode)
+
+    def info(self, path) -> str:
+        """Return info describing the object
+
+        Args:
+            path (str): object path
+
+        Returns:
+            description (str): Preferably a one-line string describing the object
+        """
+        return ''

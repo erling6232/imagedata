@@ -104,3 +104,14 @@ class DicomTransport(AbstractTransport):
             logging.debug('DicomTransport.store: C-STORE request status: 0x{0:04x}'.format(status.Status))
         else:
             raise AssociationFailed('C-STORE request status: 0x{0:04x}'.format(status.Status))
+
+    def info(self, path) -> str:
+        """Return info describing the object
+
+        Args:
+            path (str): object path
+
+        Returns:
+            description (str): Preferably a one-line string describing the object
+        """
+        return ''
