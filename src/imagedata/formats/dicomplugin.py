@@ -322,7 +322,10 @@ class DICOMPlugin(AbstractPlugin):
                     idx = idx[1:]
                 # Do not read file again
                 with archive.open(member, mode='rb') as f:
-                    im = pydicom.filereader.dcmread(f)
+                    if issubclass(type(f), pydicom.dataset.Dataset):
+                        im = f
+                    else:
+                        im = pydicom.filereader.dcmread(f)
                 try:
                     im.decompress()
                 except NotImplementedError as e:
@@ -582,10 +585,15 @@ class DICOMPlugin(AbstractPlugin):
             tag_list[islice] = []
             i = 0
             for archive, filename, im in sorted(header_dict[sloc]):
-                if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
-                    tag = i
-                else:
+                try:
                     tag = self._get_tag(im, input_order, opts)
+                except KeyError:
+                    if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
+                        tag = i
+                    else:
+                        raise imagedata.formats.CannotSort('Tag not found in dataset')
+                except Exception as e:
+                    print(e)
                 if tag not in tag_list[islice] or accept_duplicate_tag:
                     tag_list[islice].append(tag)
                 else:
@@ -669,14 +677,17 @@ class DICOMPlugin(AbstractPlugin):
 
     def process_member(self, image_dict, archive, member_name, member, opts, skip_pixels=True):
         # import traceback
-        try:
-            # defer_size: Do not load large attributes until requested
-            # image=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, defer_size=200)
-            im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
-        except pydicom.errors.InvalidDicomError:
-            # traceback.print_exc()
-            # logging.info("process_member: Could not read {}".format(member_name))
-            return
+        if issubclass(type(member), pydicom.dataset.Dataset):
+            im = member
+        else:
+            try:
+                # defer_size: Do not load large attributes until requested
+                # image=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, defer_size=200)
+                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
+            except pydicom.errors.InvalidDicomError:
+                # traceback.print_exc()
+                # logging.info("process_member: Could not read {}".format(member_name))
+                return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
             if im.SeriesInstanceUID != opts['input_serinsuid']:
