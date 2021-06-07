@@ -9,6 +9,8 @@ User Guide
   Installation
   Tutorial
   Introduction
+  Input_output
+  Sorting
   DICOMAttributes
   CommandLine
   Plugins
