@@ -11,7 +11,6 @@ import pynetdicom
 from imagedata.transports.abstracttransport import AbstractTransport
 from imagedata.transports import FunctionNotSupported
 
-
 presentation_contexts = [pynetdicom.sop_class.CTImageStorage, pynetdicom.sop_class.MRImageStorage,
                          pynetdicom.sop_class.ComputedRadiographyImageStorage,
                          pynetdicom.sop_class.DigitalXRayImagePresentationStorage,
@@ -26,6 +25,8 @@ presentation_contexts = [pynetdicom.sop_class.CTImageStorage, pynetdicom.sop_cla
                          pynetdicom.sop_class.NuclearMedicineImageStorage,
                          pynetdicom.sop_class.ParametricMapStorage
                          ]
+
+
 # Future enhancements:
 # EnhancedCTImageStorage,LegacyConvertedEnhancedCTImageStorage,
 # EnhancedMRImageStorage, EnhancedMRColorImageStorage, LegacyConvertedEnhancedMRImageStorage,
@@ -106,7 +107,7 @@ class DicomTransport(AbstractTransport):
         logging.debug("DicomTransport __init__ calling AET: {}".format(self.__local_aet))
         self.__ae = pynetdicom.AE(ae_title=self.__local_aet)
         self.__ae.requested_contexts = pynetdicom.presentation.QueryRetrievePresentationContexts
-        #self.__ae.requested_contexts = [
+        # self.__ae.requested_contexts = [
         #    pynetdicom.presentation.QueryRetrievePresentationContexts,
         #    pynetdicom.presentation.StoragePresentationContexts.MRImageStorage,
         #    pynetdicom.presentation.StoragePresentationContexts.CTImageStorage,
@@ -114,8 +115,8 @@ class DicomTransport(AbstractTransport):
         #    pynetdicom.StoragePresentationContexts
         for context in [pynetdicom.sop_class.MRImageStorage, pynetdicom.sop_class.CTImageStorage]:
             self.__ae.add_requested_context(context)
-        #self.__ae.add_requested_context(pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind)
-        #self.__ae.add_requested_context(pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind)
+        # self.__ae.add_requested_context(pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind)
+        # self.__ae.add_requested_context(pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind)
         self.__host, port = netloc.split(':')
         self.__port = int(port)
         self.__assoc = self.__ae.associate(self.__host, self.__port, ae_title=self.__aet)
@@ -158,7 +159,7 @@ class DicomTransport(AbstractTransport):
         patients = self._cfind_patient(patient_search)
         if len(patients) < 1:
             raise ValueError('Patient ID {} not found'.format(patient_search))
-        elif len(patients)> 1:
+        elif len(patients) > 1:
             raise ValueError('Patient ID {} match multiple patients'.format(patient_search))
         patient_id = patients[0]
         if study_search is None:
@@ -181,7 +182,7 @@ class DicomTransport(AbstractTransport):
                 # Walk the instance list
                 instances = self._cfind_instances(study_instance_uid, series_instance_uid, instance_search)
                 yield '/{}/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid, series_instance_uid
-                                         ), [], instances
+                                            ), [], instances
 
     def isfile(self, path):
         """Return True if path is an existing regular file.
@@ -229,7 +230,7 @@ class DicomTransport(AbstractTransport):
         elif len(url) == 2:
             # Describe AET
             return url[1]
-        elif len(url) == 3 :
+        elif len(url) == 3:
             # Describe patient
             return url[2]
         elif len(url) == 4:
@@ -311,7 +312,7 @@ class DicomTransport(AbstractTransport):
 
         # Associate with peer AE at IP 127.0.0.1 and port 11112
         assoc = ae.associate(self.__host, self.__port, ae_title=self.__aet,
-                                    ext_neg=roles, evt_handlers=handlers)
+                             ext_neg=roles, evt_handlers=handlers)
 
         if assoc.is_established:
             # Use the C-GET service to send the identifier
@@ -358,8 +359,8 @@ class DicomTransport(AbstractTransport):
             ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
 
             instances2 = self._cfind(ds,
-                           pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
-                           'StudyInstanceUID')
+                                     pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
+                                     'StudyInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
@@ -389,8 +390,8 @@ class DicomTransport(AbstractTransport):
                 ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
 
             instances2 = self._cfind(ds,
-                           pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
-                           'SeriesInstanceUID')
+                                     pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
+                                     'SeriesInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
@@ -419,8 +420,8 @@ class DicomTransport(AbstractTransport):
             else:
                 ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
             instances2 = self._cfind(ds,
-                           pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
-                           'SOPInstanceUID')
+                                     pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
+                                     'SOPInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
