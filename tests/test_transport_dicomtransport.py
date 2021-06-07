@@ -1,10 +1,7 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
 import numpy as np
-# import logging
 import argparse
 from pydicom.dataset import Dataset
 from pynetdicom import (
@@ -18,6 +15,7 @@ from .context import imagedata
 import imagedata.cmdline
 import imagedata.readdata
 import imagedata.formats
+import imagedata.transports
 from imagedata.series import Series
 
 scpdir = None
@@ -138,6 +136,48 @@ class TestDicomTransport(unittest.TestCase):
             opts=self.opts_calling_aet
         )
 
+    @unittest.skip("skipping test_transport_walk")
+    def test_transport_walk(self):
+        patID = '123456'
+        stuInsUID = '1.2.3.4'
+        serInsUID = '1.2.3.4.5'
+        accno = '98765'
+        transport = imagedata.transports.Transport(
+            'dicom://localhost:11112/Temp')
+        for root, dirs, files in transport.walk('{}/*cerebrum*'.format(patID)):
+            print(dirs, files)
+            for dir in dirs:
+                info = transport.info('{}/{}'.format(root, dir))
+                print(info)
+            break
+        for root, dirs, files in transport.walk('{}/{}/*'.format(patID, stuInsUID)):
+            print(dirs, files)
+            for dir in dirs:
+                info = transport.info('{}/{}'.format(root, dir))
+                print(info)
+            break
+        for root, dirs, files in transport.walk('{}/{}/{}/*'.format(patID, stuInsUID, serInsUID)):
+            print(dirs, files)
+            for dir in dirs:
+                print(dir)
+            for filename in files:
+                info = transport.info('{}/{}'.format(root, filename))
+                print(filename)
+            break
+        transport.close()
 
-if __name__ == '__main__':
-    unittest.main()
+    @unittest.skip("skipping test_transport_cget_series")
+    def test_transport_cget_series(self):
+        patID = '123456'
+        stuInsUID = '1.2.3.4'
+        serInsUID = '1.2.3.4.5'
+        accno = '98765'
+        serNum = 4
+        si1 = Series('dicom://localhost:11112/Temp/{}/{}/{}'.format(
+            patID, stuInsUID, serInsUID
+        ))
+        print(si1.shape, si1.spacing, si1.patientName, si1.accessionNumber, si1.seriesNumber)
+        si2 = Series('dicom://localhost:11112/Temp/{}/{}/{}'.format(
+            patID, accno, serNum
+        ))
+        print(si2.shape, si2.spacing, si2.patientName, si2.accessionNumber, si2.seriesNumber)

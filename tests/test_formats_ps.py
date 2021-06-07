@@ -36,6 +36,7 @@ class Test2DPSPlugin(unittest.TestCase):
             os.path.join('data', 'ps', 'pages', 'A_Lovers_Complaint_1.ps'),
             'none',
             self.opts_gray)
+        self.assertEqual(si1.input_format, 'ps')
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (1754, 1240))
 

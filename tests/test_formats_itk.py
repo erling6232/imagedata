@@ -51,6 +51,7 @@ class TestFileArchiveItk(unittest.TestCase):
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
             self.opts)
+        self.assertEqual(si1.input_format, 'itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (40, 192, 152))
 

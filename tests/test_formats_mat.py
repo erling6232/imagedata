@@ -45,6 +45,7 @@ class Test3DMatPlugin(unittest.TestCase):
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
+        self.assertEqual(si1.input_format, 'mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 

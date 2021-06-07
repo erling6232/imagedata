@@ -37,6 +37,7 @@ class TestDicomPlugin(unittest.TestCase):
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm'),
             'none',
             self.opts)
+        self.assertEqual(si1.input_format, 'dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 

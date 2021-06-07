@@ -34,6 +34,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
             self.opts)
+        self.assertEqual(si1.input_format, 'nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (10, 40, 192, 152))
 
