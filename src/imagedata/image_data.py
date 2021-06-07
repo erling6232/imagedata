@@ -266,6 +266,7 @@ def conversion():
 def image_list():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
+    parser.add_argument("-r", "--recursive", help="Descend into directory tree", action="store_true")
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
@@ -277,15 +278,15 @@ def image_list():
     found = False
     for root, dirs, files in transport.walk('*'):
         found = True
-        if len(files):
-            for dir in dirs:
-                for filename in files:
-                    info = transport.info('{}/{}/{}'.format(root, dir, filename))
-                    print('{}{}/{}/{} {}'.format(netloc, root, dir, filename, info))
-        else:
-            for dir in dirs:
-                info = transport.info('{}/{}'.format(root, dir))
-                print('{}{}/{} {}'.format(netloc, root, dir, info))
+        for dir in dirs:
+            info = transport.info('{}/{}'.format(root, dir))
+            print('{}{}/{} {}'.format(netloc, root, dir, info))
+        for filename in files:
+            info = transport.info('{}/{}'.format(root, filename))
+            print('{}{}/{} {}'.format(netloc, root, filename, info))
+        if not args.recursive:
+            break  # Do not descend down the tree
+    transport.close()
 
     if found:
         return 0
