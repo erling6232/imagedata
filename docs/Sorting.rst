@@ -30,6 +30,7 @@ are 10 time steps in the dataset.
 
 Several sort criteria are predefined:
 
+* none: No sorting (2D/3D datasets only) (default)
 * time: Sort on Acquisition Time
 * b: Sort on MR diffusion b-value
 * fa: Sort on MR Flip Angle
