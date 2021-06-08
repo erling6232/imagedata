@@ -25,6 +25,7 @@ recursive-include imagedata *.py
 exclude load_data.py
 
 recursive-include data *.dcm
+recursive-include data *.IMA
 recursive-include data *.gif
 recursive-include data *.gz
 recursive-include data *.jpg
