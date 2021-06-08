@@ -26,7 +26,8 @@ def get_uid() -> str:
     """Generator function which will return a unique UID.
     """
     k = 0
-    hostid = get_hostid()[:-1]
+    # hostid = get_hostid()[:-1]
+    hostid = get_hostid()
     ihostid = int(hostid, 16)
     my_root = "2.16.578.1.37.1.1.2.%d.%d.%d" % (ihostid, os.getpid(), int(time.time()))
     while True:
