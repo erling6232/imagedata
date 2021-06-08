@@ -82,6 +82,26 @@ class TestDicomPlugin(unittest.TestCase):
         # for axis in si1.axes:
         #    logging.debug('test_read_dicom_4D: axis {}'.format(axis))
 
+    # @unittest.skip("skipping test_read_dicom_user_defined_TI")
+    def test_read_dicom_user_defined_TI(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'TI'),
+            input_order='ti',
+            opts={'ti': 'InversionTime'})
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (5, 1, 384, 384))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d,
+                      formats=['dicom'],
+                      opts={'ti': 'InversionTime'})
+            si2 = Series(d,
+                         input_order='ti',
+                         opts={'ti': 'InversionTime'})
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+        self.assertEqual(si1.shape, si2.shape)
+        np.testing.assert_array_equal(si1, si2)
+
     # @unittest.skip("skipping test_copy_dicom_4D")
     def test_copy_dicom_4D(self):
         si = Series(

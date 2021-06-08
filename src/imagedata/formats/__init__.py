@@ -6,7 +6,6 @@ Standard plugins provides support for DICOM and Nifti image file formats.
 # Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
-
 import numpy as np
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -115,6 +114,8 @@ def input_order_to_str(input_order):
         return "INPUT_ORDER_TE"
     elif input_order == INPUT_ORDER_FAULTY:
         return "INPUT_ORDER_FAULTY"
+    elif issubclass(type(input_order), str):
+        return input_order
     else:
         raise (UnknownTag("Unknown numerical input_order {:d}.".format(input_order)))
 
@@ -132,6 +133,9 @@ def input_order_to_dirname_str(input_order):
         return "te"
     elif input_order == INPUT_ORDER_FAULTY:
         return "faulty"
+    elif issubclass(type(input_order), str):
+        keepcharacters = ('-', '_', '.', ' ')
+        return ''.join([c for c in input_order if c.isalnum() or c in keepcharacters]).rstrip()
     else:
         raise (UnknownTag("Unknown numerical input_order {:d}.".format(input_order)))
 
@@ -150,7 +154,8 @@ def str_to_input_order(s):
     elif s == "faulty":
         return INPUT_ORDER_FAULTY
     else:
-        raise (UnknownTag("Unknown input order {}.".format(s)))
+        # raise (UnknownTag("Unknown input order {}.".format(s)))
+        return s
 
 
 def shape_to_str(shape):
