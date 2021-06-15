@@ -19,7 +19,7 @@ def get_slice_axis(im):
 
 def get_tag_axis(im):
     try:
-        return im.find_axis('time')
+        return im.find_axis(im.input_order)
     except ValueError:
         return None
 
