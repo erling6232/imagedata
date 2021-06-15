@@ -361,7 +361,8 @@ def _simplify_locations(locations):
     new_locations = {}
     paths = []
     for location in locations:
-        url_tuple = urllib.parse.urlsplit(location, scheme='file')
+        # On Windows, any backslash (os.sep) will be replaced by slash in URL
+        url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
         if url_tuple.scheme == 'file':
             paths.append(url_tuple.path)
         else:
