@@ -710,5 +710,5 @@ def grid_from_roi(im, vertices):
             x, y = x.flatten(), y.flatten()
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
-    return grid
+    return Series(grid, input_order=im.input_order, template=im, geometry=im)
 
