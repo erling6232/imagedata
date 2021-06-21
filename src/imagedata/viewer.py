@@ -669,3 +669,46 @@ def default_layout(fig, n):
         if rows * (rows + 1) >= n:
             return fig.subplots(rows, rows + 1, squeeze=False)  # columns = rows+1
     raise ValueError("Too many axes required (n={})".format(n))
+
+
+def grid_from_roi(im, vertices):
+    """Return drawn ROI as grid.
+
+    Returns:
+        Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
+        Voxels inside ROI is 1, 0 outside.
+    """
+    keys = vertices.keys()
+    follow = issubclass(type(keys), tuple)
+    nt, nz, ny, nx = im.shape
+    if follow:
+        grid = np.zeros_like(im, dtype=np.ubyte)
+        for idx in range(nz):
+            last_used_tag = None
+            for t in range(nt):
+                tag = t, idx
+                if tag not in vertices or vertices[tag] is None:
+                    if last_used_tag is None:
+                        # Most probably a slice with no ROIs
+                        continue
+                    # Propagate last drawn ROI to unfilled tags
+                    vertices[tag] = vertices[last_used_tag]
+                else:
+                    last_used_tag = tag
+                path = MplPath(vertices[tag])
+                x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+                x, y = x.flatten(), y.flatten()
+                points = np.vstack((x, y)).T
+                grid[t, idx] = path.contains_points(points).reshape((ny, nx))
+    else:
+        grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
+        for idx in range(nz):
+            if idx not in vertices or vertices[idx] is None:
+                continue
+            path = MplPath(vertices[idx])
+            x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+            x, y = x.flatten(), y.flatten()
+            points = np.vstack((x, y)).T
+            grid[idx] = path.contains_points(points).reshape((ny, nx))
+    return grid
+
