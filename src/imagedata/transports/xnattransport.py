@@ -62,7 +62,14 @@ class XnatTransport(AbstractTransport):
         if experiment is not None:
             self.root += '/' + experiment
             logging.debug("Experiment: {}".format(experiment))
-        self.__scan = self.__experiment.scans[scan] if scan is not None else None
+        if mode == 'r':
+            self.__scan = None
+            if scan is not None:
+                scans, labels = self._get_scans(self.__experiment, scan)
+                if len(scans) == len(labels) == 1:
+                    self.__scan = self.__experiment.scans[labels[0]] if labels[0] is not None else None
+        else:
+            self.__scan = None
         if scan is not None:
             self.root += '/' + scan
             logging.debug("Scan: {}".format(scan))
