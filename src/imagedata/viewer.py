@@ -277,17 +277,31 @@ class Viewer:
             self.vertices = roi
             if self.follow:
                 for tag in range(self.im[0]['tags']):
-                    for idx in range(self.im[0]['slices']):
+                    for i in range(self.im[0]['slices']):
                         verts = None
-                        if (tag, idx) in self.vertices:
-                            verts = self.vertices[tag, idx]
-                        self.poly[tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                        if (tag, i) in self.vertices:
+                            verts = self.vertices[tag, i]
+                        self.poly[tag, i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                        # Polygon on single slice and tag 0, only
+                        if i == idx and tag == 0:
+                            self.poly[tag, i].connect_default_events()
+                            self.poly[tag, i].set_visible(True)
+                            self.poly[tag, i].update()
+                        else:
+                            self.poly[tag, i].disconnect_events()
+                            self.poly[tag, i].set_visible(False)
+                            self.poly[tag, i].update()
             else:
-                for idx in range(self.im[0]['slices']):
+                for i in range(self.im[0]['slices']):
                     verts = None
-                    if idx in self.vertices:
-                        verts = self.vertices[idx]
-                    self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                    if i in self.vertices:
+                        verts = self.vertices[i]
+                    self.poly[i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                    # Polygon on single slice only
+                    if i != idx:
+                        self.poly[i].disconnect_events()
+                        self.poly[i].set_visible(False)
+                        self.poly[i].update()
         self.cidscroll = self.fig.canvas.mpl_connect('scroll_event', self.scroll)
         self.cidkeypress = self.fig.canvas.mpl_connect('key_press_event', self.key_press)
 
@@ -678,7 +692,7 @@ def grid_from_roi(im, vertices):
         Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
         Voxels inside ROI is 1, 0 outside.
     """
-    keys = vertices.keys()
+    keys = list(vertices.keys())[0]
     follow = issubclass(type(keys), tuple)
     nt, nz, ny, nx = im.shape
     if follow:
