@@ -111,14 +111,7 @@ class Header(object):
         self.color = False
         if self.DicomHeaderDict is not None:
             return
-        # self.axes = list()
-        # for d in range(len(shape)):
-        #    self.axes.append(imagedata.axis.UniformAxis('%d' % d,
-        #                                                0,
-        #                                                shape[d]))
         self.axes = copy.copy(axes)
-        # logging.debug('Header.set_default_values: study  UID {}'.format(self.studyInstanceUID))
-        # logging.debug('Header.set_default_values: series UID {}'.format(self.seriesInstanceUID))
 
         slices = tags = 1
         if axes is not None:
@@ -130,8 +123,6 @@ class Header(object):
 
             self.DicomHeaderDict = {}
             i = 0
-            # logging.debug('Header.set_default_values %d tags' % tags)
-            # logging.debug('Header.set_default_values tags {}'.format(self.tags))
             for _slice in range(slices):
                 self.DicomHeaderDict[_slice] = []
                 for tag in range(tags):
@@ -190,42 +181,12 @@ def add_template(this, template):
     if template_dhd is not None:
         __set_attribute(this, 'DicomHeaderDict',
                         __make_DicomHeaderDict_from_template(this, template_dhd))
-    # if issubclass(type(template), Header):
-    #     for attr in template.__dict__:
-    #         if attr in header_tags and attr != 'seriesInstanceUID':
-    #             setattr(this, attr, getattr(template, attr, None))
-    #     # Make sure DicomHeaderDict is set last
-    #     templateDHD = getattr(template, 'DicomHeaderDict', None)
-    #     if templateDHD is not None:
-    #         setattr(this, 'DicomHeaderDict',
-    #                 __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
-    # elif issubclass(type(template), dict):
-    #     for attr in template:
-    #         if attr in header_tags and attr != 'seriesInstanceUID':
-    #             if issubclass(type(this), Header):
-    #                 setattr(this, attr, copy.copy(template[attr]))
-    #             elif issubclass(type(this), dict):
-    #                 this[attr] = copy.copy(template[attr])
-    #     # Make sure DicomHeaderDict is set last
-    #     if 'DicomHeaderDict' in template:
-    #         if issubclass(type(this), Header):
-    #             setattr(this, 'DicomHeaderDict',
-    #                     __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
-    #         elif issubclass(type(this), dict):
-    #             this['DicomHeaderDict'] = copy.copy(
-    #                 __make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
-    # else:
-    #     raise ValueError('Template is not Header or dict.')
 
 
 def __get_tags_and_slices(obj):
     slices = tags = 1
     try:
         axes = __get_attribute(obj, 'axes')
-        # if issubclass(type(obj), Header):
-        #     axes = obj.axes
-        # elif issubclass(type(obj), dict):
-        #     axes = obj['axes']
     except Exception as e:
         print(e)
         raise
@@ -261,36 +222,26 @@ def __make_tags_from_template(this, template, geometry):
     tags, slices = __get_tags_and_slices(this)
     for _slice in range(slices):
         tag_dict[_slice] = []
-        for tag in range(tags):
-            try:
-                geometry_tag = geometry[_slice][tag][0]
-            except KeyError:
-                geometry_tag = tag
-            except (TypeError, IndexError):
-                if issubclass(type(geometry[_slice]), list):
-                    if tag < len(geometry[_slice]):
-                        geometry_tag = geometry[_slice][tag]
-                    else:
-                        raise
-                elif tag in geometry[_slice]:
-                    geometry_tag = geometry[_slice][tag]
-                elif template is not None and tag in template[_slice]:
-                    geometry_tag = template[_slice][tag]
-                else:
-                    raise
-            except Exception as e:
-                raise
-            tag_dict[_slice].append(geometry_tag)
+        if issubclass(type(geometry[_slice]), dict):
+            geometry_tag_list = list(geometry[_slice].values())
+        else:
+            geometry_tag_list = list(geometry[_slice])
+        if template is not None:
+            if issubclass(type(template[_slice]), dict):
+                template_tag_list = list(template[_slice].values())
+            else:
+                template_tag_list = list(template[_slice])
+        if len(geometry_tag_list) >= tags:
+            tag_dict[_slice] = geometry_tag_list[:tags]
+        elif len(template_tag_list) >= tags:
+            tag_dict[_slice] = template_tag_list[:tags]
+        else:
+            raise IndexError('Cannot get tag list with length {}'.format(tags))
     return tag_dict
 
 
 def __make_axes_from_template(this, template_axes, geometry_axes):
     axes = []
-    # tags, slices = __get_tags_and_slices(this)
-    # if issubclass(type(this), Header):
-    #     ndim = len(this.axes)
-    # else:
-    #     ndim = len(this['axes'])
     ndim = len(__get_attribute(this, 'axes'))
     if len(geometry_axes) >= ndim:
         axes = geometry_axes[-ndim:]
@@ -333,36 +284,6 @@ def add_geometry(this, template, geometry):
                         __get_attribute(geometry, 'axes')
                     ))
     return
-    # if issubclass(type(geometry), Header):
-    #     for attr in geometry.__dict__:
-    #         if attr in geometry_tags and attr not in ['tags', 'axes']:
-    #             setattr(this, attr, getattr(geometry, attr, None))
-    #     # Make sure tags and axes are set last
-    #     setattr(this, 'tags',
-    #             __make_tags_from_template(this, getattr(geometry, 'tags', None)))
-    #     setattr(this, 'axes',
-    #             __make_axes_from_template(this, getattr(geometry, 'axes', None)))
-    # elif issubclass(type(geometry), dict):
-    #     for attr in geometry:
-    #         if attr in geometry_tags and attr not in ['tags', 'axes']:
-    #             if issubclass(type(this), Header):
-    #                 setattr(this, attr, copy.copy(geometry[attr]))
-    #             elif issubclass(type(this), dict):
-    #                 this[attr] = copy.copy(geometry[attr])
-    #     if 'tags' in geometry:
-    #         if issubclass(type(this), Header):
-    #             setattr(this, 'tags',
-    #                     __make_tags_from_template(this, getattr(geometry, 'tags', None)))
-    #         elif issubclass(type(this), dict):
-    #             this['tags'] = copy.copy(__make_tags_from_template(this, geometry['tags']))
-    #     if 'axes' in geometry:
-    #         if issubclass(type(this), Header):
-    #             setattr(this, 'axes',
-    #                     __make_axes_from_template(this, getattr(geometry, 'axes', None)))
-    #         elif issubclass(type(this), dict):
-    #             this['axes'] = copy.copy(__make_axes_from_template(this, geometry['axes']))
-    # else:
-    #     raise ValueError('Template is not Header or dict.')
 
 
 def __attributes(obj):
