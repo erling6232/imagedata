@@ -109,7 +109,7 @@ def read(urls, order=None, opts=None):
                 logging.debug("readdata.read: close archive {}".format(source['archive']))
                 source['archive'].close()
             add_template(hdr, pre_hdr)
-            add_geometry(hdr, geom_hdr)
+            add_geometry(hdr, pre_hdr, geom_hdr)
             return hdr, si
         except (FileNotFoundError, imagedata.formats.CannotSort):
             raise

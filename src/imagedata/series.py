@@ -114,7 +114,7 @@ class Series(np.ndarray):
             obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
             add_template(obj.header, template)
-            add_geometry(obj.header, geometry)
+            add_geometry(obj.header, template, geometry)
             return obj
         logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -125,7 +125,7 @@ class Series(np.ndarray):
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.axes)
             add_template(obj.header, template)
-            add_geometry(obj.header, geometry)
+            add_geometry(obj.header, template, geometry)
             return obj
 
         # Assuming data is url to input data
@@ -143,7 +143,7 @@ class Series(np.ndarray):
             obj.header.input_order = input_order
             obj.header.set_default_values(obj.axes)
             add_template(obj.header, template)
-            add_geometry(obj.header, geometry)
+            add_geometry(obj.header, template, geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -165,7 +165,7 @@ class Series(np.ndarray):
             setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
         add_template(obj.header, template)
-        add_geometry(obj.header, geometry)
+        add_geometry(obj.header, template, geometry)
         # Finally, we must return the newly created object
         return obj
 

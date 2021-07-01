@@ -182,41 +182,50 @@ def add_template(this, template):
         return
     if not issubclass(type(this), Header) and not issubclass(type(this), dict):
         raise ValueError('Object is not Header or dict.')
-    if issubclass(type(template), Header):
-        for attr in template.__dict__:
-            if attr in header_tags and attr != 'seriesInstanceUID':
-                setattr(this, attr, getattr(template, attr, None))
-        # Make sure DicomHeaderDict is set last
-        templateDHD = getattr(template, 'DicomHeaderDict', None)
-        if templateDHD is not None:
-            setattr(this, 'DicomHeaderDict',
-                    __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
-    elif issubclass(type(template), dict):
-        for attr in template:
-            if attr in header_tags and attr != 'seriesInstanceUID':
-                if issubclass(type(this), Header):
-                    setattr(this, attr, copy.copy(template[attr]))
-                elif issubclass(type(this), dict):
-                    this[attr] = copy.copy(template[attr])
-        # Make sure DicomHeaderDict is set last
-        if 'DicomHeaderDict' in template:
-            if issubclass(type(this), Header):
-                setattr(this, 'DicomHeaderDict',
-                        __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
-            elif issubclass(type(this), dict):
-                this['DicomHeaderDict'] = copy.copy(
-                    __make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
-    else:
-        raise ValueError('Template is not Header or dict.')
+    for attr in __attributes(template):
+        if attr in header_tags and attr != 'seriesInstanceUID':
+            __set_attribute(this, attr, __get_attribute(template, attr))
+    # Make sure DicomHeaderDict is set last
+    template_dhd = __get_attribute(template, 'DicomHeaderDict')
+    if template_dhd is not None:
+        __set_attribute(this, 'DicomHeaderDict',
+                        __make_DicomHeaderDict_from_template(this, template_dhd))
+    # if issubclass(type(template), Header):
+    #     for attr in template.__dict__:
+    #         if attr in header_tags and attr != 'seriesInstanceUID':
+    #             setattr(this, attr, getattr(template, attr, None))
+    #     # Make sure DicomHeaderDict is set last
+    #     templateDHD = getattr(template, 'DicomHeaderDict', None)
+    #     if templateDHD is not None:
+    #         setattr(this, 'DicomHeaderDict',
+    #                 __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
+    # elif issubclass(type(template), dict):
+    #     for attr in template:
+    #         if attr in header_tags and attr != 'seriesInstanceUID':
+    #             if issubclass(type(this), Header):
+    #                 setattr(this, attr, copy.copy(template[attr]))
+    #             elif issubclass(type(this), dict):
+    #                 this[attr] = copy.copy(template[attr])
+    #     # Make sure DicomHeaderDict is set last
+    #     if 'DicomHeaderDict' in template:
+    #         if issubclass(type(this), Header):
+    #             setattr(this, 'DicomHeaderDict',
+    #                     __make_DicomHeaderDict_from_template(this, getattr(template, 'DicomHeaderDict', None)))
+    #         elif issubclass(type(this), dict):
+    #             this['DicomHeaderDict'] = copy.copy(
+    #                 __make_DicomHeaderDict_from_template(this, template['DicomHeaderDict']))
+    # else:
+    #     raise ValueError('Template is not Header or dict.')
 
 
 def __get_tags_and_slices(obj):
     slices = tags = 1
     try:
-        if issubclass(type(obj), Header):
-            axes = obj.axes
-        elif issubclass(type(obj), dict):
-            axes = obj['axes']
+        axes = __get_attribute(obj, 'axes')
+        # if issubclass(type(obj), Header):
+        #     axes = obj.axes
+        # elif issubclass(type(obj), dict):
+        #     axes = obj['axes']
     except Exception as e:
         print(e)
         raise
@@ -230,7 +239,7 @@ def __get_tags_and_slices(obj):
 
 def __make_DicomHeaderDict_from_template(this, template):
     DicomHeaderDict = {}
-    defaultHeader = template[0][0][2]
+    default_header = template[0][0][2]
     tags, slices = __get_tags_and_slices(this)
     for _slice in range(slices):
         DicomHeaderDict[_slice] = []
@@ -242,84 +251,146 @@ def __make_DicomHeaderDict_from_template(this, template):
             try:
                 templateHeader = template[_slice][tag][2]
             except KeyError:
-                templateHeader = defaultHeader
+                templateHeader = default_header
             DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
     return DicomHeaderDict
 
 
-def __make_tags_from_template(this, template):
+def __make_tags_from_template(this, template, geometry):
     tag_dict = {}
     tags, slices = __get_tags_and_slices(this)
     for _slice in range(slices):
         tag_dict[_slice] = []
         for tag in range(tags):
             try:
-                template_tag = template[_slice][tag][0]
+                geometry_tag = geometry[_slice][tag][0]
             except KeyError:
-                template_tag = tag
+                geometry_tag = tag
             except (TypeError, IndexError):
-                template_tag = template[_slice][tag]
+                if issubclass(type(geometry[_slice]), list):
+                    if tag < len(geometry[_slice]):
+                        geometry_tag = geometry[_slice][tag]
+                    else:
+                        raise
+                elif tag in geometry[_slice]:
+                    geometry_tag = geometry[_slice][tag]
+                elif template is not None and tag in template[_slice]:
+                    geometry_tag = template[_slice][tag]
+                else:
+                    raise
             except Exception as e:
                 raise
-            tag_dict[_slice].append(template_tag)
+            tag_dict[_slice].append(geometry_tag)
     return tag_dict
 
 
-def __make_axes_from_template(this, template_axes):
+def __make_axes_from_template(this, template_axes, geometry_axes):
     axes = []
     # tags, slices = __get_tags_and_slices(this)
-    if issubclass(type(this), Header):
-        ndim = len(this.axes)
-    else:
-        ndim = len(this['axes'])
-    if len(template_axes) >= ndim:
+    # if issubclass(type(this), Header):
+    #     ndim = len(this.axes)
+    # else:
+    #     ndim = len(this['axes'])
+    ndim = len(__get_attribute(this, 'axes'))
+    if len(geometry_axes) >= ndim:
+        axes = geometry_axes[-ndim:]
+    elif template_axes is not None and len(template_axes) >= ndim:
         axes = template_axes[-ndim:]
     else:
-        raise ValueError("Too few dimension in geometry template.")
+        raise ValueError("Too few axes in template.")
     return axes
 
 
-def add_geometry(this, template):
+def add_geometry(this, template, geometry):
     """Add geometry data to this header.
 
     Args:
         this: header or dict
         template: template header or dict. Can be None.
+        geometry: geometry template header or dict. Can be None.
     Raises:
         ValueError: When the template is not a Header or dict.
     """
 
-    if template is None:
+    if geometry is None:
         return
     if not issubclass(type(this), Header) and not issubclass(type(this), dict):
         raise ValueError('Object is not Header or dict.')
-    if issubclass(type(template), Header):
-        for attr in template.__dict__:
-            if attr in geometry_tags and attr not in ['tags', 'axes']:
-                setattr(this, attr, getattr(template, attr, None))
-        # Make sure tags and axes are set last
-        setattr(this, 'tags',
-                __make_tags_from_template(this, getattr(template, 'tags', None)))
-        setattr(this, 'axes',
-                __make_axes_from_template(this, getattr(template, 'axes', None)))
-    elif issubclass(type(template), dict):
-        for attr in template:
-            if attr in geometry_tags and attr not in ['tags', 'axes']:
-                if issubclass(type(this), Header):
-                    setattr(this, attr, copy.copy(template[attr]))
-                elif issubclass(type(this), dict):
-                    this[attr] = copy.copy(template[attr])
-        if 'tags' in template:
-            if issubclass(type(this), Header):
-                setattr(this, 'tags',
-                        __make_tags_from_template(this, getattr(template, 'tags', None)))
-            elif issubclass(type(this), dict):
-                this['tags'] = copy.copy(__make_tags_from_template(this, template['tags']))
-        if 'axes' in template:
-            if issubclass(type(this), Header):
-                setattr(this, 'axes',
-                        __make_axes_from_template(this, getattr(template, 'axes', None)))
-            elif issubclass(type(this), dict):
-                this['axes'] = copy.copy(__make_axes_from_template(this, template['axes']))
+    for attr in __attributes(geometry):
+        if attr in geometry_tags and attr not in ['tags', 'axes']:
+            __set_attribute(this, attr, __get_attribute(geometry, attr))
+    # Make sure tags and axes are set last
+    __set_attribute(this, 'tags',
+                    __make_tags_from_template(
+                        this,
+                        __get_attribute(template, 'tags'),
+                        __get_attribute(geometry, 'tags')
+                    ))
+    __set_attribute(this, 'axes',
+                    __make_axes_from_template(
+                        this,
+                        __get_attribute(template, 'axes'),
+                        __get_attribute(geometry, 'axes')
+                    ))
+    return
+    # if issubclass(type(geometry), Header):
+    #     for attr in geometry.__dict__:
+    #         if attr in geometry_tags and attr not in ['tags', 'axes']:
+    #             setattr(this, attr, getattr(geometry, attr, None))
+    #     # Make sure tags and axes are set last
+    #     setattr(this, 'tags',
+    #             __make_tags_from_template(this, getattr(geometry, 'tags', None)))
+    #     setattr(this, 'axes',
+    #             __make_axes_from_template(this, getattr(geometry, 'axes', None)))
+    # elif issubclass(type(geometry), dict):
+    #     for attr in geometry:
+    #         if attr in geometry_tags and attr not in ['tags', 'axes']:
+    #             if issubclass(type(this), Header):
+    #                 setattr(this, attr, copy.copy(geometry[attr]))
+    #             elif issubclass(type(this), dict):
+    #                 this[attr] = copy.copy(geometry[attr])
+    #     if 'tags' in geometry:
+    #         if issubclass(type(this), Header):
+    #             setattr(this, 'tags',
+    #                     __make_tags_from_template(this, getattr(geometry, 'tags', None)))
+    #         elif issubclass(type(this), dict):
+    #             this['tags'] = copy.copy(__make_tags_from_template(this, geometry['tags']))
+    #     if 'axes' in geometry:
+    #         if issubclass(type(this), Header):
+    #             setattr(this, 'axes',
+    #                     __make_axes_from_template(this, getattr(geometry, 'axes', None)))
+    #         elif issubclass(type(this), dict):
+    #             this['axes'] = copy.copy(__make_axes_from_template(this, geometry['axes']))
+    # else:
+    #     raise ValueError('Template is not Header or dict.')
+
+
+def __attributes(obj):
+    if issubclass(type(obj), Header):
+        for attr in obj.__dict__:
+            yield attr
+    elif issubclass(type(obj), dict):
+        for attr in obj:
+            yield attr
     else:
-        raise ValueError('Template is not Header or dict.')
+        raise ValueError('Template is not Header nor dict.')
+
+
+def __get_attribute(obj, name):
+    if obj is None:
+        return None
+    if issubclass(type(obj), Header):
+        return getattr(obj, name, None)
+    elif issubclass(type(obj), dict):
+        return copy.copy(obj[name])
+    else:
+        raise ValueError('Object is not Header nor dict.')
+
+
+def __set_attribute(obj, name, value):
+    if issubclass(type(obj), Header):
+        setattr(obj, name, value)
+    elif issubclass(type(obj), dict):
+        obj[name] = value
+    else:
+        raise ValueError('Source is not Header nor dict.')
