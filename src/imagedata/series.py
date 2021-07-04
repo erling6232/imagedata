@@ -1899,7 +1899,7 @@ class Series(np.ndarray):
             ValueError: when image is not a subclass of Series, or too many viewports are requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from imagedata.viewer import Viewer, default_layout
+        from imagedata.viewer import Viewer, default_layout, grid_from_roi
         import matplotlib.pyplot as plt
 
         # im2 can be single image or list of images
@@ -1930,7 +1930,7 @@ class Series(np.ndarray):
             input_order = self.input_order
         else:
             input_order = 'none'
-        new_roi = Series(viewer.grid_from_roi(), input_order=input_order, template=self, geometry=self)
+        new_roi = Series(grid_from_roi(self, viewer.get_roi()), input_order=input_order, template=self, geometry=self)
         new_roi.seriesDescription = 'ROI'
         new_roi.setDicomAttribute('WindowCenter',.5)
         new_roi.setDicomAttribute('WindowWidth',1)

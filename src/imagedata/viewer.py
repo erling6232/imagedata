@@ -343,44 +343,44 @@ class Viewer:
         else:
             self.vertices[idx] = copy.copy(verts)
 
-    def grid_from_roi(self):
-        """Return drawn ROI as grid.
-
-        Returns:
-            Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
-            Voxels inside ROI is 1, 0 outside.
-        """
-        nt, nz, ny, nx = self.im[0]['tags'], self.im[0]['slices'], self.im[0]['rows'], self.im[0]['columns']
-        if self.follow:
-            grid = np.zeros((nt, nz, ny, nx), dtype=np.ubyte)
-            for idx in range(nz):
-                last_used_tag = None
-                for t in range(nt):
-                    tag = t, idx
-                    if tag not in self.vertices or self.vertices[tag] is None:
-                        if last_used_tag is None:
-                            # Most probably a slice with no ROIs
-                            continue
-                        # Propagate last drawn ROI to unfilled tags
-                        self.vertices[tag] = self.vertices[last_used_tag]
-                    else:
-                        last_used_tag = tag
-                    path = MplPath(self.vertices[tag])
-                    x, y = np.meshgrid(np.arange(nx), np.arange(ny))
-                    x, y = x.flatten(), y.flatten()
-                    points = np.vstack((x, y)).T
-                    grid[t, idx] = path.contains_points(points).reshape((ny, nx))
-        else:
-            grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
-            for idx in range(nz):
-                if idx not in self.vertices or self.vertices[idx] is None:
-                    continue
-                path = MplPath(self.vertices[idx])
-                x, y = np.meshgrid(np.arange(nx), np.arange(ny))
-                x, y = x.flatten(), y.flatten()
-                points = np.vstack((x, y)).T
-                grid[idx] = path.contains_points(points).reshape((ny, nx))
-        return grid
+    # def grid_from_roi(self):
+    #     """Return drawn ROI as grid.
+    #
+    #     Returns:
+    #         Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
+    #         Voxels inside ROI is 1, 0 outside.
+    #     """
+    #     nt, nz, ny, nx = self.im[0]['tags'], self.im[0]['slices'], self.im[0]['rows'], self.im[0]['columns']
+    #     if self.follow:
+    #         grid = np.zeros((nt, nz, ny, nx), dtype=np.ubyte)
+    #         for idx in range(nz):
+    #             last_used_tag = None
+    #             for t in range(nt):
+    #                 tag = t, idx
+    #                 if tag not in self.vertices or self.vertices[tag] is None:
+    #                     if last_used_tag is None:
+    #                         # Most probably a slice with no ROIs
+    #                         continue
+    #                     # Propagate last drawn ROI to unfilled tags
+    #                     self.vertices[tag] = self.vertices[last_used_tag]
+    #                 else:
+    #                     last_used_tag = tag
+    #                 path = MplPath(self.vertices[tag])
+    #                 x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+    #                 x, y = x.flatten(), y.flatten()
+    #                 points = np.vstack((x, y)).T
+    #                 grid[t, idx] = path.contains_points(points).reshape((ny, nx))
+    #     else:
+    #         grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
+    #         for idx in range(nz):
+    #             if idx not in self.vertices or self.vertices[idx] is None:
+    #                 continue
+    #             path = MplPath(self.vertices[idx])
+    #             x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+    #             x, y = x.flatten(), y.flatten()
+    #             points = np.vstack((x, y)).T
+    #             grid[idx] = path.contains_points(points).reshape((ny, nx))
+    #     return grid
 
     def get_roi(self):
         """Return drawn ROI.
@@ -688,11 +688,16 @@ def default_layout(fig, n):
 def grid_from_roi(im, vertices):
     """Return drawn ROI as grid.
 
+    Args:
+        im (Series): Series object as template
+        vertices: The polygon vertices, as a dictionary of tags of (x,y)
     Returns:
         Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
         Voxels inside ROI is 1, 0 outside.
     """
     keys = list(vertices.keys())[0]
+    # print('grid_from_roi: keys: {}'.format(keys))
+    # print('grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
     nt, nz, ny, nx = im.shape
     if follow:
