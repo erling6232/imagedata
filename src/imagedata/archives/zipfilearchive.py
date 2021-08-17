@@ -194,6 +194,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                         filelist.append(filename)
                     elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
                         filelist.append(filename)
+            logger.debug('ZipfileArchive.getnames: found files {}'.format(len(filelist)))
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
@@ -272,18 +273,23 @@ class ZipfileArchive(AbstractArchive, ABC):
                 The list has the same order as the members in the archive.
         """
         if files:
+            # logger.debug('ZipfileArchive.getmembers: files {}'.format(len(files)))
             if issubclass(type(files), list):
                 wanted_files = files
             else:
                 wanted_files = list((files,))
+            # logger.debug('ZipfileArchive.getmembers: wanted_files {}'.format(len(wanted_files)))
             found_match = [False for _ in range(len(wanted_files))]
             filelist = list()
             for filename in self.__files:
                 for i, required_filename in enumerate(wanted_files):
-                    if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
+                    #if i == 0:
+                    #    logger.debug('ZipfileArchive.getmembers: compare {} {} {}'.format(os.path.normpath(filename), required_filename,
+                    #        os.path.normpath(required_filename)))
+                    if fnmatch.fnmatchcase(os.path.normpath(filename), os.path.normpath(required_filename)):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
+                    elif fnmatch.fnmatchcase(os.path.normpath(filename), os.path.normpath(required_filename+'/*')):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found
