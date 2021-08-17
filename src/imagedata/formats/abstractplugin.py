@@ -118,7 +118,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
                 scan_files = archive.getnames()
-            logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
+            # logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
                 logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
                 if self._need_local_file():
