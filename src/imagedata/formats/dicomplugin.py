@@ -521,12 +521,16 @@ class DICOMPlugin(AbstractPlugin):
                 logger.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
                     continue
+                # logger.debug("get_dicom_headers: calling archive.getmembers: {}".format(len(path)))
                 member = archive.getmembers([path, ])
+                # logger.debug("get_dicom_headers: returned from archive.getmembers: {}".format(len(member)))
                 if len(member) != 1:
                     raise IndexError('Should not be multiple files for a filename')
                 member = member[0]
                 try:
                     with archive.open(member, mode='rb') as f:
+                        logger.debug('DICOMPlugin.get_dicom_headers: process_member {}'.format(
+                            member))
                         self.process_member(image_dict, archive, path, f, opts, skip_pixels=skip_pixels)
                 except Exception as e:
                     logger.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
