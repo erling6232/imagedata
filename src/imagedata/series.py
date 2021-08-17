@@ -1935,9 +1935,9 @@ class Series(np.ndarray):
             new_grid = grid_from_roi(self, viewer.get_roi())
         except IndexError:
             if follow:
-                new_grid = np.zeros_like(self)
+                new_grid = np.zeros_like(self, dtype=np.ubyte)
             else:
-                new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=self.dtype)
+                new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
         new_roi = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_roi.seriesDescription = 'ROI'
         new_roi.setDicomAttribute('WindowCenter',.5)
