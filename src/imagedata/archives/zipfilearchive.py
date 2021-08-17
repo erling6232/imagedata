@@ -18,6 +18,8 @@ import imagedata.transports
 from imagedata.archives.abstractarchive import AbstractArchive
 import zipfile
 
+logger = logging.getLogger(__name__)
+
 
 def list_files(startpath):
     import os
@@ -49,13 +51,13 @@ class WriteFileIO(io.FileIO):
 
     def close(self):
         """Close file, copy it to archive, then delete local file."""
-        logging.debug("ZipfileArchive.WriteFileIO.close:")
+        logger.debug("ZipfileArchive.WriteFileIO.close:")
         ret = super(WriteFileIO, self).close()
         self.__localfile.close()
-        logging.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
+        logger.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
                       (self.__localfile.name, self.__filename))
         self.__archive.write(self.__localfile.name, self.__filename)
-        logging.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
+        logger.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
                       self.__localfile.name)
         os.remove(self.__localfile.name)
         return ret
@@ -63,7 +65,7 @@ class WriteFileIO(io.FileIO):
     def __enter__(self):
         """Enter context manager.
         """
-        logging.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
+        logger.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
                       (self.__filename, self.__localfile.name))
         return self
 
@@ -105,7 +107,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
         self.opts = opts
-        logging.debug("ZipfileArchive.__init__ url: {}".format(url))
+        logger.debug("ZipfileArchive.__init__ url: {}".format(url))
         urldict = urllib.parse.urlsplit(url, scheme="file")
         if transport is not None:
             self.__transport = transport
@@ -121,7 +123,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             if urldict.scheme == 'xnat':
                 netloc = urldict.netloc + urldict.path
                 self.__path = urldict.path
-                logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
+                logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                               (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
@@ -131,7 +133,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                     read_directory_only=read_directory_only)
             else:
                 netloc, self.__path = os.path.split(urldict.path)
-                logging.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
+                logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                               (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
@@ -141,18 +143,18 @@ class ZipfileArchive(AbstractArchive, ABC):
         self.__mode = mode
         self.__files = {}
 
-        logging.debug("ZipfileArchive path: {}".format(self.__path))
+        logger.debug("ZipfileArchive path: {}".format(self.__path))
         self.__fp = self.__transport.open(
             self.__path, mode=self.__mode + "b")
-        logging.debug("ZipfileArchive self.__fp: {}".format(type(self.__fp)))
-        logging.debug("ZipfileArchive open zipfile mode %s" % self.__mode)
+        logger.debug("ZipfileArchive self.__fp: {}".format(type(self.__fp)))
+        logger.debug("ZipfileArchive open zipfile mode %s" % self.__mode)
         self.__archive = zipfile.ZipFile(
             self.__fp,
             mode=self.__mode,
             compression=zipfile.ZIP_DEFLATED)
         # Extract the archive
         self.__tmpdir = tempfile.mkdtemp()
-        logging.debug("Extract zipfile {} to {}".format(
+        logger.debug("Extract zipfile {} to {}".format(
             self.__archive, self.__tmpdir))
         # Get filelist in self.__files
         for fname in self.__archive.namelist():
@@ -163,7 +165,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             if not _is_dir:
                 member = {'unpacked': False, 'name': fname, 'fh': None}
                 self.__files[fname] = member
-        # logging.debug("ZipFile self.__files: {}".format(self.__files))
+        # logger.debug("ZipFile self.__files: {}".format(self.__files))
 
     @property
     def transport(self):
@@ -185,7 +187,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         if files:
             filelist = list()
             for filename in self.__files:
-                # logging.debug('ZipfileArchive.getmembers: member {}'.format(filename))
+                # logger.debug('ZipfileArchive.getmembers: member {}'.format(filename))
                 for required_filename in files:
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
@@ -232,8 +234,8 @@ class ZipfileArchive(AbstractArchive, ABC):
         This is necessary to allow the seek() operation on open files.
         """
 
-        logging.debug('ZipfileArchive.open: mode %s' % mode)
-        logging.debug('ZipfileArchive.open: filehandle %s' % filehandle)
+        logger.debug('ZipfileArchive.open: mode %s' % mode)
+        logger.debug('ZipfileArchive.open: filehandle %s' % filehandle)
         if mode[0] == 'r':
             if filehandle['name'] not in self.__files:
                 raise FileNotFoundError(
@@ -249,7 +251,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                     'Cannot write on an archive opened for read')
             # Open local file for write
             localfile = tempfile.NamedTemporaryFile(delete=False)
-            logging.debug('ZipfileArchive.open: mode %s file %s' % (
+            logger.debug('ZipfileArchive.open: mode %s file %s' % (
                 mode, localfile))
             fh = WriteFileIO(self.__archive, filehandle, localfile)
             member = {'unpacked': True,
@@ -323,10 +325,10 @@ class ZipfileArchive(AbstractArchive, ABC):
                   'fh': None,
                   'localfile': local_file}
         self.__archive.write(local_file, arcname=filename)
-        logging.debug('ZipfileArchive.add_localfile: local {} as {}'.format(
+        logger.debug('ZipfileArchive.add_localfile: local {} as {}'.format(
             local_file, filename))
         self.__files[filename] = member
-        logging.debug('{}'.format(self.__archive.namelist()))
+        logger.debug('{}'.format(self.__archive.namelist()))
 
     def writedata(self, filename, data):
         """Write data to a named file in the archive.
@@ -350,7 +352,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         self.__archive.close()
         self.__fp.close()
         shutil.rmtree(self.__tmpdir)
-        logging.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
+        logger.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
         self.__transport.close()
 
     def is_file(self, filehandle):
@@ -361,11 +363,11 @@ class ZipfileArchive(AbstractArchive, ABC):
     def __enter__(self):
         """Enter context manager.
         """
-        logging.debug("ZipfileArchive __enter__: {} mode {}".format(type(self.__transport), self.__mode))
+        logger.debug("ZipfileArchive __enter__: {} mode {}".format(type(self.__transport), self.__mode))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Leave context manager, cleaning up any open files.
         """
-        logging.debug('ZipfileArchive.__exit__:')
+        logger.debug('ZipfileArchive.__exit__:')
         self.close()

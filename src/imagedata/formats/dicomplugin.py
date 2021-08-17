@@ -17,6 +17,8 @@ import imagedata.formats
 import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 
+logger = logging.getLogger(__name__)
+
 
 class FilesGivenForMultipleURLs(Exception):
     pass
@@ -189,7 +191,7 @@ class DICOMPlugin(AbstractPlugin):
             tag: DICOM tag of requested attribute.
             slice: which slice to access. Default: slice=0
         """
-        # logging.debug("getDicomAttribute: tag", tag, ", slice", slice)
+        # logger.debug("getDicomAttribute: tag", tag, ", slice", slice)
         tg, fname, im = self.DicomHeaderDict[slice][0]
         if tag in im:
             return im[tag].value
@@ -239,14 +241,14 @@ class DICOMPlugin(AbstractPlugin):
         self.input_order = input_order
 
         # Read DICOM headers
-        logging.debug('DICOMPlugin.read: sources %s' % sources)
+        logger.debug('DICOMPlugin.read: sources %s' % sources)
         # pydicom.config.debug(True)
         try:
             hdr, shape = self.read_headers(sources, input_order, opts, skip_pixels=True)
         except imagedata.formats.CannotSort:
             raise
         except Exception as e:
-            logging.debug('DICOMPlugin.read: exception\n%s' % e)
+            logger.debug('DICOMPlugin.read: exception\n%s' % e)
             raise imagedata.formats.NotImageError('{}'.format(e))
         # pydicom.config.debug(False)
 
@@ -263,7 +265,7 @@ class DICOMPlugin(AbstractPlugin):
             matrix_dtype = np.uint8
         else:
             matrix_dtype = np.uint16
-        logging.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
+        logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
             _color = 1
             hdr['color'] = True
@@ -284,13 +286,13 @@ class DICOMPlugin(AbstractPlugin):
             # except ValueError:
             #    ds.PhotometricInterpretation = 'MONOCHROME2'
 
-        logging.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
-        logging.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
+        logger.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
+        logger.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
         if 'headers_only' in opts and opts['headers_only']:
             return hdr, None
 
         # Load DICOM image data
-        logging.debug('DICOMPlugin.read: shape {}'.format(shape))
+        logger.debug('DICOMPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, matrix_dtype)
         # process = psutil.Process()
         # print(process.memory_info())
@@ -329,17 +331,17 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     im.decompress()
                 except NotImplementedError as e:
-                    logging.error("Cannot decompress pixel data: {}".format(e))
+                    logger.error("Cannot decompress pixel data: {}".format(e))
                     raise
                 try:
                     si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
                 except Exception as e:
-                    logging.warning("Cannot read pixel data: {}".format(e))
+                    logger.warning("Cannot read pixel data: {}".format(e))
                     raise
 
         # Simplify shape
         self._reduce_shape(si, hdr['axes'])
-        logging.debug('DICOMPlugin.read: si {}'.format(si.shape))
+        logger.debug('DICOMPlugin.read: si {}'.format(si.shape))
 
         # nz = len(hdr['DicomHeaderDict'])
         # hdr['slices'] = nz
@@ -372,7 +374,7 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         try:
-            # logging.debug("Set si[{}]".format(idx))
+            # logger.debug("Set si[{}]".format(idx))
             if 'RescaleSlope' in im:
                 pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
             else:
@@ -394,13 +396,13 @@ class DICOMPlugin(AbstractPlugin):
         except UnboundLocalError:
             # A bug in pydicom appears when reading binary images
             if im.BitsAllocated == 1:
-                logging.debug(
+                logger.debug(
                     "Binary image, image.shape={}, image shape=({},{},{})".format(
                         im.shape, im.NumberOfFrames, im.Rows, im.Columns))
                 # try:
                 #    image.decompress()
                 # except NotImplementedError as e:
-                #    logging.error("Cannot decompress pixel data: {}".format(e))
+                #    logger.error("Cannot decompress pixel data: {}".format(e))
                 #    raise
                 _myarr = np.frombuffer(im.PixelData, dtype=np.uint8)
                 # Reverse bit order, and copy the array to get a
@@ -468,7 +470,7 @@ class DICOMPlugin(AbstractPlugin):
                 - shape: required shape of image data
         """
 
-        logging.debug('DICOMPlugin.read_headers: sources %s' % sources)
+        logger.debug('DICOMPlugin.read_headers: sources %s' % sources)
         # try:
         hdr, shape = self.get_dicom_headers(sources, input_order, opts, skip_pixels=skip_pixels)
         # except UnevenSlicesError:
@@ -478,11 +480,11 @@ class DICOMPlugin(AbstractPlugin):
         # except ValueError:
         #    #import traceback
         #    #traceback.print_exc()
-        #    #logging.info("process_member: Could not read {}".format(member_name))
+        #    #logger.info("process_member: Could not read {}".format(member_name))
         #    raise imagedata.formats.NotImageError(
         #        'Does not look like a DICOM file: {}'.format(sources))
         # except Exception as e:
-        #    logging.debug('DICOMPlugin.read_headers: Exception {}'.format(e))
+        #    logger.debug('DICOMPlugin.read_headers: Exception {}'.format(e))
         #    raise
 
         self.extractDicomAttributes(hdr)
@@ -503,20 +505,20 @@ class DICOMPlugin(AbstractPlugin):
                 - hdr: dict
                 - shape: tuple
         """
-        logging.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
+        logger.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
 
         image_dict = {}
         for source in sources:
             archive = source['archive']
             scan_files = source['files']
-            logging.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
+            logger.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
             if scan_files is None or len(scan_files) == 0:
                 scan_files = ['*']
-            logging.debug("get_dicom_headers: source: {} {}".format(type(source), source))
-            logging.debug("get_dicom_headers: scan_files: {}".format(scan_files))
+            logger.debug("get_dicom_headers: source: {} {}".format(type(source), source))
+            logger.debug("get_dicom_headers: scan_files: {}".format(scan_files))
             # for member in archive.getmembers(scan_files):
             for path in archive.getnames(scan_files):
-                # logging.debug("get_dicom_headers: member: {}".format(path))
+                # logger.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
                     continue
                 member = archive.getmembers([path, ])
@@ -527,7 +529,7 @@ class DICOMPlugin(AbstractPlugin):
                     with archive.open(member, mode='rb') as f:
                         self.process_member(image_dict, archive, path, f, opts, skip_pixels=skip_pixels)
                 except Exception as e:
-                    logging.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
+                    logger.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
                     # except FileNotFoundError:
                     raise
         return self.sort_images(image_dict, input_order, opts)
@@ -566,7 +568,7 @@ class DICOMPlugin(AbstractPlugin):
         for sloc in sorted(header_dict):
             count[islice] += len(header_dict[sloc])
             islice += 1
-        logging.debug("sort_images: tags per slice: {}".format(count))
+        logger.debug("sort_images: tags per slice: {}".format(count))
         accept_uneven_slices = accept_duplicate_tag = False
         if 'accept_uneven_slices' in opts and \
                 opts['accept_uneven_slices'] == 'True':
@@ -575,7 +577,7 @@ class DICOMPlugin(AbstractPlugin):
                 opts['accept_duplicate_tag'] == 'True':
             accept_duplicate_tag = True
         if min(count) != max(count) and accept_uneven_slices:
-            logging.error("sort_images: tags per slice: {}".format(count))
+            logger.error("sort_images: tags per slice: {}".format(count))
             raise UnevenSlicesError("Different number of images in each slice.")
 
         # Extract all tags and sort them per slice
@@ -686,7 +688,7 @@ class DICOMPlugin(AbstractPlugin):
                 im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
             except pydicom.errors.InvalidDicomError:
                 # traceback.print_exc()
-                # logging.info("process_member: Could not read {}".format(member_name))
+                # logger.info("process_member: Could not read {}".format(member_name))
                 return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
@@ -700,18 +702,18 @@ class DICOMPlugin(AbstractPlugin):
             sloc = float(im.SliceLocation)
         except AttributeError:
             # traceback.print_exc()
-            # logging.debug("process_member: no SliceLocation in {}".format(member_name))
-            logging.debug('DICOMPlugin.process_member: Calculate SliceLocation')
+            # logger.debug("process_member: no SliceLocation in {}".format(member_name))
+            logger.debug('DICOMPlugin.process_member: Calculate SliceLocation')
             try:
                 sloc = self._calculate_slice_location(im)
             except ValueError:
                 sloc = 0
-        logging.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
+        logger.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
         if sloc not in image_dict:
             image_dict[sloc] = []
         image_dict[sloc].append((archive, member_name, im))
-        # logging.debug("process_member: added sloc {} {}".format(sloc, member_name))
-        # logging.debug("process_member: image_dict len: {}".format(len(image_dict)))
+        # logger.debug("process_member: added sloc {} {}".format(sloc, member_name))
+        # logger.debug("process_member: image_dict len: {}".format(len(image_dict)))
 
     def correct_acqtimes_for_dynamic_series(self, hdr, si):
         # si[t,slice,rows,columns]
@@ -719,7 +721,7 @@ class DICOMPlugin(AbstractPlugin):
         # Extract acqtime for each image
         slices = len(hdr['sliceLocations'])
         timesteps = self._count_timesteps(hdr)
-        logging.info(
+        logger.info(
             "Slices: %d, apparent time steps: %d, actual time steps: %d" % (slices, len(hdr['tags']), timesteps))
         new_shape = (timesteps, slices, si.shape[2], si.shape[3])
         newsi = np.zeros(new_shape, dtype=si.dtype)
@@ -727,7 +729,7 @@ class DICOMPlugin(AbstractPlugin):
         for _slice in hdr['DicomHeaderDict']:
             t = 0
             for tg, fname, im in hdr['DicomHeaderDict'][_slice]:
-                # logging.debug(_slice, tg, fname)
+                # logger.debug(_slice, tg, fname)
                 acq[_slice, t] = tg
                 t += 1
 
@@ -779,13 +781,13 @@ class DICOMPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
-        logging.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
+        logger.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.dcm'
-        logging.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(destination['files']))
+        logger.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(destination['files']))
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
-        logging.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
+        logger.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
 
         self.instanceNumber = 0
 
@@ -795,19 +797,19 @@ class DICOMPlugin(AbstractPlugin):
                 _ndim -= 1
         except AttributeError:
             pass
-        logging.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
+        logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
             si.shape, si.slices, _ndim))
         assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % _ndim
 
         self._calculate_rescale(si)
-        logging.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
-        logging.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
+        logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
+        logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
         self.serInsUid = si.header.new_uid()
-        logging.debug("write_3d_series {}".format(self.serInsUid))
+        logger.debug("write_3d_series {}".format(self.serInsUid))
         self.input_options = opts
 
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
@@ -818,14 +820,14 @@ class DICOMPlugin(AbstractPlugin):
             # Either legacy CT/MR, or another modality
             ifile = 0
             if _ndim < 3:
-                logging.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
+                logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
                 try:
                     filename = filename_template % 0
                 except TypeError:
                     filename = filename_template
                 self.write_slice(0, 0, si, archive, filename, ifile)
             else:
-                logging.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
+                logger.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
                 for _slice in range(si.slices):
                     try:
                         filename = filename_template % _slice
@@ -855,7 +857,7 @@ class DICOMPlugin(AbstractPlugin):
 
         """
 
-        logging.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.dcm'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
@@ -879,14 +881,14 @@ class DICOMPlugin(AbstractPlugin):
                 _ndim -= 1
         except AttributeError:
             pass
-        logging.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, _ndim))
+        logger.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, _ndim))
         assert _ndim == 4, "write_4d_series: input dimension %d is not 4D." % _ndim
 
         steps = si.shape[0]
         self._calculate_rescale(si)
-        logging.info("Smallest pixel value in series: {}".format(
+        logger.info("Smallest pixel value in series: {}".format(
             self.smallestPixelValueInSeries))
-        logging.info("Largest  pixel value in series: {}".format(
+        logger.info("Largest  pixel value in series: {}".format(
             self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
@@ -948,7 +950,7 @@ class DICOMPlugin(AbstractPlugin):
         Raises:
 
         """
-        logging.debug("write_enhanced {} {}".format(filename, self.serInsUid))
+        logger.debug("write_enhanced {} {}".format(filename, self.serInsUid))
 
         if np.issubdtype(si.dtype, np.floating):
             safe_si = np.nan_to_num(si)
@@ -961,7 +963,7 @@ class DICOMPlugin(AbstractPlugin):
             raise IndexError("Cannot address dicom_template.DicomHeaderDict[0][0]")
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
-        logging.debug("write_enhanced member_name {}".format(member_name))
+        logger.debug("write_enhanced member_name {}".format(member_name))
         ds = self.construct_enhanced_dicom(filename_template, im, safe_si)
 
         # Add header information
@@ -1047,7 +1049,7 @@ class DICOMPlugin(AbstractPlugin):
         ds.Rows = si.rows
         ds.Columns = si.columns
         self._insert_pixeldata(ds, safe_si)
-        # logging.debug("write_enhanced: filename {}".format(filename))
+        # logger.debug("write_enhanced: filename {}".format(filename))
 
         # Set tag
         self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
@@ -1056,7 +1058,7 @@ class DICOMPlugin(AbstractPlugin):
             fn = filename
         else:
             fn = filename + '.dcm'
-        logging.debug("write_enhanced: filename {}".format(fn))
+        logger.debug("write_enhanced: filename {}".format(fn))
         # if archive.transport.name == 'dicom':
         #     # Store dicom set ds directly
         #     archive.transport.store(ds)
@@ -1093,7 +1095,7 @@ class DICOMPlugin(AbstractPlugin):
             ifile: instance number in series
         """
 
-        logging.debug("write_slice {} {}".format(filename, self.serInsUid))
+        logger.debug("write_slice {} {}".format(filename, self.serInsUid))
 
         if np.issubdtype(si.dtype, np.floating):
             safe_si = np.nan_to_num(si)
@@ -1101,8 +1103,8 @@ class DICOMPlugin(AbstractPlugin):
             safe_si = si
 
         try:
-            logging.debug("write_slice slice {}, tag {}".format(slice, tag))
-            # logging.debug("write_slice {}".format(si.DicomHeaderDict))
+            logger.debug("write_slice slice {}, tag {}".format(slice, tag))
+            # logger.debug("write_slice {}".format(si.DicomHeaderDict))
             tg, member_name, im = si.DicomHeaderDict[0][0]
             # tg,member_name,image = si.DicomHeaderDict[slice][tag]
         except (KeyError, IndexError):
@@ -1110,7 +1112,7 @@ class DICOMPlugin(AbstractPlugin):
         # except AttributeError:
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
-        logging.debug("write_slice member_name {}".format(member_name))
+        logger.debug("write_slice member_name {}".format(member_name))
         ds = self.construct_dicom(filename, im, safe_si)
         # self._copy_dicom_group(0x21, im, ds)
         # self._copy_dicom_group(0x29, im, ds)
@@ -1201,7 +1203,7 @@ class DICOMPlugin(AbstractPlugin):
         ds.Rows = si.rows
         ds.Columns = si.columns
         self._insert_pixeldata(ds, safe_si)
-        # logging.debug("write_slice: filename {}".format(filename))
+        # logger.debug("write_slice: filename {}".format(filename))
 
         # Set tag
         self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
@@ -1210,7 +1212,7 @@ class DICOMPlugin(AbstractPlugin):
             fn = filename
         else:
             fn = filename + '.dcm'
-        logging.debug("write_slice: filename {}".format(fn))
+        logger.debug("write_slice: filename {}".format(fn))
         if archive.transport.name == 'dicom':
             # Store dicom set ds directly
             archive.transport.store(ds)
@@ -1282,8 +1284,8 @@ class DICOMPlugin(AbstractPlugin):
         If float array, scale to uint16
         """
 
-        # logging.debug('DICOMPlugin.insert_pixeldata: arr.dtype %s' % arr.dtype)
-        # logging.debug('DICOMPlugin.insert_pixeldata: arr.itemsize  %s' % arr.itemsize)
+        # logger.debug('DICOMPlugin.insert_pixeldata: arr.dtype %s' % arr.dtype)
+        # logger.debug('DICOMPlugin.insert_pixeldata: arr.itemsize  %s' % arr.itemsize)
 
         ds.SamplesPerPixel = 1
         ds.PixelRepresentation = 0
@@ -1354,7 +1356,7 @@ class DICOMPlugin(AbstractPlugin):
                 self.a = (ymax - ymin) / 65535.
             else:
                 self.a = 1.0
-            logging.debug("Rescale slope %f, rescale intercept %s" % (self.a, self.b))
+            logger.debug("Rescale slope %f, rescale intercept %s" % (self.a, self.b))
             self.smallestPixelValueInSeries = (ymin - self.b) / self.a
             self.largestPixelValueInSeries = (ymax - self.b) / self.a
         return self.a, self.b
@@ -1499,7 +1501,7 @@ class DICOMPlugin(AbstractPlugin):
             return
         iop = np.array(list(map(float, iop)))
         iop = np.array(iop).reshape(2, 3).T
-        logging.debug('simulateAffine: iop\n{}'.format(iop))
+        logger.debug('simulateAffine: iop\n{}'.format(iop))
         s_norm = np.cross(iop[:, 1], iop[:, 0])
         # Rotation matrix
         R = np.eye(3)
@@ -1517,21 +1519,21 @@ class DICOMPlugin(AbstractPlugin):
         zs = float(zs)
         pix_space = list(map(float, pix_space))
         vox = tuple(pix_space + [zs])
-        logging.debug('simulateAffine: vox {}'.format(vox))
+        logger.debug('simulateAffine: vox {}'.format(vox))
 
         ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
         if ipp is None:
             return
         ipp = np.array(list(map(float, ipp)))
-        logging.debug('simulateAffine: ipp {}'.format(ipp))
+        logger.debug('simulateAffine: ipp {}'.format(ipp))
 
         orient = R
-        logging.debug('simulateAffine: orient\n{}'.format(orient))
+        logger.debug('simulateAffine: orient\n{}'.format(orient))
 
         aff = np.eye(4)
         aff[:3, :3] = orient * np.array(vox)
         aff[:3, 3] = ipp
-        logging.debug('simulateAffine: aff\n{}'.format(aff))
+        logger.debug('simulateAffine: aff\n{}'.format(aff))
 
     def create_affine(self, hdr):
         """Function to generate the affine matrix for a dicom series
@@ -1582,7 +1584,7 @@ class DICOMPlugin(AbstractPlugin):
             [image_orient1[2] * delta_c, image_orient2[2] * delta_r, step[2], image_pos[2]],
             [0, 0, 0, 1]
         ])
-        logging.debug('create_affine: affine\n{}'.format(affine))
+        logger.debug('create_affine: affine\n{}'.format(affine))
         return affine
 
     @staticmethod

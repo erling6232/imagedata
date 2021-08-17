@@ -9,9 +9,8 @@ import pydicom.datadict
 import imagedata.formats
 import imagedata.formats.dicomlib.uid
 
-# from imagedata.series import Series
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 header_tags = ['input_format',
                'seriesNumber',

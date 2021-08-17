@@ -9,6 +9,8 @@ import math
 from abc import ABCMeta, abstractmethod
 from imagedata.apps.Siemens.draw_antialiased import draw_circle_mask, draw_polygon_mask
 
+logger = logging.getLogger(__name__)
+
 
 class ROI(object, metaclass=ABCMeta):
     """General ROI object.
@@ -114,7 +116,7 @@ class ROI(object, metaclass=ABCMeta):
         for p in self.points_matrix:
             z, y, x = p
             if z != iz:
-                logging.debug("Point %d,%d,%d is not in _slice %d." % (z, y, x, iz))
+                logger.debug("Point %d,%d,%d is not in _slice %d." % (z, y, x, iz))
                 # raise ValueError("Point %d,%d,%d is not in _slice %d." % (z,y,x,iz))
         return iz
 

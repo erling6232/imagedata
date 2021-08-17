@@ -8,6 +8,8 @@ import numpy as np
 import logging
 from imagedata.apps.Siemens.ROI import PolygonROI, EllipseROI
 
+logger = logging.getLogger(__name__)
+
 
 def xyz_to_zyx(polygon):
     """Swap (x,y,z) with (z,y,x) for each point
@@ -57,21 +59,21 @@ def evidence2roi(im, uid_table=None, content=None):
     else:
         seqkey = (0x0029, 0x1202)
         if seqkey not in im:
-            logging.debug("get_rois: no presentation sequence (0x0029, 0x1202)")
+            logger.debug("get_rois: no presentation sequence (0x0029, 0x1202)")
             return rois, content
         presentation_sq = im[seqkey]
 
     try:
         measurement = presentation_sq[0][(0x0029, 0x10a7)]
     except KeyError:
-        logging.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
+        logger.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
         # return (rois, content)
         raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
 
     try:
         findings = measurement[0][(0x0029, 0x1031)]
     except KeyError:
-        logging.error('get_rois: no findings attribute (0x0029, 0x1031) in input data')
+        logger.error('get_rois: no findings attribute (0x0029, 0x1031) in input data')
         raise KeyError('No findings attribute (0x0029, 0x1031) in input data')
 
     content_sq = presentation_sq[0][(0x0029, 0x10a9)]
@@ -108,7 +110,7 @@ def evidence2roi(im, uid_table=None, content=None):
             roi_name = finding[(0x0029, 0x1030)].value
         except KeyError:
             roi_name = 'NONAME'
-        logging.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
+        logger.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
         if roi_type_value == 'PolygonApplication3D' or roi_type_value == 'FreehandApplication3D':
             output = finding[(0x0029, 0x1096)]
             if output.VR == "UN":
@@ -116,12 +118,12 @@ def evidence2roi(im, uid_table=None, content=None):
             else:
                 meas_data_points = np.array(output.value)
             polygon = meas_data_points.reshape((meas_data_points.size // 3, 3))
-            logging.debug("XYZ: {}".format(polygon[0]))
+            logger.debug("XYZ: {}".format(polygon[0]))
             polygon = xyz_to_zyx(polygon)
-            logging.debug("ZYX: {}".format(polygon[0]))
+            logger.debug("ZYX: {}".format(polygon[0]))
 
             rois.append(PolygonROI(polygon, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
-            logging.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
+            logger.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
         elif roi_type_value == 'EllipseApplication3D':
             # Ellipsis centre
             output = finding[(0x0029, 0x1096)]
@@ -148,10 +150,10 @@ def evidence2roi(im, uid_table=None, content=None):
 
             rois.append(EllipseROI(centre, angles, thickness, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
         elif roi_type_value == 'StandaloneTextApplication3D':
-            logging.warning("Standalone Text ROI not implemented.")
+            logger.warning("Standalone Text ROI not implemented.")
             pass
         elif roi_type_value == 'DistanceLineApplication3D':
-            logging.warning("DistanceLineApplication3D ROI not implemented.")
+            logger.warning("DistanceLineApplication3D ROI not implemented.")
             pass
         else:
             raise ValueError("ROI type %s not implemented." % roi_type_value)

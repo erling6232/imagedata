@@ -22,7 +22,7 @@ import imagedata.readdata as readdata
 import imagedata.formats.dicomlib.uid
 from imagedata.header import Header, add_template, add_geometry
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 # Verify that pathlib.Path module is available
 # Set Path variable to reflect state
@@ -99,7 +99,7 @@ class Series(np.ndarray):
         if issubclass(type(geometry), Series):
             geometry = geometry.header
         if issubclass(type(data), np.ndarray):
-            logging.debug('Series.__new__: data ({}) is subclass of np.ndarray'.format(type(data)))
+            logger.debug('Series.__new__: data ({}) is subclass of np.ndarray'.format(type(data)))
             obj = np.asarray(data).view(cls)
             # Initialize attributes to defaults
             # cls.__init_attributes(cls, obj)
@@ -116,7 +116,7 @@ class Series(np.ndarray):
             add_template(obj.header, template)
             add_geometry(obj.header, template, geometry)
             return obj
-        logging.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
+        logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
         if issubclass(type(data), np.uint16) or issubclass(type(data), np.float32):
             obj = np.asarray(data).view(cls)
@@ -155,7 +155,7 @@ class Series(np.ndarray):
         # set the new 'input_order' attribute to the value passed
         obj.header.input_order = input_order
         # Copy attributes from hdr dict to newly created obj
-        logging.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
+        logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
         if obj.axes is None and 'axes' in hdr:
             axes = hdr['axes']
         else:
@@ -170,7 +170,7 @@ class Series(np.ndarray):
         return obj
 
     def __array_finalize__(self, obj) -> None:
-        # logging.debug("Series.__array_finalize__: entered obj: {}".format(type(obj)))
+        # logger.debug("Series.__array_finalize__: entered obj: {}".format(type(obj)))
         # ``self`` is a new object resulting from
         # ndarray.__new__(Series, ...), therefore it only has
         # attributes that the ndarray.__new__ constructor gave it -
@@ -194,11 +194,11 @@ class Series(np.ndarray):
         # that we set the default value for 'input_order', because this
         # method sees all creation of default objects - with the
         # Series.__new__ constructor, but also with arr.view(Series).
-        # logging.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
+        # logger.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
 
         if issubclass(type(obj), Series):
             # Copy attributes from obj to newly created self
-            # logging.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
+            # logger.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             # self.__dict__ = obj.__dict__.copy()  # carry forward attributes
             self.header = copy.copy(obj.header)  # carry forward attributes
         else:
@@ -208,25 +208,25 @@ class Series(np.ndarray):
         # We do not need to return anything
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        # logging.debug('Series.__array_ufunc__ method: %s' % method)
+        # logger.debug('Series.__array_ufunc__ method: %s' % method)
         args = []
         in_no = []
-        # logging.debug('Series.__array_ufunc__ inputs: %s %d' % (
+        # logger.debug('Series.__array_ufunc__ inputs: %s %d' % (
         #    type(inputs), len(inputs)))
         for i, input_ in enumerate(inputs):
             if isinstance(input_, Series):
                 in_no.append(i)
                 args.append(input_.view(np.ndarray))
-                # logging.debug('                       input %d: Series' % i)
-                # logging.debug('                       input %s: ' % type(input_))
-                # logging.debug('                       input spacing {} '.format(
+                # logger.debug('                       input %d: Series' % i)
+                # logger.debug('                       input %s: ' % type(input_))
+                # logger.debug('                       input spacing {} '.format(
                 #        input_.spacing))
             else:
                 args.append(input_)
 
         outputs = kwargs.pop('out', None)
         out_no = []
-        # logging.debug('Series.__array_ufunc__ inputs: %d' % len(inputs))
+        # logger.debug('Series.__array_ufunc__ inputs: %d' % len(inputs))
         if outputs:
             out_args = []
             for j, output in enumerate(outputs):
@@ -264,7 +264,7 @@ class Series(np.ndarray):
                          if output is None else output)
                         for result, output in zip(results, outputs))
         if results and isinstance(results[0], Series):
-            # logging.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
+            # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
 
         return results[0] if len(results) == 1 else results
@@ -289,7 +289,7 @@ class Series(np.ndarray):
             if isinstance(input_, Series):
                 if header is None:
                     header = input_.header
-                    # logging.debug('Series._unify_headers: copy header')
+                    # logger.debug('Series._unify_headers: copy header')
                 # else:
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
@@ -436,7 +436,7 @@ class Series(np.ndarray):
         return ret
 
     def __get_sliceLocations(self, spec):
-        # logging.debug('__get_sliceLocations: enter')
+        # logger.debug('__get_sliceLocations: enter')
         try:
             sl = self.sliceLocations
         except ValueError:
@@ -449,11 +449,11 @@ class Series(np.ndarray):
         if spec[2] is not None:
             step = spec[2]
         sl = np.array(sl[start:stop:step])
-        # logging.debug('__get_sliceLocations: exit')
+        # logger.debug('__get_sliceLocations: exit')
         return sl
 
     def __get_imagePositions(self, spec):
-        # logging.debug('__get_imagePositions: enter')
+        # logger.debug('__get_imagePositions: enter')
         try:
             ipp = self.imagePositions
         except ValueError:
@@ -467,13 +467,13 @@ class Series(np.ndarray):
             step = spec[2]
         ippdict = {}
         j = 0
-        # logging.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
+        # logger.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
         for i in range(start, stop, step):
             if i < 0:
                 raise ValueError('i < 0')
             ippdict[j] = ipp[i]
             j += 1
-        # logging.debug('__get_imagePositions: exit')
+        # logger.debug('__get_imagePositions: exit')
         return ippdict
 
     def __get_DicomHeaderDict(self, specs):
@@ -570,9 +570,9 @@ class Series(np.ndarray):
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         """
-        logging.debug('Series.write: url    : {}'.format(url))
-        logging.debug('Series.write: formats: {}'.format(formats))
-        logging.debug('Series.write: opts   : {}'.format(opts))
+        logger.debug('Series.write: url    : {}'.format(url))
+        logger.debug('Series.write: formats: {}'.format(formats))
+        logger.debug('Series.write: opts   : {}'.format(opts))
         readdata.write(self, url, formats=formats, opts=opts)
 
     @property
@@ -728,17 +728,17 @@ class Series(np.ndarray):
         """
         try:
             slice_axis = self.find_axis('slice')
-            # logging.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
+            # logger.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
             _color = 0
             if self.color:
                 _color = 1
             if self.ndim - _color < 3:
-                logging.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
+                logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
                 # raise ValueError("{}D dataset has no slices".format(self.ndim))
                 return 1
-            logging.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
+            logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
                 self.ndim, self.shape, self.shape[-3 - _color]))
             return self.shape[-3 - _color]
 
@@ -763,7 +763,7 @@ class Series(np.ndarray):
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
             if self.header.orientation is not None and self.header.imagePositions is not None:
-                logging.debug(
+                logger.debug(
                     'sliceLocations: calculate {} slice from orientation and imagePositions'.format(self.slices))
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
@@ -796,12 +796,12 @@ class Series(np.ndarray):
 
             >>> tagvalue, filename, dicomheader = image.DicomHeaderDict()[0]
         """
-        # logging.debug('Series.DicomHeaderDict: here')
+        # logger.debug('Series.DicomHeaderDict: here')
         try:
             if self.header.DicomHeaderDict is not None:
-                # logging.debug('Series.DicomHeaderDict: return')
-                # logging.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
-                # logging.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
+                # logger.debug('Series.DicomHeaderDict: return')
+                # logger.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
+                # logger.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
                 return self.header.DicomHeaderDict
         except AttributeError:
             pass
@@ -982,9 +982,9 @@ class Series(np.ndarray):
         if args[0] is None:
             # self.header.spacing = None
             return
-        logging.debug("spacing.setter {} {}".format(len(args), args))
+        logger.debug("spacing.setter {} {}".format(len(args), args))
         for arg in args:
-            logging.debug("spacing.setter arg {} {}".format(len(arg), arg))
+            logger.debug("spacing.setter arg {} {}".format(len(arg), arg))
         # Invalidate existing transformation matrix
         self.header.transformationMatrix = None
         # Handle both tuple and component spacings
@@ -1044,7 +1044,7 @@ class Series(np.ndarray):
             ValueError: when imagePositions are not set.
             AssertionError: when positions have wrong shape or datatype.
         """
-        # logging.debug('Series.imagePositions.get:')
+        # logger.debug('Series.imagePositions.get:')
         try:
             if self.header.imagePositions is not None:
                 if len(self.header.imagePositions) > self.slices:
@@ -1061,7 +1061,7 @@ class Series(np.ndarray):
                     # Could calculate the missing imagePositions from origin and
                     # orientation.
                     # Set imagePositions for additional slices
-                    logging.debug(
+                    logger.debug(
                         'Series.imagePositions.get: 1 positions only.  Calculating the other {} positions'.format(
                             self.slices - 1))
                     m = self.transformationMatrix
@@ -1087,10 +1087,10 @@ class Series(np.ndarray):
                 self.header.imagePositions = dict()
         except AttributeError:
             self.header.imagePositions = dict()
-        # logging.debug("imagePositions set for keys {}".format(poslist.keys()))
+        # logger.debug("imagePositions set for keys {}".format(poslist.keys()))
         for _slice in poslist.keys():
             pos = poslist[_slice]
-            # logging.debug("imagePositions set _slice {} to {}".format(_slice,pos))
+            # logger.debug("imagePositions set _slice {} to {}".format(_slice,pos))
             assert isinstance(pos, np.ndarray), "Wrong datatype of position (%s)" % type(pos)
             assert len(pos) == 3, "Wrong size of pos (is %d, should be 3)" % len(pos)
             self.header.imagePositions[_slice] = np.array(pos)
@@ -1539,7 +1539,7 @@ class Series(np.ndarray):
                 return self.header.transformationMatrix
 
             # Calculate transformation matrix
-            logging.debug('Series.transformationMatrix: Calculate transformation matrix')
+            logger.debug('Series.transformationMatrix: Calculate transformation matrix')
             ds, dr, dc = self.spacing
             slices = len(self.header.imagePositions)
             T0 = self.header.imagePositions[0].reshape(3, 1)  # z,y,x
@@ -1549,7 +1549,7 @@ class Series(np.ndarray):
             colr = np.array(orient[3:]).reshape(3, 1)
             colc = np.array(orient[:3]).reshape(3, 1)
             if slices > 1:
-                logging.debug('Series.transformationMatrix: multiple slices case (slices={})'.format(slices))
+                logger.debug('Series.transformationMatrix: multiple slices case (slices={})'.format(slices))
                 # Calculating normal vector based on first and last slice should be the correct method.
                 k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
@@ -1557,12 +1557,12 @@ class Series(np.ndarray):
                 # ##k = np.cross(colc, colr, axis=0)
                 # ##k = k * ds
             else:
-                logging.debug('Series.transformationMatrix: single slice case')
+                logger.debug('Series.transformationMatrix: single slice case')
                 k = np.cross(colr, colc, axis=0)
                 # k = normalize(k) * ds
                 k = k * ds
-            logging.debug('Series.transformationMatrix: k={}'.format(k.T))
-            # logging.debug("q: k {} colc {} colr {} T0 {}".format(k.shape,
+            logger.debug('Series.transformationMatrix: k={}'.format(k.T))
+            # logger.debug("q: k {} colc {} colr {} T0 {}".format(k.shape,
             #    colc.shape, colr.shape, T0.shape))
             A = np.eye(4)
             A[:3, :4] = np.hstack([
@@ -1571,7 +1571,7 @@ class Series(np.ndarray):
                 colc * dc,
                 T0])
             if debug:
-                logging.debug("A:\n{}".format(A))
+                logger.debug("A:\n{}".format(A))
             self.header.transformationMatrix = A
             return self.header.transformationMatrix
         except AttributeError:

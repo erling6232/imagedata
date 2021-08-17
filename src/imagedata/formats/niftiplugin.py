@@ -13,6 +13,9 @@ from imagedata.formats.abstractplugin import AbstractPlugin
 import nibabel
 import nibabel.spatialimages
 
+logger = logging.getLogger(__name__)
+
+
 
 class NoInputFile(Exception):
     pass
@@ -69,7 +72,7 @@ class NiftiPlugin(AbstractPlugin):
                 si: numpy array (multi-dimensional)
         """
 
-        logging.debug("niftiplugin::read filehandle {}".format(f))
+        logger.debug("niftiplugin::read filehandle {}".format(f))
         # TODO: Read nifti directly from open file object
         #      Should be able to do something like:
         #
@@ -81,7 +84,7 @@ class NiftiPlugin(AbstractPlugin):
         #    fmap['image'].fileobj = member
         #    img = nibabel.Nifti1Image.from_file_map(fmap)
         #
-        logging.debug("niftiplugin::read load f {}".format(f))
+        logger.debug("niftiplugin::read load f {}".format(f))
         try:
             img = nibabel.load(f)
         except nibabel.spatialimages.ImageFileError:
@@ -124,14 +127,14 @@ class NiftiPlugin(AbstractPlugin):
             nz = _data_shape[2]
         if len(_data_shape) > 3:
             nt = _data_shape[3]
-        logging.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny, nx, nz, nt))
-        logging.debug('NiftiPlugin.read: get_qform\n{}'.format(info.get_qform()))
-        logging.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
+        logger.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny, nx, nz, nt))
+        logger.debug('NiftiPlugin.read: get_qform\n{}'.format(info.get_qform()))
+        logger.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
         _xyzt_units = info.get_xyzt_units()
         _data_zooms = info.get_zooms()
         _dim_info = info.get_dim_info()
-        logging.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
-        logging.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
+        logger.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
+        logger.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
         dt = dz = 1
         dx, dy = _data_zooms[:2]
         if len(_data_zooms) > 2:
@@ -161,7 +164,7 @@ class NiftiPlugin(AbstractPlugin):
         # Image orientation and positions
         hdr['imagePositions'] = {}
         if sform is not None and scode != 0:
-            logging.debug("Method 3 - sform: orientation")
+            logger.debug("Method 3 - sform: orientation")
 
             # Note: rz, ry, rx, cz, cy, cx
             iop = np.array([
@@ -185,7 +188,7 @@ class NiftiPlugin(AbstractPlugin):
                 hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
 
         elif qform is not None and qcode != 0:
-            logging.debug("Method 2 - qform: orientation")
+            logger.debug("Method 2 - qform: orientation")
             qoffset_x, qoffset_y, qoffset_z = qform[0:3, 3]
             a, b, c, d = info.get_qform_quaternion()
 
@@ -211,7 +214,7 @@ class NiftiPlugin(AbstractPlugin):
                 ])
                 hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
         else:
-            logging.debug("Method 1 - assume axial: orientation")
+            logger.debug("Method 1 - assume axial: orientation")
             iop = np.array([0, 0, 1, 0, 1, 0])
             for _slice in range(nz):
                 _p = np.array([
@@ -228,7 +231,7 @@ class NiftiPlugin(AbstractPlugin):
         if nt > 1:
             times = np.arange(0, nt * dt, dt)
         assert len(times) == nt, "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
-        logging.debug("_set_tags: times {}".format(times))
+        logger.debug("_set_tags: times {}".format(times))
         tags = {}
         for z in range(nz):
             tags[z] = np.array(times)
@@ -273,12 +276,12 @@ class NiftiPlugin(AbstractPlugin):
     #
     #     q = affine.copy()
     #
-    #     logging.debug("q from nifti_to_affine():\n{}".format(q))
+    #     logger.debug("q from nifti_to_affine():\n{}".format(q))
     #     # Swap row 0 (z) and 2 (x)
     #     q[[0, 2],:] = q[[2, 0],:]
     #     # Swap column 0 (z) and 2 (x)
     #     q[:,[0, 2]] = q[:,[2, 0]]
-    #     logging.debug("q swap nifti_to_affine():\n{}".format(q))
+    #     logger.debug("q swap nifti_to_affine():\n{}".format(q))
     #
     #     analyze_to_dicom = np.eye(4)
     #     analyze_to_dicom[0,3] = 1
@@ -286,7 +289,7 @@ class NiftiPlugin(AbstractPlugin):
     #     analyze_to_dicom[2,3] = 1
     #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
     #     q = np.dot(q,dicom_to_analyze)
-    #     logging.debug("q after dicom_to_analyze:\n{}".format(q))
+    #     logger.debug("q after dicom_to_analyze:\n{}".format(q))
     #
     #     analyze_to_dicom = np.eye(4)
     #     analyze_to_dicom[0,3] = -1
@@ -296,25 +299,25 @@ class NiftiPlugin(AbstractPlugin):
     #     analyze_to_dicom[2,3] = -1
     #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
     #     q = np.dot(q,dicom_to_analyze)
-    #     logging.debug("q after rows dicom_to_analyze:\n{}".format(q))
+    #     logger.debug("q after rows dicom_to_analyze:\n{}".format(q))
     #
     #     patient_to_tal = np.eye(4)
     #     patient_to_tal[0,0] = -1
     #     patient_to_tal[1,1] = -1
     #     tal_to_patient = np.linalg.inv(patient_to_tal)
     #     q = np.dot(tal_to_patient,q)
-    #     logging.debug("q after tal_to_patient:\n{}".format(q))
+    #     logger.debug("q after tal_to_patient:\n{}".format(q))
     #
     #     return q
 
     # def affine_to_nifti(self, shape):
     #     q = self.transformationMatrix.copy()
-    #     logging.debug("Affine from self.transformationMatrix:\n{}".format(q))
+    #     logger.debug("Affine from self.transformationMatrix:\n{}".format(q))
     #     # Swap row 0 (z) and 2 (x)
     #     q[[0, 2],:] = q[[2, 0],:]
     #     # Swap column 0 (z) and 2 (x)
     #     q[:,[0, 2]] = q[:,[2, 0]]
-    #     logging.debug("Affine swap self.transformationMatrix:\n{}".format(q))
+    #     logger.debug("Affine swap self.transformationMatrix:\n{}".format(q))
     #
     #     # q now equals dicom_to_patient in spm_dicom_convert
     #
@@ -329,15 +332,15 @@ class NiftiPlugin(AbstractPlugin):
     #     rows = shape[-2]
     #     analyze_to_dicom[1,3] = rows
     #     analyze_to_dicom[2,3] = -1
-    #     logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
+    #     logger.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
     #
     #     patient_to_tal = np.eye(4)
     #     patient_to_tal[0,0] = -1
     #     patient_to_tal[1,1] = -1
-    #     logging.debug("patient_to_tal:\n{}".format(patient_to_tal))
+    #     logger.debug("patient_to_tal:\n{}".format(patient_to_tal))
     #
     #     q = np.dot(patient_to_tal,q)
-    #     logging.debug("q with patient_to_tal:\n{}".format(q))
+    #     logger.debug("q with patient_to_tal:\n{}".format(q))
     #     q = np.dot(q,analyze_to_dicom)
     #     # q now equals mat in spm_dicom_convert
     #
@@ -345,10 +348,10 @@ class NiftiPlugin(AbstractPlugin):
     #     analyze_to_dicom[0,3] = 1
     #     analyze_to_dicom[1,3] = 1
     #     analyze_to_dicom[2,3] = 1
-    #     logging.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
+    #     logger.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
     #     q = np.dot(q,analyze_to_dicom)
     #
-    #     logging.debug("q nifti:\n{}".format(q))
+    #     logger.debug("q nifti:\n{}".format(q))
     #     return q
 
     @staticmethod
@@ -371,21 +374,21 @@ class NiftiPlugin(AbstractPlugin):
         # Set imagePositions for first slice
         x, y, z = affine[0:3, 3]
         hdr['imagePositions'] = {0: np.array([z, y, x])}
-        logging.debug("getGeometryFromAffine: hdr imagePositions={}".format(hdr['imagePositions']))
+        logger.debug("getGeometryFromAffine: hdr imagePositions={}".format(hdr['imagePositions']))
         # Set slice orientation
         ds, dr, dc = hdr['spacing']
-        logging.debug("getGeometryFromAffine: spacing ds {}, dr {}, dc {}".format(ds, dr, dc))
+        logger.debug("getGeometryFromAffine: spacing ds {}, dr {}, dc {}".format(ds, dr, dc))
 
         colr = affine[:3, 0][::-1] / dr
         colc = affine[:3, 1][::-1] / dc
         # T0 = affine[:3,3][::-1]
         orient = []
-        logging.debug("getGeometryFromAffine: affine\n{}".format(affine))
+        logger.debug("getGeometryFromAffine: affine\n{}".format(affine))
         for i in range(3):
             orient.append(colc[i])
         for i in range(3):
             orient.append(colr[i])
-        logging.debug("getGeometryFromAffine: orient {}".format(orient))
+        logger.debug("getGeometryFromAffine: orient {}".format(orient))
         hdr['orientation'] = orient
         return
 
@@ -596,12 +599,12 @@ class NiftiPlugin(AbstractPlugin):
     #     analyze_to_dicom[1, 1] = -1
     #     # analyze_to_dicom[1,3] = shape[1]+1
     #     analyze_to_dicom[1, 3] = self.slices
-    #     logging.debug("getQformFromTransformationMatrix: analyze_to_dicom\n{}".format(analyze_to_dicom))
+    #     logger.debug("getQformFromTransformationMatrix: analyze_to_dicom\n{}".format(analyze_to_dicom))
     #     # dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
     #     # q = np.dot(q,dicom_to_analyze)
     #     q = np.dot(A, analyze_to_dicom)
     #     # ## 2019.07.03 # q = np.dot(q,analyze_to_dicom)
-    #     # ## 2019.07.03 # logging.debug("q after rows dicom_to_analyze:\n{}".format(q))
+    #     # ## 2019.07.03 # logger.debug("q after rows dicom_to_analyze:\n{}".format(q))
     #     # Flip mm coords in x and y directions
     #     patient_to_tal = np.diag([1, -1, -1, 1])
     #     # patient_to_tal = np.eye(4)
@@ -609,9 +612,9 @@ class NiftiPlugin(AbstractPlugin):
     #     # patient_to_tal[1,1] = -1
     #     # tal_to_patient = np.linalg.inv(patient_to_tal)
     #     # q = np.dot(tal_to_patient,q)
-    #     logging.debug("getQformFromTransformationMatrix: patient_to_tal\n{}".format(patient_to_tal))
+    #     logger.debug("getQformFromTransformationMatrix: patient_to_tal\n{}".format(patient_to_tal))
     #     q = np.dot(patient_to_tal, q)
-    #     logging.debug("getQformFromTransformationMatrix: q after\n{}".format(q))
+    #     logger.debug("getQformFromTransformationMatrix: q after\n{}".format(q))
     #
     #     return q
 
@@ -673,7 +676,7 @@ class NiftiPlugin(AbstractPlugin):
             raise imagedata.formats.WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
-        logging.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
+        logger.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image.nii.gz'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
@@ -687,7 +690,7 @@ class NiftiPlugin(AbstractPlugin):
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
-        logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % si.ndim
 
         fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
@@ -733,7 +736,7 @@ class NiftiPlugin(AbstractPlugin):
             raise imagedata.formats.WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
-        logging.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image.nii.gz'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
@@ -760,7 +763,7 @@ class NiftiPlugin(AbstractPlugin):
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
-        logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
+        logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
             imagedata.formats.sort_on_to_str(self.output_sort)))
 
@@ -819,13 +822,13 @@ class NiftiPlugin(AbstractPlugin):
         ext = os.path.splitext(filename)[1]
         if filename.endswith('.nii.gz'):
             ext = '.nii.gz'
-        logging.debug('write_numpy_nifti: ext %s' % ext)
+        logger.debug('write_numpy_nifti: ext %s' % ext)
 
         f = tempfile.NamedTemporaryFile(
             suffix=ext, delete=False)
-        logging.debug('write_numpy_nifti: write local file %s' % f.name)
+        logger.debug('write_numpy_nifti: write local file %s' % f.name)
         img.to_filename(f.name)
         f.close()
-        logging.debug('write_numpy_nifti: copy to file %s' % filename)
+        logger.debug('write_numpy_nifti: copy to file %s' % filename)
         _ = archive.add_localfile(f.name, filename)
         os.unlink(f.name)

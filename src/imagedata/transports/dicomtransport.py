@@ -11,6 +11,8 @@ import pynetdicom
 from imagedata.transports.abstracttransport import AbstractTransport
 from imagedata.transports import FunctionNotSupported
 
+logger = logging.getLogger(__name__)
+
 presentation_contexts = [pynetdicom.sop_class.CTImageStorage, pynetdicom.sop_class.MRImageStorage,
                          pynetdicom.sop_class.ComputedRadiographyImageStorage,
                          pynetdicom.sop_class.DigitalXRayImagePresentationStorage,
@@ -72,7 +74,7 @@ class DicomTransport(AbstractTransport):
         if opts is None:
             opts = {}
         self.read_directory_only = read_directory_only
-        logging.debug("DicomTransport __init__ root: {} ({})".format(root, mode))
+        logger.debug("DicomTransport __init__ root: {} ({})".format(root, mode))
         try:
             root_split = root.split('/')
             aet = root_split[1]
@@ -104,7 +106,7 @@ class DicomTransport(AbstractTransport):
                 self.__local_aet = hostname.split('.')[0]
             except IndexError:
                 self.__local_aet = 'IMAGEDATA'
-        logging.debug("DicomTransport __init__ calling AET: {}".format(self.__local_aet))
+        logger.debug("DicomTransport __init__ calling AET: {}".format(self.__local_aet))
         self.__ae = pynetdicom.AE(ae_title=self.__local_aet)
         self.__ae.requested_contexts = pynetdicom.presentation.QueryRetrievePresentationContexts
         # self.__ae.requested_contexts = [
@@ -204,10 +206,10 @@ class DicomTransport(AbstractTransport):
     def store(self, ds):
         """Store DICOM dataset using DICOM Storage SCU protocol.
         """
-        logging.debug('DicomTransport.store: send dataset')
+        logger.debug('DicomTransport.store: send dataset')
         status = self.__assoc.send_c_store(ds)
         if status:
-            logging.debug('DicomTransport.store: C-STORE request status: 0x{0:04x}'.format(status.Status))
+            logger.debug('DicomTransport.store: C-STORE request status: 0x{0:04x}'.format(status.Status))
         else:
             raise AssociationFailed('C-STORE request status: 0x{0:04x}'.format(status.Status))
 

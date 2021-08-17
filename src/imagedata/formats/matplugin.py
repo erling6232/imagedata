@@ -12,6 +12,8 @@ import imagedata.formats
 import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 
+logger = logging.getLogger(__name__)
+
 
 class ImageTypeError(Exception):
     """
@@ -76,21 +78,21 @@ class MatPlugin(AbstractPlugin):
 
         info = {}
         try:
-            logging.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
+            logger.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
             mdictlist = scipy.io.whosmat(f)
             if len(mdictlist) != 1:
                 names = []
                 for name, shape, dtype in mdictlist:
                     names.append(name)
-                logging.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
-                logging.debug('matplugin._read_image: Multiple variables in MAT file {}'.format(f))
+                logger.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
+                logger.debug('matplugin._read_image: Multiple variables in MAT file {}'.format(f))
                 raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: {}'.format(f, names))
             name, shape, dtype = mdictlist[0]
-            logging.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name, shape, dtype))
+            logger.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name, shape, dtype))
             mdict = scipy.io.loadmat(f, variable_names=(name,))
-            logging.debug('matplugin._read_image variable {}'.format(name))
+            logger.debug('matplugin._read_image variable {}'.format(name))
             si = self._reorder_to_dicom(mdict[name])
-            logging.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
+            logger.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
         except imagedata.formats.NotImageError:
             raise imagedata.formats.NotImageError('{} does not look like a MAT file'.format(f))
         return info, si
@@ -138,7 +140,7 @@ class MatPlugin(AbstractPlugin):
                 nt)
                         )
         hdr['axes'] = axes
-        logging.debug('matplugin._set_tags nt {}, nz {}'.format(
+        logger.debug('matplugin._set_tags nt {}, nz {}'.format(
             nt, nz))
         dt = 1
         times = np.arange(0, nt * dt, dt)
@@ -146,7 +148,7 @@ class MatPlugin(AbstractPlugin):
         for slice in range(nz):
             tags[slice] = np.array(times)
         hdr['tags'] = tags
-        # logging.debug('matplugin._set_tags tags {}'.format(tags))
+        # logger.debug('matplugin._set_tags tags {}'.format(tags))
 
         hdr['photometricInterpretation'] = 'MONOCHROME2'
         hdr['color'] = False
@@ -169,7 +171,7 @@ class MatPlugin(AbstractPlugin):
             raise imagedata.formats.WriteNotImplemented(
                 "Writing color MAT images not implemented.")
 
-        logging.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
+        logger.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mat'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
@@ -179,7 +181,7 @@ class MatPlugin(AbstractPlugin):
         self.spacing = si.spacing
         self.tags = si.tags
 
-        logging.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         if si.ndim == 4 and si.shape[0] == 1:
             si.shape = si.shape[1:]
         # if si.ndim == 2:
@@ -190,15 +192,15 @@ class MatPlugin(AbstractPlugin):
         #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
 
         # newshape = tuple(reversed(si.shape))
-        # logging.info("Data shape matlab write: {}".format(imagedata.formats.shape_to_str(newshape)))
-        # logging.debug('matplugin.write_3d_numpy newshape {}'.format(newshape))
+        # logger.info("Data shape matlab write: {}".format(imagedata.formats.shape_to_str(newshape)))
+        # logger.debug('matplugin.write_3d_numpy newshape {}'.format(newshape))
         # img = si.reshape(newshape, order='C')
         # img = si.reshape(newshape, order='F')
         # img = np.asfortranarray(si)
         # img = self._dicom_to_mat(si)
         # img = self._reorder_from_dicom(si)
-        # logging.debug('matplugin.write_3d_numpy si  {} {}'.format(si.shape, si.dtype))
-        # logging.debug('matplugin.write_3d_numpy img {} {}'.format(img.shape, img.dtype))
+        # logger.debug('matplugin.write_3d_numpy si  {} {}'.format(si.shape, si.dtype))
+        # logger.debug('matplugin.write_3d_numpy img {} {}'.format(img.shape, img.dtype))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)
@@ -231,7 +233,7 @@ class MatPlugin(AbstractPlugin):
             raise imagedata.formats.WriteNotImplemented(
                 "Writing color MAT images not implemented.")
 
-        logging.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.mat'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
@@ -252,7 +254,7 @@ class MatPlugin(AbstractPlugin):
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
-        logging.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
+        logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
             imagedata.formats.sort_on_to_str(self.output_sort)))
 
@@ -277,5 +279,5 @@ class MatPlugin(AbstractPlugin):
         with archive.open(filename, 'wb') as f:
             # scipy.io.savemat(f, {'A': self._reorder_from_dicom(si)})
             img = self._reorder_from_dicom(si)
-            logging.debug("write_4d_numpy: Calling savemat")
+            logger.debug("write_4d_numpy: Calling savemat")
             scipy.io.savemat(f, {'A': img})

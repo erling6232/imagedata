@@ -27,6 +27,9 @@ class UnknownOptionType(Exception):
     pass
 
 
+logger = logging.getLogger(__name__)
+
+
 def read(urls, order=None, opts=None):
     """Read image data, calling appropriate transport, archive and format plugins
 
@@ -48,15 +51,15 @@ def read(urls, order=None, opts=None):
         imagedata.formats.CannotSort: When input data cannot be sorted.
     """
 
-    logging.debug("reader.read: urls {}".format(urls))
+    logger.debug("reader.read: urls {}".format(urls))
     #    transport,my_urls,files = sanitize_urls(urls)
     #    if len(my_urls) < 1:
     #        raise ValueError("No URL(s) where given")
-    #    logging.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
+    #    logger.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
     sources = _get_sources(urls, mode='r')
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
-    logging.debug("reader.read: sources {}".format(sources))
+    logger.debug("reader.read: sources {}".format(sources))
 
     # Let in_opts be a dict from opts
     if opts is None:
@@ -75,12 +78,12 @@ def read(urls, order=None, opts=None):
         input_order = in_opts['input_order']
     if order != 'none':
         input_order = order
-    logging.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
+    logger.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
 
     # Pre-fetch DICOM template
     pre_hdr = None
     if 'template' in in_opts and in_opts['template']:
-        logging.debug("readdata.read template {}".format(in_opts['template']))
+        logger.debug("readdata.read template {}".format(in_opts['template']))
         template_source = _get_sources(in_opts['template'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
         pre_hdr, _ = reader.read_headers(template_source, input_order, in_opts)
@@ -88,7 +91,7 @@ def read(urls, order=None, opts=None):
     # Pre-fetch DICOM geometry
     geom_hdr = None
     if 'geometry' in in_opts and in_opts['geometry']:
-        logging.debug("readdata.read geometry {}".format(in_opts['geometry']))
+        logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
         geometry_source = _get_sources(in_opts['geometry'], mode='r')
         reader = imagedata.formats.find_plugin('dicom')
         geom_hdr, _ = reader.read_headers(geometry_source, input_order, in_opts)
@@ -98,15 +101,15 @@ def read(urls, order=None, opts=None):
 
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(imagedata.formats.get_plugins_list())
-    logging.debug("readdata.read plugins length {}".format(len(plugins)))
+    logger.debug("readdata.read plugins length {}".format(len(plugins)))
     for pname, ptype, pclass in plugins:
-        logging.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
+        logger.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
         try:
             hdr, si = reader.read(sources, None, input_order, in_opts)
 
             for source in sources:
-                logging.debug("readdata.read: close archive {}".format(source['archive']))
+                logger.debug("readdata.read: close archive {}".format(source['archive']))
                 source['archive'].close()
             add_template(hdr, pre_hdr)
             add_geometry(hdr, pre_hdr, geom_hdr)
@@ -114,14 +117,14 @@ def read(urls, order=None, opts=None):
         except (FileNotFoundError, imagedata.formats.CannotSort):
             raise
         except imagedata.formats.NotImageError as e:
-            logging.info("Giving up {}: {}".format(ptype, e))
+            logger.info("Giving up {}: {}".format(ptype, e))
             pass
         except Exception as e:
-            logging.info("Giving up (OTHER) {}: {}".format(ptype, e))
+            logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
             pass
 
     for source in sources:
-        logging.debug("readdata.read: close archive {}".format(source['archive']))
+        logger.debug("readdata.read: close archive {}".format(source['archive']))
         source['archive'].close()
 
     if issubclass(type(urls), list):
@@ -139,15 +142,15 @@ def read(urls, order=None, opts=None):
 #        """For each slice in geometry, use most of pre_hdr, adding a few attributes from geometry
 #        """
 #
-#        #logging.debug("_add_dicom_geometry template %s geometry %s" % (
+#        #logger.debug("_add_dicom_geometry template %s geometry %s" % (
 #        #    imagedata.formats.shape_to_str(self.shape),
 #        #    imagedata.formats.shape_to_str(geometry.shape)))
 #        pre_hdr['sliceLocations'] = geometry['sliceLocations'].copy()
 #        pre_hdr['spacing']        = geometry['spacing'].copy()
 #        pre_hdr['orientation']    = geometry['orientation'].copy()
 #        pre_hdr['imagePositions'] = {}
-#        logging.debug("_add_dicom_geometry:")
-#        logging.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
+#        logger.debug("_add_dicom_geometry:")
+#        logger.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
 #        for k in geometry['imagePositions'].keys():
 #            pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
 #        pre_hdr['axes'] = geometry['axes'].copy()
@@ -167,7 +170,7 @@ def write(si, url, opts=None, formats=None):
         imagedata.formats.WriteNotImplemented: Cannot write this image format.
     """
 
-    # logging.debug("write: directory_name(si): {}".format(directory_name(si)))
+    # logger.debug("write: directory_name(si): {}".format(directory_name(si)))
 
     # Let out_opts be a dict from opts
     if opts is None:
@@ -196,9 +199,9 @@ def write(si, url, opts=None, formats=None):
         output_formats = [si.input_format]
     except AttributeError:
         output_formats = None
-    logging.debug("Default    output format : {}".format(output_formats))
-    logging.debug("Overriding output formats: {}".format(formats))
-    logging.debug("Options: {}".format(out_opts))
+    logger.debug("Default    output format : {}".format(output_formats))
+    logger.debug("Overriding output formats: {}".format(formats))
+    logger.debug("Options: {}".format(out_opts))
     if formats is not None:
         if isinstance(formats, list):
             output_formats = formats
@@ -210,7 +213,7 @@ def write(si, url, opts=None, formats=None):
         output_formats = out_opts['output_format']
     if output_formats is None:
         output_formats = ['dicom']  # Fall-back to dicom output
-    logging.info("Output formats: {}".format(output_formats))
+    logger.info("Output formats: {}".format(output_formats))
 
     # Determine output dtype
     write_si = si
@@ -229,22 +232,22 @@ def write(si, url, opts=None, formats=None):
     #        len(destinations))
 
     # Call plugin writers in turn to store the data
-    logging.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
+    logger.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
     written = False
     msg = ''
     for pname, ptype, pclass in imagedata.formats.get_plugins_list():
         if ptype in output_formats:
-            logging.debug("Attempt plugin {}".format(ptype))
+            logger.debug("Attempt plugin {}".format(ptype))
             # Create plugin to write data in specified format
             writer = pclass()
-            logging.debug("readdata.write: Created writer plugin of type {}".format(type(writer)))
+            logger.debug("readdata.write: Created writer plugin of type {}".format(type(writer)))
             local_url = url.replace('%p', ptype)
             destinations = _get_sources(local_url, mode='w', opts=out_opts)
             if len(destinations) != 1:
                 raise ValueError('Wrong number of destinations (%d) given' %
                                  len(destinations))
             destination = destinations[0]
-            logging.debug('readdata.write: destination {}'.format(destination))
+            logger.debug('readdata.write: destination {}'.format(destination))
             try:
                 if write_si.ndim - _color == 4 and write_si.shape[0] > 1:
                     # 4D data
@@ -258,7 +261,7 @@ def write(si, url, opts=None, formats=None):
             except imagedata.formats.WriteNotImplemented:
                 raise
             except Exception as e:
-                logging.info("Giving up (OTHER) {}: {}".format(ptype, e))
+                logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
                 msg = msg + '\n{}: {}'.format(ptype, e)
                 pass
             destination['archive'].close()
@@ -267,7 +270,7 @@ def write(si, url, opts=None, formats=None):
             raise IOError("Failed writing: {}".format(msg))
         raise ValueError("No writer plugin was found for {}".format(output_formats))
     if len(msg) > 0:
-        logging.error(msg)
+        logger.error(msg)
     # destination['archive'].close()
 
 
@@ -300,10 +303,10 @@ def _get_location_part(url):
         None))
     if location[:8] == 'file:///' and url_tuple.path[0] != '/':
         location = 'file://' + os.path.abspath(location[8:])
-    logging.debug('readdata._get_location_part: scheme %s' % url_tuple.scheme)
-    logging.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
-    logging.debug('readdata._get_location_part: path %s' % url_tuple.path)
-    logging.debug('readdata._get_location_part: location %s' % location)
+    logger.debug('readdata._get_location_part: scheme %s' % url_tuple.scheme)
+    logger.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
+    logger.debug('readdata._get_location_part: path %s' % url_tuple.path)
+    logger.debug('readdata._get_location_part: location %s' % location)
     return location
 
 
@@ -319,7 +322,7 @@ def _get_archive(url, mode='r', opts=None):
 
     if opts is None:
         opts = {}
-    logging.debug('readdata._get_archive: url %s' % url)
+    logger.debug('readdata._get_archive: url %s' % url)
     url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(url_tuple.path)[0]
     archive = imagedata.archives.find_mimetype_plugin(
@@ -327,8 +330,8 @@ def _get_archive(url, mode='r', opts=None):
         url,
         mode,
         opts=opts)
-    logging.debug('readdata._get_archive: _mimetypes %s' % mimetype)
-    logging.debug('readdata._get_archive: archive %s' % archive.name)
+    logger.debug('readdata._get_archive: _mimetypes %s' % mimetype)
+    logger.debug('readdata._get_archive: archive %s' % archive.name)
     return archive
 
 
@@ -357,7 +360,7 @@ def _common_prefix(level):
 def _simplify_locations(locations):
     """Simplify locations by joining file:/// locations to a common prefix."""
 
-    logging.debug('readdata._simplify_locations: locations {}'.format(locations))
+    logger.debug('readdata._simplify_locations: locations {}'.format(locations))
     new_locations = {}
     paths = []
     for location in locations:
@@ -367,10 +370,10 @@ def _simplify_locations(locations):
             paths.append(url_tuple.path)
         else:
             new_locations[location] = True
-    logging.debug('readdata._simplify_locations: paths {}'.format(paths))
+    logger.debug('readdata._simplify_locations: paths {}'.format(paths))
     if len(paths) > 0:
         prefix = _common_prefix(paths)
-        logging.debug('readdata._simplify_locations: prefix {}'.format(prefix))
+        logger.debug('readdata._simplify_locations: prefix {}'.format(prefix))
         prefix_url = urllib.parse.urlunsplit((
             'file',
             '',
@@ -378,7 +381,7 @@ def _simplify_locations(locations):
             None,
             None))
         new_locations[prefix_url] = True
-    logging.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
+    logger.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
     return new_locations
 
 
@@ -428,7 +431,7 @@ def _get_sources(urls, mode, opts=None):
     # Set up sources for each location, and possibly add files
     sources = []
     for location in locations:
-        logging.debug('readdata._get_sources: location %s' % location)
+        logger.debug('readdata._get_sources: location %s' % location)
         source_location = location
         source = {'files': []}
         try:
@@ -437,14 +440,14 @@ def _get_sources(urls, mode, opts=None):
                 imagedata.archives.ArchivePluginNotFound):
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
-            logging.debug('readdata._get_sources: retry location %s' % source_location)
+            logger.debug('readdata._get_sources: retry location %s' % source_location)
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         for url in my_urls:
             location_part = _get_location_part(url)
-            logging.debug('readdata._get_sources: compare _get_location_part %s location %s' %
+            logger.debug('readdata._get_sources: compare _get_location_part %s location %s' %
                           (location_part, source_location))
             query = _get_query_part(url)
-            logging.debug('readdata._get_sources: query %s' % query)
+            logger.debug('readdata._get_sources: query %s' % query)
             if location_part.startswith(source_location):
                 if source['archive'].use_query():
                     fname = query
@@ -458,7 +461,7 @@ def _get_sources(urls, mode, opts=None):
                     source['files'].append(fname)
         sources.append(source)
     for source in sources:
-        logging.debug('readdata._get_sources: sources %s' % source)
+        logger.debug('readdata._get_sources: sources %s' % source)
     return sources
 
 

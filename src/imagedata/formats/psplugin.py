@@ -17,6 +17,8 @@ import imageio
 import imagedata.formats
 from imagedata.formats.abstractplugin import AbstractPlugin
 
+logger = logging.getLogger(__name__)
+
 
 class ImageTypeError(Exception):
     """
@@ -79,7 +81,7 @@ class PSPlugin(AbstractPlugin):
         if self.rotate not in {0, 90}:
             raise ValueError('psopt rotate value {} is not implemented'.format(self.rotate))
         with tempfile.TemporaryDirectory() as tempdir:
-            logging.debug("PSPlugin.read: tempdir {}".format(tempdir))
+            logger.debug("PSPlugin.read: tempdir {}".format(tempdir))
             try:
                 # Convert filename to PNG
                 self._convert_to_png(f, tempdir, "fname%02d.png")
@@ -90,7 +92,7 @@ class PSPlugin(AbstractPlugin):
             image_list = list()
             for fname in sorted(os.listdir(tempdir)):
                 filename = os.path.join(tempdir, fname)
-                logging.debug("PSPlugin.read: call ITKPlugin {}".format(filename))
+                logger.debug("PSPlugin.read: call ITKPlugin {}".format(filename))
                 img = imageio.imread(filename)
                 image_list.append(img)
         if len(image_list) < 1:
@@ -100,7 +102,7 @@ class PSPlugin(AbstractPlugin):
         dtype = img.dtype
         si = np.zeros(shape, dtype)
         for i, img in enumerate(image_list):
-            logging.debug('read: img {} si {}'.format(img.shape, si.shape))
+            logger.debug('read: img {} si {}'.format(img.shape, si.shape))
             si[i] = img
         hdr['spacing'] = np.array([1,1,1])
         # Color space: RGB
@@ -115,7 +117,7 @@ class PSPlugin(AbstractPlugin):
         # Let a single page be a 2D image
         if si.ndim == 3 and si.shape[0] == 1:
             si.shape = si.shape[1:]
-        logging.debug('read: si {}'.format(si.shape))
+        logger.debug('read: si {}'.format(si.shape))
         return True, si
 
     def _need_local_file(self):
@@ -221,7 +223,7 @@ class PSPlugin(AbstractPlugin):
         # arguments have to be bytes, encode them
         encoding = locale.getpreferredencoding()
         args = [a.encode(encoding) for a in args]
-        logging.debug('_convert_to_png: args {}'.format(args))
+        logger.debug('_convert_to_png: args {}'.format(args))
 
         try:
             instance = gs.new_instance()
@@ -233,7 +235,7 @@ class PSPlugin(AbstractPlugin):
             if not (code == 0 or code == gs.e_Quit):
                 raise DependencyError("Cannot run Ghostscript: {}".format(code))
         except GhostscriptError as e:
-            logging.error('_convert_to_png: error: {}'.format(e))
+            logger.error('_convert_to_png: error: {}'.format(e))
             raise DependencyError("Cannot run Ghostscript: {}".format(e))
 
     # @staticmethod

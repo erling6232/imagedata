@@ -10,6 +10,8 @@ import logging
 from imagedata.transports.abstracttransport import AbstractTransport
 from imagedata.transports import RootIsNotDirectory, RootDoesNotExist
 
+logger = logging.getLogger(__name__)
+
 
 class FileTransport(AbstractTransport):
     """Read/write local files."""
@@ -26,13 +28,13 @@ class FileTransport(AbstractTransport):
                                             self.authors, self.version, self.url, self.schemes)
         self.netloc = netloc
         self.opts = opts
-        logging.debug("FileTransport __init__ root: {} ({})".format(root, mode))
+        logger.debug("FileTransport __init__ root: {} ({})".format(root, mode))
         assert root is not None, "Root should not be None"
         if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
-            logging.debug("FileTransport __init__ RootIsNotDirectory")
+            logger.debug("FileTransport __init__ RootIsNotDirectory")
             raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
-            logging.debug("FileTransport __init__ RootDoesNotExist")
+            logger.debug("FileTransport __init__ RootDoesNotExist")
             raise RootDoesNotExist("Root ({}) does not exist".format(root))
         self.__root = root
         self.__mode = mode
@@ -73,11 +75,11 @@ class FileTransport(AbstractTransport):
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
-        logging.debug("FileTransport open: {} ({})".format(path, mode))
+        logger.debug("FileTransport open: {} ({})".format(path, mode))
         filename = os.path.join(self.__root, path)
         if mode[0] == 'w':
             os.makedirs(os.path.dirname(filename), exist_ok=True)
-        logging.debug("FileTransport open: {} ({})".format(filename, mode))
+        logger.debug("FileTransport open: {} ({})".format(filename, mode))
         return io.FileIO(filename, mode)
 
     def info(self, path) -> str:

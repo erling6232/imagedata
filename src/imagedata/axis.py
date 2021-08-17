@@ -3,8 +3,11 @@
 
 from abc import ABCMeta  # , abstractmethod, abstractproperty
 import sys
-# import logging
+import logging
 import numpy as np
+
+
+logger = logging.getLogger(__name__)
 
 
 class Axis(object, metaclass=ABCMeta):
@@ -33,24 +36,24 @@ class UniformAxis(Axis):
         self.step = step
 
     def __getitem__(self, item):
-        # logging.debug('UniformAxis: item {}'.format(item))
-        # logging.debug('UniformAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
+        # logger.debug('UniformAxis: item {}'.format(item))
+        # logger.debug('UniformAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
         assert isinstance(self, Axis), "self instance is not Axis"
 
         start, stop, step = 0, None, 1
-        # logging.debug('UniformAxis: item %s' % type(item))
+        # logger.debug('UniformAxis: item %s' % type(item))
         if type(item) == Ellipsis:
-            # logging.debug('UniformAxis: Ellipsis')
+            # logger.debug('UniformAxis: Ellipsis')
             return self
         elif isinstance(item, slice):
-            # logging.debug('UniformAxis: slice')
+            # logger.debug('UniformAxis: slice')
             start = self.start + (item.start or 0) * self.step
             stop = self.stop
             if item.stop is not None:
                 stop = self.start + (item.stop * self.step)
             stop = min(self.stop, stop)
             step = (item.step or 1) * self.step
-        # logging.debug('UniformAxis: slice %d,%d,%d' % (start,stop,step))
+        # logger.debug('UniformAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformAxis(self.name, start, stop, step)
 
     def __len__(self):
@@ -87,17 +90,17 @@ class UniformLengthAxis(UniformAxis):
         self.n = n
 
     def __getitem__(self, item):
-        # logging.debug('UniformLengthAxis: item {}'.format(item))
-        # logging.debug('UniformLengthAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
+        # logger.debug('UniformLengthAxis: item {}'.format(item))
+        # logger.debug('UniformLengthAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
         assert isinstance(self, Axis), "self instance is not Axis"
 
         start, n, step = self.start, self.n, self.step
-        # logging.debug('UniformLengthAxis: item %s' % type(item))
+        # logger.debug('UniformLengthAxis: item %s' % type(item))
         if type(item) == Ellipsis:
-            # logging.debug('UniformLengthAxis: Ellipsis')
+            # logger.debug('UniformLengthAxis: Ellipsis')
             return self
         elif isinstance(item, slice):
-            # logging.debug('UniformLengthAxis: slice')
+            # logger.debug('UniformLengthAxis: slice')
             start = self.start + (item.start or 0) * self.step
             stop = self.start + (item.stop or self.n) * self.step
             step = (item.step or 1) * self.step
@@ -108,7 +111,7 @@ class UniformLengthAxis(UniformAxis):
             except Exception:
                 raise
             n = min(self.n, n)
-        # logging.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
+        # logger.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformLengthAxis(self.name, start, n, step)
 
     def __len__(self):
@@ -139,22 +142,22 @@ class VariableAxis(Axis):
         """Slice the axis
         - item: tuple of slice indices
         """
-        # logging.debug('VariableAxis: item {}'.format(item))
-        # logging.debug('VariableAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
+        # logger.debug('VariableAxis: item {}'.format(item))
+        # logger.debug('VariableAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
         assert isinstance(self, Axis), "self instance is not Axis"
 
         start, stop, step = 0, None, 1
-        # logging.debug('VariableAxis: item %s' % type(item))
+        # logger.debug('VariableAxis: item %s' % type(item))
         if type(item) == Ellipsis:
-            # logging.debug('VariableAxis: Ellipsis')
+            # logger.debug('VariableAxis: Ellipsis')
             return self
         elif isinstance(item, slice):
-            # logging.debug('VariableAxis: slice')
+            # logger.debug('VariableAxis: slice')
             start = item.start or 0
             stop = item.stop or len(self.values)
             stop = min(len(self.values), stop)
             step = item.step or 1
-        # logging.debug('VariableAxis: slice %d,%d,%d' % (start,stop,step))
+        # logger.debug('VariableAxis: slice %d,%d,%d' % (start,stop,step))
         return VariableAxis(self.name, self.values[start:stop:step])
 
     def __len__(self):

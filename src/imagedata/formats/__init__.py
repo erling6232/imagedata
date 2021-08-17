@@ -8,7 +8,7 @@ Standard plugins provides support for DICOM and Nifti image file formats.
 import logging
 import numpy as np
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 (SORT_ON_SLICE,
  SORT_ON_TAG) = range(2)
@@ -212,32 +212,32 @@ def load_plugins(plugins_folder_list=None):
     except NameError:
         return
 
-    logging.debug("type(plugins_folder_list) {}".format(type(plugins_folder_list)))
-    logging.debug("__name__ {}".format(__name__))
-    logging.debug("__file__ {}".format(__file__))
-    logging.debug("__path__ {}".format(__path__))
+    logger.debug("type(plugins_folder_list) {}".format(type(plugins_folder_list)))
+    logger.debug("__name__ {}".format(__name__))
+    logger.debug("__file__ {}".format(__file__))
+    logger.debug("__path__ {}".format(__path__))
 
     plugins = []
     for plugins_folder in plugins_folder_list:
         if plugins_folder not in sys.path:
             sys.path.append(plugins_folder)
         for root, dirs, files in os.walk(plugins_folder):
-            logging.debug("root %s dirs %s" % (root, dirs))
+            logger.debug("root %s dirs %s" % (root, dirs))
             for module_file in files:
                 module_name, module_extension = os.path.splitext(module_file)
                 if module_extension == os.extsep + "py":
                     module_hdl = False
                     try:
                         # print("Attempt {}".format(module_name))
-                        logging.debug("Attempt {}".format(module_name))
+                        logger.debug("Attempt {}".format(module_name))
                         module_hdl, path_name, description = imp.find_module(module_name)
                         plugin_module = imp.load_module(module_name, module_hdl, path_name,
                                                         description)
                         plugin_classes = inspect.getmembers(plugin_module, inspect.isclass)
-                        logging.debug("  Plugins {}".format(plugin_classes))
+                        logger.debug("  Plugins {}".format(plugin_classes))
                         for plugin_class in plugin_classes:
                             # print("  Plugin {}".format(plugin_class[1]))
-                            logging.debug("  Plugin {}".format(plugin_class[1]))
+                            logger.debug("  Plugin {}".format(plugin_class[1]))
                             if issubclass(plugin_class[1], AbstractPlugin):
                                 # Load only those plugins defined in the current module
                                 # (i.e. don't instantiate any parent plugins)
@@ -248,11 +248,11 @@ def load_plugins(plugins_folder_list=None):
                     # except (ImportError, TypeError, RuntimeError) as e:
                     except (ImportError, TypeError, RuntimeError):
                         # print("  ImportError: {}".format(e))
-                        # logging.debug("  ImportError: {}".format(e))
+                        # logger.debug("  ImportError: {}".format(e))
                         pass
                     except Exception as e:
                         # print("  Exception: {}".format(e))
-                        logging.debug("  Exception: {}".format(e))
+                        logger.debug("  Exception: {}".format(e))
                         raise
                     finally:
                         if module_hdl:

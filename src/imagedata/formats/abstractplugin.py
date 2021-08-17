@@ -12,6 +12,8 @@ import numpy as np
 # import pydicom.dataset
 import imagedata.formats
 
+logger = logging.getLogger(__name__)
+
 
 class NoOtherInstance(Exception):
     pass
@@ -108,23 +110,23 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         }
 
         # image_list: list of tuples (hdr,si)
-        logging.debug("AbstractPlugin.read: sources {}".format(sources))
+        logger.debug("AbstractPlugin.read: sources {}".format(sources))
         image_list = list()
         for source in sources:
-            logging.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
+            logger.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
             archive = source['archive']
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
                 scan_files = archive.getnames()
-            logging.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
+            logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
-                logging.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
+                logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
                 if self._need_local_file():
-                    logging.debug("AbstractPlugin.read: need local file {}".format(file_handle))
+                    logger.debug("AbstractPlugin.read: need local file {}".format(file_handle))
                     f = archive.to_localfile(file_handle)
                 else:
                     f = archive.open(file_handle, mode='rb')
-                logging.debug("AbstractPlugin.read: file {}".format(f))
+                logger.debug("AbstractPlugin.read: file {}".format(f))
                 info, si = self._read_image(f, opts, hdr)
                 # info is None when no image was read
                 if info is not None:
@@ -133,27 +135,27 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             raise ValueError('No image data read')
         info, si = image_list[0]
         self._reduce_shape(si)
-        logging.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
+        logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
         shape = (len(image_list),) + si.shape
         dtype = si.dtype
-        logging.debug('AbstractPlugin.read: shape {}'.format(shape))
+        logger.debug('AbstractPlugin.read: shape {}'.format(shape))
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            # logging.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
+            # logger.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
             si[i] = img
             i += 1
-        logging.debug('AbstractPlugin.read: si {}'.format(si.shape))
+        logger.debug('AbstractPlugin.read: si {}'.format(si.shape))
 
         # Simplify shape
         self._reduce_shape(si)
-        logging.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
+        logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
 
         _shape = si.shape
         if 'color' in hdr and hdr['color']:
             _shape = si.shape[:-1]
-            logging.debug('AbstractPlugin.read: color')
-        logging.debug('AbstractPlugin.read: _shape {}'.format(_shape))
+            logger.debug('AbstractPlugin.read: color')
+        logger.debug('AbstractPlugin.read: _shape {}'.format(_shape))
         _ndim = len(_shape)
         nz = 1
         # ny, nx = _shape[-2:]
@@ -162,22 +164,22 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         # if _ndim > 3:
         #     nt = _shape[-4]
         # hdr['slices'] = nz
-        logging.debug('AbstractPlugin.read: slices {}'.format(nz))
+        logger.debug('AbstractPlugin.read: slices {}'.format(nz))
 
         # hdr['spacing'], hdr['tags']
-        logging.debug('AbstractPlugin.read: calling _set_tags')
+        logger.debug('AbstractPlugin.read: calling _set_tags')
         self._set_tags(image_list, hdr, si)
-        # logging.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
+        # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
-        logging.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
         # Add any DICOM template
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        logging.debug('AbstractPlugin.read: hdr {}'.format(
+        logger.debug('AbstractPlugin.read: hdr {}'.format(
             hdr.keys()))
-        # logging.debug('AbstractPlugin.read: hdr {}'.format(hdr))
+        # logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
         return hdr, si
 
     def _need_local_file(self):
@@ -312,11 +314,11 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         q[:3, :3] = np.hstack((colr, colc, k))
         if debug:
-            logging.debug("q")
-            logging.debug( q)
+            logger.debug("q")
+            logger.debug( q)
 
         if debug:
-            logging.debug("determinant(q) {}".format(np.linalg.det(q)))
+            logger.debug("determinant(q) {}".format(np.linalg.det(q)))
         if np.linalg.det(q) < 0:
             q[:3,2] = -q[:3,2]
 
@@ -326,20 +328,20 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         diagVox[1,1] = dr
         diagVox[2,2] = ds
         if debug:
-            logging.debug("diagVox")
-            logging.debug( diagVox)
-            logging.debug("q without scaling {}".format(q.dtype))
-            logging.debug( q)
+            logger.debug("diagVox")
+            logger.debug( diagVox)
+            logger.debug("q without scaling {}".format(q.dtype))
+            logger.debug( q)
         q[:3,:3] = np.dot(q[:3,:3],diagVox)
         if debug:
-            logging.debug("q with scaling {}".format(q.dtype))
-            logging.debug( q)
+            logger.debug("q with scaling {}".format(q.dtype))
+            logger.debug( q)
 
         # Add translations
         q[0,3] = x; q[1,3] = y; q[2,3] = z       # pos x,y,z
         if debug:
-            logging.debug("q with translations")
-            logging.debug( q)
+            logger.debug("q with translations")
+            logger.debug( q)
         # q now equals dicom_to_patient in spm_dicom_convert
 
         return q
@@ -480,7 +482,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         flipud: Whether matrix is transposed
         """
 
-        logging.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
+        logger.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
             data.shape))
         if data.ndim == 5:
             rows, columns, slices, tags, d5 = data.shape
@@ -536,7 +538,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
-        logging.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
+        logger.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
             si.shape))
         return si
 
@@ -565,7 +567,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         flipud: Whether matrix is transposed
         """
 
-        logging.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
+        logger.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
         if data.ndim == 5:
             d5, tags, slices, rows, columns = data.shape
             if flipud:
@@ -616,7 +618,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
-        logging.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
+        logger.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
             si.shape))
         return si
 

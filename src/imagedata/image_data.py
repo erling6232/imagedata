@@ -34,7 +34,7 @@ def dump():
         args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
     reader = imagedata.formats.find_plugin('dicom')
-    logging.debug("in_dirs {}".format(args.in_dirs))
+    logger.debug("in_dirs {}".format(args.in_dirs))
     # noinspection PyUnresolvedReferences
     urls, files = imagedata.readdata.sanitize_urls(args.in_dirs)
 

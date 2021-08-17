@@ -11,7 +11,7 @@ import os.path
 import logging
 import urllib.parse
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 
 # class NotImageError(Exception):
@@ -56,24 +56,24 @@ def load_plugins(plugins_folder_list=None):
     except NameError:
         return
 
-    logging.debug("type(plugins_folder_list) {}".format(type(plugins_folder_list)))
-    logging.debug("__name__ {}".format(__name__))
-    logging.debug("__file__ {}".format(__file__))
-    logging.debug("__path__ {}".format(__path__))
+    logger.debug("type(plugins_folder_list) {}".format(type(plugins_folder_list)))
+    logger.debug("__name__ {}".format(__name__))
+    logger.debug("__file__ {}".format(__file__))
+    logger.debug("__path__ {}".format(__path__))
 
     plugins = {}
     for plugins_folder in plugins_folder_list:
         if plugins_folder not in sys.path:
             sys.path.append(plugins_folder)
         for root, dirs, files in os.walk(plugins_folder):
-            logging.debug("root %s dirs %s" % (root, dirs))
+            logger.debug("root %s dirs %s" % (root, dirs))
             for module_file in files:
                 module_name, module_extension = os.path.splitext(module_file)
                 module_hdl = False
                 if module_extension == os.extsep + "py":
                     try:
                         # print("Attempt {}".format(module_name))
-                        logging.debug("Attempt {}".format(module_name))
+                        logger.debug("Attempt {}".format(module_name))
                         module_hdl, path_name, description = imp.find_module(module_name)
                         plugin_module = imp.load_module(module_name, module_hdl, path_name,
                                                         description)
@@ -91,11 +91,11 @@ def load_plugins(plugins_folder_list=None):
                                     pname, pclass = plugin_class
                                     plugins[pclass.name] = (pname, pclass)
                     except ImportError as e:
-                        logging.debug(e)
+                        logger.debug(e)
                         # print(e)
                         pass
                     except Exception as e:
-                        logging.debug(e)
+                        logger.debug(e)
                         # print(e)
                         raise
                     finally:
@@ -124,7 +124,7 @@ def lookup_mimetype_plugin(mimetype):
     """Return name of plugin that will handle given _mimetypes."""
 
     if mimetype is None:
-        logging.debug("imagedata.archives.lookup_mimetype_plugin: filesystem")
+        logger.debug("imagedata.archives.lookup_mimetype_plugin: filesystem")
         return 'filesystem'
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
@@ -141,17 +141,17 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
     if urldict.scheme == 'xnat':
         mimetype = 'application/zip'
     if mimetype is None:
-        logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
+        logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         return find_plugin('filesystem', url, mode, opts=opts)
-    logging.debug("imagedata.archive.find_mimetype_plugins: {}".format(plugins.keys()))
+    logger.debug("imagedata.archive.find_mimetype_plugins: {}".format(plugins.keys()))
     for ptype in plugins.keys():
         pname, pclass = plugins[ptype]
-        logging.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
+        logger.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
-            logging.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype, mode))
+            logger.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype, mode))
             return pclass(url=url, mode=mode, opts=opts)
     if os.path.isfile(urldict.path):
-        logging.debug("imagedata.archives.find_mimetype_plugin: filesystem")
+        logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         try:
             return find_plugin('filesystem', url, mode, opts=opts)
         except ArchivePluginNotFound:
