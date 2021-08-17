@@ -15,7 +15,6 @@ import imagedata.archives
 import imagedata.transports
 from imagedata.archives.abstractarchive import AbstractArchive
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -54,7 +53,7 @@ class FilesystemArchive(AbstractArchive, ABC):
 
         url_tuple = urllib.parse.urlsplit(url, scheme='file')
         logger.debug('FilesystemArchive._get_transport: scheme: %s, netloc: %s' %
-                      (url_tuple.scheme, url_tuple.path))
+                     (url_tuple.scheme, url_tuple.path))
 
         try:
             _transport = imagedata.transports.Transport(
@@ -101,7 +100,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             #              (urldict.scheme, netloc, self.__path))
             self.__path = urldict.path
             logger.debug('FilesystemArchive.__init__: scheme: %s, path: %s' %
-                          (urldict.scheme, self.__path))
+                         (urldict.scheme, self.__path))
             self.__transport = imagedata.transports.Transport(
                 urldict.scheme,
                 netloc=urldict.netloc,
@@ -177,7 +176,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                 for required_filename in files:
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+'/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
@@ -226,7 +225,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename,os.path.normpath(required_filename)+'/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
                         filelist.append(filename)
                         found_match[i] = True
             # Verify that all wanted files are found

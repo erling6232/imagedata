@@ -518,7 +518,7 @@ class DICOMPlugin(AbstractPlugin):
             logger.debug("get_dicom_headers: scan_files: {}".format(scan_files))
             # for member in archive.getmembers(scan_files):
             for path in archive.getnames(scan_files):
-                # logger.debug("get_dicom_headers: member: {}".format(path))
+                logger.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
                     continue
                 member = archive.getmembers([path, ])

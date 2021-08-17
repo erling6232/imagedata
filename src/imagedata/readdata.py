@@ -445,7 +445,7 @@ def _get_sources(urls, mode, opts=None):
         for url in my_urls:
             location_part = _get_location_part(url)
             logger.debug('readdata._get_sources: compare _get_location_part %s location %s' %
-                          (location_part, source_location))
+                         (location_part, source_location))
             query = _get_query_part(url)
             logger.debug('readdata._get_sources: query %s' % query)
             if location_part.startswith(source_location):

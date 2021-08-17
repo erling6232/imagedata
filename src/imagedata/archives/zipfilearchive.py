@@ -55,10 +55,10 @@ class WriteFileIO(io.FileIO):
         ret = super(WriteFileIO, self).close()
         self.__localfile.close()
         logger.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
-                      (self.__localfile.name, self.__filename))
+                     (self.__localfile.name, self.__filename))
         self.__archive.write(self.__localfile.name, self.__filename)
         logger.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
-                      self.__localfile.name)
+                     self.__localfile.name)
         os.remove(self.__localfile.name)
         return ret
 
@@ -66,7 +66,7 @@ class WriteFileIO(io.FileIO):
         """Enter context manager.
         """
         logger.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
-                      (self.__filename, self.__localfile.name))
+                     (self.__filename, self.__localfile.name))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -124,7 +124,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 netloc = urldict.netloc + urldict.path
                 self.__path = urldict.path
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
-                              (urldict.scheme, netloc))
+                             (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
                     netloc=urldict.netloc,
@@ -134,7 +134,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             else:
                 netloc, self.__path = os.path.split(urldict.path)
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
-                              (urldict.scheme, netloc))
+                             (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
                     urldict.scheme,
                     root=netloc,
@@ -187,11 +187,12 @@ class ZipfileArchive(AbstractArchive, ABC):
         if files:
             filelist = list()
             for filename in self.__files:
-                # logger.debug('ZipfileArchive.getmembers: member {}'.format(filename))
+                logger.debug('ZipfileArchive.getnames: member {}'.format(filename))
                 for required_filename in files:
+                    logger.debug('ZipfileArchive.getnames: required {}'.format(required_filename))
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+'/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
@@ -282,7 +283,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+'/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found

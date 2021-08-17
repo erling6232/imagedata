@@ -16,7 +16,6 @@ import nibabel.spatialimages
 logger = logging.getLogger(__name__)
 
 
-
 class NoInputFile(Exception):
     pass
 
