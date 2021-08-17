@@ -1930,7 +1930,15 @@ class Series(np.ndarray):
             input_order = self.input_order
         else:
             input_order = 'none'
-        new_roi = Series(grid_from_roi(self, viewer.get_roi()), input_order=input_order, template=self, geometry=self)
+        try:
+            # new_roi = Series(grid_from_roi(self, viewer.get_roi()), input_order=input_order, template=self, geometry=self)
+            new_grid = grid_from_roi(self, viewer.get_roi())
+        except IndexError:
+            if follow:
+                new_grid = np.zeros_like(self)
+            else:
+                new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=self.dtype)
+        new_roi = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_roi.seriesDescription = 'ROI'
         new_roi.setDicomAttribute('WindowCenter',.5)
         new_roi.setDicomAttribute('WindowWidth',1)
