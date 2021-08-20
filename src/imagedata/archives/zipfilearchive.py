@@ -158,13 +158,17 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.__archive, self.__tmpdir))
         # Get filelist in self.__files
         for fname in self.__archive.namelist():
+            norm_fname = os.path.normpath(fname)
             try:
                 _is_dir = self.__archive.getinfo(fname).is_dir()  # Works with Python >= 3.6
             except AttributeError:
                 _is_dir = fname[-1] == '/'
+            except Exception as e:
+                logger.error('ZipfileArchive: {}'.format(e))
+                raise
             if not _is_dir:
-                member = {'unpacked': False, 'name': fname, 'fh': None}
-                self.__files[fname] = member
+                member = {'unpacked': False, 'name': norm_fname, 'fh': None}
+                self.__files[norm_fname] = member
         # logger.debug("ZipFile self.__files: {}".format(self.__files))
 
     @property
@@ -184,7 +188,12 @@ class ZipfileArchive(AbstractArchive, ABC):
             The members as a list of their names.
                 It has the same order as the members of the archive.
         """
-        if files:
+        if files is None or \
+                (issubclass(type(files), str) and files == '*') or \
+                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
+            logger.debug('ZipfileArchive.getnames: found files {}'.format(len(self.__files)))
+            return sorted(self.__files.keys())
+        else:
             filelist = list()
             for filename in self.__files:
                 logger.debug('ZipfileArchive.getnames: member {}'.format(filename))
@@ -198,8 +207,6 @@ class ZipfileArchive(AbstractArchive, ABC):
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
-        else:
-            return sorted(self.__files.keys())
 
     def basename(self, filehandle):
         """Basename of file.
@@ -272,12 +279,18 @@ class ZipfileArchive(AbstractArchive, ABC):
             The members of the archive as a list of member objects.
                 The list has the same order as the members in the archive.
         """
-        if files:
+        if files is None or \
+                (issubclass(type(files), str) and files == '*') or \
+                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
+            return self.__files
+        else:
             # logger.debug('ZipfileArchive.getmembers: files {}'.format(len(files)))
             if issubclass(type(files), list):
-                wanted_files = files
+                wanted_files = []
+                for file in files:
+                    wanted_files.append(os.path.normpath(file))
             else:
-                wanted_files = list((files,))
+                wanted_files = list((os.path.normpath(files),))
             # logger.debug('ZipfileArchive.getmembers: wanted_files {}'.format(len(wanted_files)))
             found_match = [False for _ in range(len(wanted_files))]
             filelist = list()
@@ -286,10 +299,10 @@ class ZipfileArchive(AbstractArchive, ABC):
                     #if i == 0:
                     #    logger.debug('ZipfileArchive.getmembers: compare {} {} {}'.format(os.path.normpath(filename), required_filename,
                     #        os.path.normpath(required_filename)))
-                    if fnmatch.fnmatchcase(os.path.normpath(filename), os.path.normpath(required_filename)):
+                    if fnmatch.fnmatchcase(filename, required_filename):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(os.path.normpath(filename), os.path.normpath(required_filename+'/*')):
+                    elif fnmatch.fnmatchcase(filename, required_filename+os.sep+'*'):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found
@@ -299,8 +312,6 @@ class ZipfileArchive(AbstractArchive, ABC):
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
-        else:
-            return self.__files
 
     def to_localfile(self, filehandle):
         """Access a member object through a local file.
