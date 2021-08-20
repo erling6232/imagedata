@@ -269,36 +269,40 @@ class Viewer:
             self.poly = {}
             self.vertices = {}
             if self.follow:
-                self.poly[0, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+                self.poly[0, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
+                                                      tag=(0,idx))
             else:
-                self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+                self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
+                                                   tag=idx)
         else:
             self.poly = {}
             self.vertices = roi
             if self.follow:
                 for tag in range(self.im[0]['tags']):
                     for i in range(self.im[0]['slices']):
-                        verts = None
-                        if (tag, i) in self.vertices:
-                            verts = self.vertices[tag, i]
-                        self.poly[tag, i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                        vertices = copy.copy(self.vertices[tag, i]) if (tag, i) in self.vertices else None
+                        self.poly[tag, i] = MyPolygonSelector(self.ax[0,0], self.onselect,
+                                                              lineprops={'color': self.poly_color}, vertices=vertices,
+                                                              tag=(tag,i))
                         # Polygon on single slice and tag 0, only
                         if i == idx and tag == 0:
+                            assert self.poly[tag, i].tag == (tag,i), "Tag index mismatch {}!={}".format((tag,i), self.poly[tag, i].tag)
                             self.poly[tag, i].connect_default_events()
                             self.poly[tag, i].set_visible(True)
                             self.poly[tag, i].update()
                         else:
+                            assert self.poly[tag, i].tag == (tag,i), "Tag index mismatch {}!={}".format((tag,i), self.poly[tag, i].tag)
                             self.poly[tag, i].disconnect_events()
                             self.poly[tag, i].set_visible(False)
                             self.poly[tag, i].update()
             else:
                 for i in range(self.im[0]['slices']):
-                    verts = None
-                    if i in self.vertices:
-                        verts = self.vertices[i]
-                    self.poly[i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color}, verts=verts)
+                    vertices = copy.copy(self.vertices[i]) if i in self.vertices else None
+                    self.poly[i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
+                                                     vertices=vertices, tag=i)
                     # Polygon on single slice only
                     if i != idx:
+                        assert self.poly[i].tag == i, "Tag index mismatch {}!={}".format(i, self.poly[i].tag)
                         self.poly[i].disconnect_events()
                         self.poly[i].set_visible(False)
                         self.poly[i].update()
@@ -335,13 +339,13 @@ class Viewer:
         self.fig.canvas.mpl_disconnect(self.cidrelease)
         self.fig.canvas.mpl_disconnect(self.cidmotion)
 
-    def onselect(self, verts):
+    def onselect(self, vertices):
         idx = self.im[0]['idx']
         if self.follow:
             tag = self.im[0]['tag']
-            self.vertices[tag, idx] = copy.copy(verts)
+            self.vertices[tag, idx] = copy.copy(vertices)
         else:
-            self.vertices[idx] = copy.copy(verts)
+            self.vertices[idx] = copy.copy(vertices)
 
     # def grid_from_roi(self):
     #     """Return drawn ROI as grid.
@@ -454,17 +458,22 @@ class Viewer:
             if self.follow:
                 old_idx = im['tag'], old_idx
                 new_idx = im['tag'], new_idx
+            if old_idx in self.poly:
+                assert self.poly[old_idx].tag == old_idx, "Tag index mismatch {}!={}".format(old_idx, self.poly[old_idx].tag)
+            if new_idx in self.poly:
+                assert self.poly[new_idx].tag == new_idx, "Tag index mismatch {}!={}".format(new_idx, self.poly[new_idx].tag)
             if im['modified']:
                 self.poly[old_idx].disconnect_events()
                 self.poly[old_idx].set_visible(False)
                 self.poly[old_idx].update()
             if new_idx in self.poly and self.poly[new_idx] is not None:
-                # self.poly[im['idx']].connect_event(event, self.onselect)
                 self.poly[new_idx].connect_default_events()
                 self.poly[new_idx].set_visible(True)
                 self.poly[new_idx].update()
             else:
-                self.poly[new_idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color})
+                self.poly[new_idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
+                                                       lineprops={'color': self.poly_color},
+                                                       tag=new_idx)
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
@@ -485,15 +494,18 @@ class Viewer:
         if self.poly is not None and self.follow and im['modified']:
             new_tag = im['tag']
             idx = im['idx']
-            self.onselect(self.poly[old_tag, idx].verts)
+            assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
             if (new_tag, idx) not in self.poly and (old_tag, idx) in self.poly and self.poly[old_tag, idx] is not None:
                 # Copy the polygon to next tag when there is none
                 self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                             lineprops={'color': self.poly_color},
-                                                            verts=self.poly[old_tag, idx].verts)
+                                                            vertices=self.poly[old_tag, idx].vertices,
+                                                            tag=idx)
+            assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
             self.poly[old_tag, idx].set_visible(False)
             self.poly[old_tag, idx].update()
+            assert self.poly[new_tag, idx].tag == (new_tag,idx), "Tag index mismatch {}!={}".format((new_tag,idx), self.poly[new_tag, idx].tag)
             self.poly[new_tag, idx].connect_default_events()
             self.poly[new_tag, idx].set_visible(True)
             self.poly[new_tag, idx].update()
@@ -630,13 +642,14 @@ class MyPolygonSelector(PolygonSelector):
     """
 
     def __init__(self, ax, onselect, useblit=False,
-                 lineprops=None, markerprops=None, vertex_select_radius=15, verts=None):
+                 lineprops=None, markerprops=None, vertex_select_radius=15, vertices=None, tag=None):
         super().__init__(ax, onselect, useblit=useblit,
                          lineprops=lineprops, markerprops=markerprops, vertex_select_radius=vertex_select_radius)
 
-        if verts is not None and len(verts):
-            self._xs = [x for x,y in verts]
-            self._ys = [y for x,y in verts]
+        self.tag = tag
+        if vertices is not None and len(vertices):
+            self._xs = [x for x,y in vertices]
+            self._ys = [y for x,y in vertices]
             # Append end-point of closed polygon
             self._xs.append(self._xs[0])
             self._ys.append(self._ys[0])
@@ -702,6 +715,8 @@ def grid_from_roi(im, vertices):
     nt, nz, ny, nx = im.shape
     if follow:
         grid = np.zeros_like(im, dtype=np.ubyte)
+        skipped = []
+        copied = []
         for idx in range(nz):
             last_used_tag = None
             for t in range(nt):
@@ -709,9 +724,11 @@ def grid_from_roi(im, vertices):
                 if tag not in vertices or vertices[tag] is None:
                     if last_used_tag is None:
                         # Most probably a slice with no ROIs
+                        skipped.append(tag)
                         continue
                     # Propagate last drawn ROI to unfilled tags
-                    vertices[tag] = vertices[last_used_tag]
+                    vertices[tag] = copy.copy(vertices[last_used_tag])
+                    copied.append((tag, last_used_tag))
                 else:
                     last_used_tag = tag
                 path = MplPath(vertices[tag])
@@ -719,6 +736,10 @@ def grid_from_roi(im, vertices):
                 x, y = x.flatten(), y.flatten()
                 points = np.vstack((x, y)).T
                 grid[t, idx] = path.contains_points(points).reshape((ny, nx))
+        # if len(skipped) > 0:
+        #     print('Skipped: {}'.format(skipped))
+        if len(copied) > 0:
+            print('Copied: {}'.format(copied))
     else:
         grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
         for idx in range(nz):
@@ -730,4 +751,3 @@ def grid_from_roi(im, vertices):
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
     return Series(grid, input_order=im.input_order, template=im, geometry=im)
-
