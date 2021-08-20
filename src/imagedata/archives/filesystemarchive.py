@@ -170,19 +170,21 @@ class FilesystemArchive(AbstractArchive, ABC):
             The members as a list of their names.
                 It has the same order as the members of the archive.
         """
-        if files:
+        if files is None or \
+                (issubclass(type(files), str) and files == '*') or \
+                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
+            return self.__filelist
+        else:
             filelist = list()
             for filename in self.__filelist:
                 for required_filename in files:
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+os.sep+'*'):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
-        else:
-            return self.__filelist
 
     def basename(self, filehandle):
         """Basename of file.
@@ -213,7 +215,11 @@ class FilesystemArchive(AbstractArchive, ABC):
                 The list has the same order as the members in the archive.
         """
         # logger.debug("getmembers: files {}".format(files))
-        if files:
+        if files is None or \
+                (issubclass(type(files), str) and files == '*') or \
+                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
+            return self.__filelist
+        else:
             if issubclass(type(files), list):
                 wanted_files = files
             else:
@@ -225,7 +231,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+os.sep+'*'):
                         filelist.append(filename)
                         found_match[i] = True
             # Verify that all wanted files are found
@@ -235,8 +241,6 @@ class FilesystemArchive(AbstractArchive, ABC):
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
-        else:
-            return self.__filelist
 
     def to_localfile(self, filehandle):
         """Access a member object through a local file.
