@@ -738,8 +738,8 @@ def grid_from_roi(im, vertices):
                 grid[t, idx] = path.contains_points(points).reshape((ny, nx))
         # if len(skipped) > 0:
         #     print('Skipped: {}'.format(skipped))
-        if len(copied) > 0:
-            print('Copied: {}'.format(copied))
+        # if len(copied) > 0:
+        #     print('Copied: {}'.format(copied))
     else:
         grid = np.zeros((nz, ny, nx), dtype=np.ubyte)
         for idx in range(nz):
