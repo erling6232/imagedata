@@ -499,7 +499,7 @@ class Viewer:
                 # Copy the polygon to next tag when there is none
                 self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                             lineprops={'color': self.poly_color},
-                                                            vertices=self.poly[old_tag, idx].vertices,
+                                                            vertices=self.poly[old_tag, idx].verts,
                                                             tag=(new_tag, idx))
             assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
@@ -674,18 +674,18 @@ class MyPolygonSelector(PolygonSelector):
             self.artists = [self.line, self._polygon_handles.artist]
             self.set_visible(True)
 
-    @property
-    def vertices(self):
-        vertices = []
-        assert len(self._xs) == len(self._ys), "Length of vertices x {} and y {} are inconsistent".format(
-            len(self._xs), len(self._ys)
-        )
-        for x,y in zip(self._xs, self._ys):
-            vertices.append((x,y))
-        # Remove last vertex if identical to first vertex
-        if vertices[0] == vertices[-1]:
-            vertices.pop()
-        return vertices
+    # @property
+    # def vertices(self):
+    #     vertices = []
+    #     assert len(self._xs) == len(self._ys), "Length of vertices x {} and y {} are inconsistent".format(
+    #         len(self._xs), len(self._ys)
+    #     )
+    #     for x,y in zip(self._xs, self._ys):
+    #         vertices.append((x,y))
+    #     # Remove last vertex if identical to first vertex
+    #     if vertices[0] == vertices[-1]:
+    #         vertices.pop()
+    #     return vertices
 
 
 def default_layout(fig, n):
