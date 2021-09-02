@@ -92,7 +92,7 @@ class Series(np.ndarray):
     def __new__(cls, data, input_order='none',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
-                template=None, geometry=None):
+                template=None, geometry=None, axes=None):
 
         if issubclass(type(template), Series):
             template = template.header
@@ -113,6 +113,8 @@ class Series(np.ndarray):
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
+            if axes is not None:
+                obj.header.axes = copy.copy(axes)
             add_template(obj.header, template)
             add_geometry(obj.header, template, geometry)
             return obj
@@ -123,7 +125,7 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             obj.header.input_order = input_order
-            obj.header.set_default_values(obj.axes)
+            obj.header.set_default_values(obj.axes if axes is None else axes)
             add_template(obj.header, template)
             add_geometry(obj.header, template, geometry)
             return obj
@@ -141,7 +143,7 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             obj.header.input_order = input_order
-            obj.header.set_default_values(obj.axes)
+            obj.header.set_default_values(obj.axes if axes is None else axes)
             add_template(obj.header, template)
             add_geometry(obj.header, template, geometry)
             return obj
@@ -156,11 +158,13 @@ class Series(np.ndarray):
         obj.header.input_order = input_order
         # Copy attributes from hdr dict to newly created obj
         logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
-        if obj.axes is None and 'axes' in hdr:
-            axes = hdr['axes']
+        if axes is not None:
+            new_axes = axes
+        elif obj.axes is None and 'axes' in hdr:
+            new_axes = hdr['axes']
         else:
-            axes = obj.axes
-        obj.header.set_default_values(axes)
+            new_axes = obj.axes
+        obj.header.set_default_values(new_axes)
         for attr in hdr.keys():
             setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
@@ -1822,8 +1826,10 @@ class Series(np.ndarray):
             img[...,1] = self[:]
             img[...,2] = self[:]
         # rgb = Series(img, template=self, geometry=self)
-        rgb = Series(img, geometry=self)
-        rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+        rgb = Series(img, input_order=self.input_order, geometry=self,
+                     axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                     )
+        # rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.color = True
         add_template(rgb.header, self.header)
