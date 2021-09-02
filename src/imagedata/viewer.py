@@ -682,6 +682,9 @@ class MyPolygonSelector(PolygonSelector):
         )
         for x,y in zip(self._xs, self._ys):
             vertices.append((x,y))
+        # Remove last vertex if identical to first vertex
+        if vertices[0] == vertices[-1]:
+            vertices.pop()
         return vertices
 
 
