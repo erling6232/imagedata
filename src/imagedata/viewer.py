@@ -500,7 +500,7 @@ class Viewer:
                 self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                             lineprops={'color': self.poly_color},
                                                             vertices=self.poly[old_tag, idx].vertices,
-                                                            tag=idx)
+                                                            tag=(new_tag, idx))
             assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
             self.poly[old_tag, idx].set_visible(False)
@@ -674,6 +674,16 @@ class MyPolygonSelector(PolygonSelector):
             self.artists = [self.line, self._polygon_handles.artist]
             self.set_visible(True)
 
+    @property
+    def vertices(self):
+        vertices = []
+        assert len(self._xs) == len(self._ys), "Length of vertices x {} and y {} are inconsistent".format(
+            len(self._xs), len(self._ys)
+        )
+        for x,y in zip(self._xs, self._ys):
+            vertices.append((x,y))
+        return vertices
+
 
 def default_layout(fig, n):
     """Setup a default layout for given number of axes.
@@ -712,7 +722,8 @@ def grid_from_roi(im, vertices):
     # print('grid_from_roi: keys: {}'.format(keys))
     # print('grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
-    nt, nz, ny, nx = im.shape
+    # nt, nz, ny, nx = im.shape
+    nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
     if follow:
         grid = np.zeros_like(im, dtype=np.ubyte)
         skipped = []
