@@ -10,99 +10,6 @@ import numpy as np
 from imagedata.series import Series
 
 
-def get_slice_axis(im):
-    try:
-        return im.find_axis('slice')
-    except ValueError:
-        return None
-
-
-def get_tag_axis(im):
-    try:
-        return im.find_axis(im.input_order)
-    except ValueError:
-        return None
-
-
-def get_level(si, level):
-    if level is None:
-        # First, attempt to get DICOM attribute
-        try:
-            level = si.getDicomAttribute('WindowCenter')
-        except (KeyError, AttributeError):
-            pass
-    if level is None:
-        level = (si.max() - si.min()) / 2
-    return level
-
-
-def get_window_level(si, window, level):
-    if window is None:
-        # First, attempt to get DICOM attribute
-        try:
-            window = si.getDicomAttribute('WindowWidth')
-        except (KeyError, AttributeError):
-            pass
-    if window is None:
-        window = si.max() - si.min()
-    level = get_level(si, level)
-    vmin = level - window / 2
-    vmax = level + window / 2
-    return window, level, vmin, vmax
-
-
-def build_info(im, cmap, window, level):
-    if im is None:
-        return None
-    if not issubclass(type(im), Series):
-        raise ValueError('Cannot display image of type {}'.format(type(im)))
-    if cmap is None:
-        cmap = 'gray'
-    window, level, vmin, vmax = get_window_level(im, window, level)
-    tag_axis = get_tag_axis(im)
-    slice_axis = get_slice_axis(im)
-
-    return {
-        'im': im,  # Image Series instance
-        'input_order': im.input_order,
-        'modified': True,  # update()
-        'slider': None,  # 4D slider
-        'lower_left_text': None,  # AnchoredText object
-        'lower_left_data': None,  # Tuple of present data
-        'lower_right_text': None,  # AnchoredText object
-        'lower_right_data': None,  # Tuple of present data
-        'scrollable': im.slices > 1,  # Can we scroll the instance?
-        'taggable': tag_axis is not None,  # Can we slide through tags
-        'tags': len(im.tags[0]),  # Number of tags
-        'slices': im.slices,  # Number of slices
-        'rows': im.rows,  # Number of rows
-        'columns': im.columns,  # Number of columns
-        'tag': 0,  # Displayed tag index
-        'idx': im.slices // 2,  # Displayed slice index
-        'tag_axis': tag_axis,  # Axis instance of im
-        'slice_axis': slice_axis,  # Axis instance of im
-        'cmap': cmap,  # Colour map
-        'window': window,  # Window center
-        'level': level,  # Window level
-        'vmin': vmin,  # Lower window value
-        'vmax': vmax  # Upper window value
-    }
-
-
-def pretty_tag_value(im):
-    tag = im['tag']
-    if im['input_order'] == 'time':
-        return '{0:0.2f}s'.format(im['im'].timeline[tag])
-    elif im['input_order'] == 'b':
-        return '{}'.format(int(im['im'].tags[0][tag]))
-    elif im['input_order'] == 'te':
-        return '{}ms'.format(int(im['im'].tags[0][tag]))
-    elif im['input_order'] == 'fa':
-        return '{}'.format(im['im'].tags[0][tag])
-    else:
-        return '{}'.format(im['im'].tags[0][tag])
-
-
 class Viewer:
     """Viewer -- a graphical tool to display and interact with Series objects.
 
@@ -674,19 +581,6 @@ class MyPolygonSelector(PolygonSelector):
             self.artists = [self.line, self._polygon_handles.artist]
             self.set_visible(True)
 
-    # @property
-    # def vertices(self):
-    #     vertices = []
-    #     assert len(self._xs) == len(self._ys), "Length of vertices x {} and y {} are inconsistent".format(
-    #         len(self._xs), len(self._ys)
-    #     )
-    #     for x,y in zip(self._xs, self._ys):
-    #         vertices.append((x,y))
-    #     # Remove last vertex if identical to first vertex
-    #     if vertices[0] == vertices[-1]:
-    #         vertices.pop()
-    #     return vertices
-
 
 def default_layout(fig, n):
     """Setup a default layout for given number of axes.
@@ -765,3 +659,96 @@ def grid_from_roi(im, vertices):
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
     return Series(grid, input_order=im.input_order, template=im, geometry=im)
+
+
+def get_slice_axis(im):
+    try:
+        return im.find_axis('slice')
+    except ValueError:
+        return None
+
+
+def get_tag_axis(im):
+    try:
+        return im.find_axis(im.input_order)
+    except ValueError:
+        return None
+
+
+def get_level(si, level):
+    if level is None:
+        # First, attempt to get DICOM attribute
+        try:
+            level = si.getDicomAttribute('WindowCenter')
+        except (KeyError, AttributeError):
+            pass
+    if level is None:
+        level = (si.max() - si.min()) / 2
+    return level
+
+
+def get_window_level(si, window, level):
+    if window is None:
+        # First, attempt to get DICOM attribute
+        try:
+            window = si.getDicomAttribute('WindowWidth')
+        except (KeyError, AttributeError):
+            pass
+    if window is None:
+        window = si.max() - si.min()
+    level = get_level(si, level)
+    vmin = level - window / 2
+    vmax = level + window / 2
+    return window, level, vmin, vmax
+
+
+def build_info(im, cmap, window, level):
+    if im is None:
+        return None
+    if not issubclass(type(im), Series):
+        raise ValueError('Cannot display image of type {}'.format(type(im)))
+    if cmap is None:
+        cmap = 'gray'
+    window, level, vmin, vmax = get_window_level(im, window, level)
+    tag_axis = get_tag_axis(im)
+    slice_axis = get_slice_axis(im)
+
+    return {
+        'im': im,  # Image Series instance
+        'input_order': im.input_order,
+        'modified': True,  # update()
+        'slider': None,  # 4D slider
+        'lower_left_text': None,  # AnchoredText object
+        'lower_left_data': None,  # Tuple of present data
+        'lower_right_text': None,  # AnchoredText object
+        'lower_right_data': None,  # Tuple of present data
+        'scrollable': im.slices > 1,  # Can we scroll the instance?
+        'taggable': tag_axis is not None,  # Can we slide through tags
+        'tags': len(im.tags[0]),  # Number of tags
+        'slices': im.slices,  # Number of slices
+        'rows': im.rows,  # Number of rows
+        'columns': im.columns,  # Number of columns
+        'tag': 0,  # Displayed tag index
+        'idx': im.slices // 2,  # Displayed slice index
+        'tag_axis': tag_axis,  # Axis instance of im
+        'slice_axis': slice_axis,  # Axis instance of im
+        'cmap': cmap,  # Colour map
+        'window': window,  # Window center
+        'level': level,  # Window level
+        'vmin': vmin,  # Lower window value
+        'vmax': vmax  # Upper window value
+    }
+
+
+def pretty_tag_value(im):
+    tag = im['tag']
+    if im['input_order'] == 'time':
+        return '{0:0.2f}s'.format(im['im'].timeline[tag])
+    elif im['input_order'] == 'b':
+        return '{}'.format(int(im['im'].tags[0][tag]))
+    elif im['input_order'] == 'te':
+        return '{}ms'.format(int(im['im'].tags[0][tag]))
+    elif im['input_order'] == 'fa':
+        return '{}'.format(im['im'].tags[0][tag])
+    else:
+        return '{}'.format(im['im'].tags[0][tag])
