@@ -242,7 +242,6 @@ def __make_tags_from_template(this, template, geometry):
 
 def __make_axes_from_template(this, template_axes, geometry_axes):
     axes = __get_attribute(this, 'axes')
-    # ndim = len(__get_attribute(this, 'axes'))
     for i, axis in enumerate(axes):
         if geometry_axes is not None:
             for geometry_axis in geometry_axes:
@@ -252,12 +251,6 @@ def __make_axes_from_template(this, template_axes, geometry_axes):
             for template_axis in template_axes:
                 if template_axis.name == axis.name:
                     axes[i] = copy.copy(template_axis)
-    #if len(geometry_axes) >= ndim:
-    #    axes = geometry_axes[-ndim:]
-    #elif template_axes is not None and len(template_axes) >= ndim:
-    #    axes = template_axes[-ndim:]
-    #else:
-    #    raise ValueError("Too few axes in template.")
     return axes
 
 
