@@ -399,6 +399,20 @@ class TestSeries(unittest.TestCase):
         si2.seriesNumber += 10
         self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
 
+    #@unittest.skip("skipping test_set_axes")
+    def test_set_axes(self):
+        si1 = Series('data/dicom/time/time00')
+
+        shape = si1.shape + (3,)
+        img = np.zeros(shape, dtype=np.uint8)
+        img[...,0] = si1[:]
+        img[...,1] = si1[:]
+        img[...,2] = si1[:]
+
+        rgb = Series(img, geometry=si1,
+                     axes=si1.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                     )
+
 
 if __name__ == '__main__':
     unittest.main()
