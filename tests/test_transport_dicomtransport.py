@@ -3,7 +3,7 @@ import os.path
 import tempfile
 import numpy as np
 import argparse
-from pydicom.dataset import Dataset
+from pydicom.dataset import FileMetaDataset
 from pynetdicom import (
     AE, evt,
     StoragePresentationContexts,
@@ -89,7 +89,7 @@ class TestDicomTransport(unittest.TestCase):
         # logging.debug('on_c_store: called_aet {}'.format(called_aet))
 
         # Add the DICOM File Meta Information
-        meta = Dataset()
+        meta = FileMetaDataset()
         meta.MediaStorageSOPClassUID = ds.SOPClassUID
         meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
         meta.ImplementationClassUID = PYNETDICOM_IMPLEMENTATION_UID

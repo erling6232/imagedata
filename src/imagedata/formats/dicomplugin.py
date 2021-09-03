@@ -1231,7 +1231,7 @@ class DICOMPlugin(AbstractPlugin):
         sop_ins_uid = si.header.new_uid()
 
         # Populate required values for file meta information
-        file_meta = pydicom.dataset.Dataset()
+        file_meta = pydicom.dataset.FileMetaDataset()
         file_meta.MediaStorageSOPClassUID = template.SOPClassUID
         file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
         file_meta.ImplementationClassUID = "%s.1" % self.root
@@ -1303,7 +1303,7 @@ class DICOMPlugin(AbstractPlugin):
 
         if arr.dtype in self.smallint:
             # No scaling of pixel values
-            ds.PixelData = arr.tostring()
+            ds.PixelData = arr.tobytes()
             if arr.itemsize == 1:
                 ds[0x7fe0, 0x0010].VR = 'OB'
                 ds.BitsAllocated = 8
@@ -1318,7 +1318,7 @@ class DICOMPlugin(AbstractPlugin):
                 raise TypeError('Cannot store {} itemsize {} without scaling'.format(arr.dtype, arr.itemsize))
         elif np.issubdtype(arr.dtype, np.bool_):
             # No scaling. Pack bits in 16-bit words
-            ds.PixelData = arr.astype('uint16').tostring()
+            ds.PixelData = arr.astype('uint16').tobytes()
             ds[0x7fe0, 0x0010].VR = 'OW'
             ds.BitsAllocated = 16
             ds.BitsStored = 16
@@ -1327,7 +1327,7 @@ class DICOMPlugin(AbstractPlugin):
             # Other high precision data type, like float:
             # rescale to uint16
             rescaled = (arr - self.b) / self.a
-            ds.PixelData = rescaled.astype('uint16').tostring()
+            ds.PixelData = rescaled.astype('uint16').tobytes()
             ds[0x7fe0, 0x0010].VR = 'OW'
             ds.BitsAllocated = 16
             ds.BitsStored = 16
