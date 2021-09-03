@@ -92,7 +92,10 @@ class NiftiPlugin(AbstractPlugin):
         except Exception:
             raise
         info = img.header
-        si = self._reorder_to_dicom(img.get_data(), flip=False, flipud=True)
+        si = self._reorder_to_dicom(
+            np.asanyarray(img.dataobj),
+            flip=False,
+            flipud=True)
         return info, si
 
     def _need_local_file(self):
