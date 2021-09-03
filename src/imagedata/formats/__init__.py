@@ -88,7 +88,7 @@ def str_to_dtype(s):
     elif s == "int16":
         return np.int16
     elif s == "int":
-        return np.int
+        return np.int16
     elif s == "float":
         return np.float
     elif s == "float32":

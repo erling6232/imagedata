@@ -567,7 +567,7 @@ class DICOMPlugin(AbstractPlugin):
         # Verify same number of images for each slice
         if len(header_dict) == 0:
             raise ValueError("No DICOM images found.")
-        count = np.zeros(len(header_dict), dtype=np.int)
+        count = np.zeros(len(header_dict), dtype=int)
         islice = 0
         for sloc in sorted(header_dict):
             count[islice] += len(header_dict[sloc])
