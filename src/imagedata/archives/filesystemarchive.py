@@ -82,12 +82,14 @@ class FilesystemArchive(AbstractArchive, ABC):
             self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
         logger.debug("FilesystemArchive.__init__ url: {}".format(url))
-        if fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+
+        urldict = urllib.parse.urlsplit(url, scheme="file")
+        if urldict.scheme == 'file' and fnmatch.fnmatch(urldict.netloc, '[A-Za-z]:\\*'):
             # Windows: Parse without x:, then reattach drive letter
-            urldict = urllib.parse.urlsplit(url[2:], scheme="file")
-            self.__path = url[:2] + urldict.path
+            self.__netloc = ''
+            self.__path = urldict.netloc
         else:
-            urldict = urllib.parse.urlsplit(url, scheme="file")
+            self.__netloc = urldict.netloc
             self.__path = urldict.path
         if transport is not None:
             self.__transport = transport
@@ -107,7 +109,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                          (urldict.scheme, self.__path))
             self.__transport = imagedata.transports.Transport(
                 urldict.scheme,
-                netloc=urldict.netloc,
+                netloc=self.__netloc,
                 root=self.__path,
                 mode=mode,
                 read_directory_only=read_directory_only,
