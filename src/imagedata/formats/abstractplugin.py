@@ -124,10 +124,13 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 if self._need_local_file():
                     logger.debug("AbstractPlugin.read: need local file {}".format(file_handle))
                     f = archive.to_localfile(file_handle)
+                    logger.debug("AbstractPlugin.read: local file {}".format(f))
+                    info, si = self._read_image(f, opts, hdr)
                 else:
                     f = archive.open(file_handle, mode='rb')
-                logger.debug("AbstractPlugin.read: file {}".format(f))
-                info, si = self._read_image(f, opts, hdr)
+                    logger.debug("AbstractPlugin.read: file {}".format(f))
+                    info, si = self._read_image(f, opts, hdr)
+                    f.close()
                 # info is None when no image was read
                 if info is not None:
                     image_list.append((info, si))
