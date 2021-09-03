@@ -108,10 +108,15 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.authors, self.version, self.url, self.mimetypes)
         self.opts = opts
         logger.debug("ZipfileArchive.__init__ url: {}".format(url))
-        urldict = urllib.parse.urlsplit(url, scheme="file")
+        if fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+            # Windows: Parse without x:, then reattach drive letter
+            urldict = urllib.parse.urlsplit(url[2:], scheme="file")
+            self.__path = url[:2] + urldict.path
+        else:
+            urldict = urllib.parse.urlsplit(url, scheme="file")
+            self.__path = urldict.path
         if transport is not None:
             self.__transport = transport
-            self.__path = urldict.path
         elif url is None:
             raise ValueError('url not given')
         else:
@@ -121,8 +126,8 @@ class ZipfileArchive(AbstractArchive, ABC):
             # netloc: where is zipfile
             # self.__path: zipfile name
             if urldict.scheme == 'xnat':
-                netloc = urldict.netloc + urldict.path
-                self.__path = urldict.path
+                netloc = urldict.netloc + self.__path
+                # self.__path = urldict.path
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                              (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
@@ -132,7 +137,8 @@ class ZipfileArchive(AbstractArchive, ABC):
                     mode=mode,
                     read_directory_only=read_directory_only)
             else:
-                netloc, self.__path = os.path.split(urldict.path)
+                # netloc, self.__path = os.path.split(urldict.path)
+                netloc, self.__path = os.path.split(self.__path)
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                              (urldict.scheme, netloc))
                 self.__transport = imagedata.transports.Transport(
