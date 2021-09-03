@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import nose.tools
+# import nose.tools
 import unittest
 import numpy as np
 import copy
@@ -377,7 +377,8 @@ class TestSeries(unittest.TestCase):
         si2.seriesNumber += 10
         self.assertNotEqual(si.seriesNumber, si2.seriesNumber)
 
-    @nose.tools.raises(AssertionError)
+    # @nose.tools.raises(AssertionError)
+    @unittest.expectedFailure
     #@unittest.skip("skipping test_cross_talk_spacing")
     def test_cross_talk_spacing(self):
         si = Series('data/dicom/time', 'time')
