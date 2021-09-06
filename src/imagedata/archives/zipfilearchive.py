@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def list_files(startpath):
     import os
     for root, dirs, files in os.walk(startpath):
-        level = root.replace(startpath, '').count(os.sep)
+        level = root.replace(startpath, '').count('/')
         indent = ' ' * 4 * level
         print('{}{}/'.format(indent, os.path.basename(root)))
         subindent = ' ' * 4 * (level + 1)
@@ -85,7 +85,7 @@ class ZipfileArchive(AbstractArchive, ABC):
     authors = "Erling Andersen"
     version = "1.0.0"
     url = "www.helse-bergen.no"
-    mimetypes = ['application/zip']
+    mimetypes = ['application/zip', 'application/x-zip-compressed']
 
     # Internal data
     # self.__transport: file transport object.
@@ -108,13 +108,13 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.authors, self.version, self.url, self.mimetypes)
         self.opts = opts
         logger.debug("ZipfileArchive.__init__ url: {}".format(url))
-        if fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+        if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
             # Windows: Parse without x:, then reattach drive letter
             urldict = urllib.parse.urlsplit(url[2:], scheme="file")
             self.__path = url[:2] + urldict.path
         else:
             urldict = urllib.parse.urlsplit(url, scheme="file")
-            self.__path = urldict.path
+            self.__path = urldict.path if len(urldict.path)> 0 else urldict.netloc
         if transport is not None:
             self.__transport = transport
         elif url is None:
@@ -164,7 +164,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.__archive, self.__tmpdir))
         # Get filelist in self.__files
         for fname in self.__archive.namelist():
-            norm_fname = os.path.normpath(fname)
+            # norm_fname = os.path.normpath(fname)
             try:
                 _is_dir = self.__archive.getinfo(fname).is_dir()  # Works with Python >= 3.6
             except AttributeError:
@@ -173,8 +173,10 @@ class ZipfileArchive(AbstractArchive, ABC):
                 logger.error('ZipfileArchive: {}'.format(e))
                 raise
             if not _is_dir:
-                member = {'unpacked': False, 'name': norm_fname, 'fh': None}
-                self.__files[norm_fname] = member
+                # member = {'unpacked': False, 'name': norm_fname, 'fh': None}
+                # self.__files[norm_fname] = member
+                member = {'unpacked': False, 'name': fname, 'fh': None}
+                self.__files[fname] = member
         # logger.debug("ZipFile self.__files: {}".format(self.__files))
 
     @property
@@ -205,9 +207,15 @@ class ZipfileArchive(AbstractArchive, ABC):
                 logger.debug('ZipfileArchive.getnames: member {}'.format(filename))
                 for required_filename in files:
                     logger.debug('ZipfileArchive.getnames: required {}'.format(required_filename))
-                    if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
+                    if required_filename[-1] == '/':
+                        required_filename = required_filename[:-1]
+                    # if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
+                    #     filelist.append(filename)
+                    # elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
+                    #     filelist.append(filename)
+                    if fnmatch.fnmatchcase(filename, required_filename):
                         filelist.append(filename)
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
+                    elif fnmatch.fnmatchcase(filename, required_filename + '/*'):
                         filelist.append(filename)
             logger.debug('ZipfileArchive.getnames: found files {}'.format(len(filelist)))
             if len(filelist) < 1:
@@ -229,7 +237,8 @@ class ZipfileArchive(AbstractArchive, ABC):
     def _longest_prefix(keys, required):
         prefix = ''
         for folder in keys:
-            new_prefix = os.path.commonprefix([folder, os.path.normpath(required)])
+            # new_prefix = os.path.commonprefix([folder, os.path.normpath(required)])
+            new_prefix = os.path.commonprefix([folder, required])
             if len(new_prefix) > len(prefix):
                 prefix = new_prefix
         return prefix
@@ -294,9 +303,15 @@ class ZipfileArchive(AbstractArchive, ABC):
             if issubclass(type(files), list):
                 wanted_files = []
                 for file in files:
-                    wanted_files.append(os.path.normpath(file))
+                    # wanted_files.append(os.path.normpath(file))
+                    if file[-1] == '/':
+                        file = file[:-1]
+                    wanted_files.append(file)
             else:
-                wanted_files = list((os.path.normpath(files),))
+                # wanted_files = list((os.path.normpath(files),))
+                if files[-1] == '/':
+                    files = files[:-1]
+                wanted_files = list((files,))
             # logger.debug('ZipfileArchive.getmembers: wanted_files {}'.format(len(wanted_files)))
             found_match = [False for _ in range(len(wanted_files))]
             filelist = list()
@@ -308,7 +323,8 @@ class ZipfileArchive(AbstractArchive, ABC):
                     if fnmatch.fnmatchcase(filename, required_filename):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename, required_filename+os.sep+'*'):
+                    # elif fnmatch.fnmatchcase(filename, required_filename + os.sep + '*'):
+                    elif fnmatch.fnmatchcase(filename, required_filename + '/*'):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
             # Verify that all wanted files are found

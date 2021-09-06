@@ -10,6 +10,7 @@ Standard plugins provides support for filesystem, tar, tar.gz, tar.bz2, gzip, zi
 import os.path
 import logging
 import urllib.parse
+import fnmatch
 
 logger = logging.getLogger(__name__)
 
@@ -137,7 +138,14 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
     if opts is None:
         opts = {}
     global plugins
-    urldict = urllib.parse.urlsplit(url, scheme="file")
+    if os.name == 'nt' and \
+            fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+        # Windows: Parse without /x:, then re-attach drive letter
+        urldict = urllib.parse.urlsplit(url[2:], scheme="file")
+        _path = url[:2] + urldict.path
+    else:
+        urldict = urllib.parse.urlsplit(url, scheme="file")
+        _path = urldict.path if len(urldict.path)>0 else urldict.netloc
     if urldict.scheme == 'xnat':
         mimetype = 'application/zip'
     if mimetype is None:
@@ -150,7 +158,7 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
         if mimetype in pclass.mimetypes:
             logger.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype, mode))
             return pclass(url=url, mode=mode, opts=opts)
-    if os.path.isfile(urldict.path):
+    if os.path.isfile(_path):
         logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         try:
             return find_plugin('filesystem', url, mode, opts=opts)

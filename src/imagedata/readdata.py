@@ -294,7 +294,7 @@ def sorted_plugins_dicom_first(plugins):
 def _get_location_part(url):
     """Get location part of URL: scheme, netloc and path"""
 
-    if fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+    if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without x:, then reattach drive letter
         url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
         _path = url[:2] + url_tuple.path
@@ -332,8 +332,10 @@ def _get_archive(url, mode='r', opts=None):
         opts = {}
     logger.debug('readdata._get_archive: url %s' % url)
     url_tuple = urllib.parse.urlsplit(url, scheme="file")
-    if url_tuple.scheme == 'file' and fnmatch.fnmatch(url_tuple.netloc, '[A-Za-z]:\\*'):
-        # Windows: Parse without /x:, then reattach drive letter
+    if os.name == 'nt' and \
+            url_tuple.scheme == 'file' and \
+            fnmatch.fnmatch(url_tuple.netloc, '[A-Za-z]:\\*'):
+        # Windows: Parse without /x:, then re-attach drive letter
         _path = url_tuple.netloc
     else:
         _path = url_tuple.path
@@ -357,7 +359,7 @@ def _common_prefix(level):
     """
 
     cp = []
-    ls = [p.split('/') for p in level]
+    ls = [p.split(os.sep) for p in level]
     ml = min(len(p) for p in ls)
 
     for i in range(ml):
@@ -368,7 +370,7 @@ def _common_prefix(level):
 
         cp.append(s.pop())
 
-    return '/'.join(cp)
+    return os.sep.join(cp)
 
 
 def _simplify_locations(locations):
@@ -380,12 +382,13 @@ def _simplify_locations(locations):
     for location in locations:
         # On Windows, any backslash (os.sep) will be replaced by slash in URL
         # url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
-        url_tuple = urllib.parse.urlsplit(location, scheme='file')
-        if fnmatch.fnmatch(url_tuple.netloc, '[A-Za-z]:\\*'):
+        if os.name == 'nt' and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
             # Windows: Parse without x:, then reattach drive letter
-            _path = url_tuple.netloc + url_tuple.path
+            url_tuple = urllib.parse.urlsplit(location[2:], scheme='file')
+            _path = location[:2] + url_tuple.path
         else:
-            _path = url_tuple.path
+            url_tuple = urllib.parse.urlsplit(location, scheme='file')
+            _path = url_tuple.path if len(url_tuple.path) > 0 else url_tuple.netloc
         if url_tuple.scheme == 'file':
             paths.append(_path)
         else:
@@ -400,7 +403,8 @@ def _simplify_locations(locations):
             prefix,
             None,
             None))
-        if fnmatch.fnmatch(prefix_url, 'file:///[A-Za-z]:\\*'):
+        # urlunsplit prepends file:/// when a Windows drive is present. Simplify to file://
+        if os.name == 'nt' and fnmatch.fnmatch(prefix_url, 'file:///[A-Za-z]:\\*'):
             prefix_url = 'file://' + prefix_url[8:]
         new_locations[prefix_url] = True
     logger.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
