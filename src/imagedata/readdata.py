@@ -7,6 +7,7 @@ import os.path
 import logging
 import mimetypes
 import argparse
+import fnmatch
 import urllib.parse
 from imagedata.header import add_template, add_geometry
 import imagedata.formats
@@ -293,19 +294,26 @@ def sorted_plugins_dicom_first(plugins):
 def _get_location_part(url):
     """Get location part of URL: scheme, netloc and path"""
 
-    url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    if fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+        # Windows: Parse without x:, then reattach drive letter
+        url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
+        _path = url[:2] + url_tuple.path
+    else:
+        url_tuple = urllib.parse.urlsplit(url, scheme="file")
+        _path = url_tuple.path
+    # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
     location = urllib.parse.urlunsplit((
         url_tuple.scheme,
         url_tuple.netloc,
-        url_tuple.path,
+        _path,
         None,
         None))
-    if location[:8] == 'file:///' and url_tuple.path[0] != '/':
+    if location[:8] == 'file:///' and _path[0] != '/':
         location = 'file://' + os.path.abspath(location[8:])
     logger.debug('readdata._get_location_part: scheme %s' % url_tuple.scheme)
     logger.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
-    logger.debug('readdata._get_location_part: path %s' % url_tuple.path)
+    logger.debug('readdata._get_location_part: path %s' % _path)
     logger.debug('readdata._get_location_part: location %s' % location)
     return location
 
@@ -323,8 +331,14 @@ def _get_archive(url, mode='r', opts=None):
     if opts is None:
         opts = {}
     logger.debug('readdata._get_archive: url %s' % url)
-    url_tuple = urllib.parse.urlsplit(url, scheme='file')
-    mimetype = mimetypes.guess_type(url_tuple.path)[0]
+    url_tuple = urllib.parse.urlsplit(url, scheme="file")
+    if url_tuple.scheme == 'file' and fnmatch.fnmatch(url_tuple.netloc, '[A-Za-z]:\\*'):
+        # Windows: Parse without /x:, then reattach drive letter
+        _path = url_tuple.netloc
+    else:
+        _path = url_tuple.path
+    # url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    mimetype = mimetypes.guess_type(_path)[0]
     archive = imagedata.archives.find_mimetype_plugin(
         mimetype,
         url,
@@ -365,9 +379,15 @@ def _simplify_locations(locations):
     paths = []
     for location in locations:
         # On Windows, any backslash (os.sep) will be replaced by slash in URL
-        url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
+        # url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
+        url_tuple = urllib.parse.urlsplit(location, scheme='file')
+        if fnmatch.fnmatch(url_tuple.netloc, '[A-Za-z]:\\*'):
+            # Windows: Parse without x:, then reattach drive letter
+            _path = url_tuple.netloc + url_tuple.path
+        else:
+            _path = url_tuple.path
         if url_tuple.scheme == 'file':
-            paths.append(url_tuple.path)
+            paths.append(_path)
         else:
             new_locations[location] = True
     logger.debug('readdata._simplify_locations: paths {}'.format(paths))
@@ -380,6 +400,8 @@ def _simplify_locations(locations):
             prefix,
             None,
             None))
+        if fnmatch.fnmatch(prefix_url, 'file:///[A-Za-z]:\\*'):
+            prefix_url = 'file://' + prefix_url[8:]
         new_locations[prefix_url] = True
     logger.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
     return new_locations
