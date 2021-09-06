@@ -16,7 +16,7 @@ class NoOtherInstance(Exception):
 class AbstractTransport(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata transport plugins.
     Plugins must be a subclass of AbstractPlugin and
-    must define the atttributes set in __init__() and
+    must define the attributes set in __init__() and
     the following methods:
 
     open() method
@@ -38,7 +38,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         """Plugin name
         
         Single word string describing the image format.
-        Typical names: dicom, nifti, itk.
+        Typical names: file, dicom, xnat
         """
         return self.__name
 
@@ -46,7 +46,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     def description(self):
         """Plugin description
         
-        Single line string describing the image format.
+        Single line string describing the transport method.
         """
         return self.__description
 
