@@ -114,7 +114,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.__path = url[:2] + urldict.path
         else:
             urldict = urllib.parse.urlsplit(url, scheme="file")
-            self.__path = urldict.path if len(urldict.path)> 0 else urldict.netloc
+            self.__path = urldict.path if len(urldict.path) > 0 else urldict.netloc
         if transport is not None:
             self.__transport = transport
         elif url is None:
