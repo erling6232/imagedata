@@ -10,7 +10,6 @@ fs
 python-magic
 ghostscript
 imageio
-scandir
 pillow
 matplotlib
 flake8
