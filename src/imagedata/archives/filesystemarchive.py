@@ -92,7 +92,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         else:
             urldict = urllib.parse.urlsplit(url, scheme="file")
             if os.name == 'nt' and \
-                fnmatch.fnmatch(urldict.netloc, '[A-Za-z]:\\*'):
+                    fnmatch.fnmatch(urldict.netloc, '[A-Za-z]:\\*'):
                 self.__netloc = ''
                 self.__path = urldict.netloc
             else:
@@ -193,7 +193,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                 for required_filename in files:
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+os.sep+'*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + os.sep + '*'):
                         filelist.append(filename)
             if len(filelist) < 1:
                 raise FileNotFoundError('No such file: %s' % files)
@@ -244,7 +244,7 @@ class FilesystemArchive(AbstractArchive, ABC):
                     if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
                         filelist.append(filename)
                         found_match[i] = True
-                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)+os.sep+'*'):
+                    elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + os.sep + '*'):
                         filelist.append(filename)
                         found_match[i] = True
             # Verify that all wanted files are found

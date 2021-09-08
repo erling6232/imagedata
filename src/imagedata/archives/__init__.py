@@ -145,7 +145,7 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
         _path = url[:2] + urldict.path
     else:
         urldict = urllib.parse.urlsplit(url, scheme="file")
-        _path = urldict.path if len(urldict.path)>0 else urldict.netloc
+        _path = urldict.path if len(urldict.path) > 0 else urldict.netloc
     if urldict.scheme == 'xnat':
         mimetype = 'application/zip'
     if mimetype is None:
