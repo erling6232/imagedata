@@ -6,10 +6,8 @@ itk
 nibabel
 numpy
 scipy
-fs
 python-magic
 ghostscript
 imageio
-pillow
 matplotlib
 flake8
