@@ -8,28 +8,43 @@ jobs:
         python-version: [3.6, 3.7, 3.8, 3.9]
         
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install dependencies
-        run: |
-          cd src
-          python -m pip install --upgrade pip
-          pip install flake8
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Run Unit Tests and collect coverage
-        run: |
-          cd src
-          pip install coverage
-          python -m unittest -v
-          coverage run -m unittest
-          coverage report
-          coverage xml
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v2
-        with:
-          fail_ci_if_error: true
-          token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        cd src
+        python -m pip install --upgrade pip
+        pip install flake8
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    - name: Run Unit Tests and collect coverage
+      run: |
+        cd src
+        pip install coverage
+        python -m unittest -v
+        coverage run -m unittest
+        coverage report
+        coverage xml
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2
+      with:
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Archive code coverage html report
+      uses: actions/upload-artifact@v2
+      with:
+        name: code-coverage-report
+        path: src/htmlcov
+    - name: Run package creation
+      run: |
+        cd src
+        python -m pip install --user --upgrade build
+        python -m build
+    #- name: Archive package
+    #  uses: actions/upload-artifact@v2
+    #  with:
+    #    name: imagedata
+    #    path: src/dist    
