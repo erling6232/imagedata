@@ -18,7 +18,7 @@ jobs:
       run: |
         cd src
         python -m pip install --upgrade pip
-        pip install flake8
+        pip install flake8 tox
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Run unit tests
       run: >-
