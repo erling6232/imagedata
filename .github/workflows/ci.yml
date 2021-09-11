@@ -20,11 +20,11 @@ jobs:
         python -m pip install --upgrade pip
         pip install flake8 tox coverage
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    #- name: Run unit tests
-    #  run: >-
-    #      tox -e py --
-    #      -m unit
-    #      --verbose --numprocesses auto --showlocals
+    - name: Run unit tests
+      run: >-
+          tox -e py --
+          -m unit
+          --verbose --numprocesses auto --showlocals --notest
     - name: Collect coverage
       run: |
         coverage run -m unittest
