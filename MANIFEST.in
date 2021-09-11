@@ -21,6 +21,7 @@ recursive-include tests *.py
 include *.yaml
 include Makefile
 include tox.ini
+exclude .coveragerc
 include pylintrc
 recursive-include imagedata *.py
 exclude load_data.py
