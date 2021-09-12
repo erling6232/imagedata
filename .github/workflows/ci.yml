@@ -1,4 +1,4 @@
-name: Workflow for imagedata
+name: build
 on: [push]
 jobs:
   build:
