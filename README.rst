@@ -1,4 +1,5 @@
-|Docs Badge|
+|Docs Badge|_ |buildstatus|_ |appveyor|_ |coverage|_
+
 
 #########
 imagedata
