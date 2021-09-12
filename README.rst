@@ -265,8 +265,9 @@ The command line program *image_data* can be used to convert between various ima
     :scale: 100%
     :target: https://imagedata.readthedocs.io
 
-.. |buildstatus| image:: https://github.com/erling6232/imagedata/actions/workflows/test.yml/badge.svg
+.. |buildstatus| image:: https://github.com/erling6232/imagedata/actions/workflows/ci.yml/badge.svg
     :target: https://github.com/erling6232/imagedata/actions?query=branch%3Amaster
+
 .. _buildstatus: https://github.com/erling6232/imagedata/actions
 
 .. |coverage| image:: https://codecov.io/gh/erling6232/imagedata/branch/master/graph/badge.svg?token=GT9KZV2TWT
