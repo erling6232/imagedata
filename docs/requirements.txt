@@ -7,7 +7,6 @@ nibabel
 numpy
 scipy
 python-magic
-ghostscript
 imageio
 matplotlib
 flake8
