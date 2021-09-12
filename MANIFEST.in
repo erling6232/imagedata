@@ -9,6 +9,10 @@ include VERSION.txt
 
 # Do not distribute test data
 include data
+include data/text.txt
+include data/tree/file0
+include data/tree/file1
+include data/tree/file2
 # prune data
 prune .idea
 prune devtests
