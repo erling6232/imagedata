@@ -1,5 +1,6 @@
 |Docs Badge|_ |buildstatus|_ |appveyor|_ |coverage|_
-
+.. image:: https://codecov.io/gh/erling6232/imagedata/branch/master/graph/badge.svg?token=GT9KZV2TWT
+:target: https://codecov.io/gh/erling6232/imagedata
 
 #########
 imagedata
