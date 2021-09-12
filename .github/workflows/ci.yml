@@ -31,7 +31,7 @@ jobs:
           --verbose --numprocesses auto --showlocals
     - name: Collect coverage
       run: |
-        #coverage run -m unittest
+        # coverage run -m unittest
         coverage report
         coverage xml
     - name: Upload coverage to Codecov
