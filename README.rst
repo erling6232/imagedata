@@ -1,10 +1,9 @@
-|Docs Badge|
-
-.. image:: https://codecov.io/gh/erling6232/imagedata/branch/master/graph/badge.svg?token=GT9KZV2TWT
-
 #########
 imagedata
 #########
+
+|Docs Badge| |buildstatus|  |coverage| |pypi|
+
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
 Imagedata will handle multi-dimensional data.
@@ -265,3 +264,14 @@ The command line program *image_data* can be used to convert between various ima
     :alt: Documentation Status
     :scale: 100%
     :target: https://imagedata.readthedocs.io
+
+.. |buildstatus| image:: https://github.com/erling6232/imagedata/actions/workflows/test.yml/badge.svg
+    :target: https://github.com/erling6232/imagedata/actions?query=branch%3Amaster
+.. _buildstatus: https://github.com/erling6232/imagedata/actions
+
+.. |coverage| image:: https://codecov.io/gh/erling6232/imagedata/branch/master/graph/badge.svg?token=GT9KZV2TWT
+    :target: https://codecov.io/gh/erling6232/imagedata
+
+.. |pypi| image:: https://img.shields.io/pypi/v/imagedata.svg
+    :target: https://pypi.python.org/pypi/imagedata
+    :alt: PyPI Version
