@@ -51,7 +51,7 @@ class TestDicomTemplate(unittest.TestCase):
         si00.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
 
         # Provide sensible time tags
-        for s in range(40):
+        for s in range(3):
             for t in range(2):
                 time_str = datetime.utcfromtimestamp(float(t)).strftime("%H%M%S.%f")
                 si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)

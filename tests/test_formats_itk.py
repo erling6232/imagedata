@@ -53,7 +53,7 @@ class TestFileArchiveItk(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.input_format, 'itk')
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
 
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
@@ -62,7 +62,7 @@ class TestFileArchiveItk(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
         si2 = si1[0, ...]
         with tempfile.TemporaryDirectory() as d:
             si2.write(os.path.join(d, '?Image.mha'), formats=['itk'])
@@ -79,7 +79,7 @@ class TestFileArchiveItk(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 40, 192, 152))
+        self.assertEqual(si1.shape, (2, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
@@ -88,7 +88,7 @@ class TestFileArchiveItk(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_write_3d_single_file")
     def test_write_3d_single_file(self):
@@ -153,7 +153,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
 
         logging.debug("test_write_3d_itk: tags {}".format(si1.tags))
         logging.debug("test_write_3d_itk: spacing {}".format(si1.spacing))
@@ -202,18 +202,11 @@ class TestWritePluginITKSlice(unittest.TestCase):
         si = Series(
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00002.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00003.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00004.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00005.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00006.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00007.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00008.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00009.mha')],
+             os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si.dtype, np.uint16)
-        self.assertEqual(si.shape, (10, 40, 192, 152))
+        self.assertEqual(si.shape, (3, 3, 192, 152))
 
         import copy
         deep_si = copy.deepcopy(si)
@@ -336,18 +329,11 @@ class TestWritePluginItkTag(unittest.TestCase):
         si = Series(
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00002.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00003.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00004.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00005.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00006.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00007.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00008.mha'),
-             os.path.join('data', 'itk', 'time', 'Image_00009.mha')],
+             os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si.dtype, np.uint16)
-        self.assertEqual(si.shape, (10, 40, 192, 152))
+        self.assertEqual(si.shape, (3, 3, 192, 152))
         # np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
 
         # log.debug("test_write_4d_itk: sliceLocations", hdr.sliceLocations)
@@ -357,7 +343,7 @@ class TestWritePluginItkTag(unittest.TestCase):
         # log.debug("test_write_4d_itk: orientation", hdr.orientation)
 
         # Modify header
-        si.sliceLocations = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+        si.sliceLocations = (1, 2, 3)
         si.spacing = (3, 2, 1)
         for slice in range(si.shape[1]):
             si.imagePositions = {
@@ -382,19 +368,19 @@ class TestWritePluginItkTag(unittest.TestCase):
                 d,
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
-        self.assertEqual((40, 10, 192, 152), si2.shape)
+        self.assertEqual((3, 3, 192, 152), si2.shape)
         # np.testing.assert_array_equal(si, si2)
         # np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
         # log.debug("hdr2.tags.keys(): {}".format(hdr2.tags.keys()))
         tags = {}
-        for slice in range(10):
-            tags[slice] = np.arange(40)
+        for slice in range(3):
+            tags[slice] = np.arange(3)
         self.assertEqual(tags.keys(), si2.tags.keys())
         for k in si2.tags.keys():
             np.testing.assert_array_equal(tags[k], si2.tags[k])
         np.testing.assert_array_equal(si.spacing, si2.spacing)
         image_positions = {}
-        for slice in range(10):
+        for slice in range(3):
             image_positions[slice] = np.array([0, 1 + 3 * slice, 0])
         self.assertEqual(image_positions.keys(),
                          si2.imagePositions.keys())

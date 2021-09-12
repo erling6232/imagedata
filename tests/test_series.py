@@ -17,7 +17,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_repr")
     def test_repr(self):
         si = Series(
-            'data/dicom/time/time00/Image_00000.dcm')
+            'data/dicom/time/time00/Image_00020.dcm')
         r = si.__repr__()
 
     #@unittest.skip("skipping test_repr_vol")
@@ -29,14 +29,14 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_max")
     def test_max(self):
         si = Series(
-            'data/dicom/time/time00/Image_00000.dcm')
+            'data/dicom/time/time00/Image_00020.dcm')
         mi = si.max()
         self.assertEqual(type(mi), np.uint16)
 
     #@unittest.skip("skipping test_get_keyword")
     def test_get_keyword(self):
         si1 = Series(
-            'data/dicom/time/time00/Image_00000.dcm')
+            'data/dicom/time/time00/Image_00020.dcm')
         pname = si1.getDicomAttribute('PatientName')
         self.assertEqual(
             si1.getDicomAttribute('PatientName'),

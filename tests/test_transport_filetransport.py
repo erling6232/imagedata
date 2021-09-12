@@ -108,6 +108,7 @@ class TestFiletransport(unittest.TestCase):
                 mode='r', read_directory_only=False)
             f = tree.open('test.txt')
             contents = f.read()
+            f.close()
         self.assertEqual(contents, b'Hello world!')
 
 

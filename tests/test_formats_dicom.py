@@ -34,7 +34,7 @@ class TestDicomPlugin(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.input_format, 'dicom')
@@ -45,8 +45,8 @@ class TestDicomPlugin(unittest.TestCase):
     def test_read_two_files(self):
         si1 = Series(
             [
-                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm'),
-                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00001.dcm')
+                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00021.dcm')
             ],
             'none',
             self.opts)
@@ -60,12 +60,12 @@ class TestDicomPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
 
     # @unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
         d = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm'))
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'))
         self.assertEqual(d.dtype, np.uint16)
         self.assertEqual(d.shape, (192, 152))
 
@@ -76,8 +76,8 @@ class TestDicomPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
-        t = np.array([0., 2.99, 5.97, 8.96, 11.95, 14.94, 17.93, 20.92, 23.9, 26.89])
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
+        t = np.array([0., 2.99, 5.97])
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
         # for axis in si1.axes:
         #    logging.debug('test_read_dicom_4D: axis {}'.format(axis))
@@ -114,12 +114,12 @@ class TestDicomPlugin(unittest.TestCase):
                        imagedata.formats.INPUT_ORDER_TIME)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (10, 40, 192, 152))
+        self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm')
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
         with tempfile.TemporaryDirectory() as d:
             si1.write('{}?Image.dcm'.format(d), formats=['dicom'])
@@ -154,7 +154,7 @@ class TestDicomPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (10, 40, 192, 152))
+        self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_write_dicom_4D_no_opt")
     def test_write_dicom_4D_no_opt(self):
@@ -173,7 +173,7 @@ class TestDicomPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
-        self.assertEqual(newsi.shape, (10, 40, 192, 152))
+        self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
 
 class TestDicomZipPlugin(unittest.TestCase):
@@ -215,7 +215,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -224,7 +224,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -233,7 +233,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -242,7 +242,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_0000[01].dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_0002[01].dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -255,7 +255,7 @@ class TestZipArchiveDicom(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
 
     # @unittest.skip("skipping test_read_two_directories")
     def test_read_two_directories(self):
@@ -264,7 +264,7 @@ class TestZipArchiveDicom(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 40, 192, 152))
+        self.assertEqual(si1.shape, (2, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_all_files")
     def test_read_all_files(self):
@@ -273,7 +273,7 @@ class TestZipArchiveDicom(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
 
 class TestWriteZipArchiveDicom(unittest.TestCase):
@@ -287,7 +287,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
-        si1 = Series(os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'))
+        si1 = Series(os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'dicom.zip'), formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip?Image_00000.dcm'))
@@ -297,7 +297,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -306,7 +306,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time.zip?*time00/Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -315,7 +315,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_0000[01].dcm'),
+            os.path.join('data', 'dicom', 'time.zip?time/time00/Image_0002[01].dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -328,7 +328,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
 
     # @unittest.skip("skipping test_read_two_directories")
     def test_read_two_directories(self):
@@ -337,7 +337,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 40, 192, 152))
+        self.assertEqual(si1.shape, (2, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_all_files")
     def test_read_all_files(self):
@@ -346,7 +346,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
 
 class TestDicomSlicing(unittest.TestCase):
@@ -368,7 +368,7 @@ class TestDicomSlicing(unittest.TestCase):
     # @unittest.skip("skipping test_slice_inplane")
     def test_slice_inplane(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm'),
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
@@ -384,7 +384,7 @@ class TestDicomSlicing(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (40, 192, 152))
+        self.assertEqual(si1.shape, (3, 192, 152))
         a2 = np.array(si1)[1:3]
         si2 = si1[1:3]
         np.testing.assert_array_equal(a2, si2)
@@ -399,14 +399,13 @@ class TestDicomSlicing(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
-        a2 = np.array(si1)[1:3, 1:4]
-        si2 = si1[1:3, 1:4]
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
+        a2 = np.array(si1)[1:3, 1:3]
+        si2 = si1[1:3, 1:3]
         np.testing.assert_array_equal(a2, si2)
-        self.assertEqual(len(si2.imagePositions), 3)
+        self.assertEqual(len(si2.imagePositions), 2)
         np.testing.assert_array_equal(si2.imagePositions[0], si1.imagePositions[1])
         np.testing.assert_array_equal(si2.imagePositions[1], si1.imagePositions[2])
-        np.testing.assert_array_equal(si2.imagePositions[2], si1.imagePositions[3])
         self.assertEqual(len(si2.tags[0]), 2)
 
     # @unittest.skip("skipping test_slice_ellipsis_first")
@@ -416,7 +415,7 @@ class TestDicomSlicing(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
         a2 = np.array(si1)[..., 10:40]
         si2 = si1[..., 10:40]
         np.testing.assert_array_equal(a2, si2)
@@ -433,15 +432,15 @@ class TestDicomSlicing(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
-        a2 = np.array(si1)[3:5, ...]
-        si2 = si1[3:5, ...]
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
+        a2 = np.array(si1)[1:3, ...]
+        si2 = si1[1:3, ...]
         np.testing.assert_array_equal(a2, si2)
         self.assertEqual(len(si2.imagePositions), len(si1.imagePositions))
         for i in range(len(si2.imagePositions)):
             np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
         self.assertEqual(len(si2.tags[0]), 2)
-        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][3:5])
+        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
     # @unittest.skip("skipping test_slice_ellipsis_middle")
     def test_slice_ellipsis_middle(self):
@@ -450,15 +449,15 @@ class TestDicomSlicing(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
-        a2 = np.array(si1)[3:5, ..., 10:40]
-        si2 = si1[3:5, ..., 10:40]
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
+        a2 = np.array(si1)[1:3, ..., 10:40]
+        si2 = si1[1:3, ..., 10:40]
         np.testing.assert_array_equal(a2, si2)
         self.assertEqual(len(si2.imagePositions), len(si1.imagePositions))
         for i in range(len(si2.imagePositions)):
             np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
         self.assertEqual(len(si2.tags[0]), 2)
-        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][3:5])
+        np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
 if __name__ == '__main__':

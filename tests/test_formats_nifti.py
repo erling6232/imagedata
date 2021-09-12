@@ -248,7 +248,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
         si1.sort_on = imagedata.formats.SORT_ON_SLICE
         logging.debug("test_write_4d_nifti: si1.sort_on {}".format(

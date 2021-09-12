@@ -32,7 +32,7 @@ class TestMatZipRead(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_single_file_wildcard")
     def test_read_single_file_wildcard(self):
@@ -41,7 +41,7 @@ class TestMatZipRead(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_single_file_relative")
     def test_read_single_file_relative(self):
@@ -50,7 +50,7 @@ class TestMatZipRead(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
@@ -68,7 +68,7 @@ class TestMatZipRead(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_all_files")
     def test_read_all_files(self):
@@ -77,7 +77,7 @@ class TestMatZipRead(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
 
 class TestMatZipWrite(unittest.TestCase):

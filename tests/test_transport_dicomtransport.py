@@ -114,7 +114,7 @@ class TestDicomTransport(unittest.TestCase):
     # @unittest.skip("skipping test_transport_single_image")
     def test_transport_single_image(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm')
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
         si1.write('dicom://localhost:11112/Temp', formats=['dicom'])
         si2 = Series(
@@ -128,7 +128,7 @@ class TestDicomTransport(unittest.TestCase):
     # @unittest.skip("skipping test_transport_single_image_calling_aet")
     def test_transport_single_image_calling_aet(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00000.dcm')
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
         si1.write(
             'dicom://localhost:11112/Temp',

@@ -47,7 +47,7 @@ class Test3DMatPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.input_format, 'mat')
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
@@ -56,7 +56,7 @@ class Test3DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
         si2 = si1[0, 0, ...]
         with tempfile.TemporaryDirectory() as d:
             si2.write(d, formats=['mat'])
@@ -73,7 +73,7 @@ class Test3DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 10, 40, 192, 152))
+        self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
@@ -82,7 +82,7 @@ class Test3DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_file")
     def test_zipread_single_file(self):
@@ -91,7 +91,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_file_wildcard")
     def test_zipread_single_file_wildcard(self):
@@ -100,7 +100,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_file_relative")
     def test_zipread_single_file_relative(self):
@@ -109,7 +109,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_directory")
     def test_zipread_single_directory(self):
@@ -118,7 +118,7 @@ class Test3DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_all_files")
     def test_zipread_all_files(self):
@@ -127,7 +127,7 @@ class Test3DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
@@ -235,7 +235,7 @@ class Test4DMatPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat?Image_%05d'), formats=['mat'], opts=self.opts)
 
