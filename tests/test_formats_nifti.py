@@ -36,7 +36,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.input_format, 'nifti')
         self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
@@ -106,7 +106,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (2, 10, 40, 192, 152))
+        self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_file")
     def test_zipread_single_file(self):
@@ -118,7 +118,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_single_directory")
     def test_zipread_single_directory(self):
@@ -127,7 +127,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_zipread_all_files")
     def test_zipread_all_files(self):
@@ -136,7 +136,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             imagedata.formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (10, 40, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
