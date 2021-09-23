@@ -13,6 +13,7 @@ include data/text.txt
 include data/tree/file0
 include data/tree/file1
 include data/tree/file2
+recursive-include data *.json
 # prune data
 prune .idea
 prune devtests
