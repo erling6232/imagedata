@@ -12,6 +12,7 @@ import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 import nibabel
 import nibabel.spatialimages
+#import nitransforms
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +92,7 @@ class NiftiPlugin(AbstractPlugin):
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
             raise
-        info = img.header
+        info = img
         si = self._reorder_to_dicom(
             np.asanyarray(img.dataobj),
             flip=False,
@@ -114,14 +115,15 @@ class NiftiPlugin(AbstractPlugin):
 
         Args:
             self: format plugin instance
-            image_list: list with (info,img) tuples
+            image_list: list with (img,si) tuples
             hdr: Header dict
             si: numpy array (multi-dimensional)
         Returns:
             hdr: Header dict
         """
 
-        info, si = image_list[0]
+        img, si = image_list[0]
+        info = img.header
         _data_shape = info.get_data_shape()
         nt = nz = 1
         nx, ny = _data_shape[:2]
@@ -168,26 +170,27 @@ class NiftiPlugin(AbstractPlugin):
         if sform is not None and scode != 0:
             logger.debug("Method 3 - sform: orientation")
 
+            for c in range(4):  # NIfTI is RAS+, DICOM is LPS+
+                for r in range(2):
+                    sform[r, c] = - sform[r, c]
+            Q = sform[:3, :3]
+            # p = sform[:3, 3]
+            p = nibabel.affines.apply_affine(sform, (0, ny-1, 0))
+            if np.linalg.det(Q) < 0:
+                Q[:3,1] = - Q[:3, 1]
             # Note: rz, ry, rx, cz, cy, cx
             iop = np.array([
-                sform[2, 0] / dx,
-                - sform[1, 0] / dx,  # NIfTI is RAS+, DICOM is LPS+
-                - sform[0, 0] / dx,  # NIfTI is RAS+, DICOM is LPS+
-
-                sform[2, 1] / dy,
-                - sform[1, 1] / dy,  # NIfTI is RAS+, DICOM is LPS+
-                - sform[0, 1] / dy  # NIfTI is RAS+, DICOM is LPS+
-                # - sform[2,1] / dy,
-                #  sform[1,1] / dy,     # NIfTI is RAS+, DICOM is LPS+
-                #  sform[0,1] / dy      # NIfTI is RAS+, DICOM is LPS+
+                Q[2, 0]/dx, Q[1, 0]/dx, Q[0, 0]/dx,
+                Q[2, 1]/dy, Q[1, 1]/dy, Q[0, 1]/dy
             ])
+
             for _slice in range(nz):
                 _p = np.array([
-                    - (sform[0, 2] * _slice + sform[0, 3]),  # NIfTI is RAS+, DICOM is LPS+
-                    - (sform[1, 2] * _slice + sform[1, 3]),  # NIfTI is RAS+, DICOM is LPS+
-                    (sform[2, 2] * _slice + sform[2, 3])
+                    (Q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
+                    (Q[1, 2] * _slice + p[1]),
+                    (Q[2, 2] * _slice + p[2])
                 ])
-                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+                hdr['imagePositions'][_slice] = _p[::-1]
 
         elif qform is not None and qcode != 0:
             logger.debug("Method 2 - qform: orientation")
@@ -226,6 +229,7 @@ class NiftiPlugin(AbstractPlugin):
                 ])
                 hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
         hdr['orientation'] = iop
+
 
         self.shape = si.shape
 
@@ -415,7 +419,9 @@ class NiftiPlugin(AbstractPlugin):
             return v / norm
 
         ds, dr, dc = self.spacing
-        colr = normalize(np.array(self.orientation[3:6])).reshape((3,)) * [-1, -1, 1]
+
+        # NIfTI is RAS+, DICOM is LPS+
+        colr = normalize(np.array(self.orientation[3:6])).reshape((3,)) * [1, 1, -1]
         colc = normalize(np.array(self.orientation[0:3])).reshape((3,)) * [-1, -1, 1]
         # T0 = self.imagePositions[0][::-1].reshape(3, )  # x,y,z
         if self.slices > 1:
@@ -430,8 +436,11 @@ class NiftiPlugin(AbstractPlugin):
         L = np.zeros((4, 4))
         L[:3, 1] = colr * dr
         L[:3, 0] = colc * dc
-        L[:3, 2] = k
-        L[:3, 3] = self.origin * [-1, -1, 1]
+        L[:3, 2] = -k
+        ny = self.shape[-2]
+        p = self.getPositionForVoxel((0, ny-1, 0))[::-1]
+        # L[:3, 3] = self.origin * [-1, -1, 1]
+        L[:3, 3] = p * [-1, -1, 1]
         L[3, 3] = 1
         return L
 
