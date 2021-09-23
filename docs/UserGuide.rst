@@ -13,5 +13,6 @@ User Guide
   Sorting
   DICOMAttributes
   CommandLine
+  Examples
   Plugins
   APIReference
