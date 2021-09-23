@@ -1557,9 +1557,7 @@ class Series(np.ndarray):
                 # Calculating normal vector based on first and last slice should be the correct method.
                 k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
-                # k = np.cross(colr, colc, axis=0)
-                # ##k = np.cross(colc, colr, axis=0)
-                # ##k = k * ds
+                # k = np.cross(colr, colc, axis=0) * ds
             else:
                 logger.debug('Series.transformationMatrix: single slice case')
                 k = np.cross(colr, colc, axis=0)
