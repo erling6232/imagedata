@@ -57,6 +57,8 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             si3 = Series(d, template=dcm)
+            self.assertEqual('nifti', si3.input_format)
+        self.assertEqual((3,192,152), si3.shape)
         with tempfile.TemporaryDirectory() as d:
             si3.write(d, formats=['dicom'])
         self.assertEqual(dcm.dtype, si3.dtype)
@@ -66,29 +68,32 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     # @unittest.skip("skipping test_qform_3D")
     def test_qform_3D(self):
         dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        self.assertEqual('dicom', dcm.input_format)
+        dcm.write('tt', formats=['nifti'])
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             n = Series(d)
-        _ = n.transformationMatrix
+        self.assertEqual('nifti', n.input_format)
+        nt = n.transformationMatrix
         self.assertEqual(dcm.shape, n.shape)
         self.assertEqual(dcm.dtype, n.dtype)
-        np.testing.assert_array_almost_equal(
-            dcm.transformationMatrix,
-            n.transformationMatrix,
-            decimal=2)
+        np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, rtol=1e-2)
 
-    @unittest.skip("skipping test_compare_qform_to_dicom")
+    # @unittest.skip("skipping test_compare_qform_to_dicom")
     def test_compare_qform_to_dicom(self):
         dcm = Series(
             os.path.join('data', 'dicom', 'time'),
             'time')
+        self.assertEqual('dicom', dcm.input_format)
+        dt = dcm.transformationMatrix
         n = Series(
-            os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            os.path.join('data', 'nifti', 'time', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'time')
-        _ = n.transformationMatrix
+        self.assertEqual('nifti', n.input_format)
+        nt = n.transformationMatrix
         self.assertEqual(dcm.shape, n.shape)
         # self.assertEqual(dcm.dtype, n.dtype)
-        np.testing.assert_array_almost_equal(dcm.transformationMatrix, n.transformationMatrix)
+        np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, rtol=1e-3)
 
     # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
