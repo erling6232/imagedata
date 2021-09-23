@@ -173,7 +173,7 @@ def add_template(this, template):
     if not issubclass(type(this), Header) and not issubclass(type(this), dict):
         raise ValueError('Object is not Header or dict.')
     for attr in __attributes(template):
-        if attr in header_tags and attr != 'seriesInstanceUID':
+        if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
             __set_attribute(this, attr, __get_attribute(template, attr))
     # Make sure DicomHeaderDict is set last
     template_dhd = __get_attribute(template, 'DicomHeaderDict')
@@ -270,7 +270,7 @@ def add_geometry(this, template, geometry):
     if not issubclass(type(this), Header) and not issubclass(type(this), dict):
         raise ValueError('Object is not Header or dict.')
     for attr in __attributes(geometry):
-        if attr in geometry_tags and attr not in ['tags', 'axes']:
+        if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
             __set_attribute(this, attr, __get_attribute(geometry, attr))
     # Make sure tags and axes are set last
     __set_attribute(this, 'tags',
