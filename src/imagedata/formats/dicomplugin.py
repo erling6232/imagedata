@@ -259,12 +259,12 @@ class DICOMPlugin(AbstractPlugin):
         hdr['color'] = False
         if 'PhotometricInterpretation' in im:
             hdr['photometricInterpretation'] = im.PhotometricInterpretation
-        if 'RescaleSlope' in im:
+        matrix_dtype = np.uint16
+        if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
+                (abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
             matrix_dtype = float
         elif im.BitsAllocated == 8:
             matrix_dtype = np.uint8
-        else:
-            matrix_dtype = np.uint16
         logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
             _color = 1
@@ -373,9 +373,12 @@ class DICOMPlugin(AbstractPlugin):
             si: numpy array of given shape
         """
 
+        _use_float = False
         try:
             # logger.debug("Set si[{}]".format(idx))
-            if 'RescaleSlope' in im:
+            if 'RescaleSlope' in im and 'RescaleIntercept' in im:
+                _use_float = abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
+            if _use_float:
                 pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
             else:
                 pixels = im.pixel_array.copy()
@@ -411,7 +414,7 @@ class DICOMPlugin(AbstractPlugin):
                 si = np.fliplr(
                     bits.reshape(
                         1, im.NumberOfFrames, im.Rows, im.Columns))
-                if 'RescaleSlope' in im:
+                if _use_float:
                     si = float(im.RescaleSlope) * si + float(im.RescaleIntercept)
             else:
                 raise
