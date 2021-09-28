@@ -172,6 +172,16 @@ def write(si, url, opts=None, formats=None):
         imagedata.formats.WriteNotImplemented: Cannot write this image format.
     """
 
+    def _replace_url(url, pattern, value):
+        if isinstance(url, str):
+            url = url.replace(pattern, value)
+        elif issubclass(type(url), pathlib.PurePath):
+            _pl = []
+            for _p in url.parts:
+                _pl.append(_p.replace(pattern, value))
+            url = pathlib.Path(*_pl)
+        return url
+
     # logger.debug("write: directory_name(si): {}".format(directory_name(si)))
 
     # Let out_opts be a dict from opts
@@ -243,7 +253,8 @@ def write(si, url, opts=None, formats=None):
             # Create plugin to write data in specified format
             writer = pclass()
             logger.debug("readdata.write: Created writer plugin of type {}".format(type(writer)))
-            local_url = url.replace('%p', ptype)
+            # local_url = url.replace('%p', ptype)
+            local_url = _replace_url(url, '%p', ptype)
             destinations = _get_sources(local_url, mode='w', opts=out_opts)
             if len(destinations) != 1:
                 raise ValueError('Wrong number of destinations (%d) given' %
