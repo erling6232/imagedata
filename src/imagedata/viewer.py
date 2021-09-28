@@ -299,7 +299,11 @@ class Viewer:
         Returns:
             Dict of slices, index as [tag,slice] or [slice], each is list of (x,y) pairs.
         """
-        return self.vertices
+        vertices = {}
+        for tag in self.poly.keys():
+            if len(self.poly[tag].verts) > 0:
+                vertices[tag] = self.poly[tag].verts
+        return vertices
 
     # def enter_axes(self, event):
     #    if event.inaxes == self.im['ax']:
@@ -605,23 +609,38 @@ def default_layout(fig, n):
     raise ValueError("Too many axes required (n={})".format(n))
 
 
-def grid_from_roi(im, vertices):
+def grid_from_roi(im, vertices, single=False):
     """Return drawn ROI as grid.
 
     Args:
         im (Series): Series object as template
         vertices: The polygon vertices, as a dictionary of tags of (x,y)
+        single (bool): Draw ROI in single slice per tag
     Returns:
         Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
         Voxels inside ROI is 1, 0 outside.
     """
+
+    def _roi_in_any_slice(tag):
+        """Check whether there is a ROI in any slice"""
+        t, i = tag
+        for idx in range(im.slices):
+            # if (t, idx) in vertices and vertices[t, idx] is None:
+            #     print('Check {} None'.format((t, idx)))
+            # elif (t, idx) in vertices:
+            #     print('Check {} {}'.format((t, idx), len(vertices[t, idx])))
+            # else:
+            #     print('Check {} not found'.format((t, idx)))
+            if (t, idx) in vertices and vertices[t, idx] is not None:
+                return True
+        return False
+
     keys = list(vertices.keys())[0]
     # print('grid_from_roi: keys: {}'.format(keys))
     # print('grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
-    # nt, nz, ny, nx = im.shape
     nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
-    if follow:
+    if follow and not single:
         grid = np.zeros_like(im, dtype=np.ubyte)
         skipped = []
         copied = []
@@ -632,6 +651,39 @@ def grid_from_roi(im, vertices):
                 if tag not in vertices or vertices[tag] is None:
                     if last_used_tag is None:
                         # Most probably a slice with no ROIs
+                        skipped.append(tag)
+                        continue
+                    elif _roi_in_any_slice(tag):
+                        # print('Found in some slice for', tag)
+                        skipped.append(tag)
+                        continue
+                    # Propagate last drawn ROI to unfilled tags
+                    vertices[tag] = copy.copy(vertices[last_used_tag])
+                    copied.append((tag, last_used_tag))
+                else:
+                    last_used_tag = tag
+                path = MplPath(vertices[tag])
+                x, y = np.meshgrid(np.arange(nx), np.arange(ny))
+                x, y = x.flatten(), y.flatten()
+                points = np.vstack((x, y)).T
+                grid[t, idx] = path.contains_points(points).reshape((ny, nx))
+    elif follow and single:
+        grid = np.zeros_like(im, dtype=np.ubyte)
+        skipped = []
+        copied = []
+        last_used_tag = None
+        for t in range(nt):
+            for idx in range(nz):
+                tag = t, idx
+                if tag not in vertices or vertices[tag] is None:
+                    if last_used_tag is None:
+                        # Most probably a slice with no ROIs
+                        skipped.append(tag)
+                        continue
+                    elif last_used_tag[1] != idx:
+                        continue
+                    elif _roi_in_any_slice(tag):
+                        # print('Found in some slice for', tag)
                         skipped.append(tag)
                         continue
                     # Propagate last drawn ROI to unfilled tags
