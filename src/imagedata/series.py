@@ -12,6 +12,7 @@ import copy
 import numpy as np
 # from numpy.compat import basestring
 import logging
+from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
 # import numpy.core._multiarray_umath
@@ -24,23 +25,9 @@ from imagedata.header import Header, add_template, add_geometry
 
 logger = logging.getLogger(__name__)
 
-# Verify that pathlib.Path module is available
-# Set Path variable to reflect state
-try:
-    from pathlib import Path
-except ImportError:
-    Path = None
-
 
 class DoNotSetSlicesError(Exception):
     pass
-
-
-def is_pathlib_path(obj):
-    """
-    Check whether obj is a pathlib.Path object.
-    """
-    return Path is not None and isinstance(obj, Path)
 
 
 class Series(np.ndarray):
@@ -131,14 +118,11 @@ class Series(np.ndarray):
             return obj
 
         # Assuming data is url to input data
-        if isinstance(data, np.compat.basestring):
+        if isinstance(data, np.compat.basestring) or issubclass(type(data), PurePath):
             urls = data
         elif isinstance(data, list):
             urls = data
-        elif is_pathlib_path(data):
-            urls = data.resolve()
         else:
-            # raise ValueError("Input data could not be resolved: ({}) {}".format(type(data),data))
             obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
@@ -1877,7 +1861,8 @@ class Series(np.ndarray):
         plt.show()
         viewer.disconnect()
 
-    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
+    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='gray',
+                window=None, level=None, link=False, single=False):
         """Let user draw ROI on image
 
         Args:
@@ -1891,6 +1876,7 @@ class Series(np.ndarray):
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed objects. Default: False.
+            single (bool): draw ROI in single slice per tag. Default: False.
 
         Returns:
             If vertices, tuple of grid mask and vertices_dict. Otherwise, grid mask only.
@@ -1936,7 +1922,7 @@ class Series(np.ndarray):
             input_order = 'none'
         try:
             # new_roi = Series(grid_from_roi(self, viewer.get_roi()), input_order=input_order, template=self, geometry=self)
-            new_grid = grid_from_roi(self, viewer.get_roi())
+            new_grid = grid_from_roi(self, viewer.get_roi(), single=single)
         except IndexError:
             if follow:
                 new_grid = np.zeros_like(self, dtype=np.ubyte)
