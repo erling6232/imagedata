@@ -8,6 +8,7 @@ import logging
 import mimetypes
 import argparse
 import fnmatch
+import pathlib
 import urllib.parse
 from imagedata.header import add_template, add_geometry
 import imagedata.formats
@@ -442,11 +443,17 @@ def _get_sources(urls, mode, opts=None):
     if opts is None:
         opts = {}
     if isinstance(urls, list):
-        my_urls = urls
+        source_urls = urls
     elif isinstance(urls, tuple):
-        my_urls = list(urls)
+        source_urls = list(urls)
     else:
-        my_urls = [urls]
+        source_urls = [urls]
+    my_urls = []
+    for url in source_urls:
+        if issubclass(type(url), pathlib.PurePath):
+            my_urls.append(str(url.resolve()))
+        else:
+            my_urls.append(url)
 
     # Scan my_urls to determine the locations of the inputs
     locations = {}
