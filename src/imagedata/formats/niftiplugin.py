@@ -230,7 +230,6 @@ class NiftiPlugin(AbstractPlugin):
                 hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
         hdr['orientation'] = iop
 
-
         self.shape = si.shape
 
         times = [0]
