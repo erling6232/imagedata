@@ -41,6 +41,7 @@ class Viewer:
         self.cidscroll = None
         self.vertices = None  # The polygon vertices, as a dictionary of tags of (x,y)
         self.poly = None
+        self.paste_buffer = None
         self.viewport = {}
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
@@ -177,10 +178,10 @@ class Viewer:
             self.vertices = {}
             if self.follow:
                 self.poly[0, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
-                                                      tag=(0,idx))
+                                                      tag=(0,idx), copy=self.on_copy, paste=self.on_paste)
             else:
                 self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
-                                                   tag=idx)
+                                                   tag=idx, copy=self.on_copy, paste=self.on_paste)
         else:
             self.poly = {}
             self.vertices = roi
@@ -190,7 +191,7 @@ class Viewer:
                         vertices = copy.copy(self.vertices[tag, i]) if (tag, i) in self.vertices else None
                         self.poly[tag, i] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                               lineprops={'color': self.poly_color}, vertices=vertices,
-                                                              tag=(tag,i))
+                                                              tag=(tag,i), copy=self.on_copy, paste=self.on_paste)
                         # Polygon on single slice and tag 0, only
                         if i == idx and tag == 0:
                             assert self.poly[tag, i].tag == (tag,i), "Tag index mismatch {}!={}".format((tag,i), self.poly[tag, i].tag)
@@ -206,7 +207,7 @@ class Viewer:
                 for i in range(self.im[0]['slices']):
                     vertices = copy.copy(self.vertices[i]) if i in self.vertices else None
                     self.poly[i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
-                                                     vertices=vertices, tag=i)
+                                                     vertices=vertices, tag=i, copy=self.on_copy, paste=self.on_paste)
                     # Polygon on single slice only
                     if i != idx:
                         assert self.poly[i].tag == i, "Tag index mismatch {}!={}".format(i, self.poly[i].tag)
@@ -254,7 +255,13 @@ class Viewer:
         else:
             self.vertices[idx] = copy.copy(vertices)
 
-    # def grid_from_roi(self):
+    def on_copy(self, polygon):
+        self.paste_buffer = polygon
+
+    def on_paste(self):
+        return self.paste_buffer
+
+# def grid_from_roi(self):
     #     """Return drawn ROI as grid.
     #
     #     Returns:
@@ -384,7 +391,7 @@ class Viewer:
             else:
                 self.poly[new_idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                        lineprops={'color': self.poly_color},
-                                                       tag=new_idx)
+                                                       tag=new_idx, copy=self.on_copy, paste=self.on_paste)
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
@@ -411,7 +418,7 @@ class Viewer:
                 self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
                                                             lineprops={'color': self.poly_color},
                                                             vertices=self.poly[old_tag, idx].verts,
-                                                            tag=(new_tag, idx))
+                                                            tag=(new_tag, idx), copy=self.on_copy, paste=self.on_paste)
             assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
             self.poly[old_tag, idx].set_visible(False)
@@ -553,37 +560,84 @@ class MyPolygonSelector(PolygonSelector):
     """
 
     def __init__(self, ax, onselect, useblit=False,
-                 lineprops=None, markerprops=None, vertex_select_radius=15, vertices=None, tag=None):
+                 lineprops=None, markerprops=None, vertex_select_radius=15, vertices=None, tag=None,
+                 copy=None, paste=None):
         super().__init__(ax, onselect, useblit=useblit,
                          lineprops=lineprops, markerprops=markerprops, vertex_select_radius=vertex_select_radius)
 
         self.tag = tag
+        self.copy_handle = copy
+        self.paste_handle = paste
+
+        if lineprops is None:
+            self.lineprops = dict(color='k', linestyle='-', linewidth=2, alpha=0.5)
+        else:
+            self.lineprops = lineprops
+        self.lineprops['animated'] = self.useblit
+
+        if markerprops is None:
+            self.markerprops = dict(markeredgecolor='k',
+                                    markerfacecolor=self.lineprops.get('color', 'k'))
+        else:
+            self.markerprops = markerprops
+
+        self.vertex_select_radius = vertex_select_radius
+
         if vertices is not None and len(vertices):
-            self._xs = [x for x,y in vertices]
-            self._ys = [y for x,y in vertices]
-            # Append end-point of closed polygon
-            self._xs.append(self._xs[0])
-            self._ys.append(self._ys[0])
-            self._polygon_completed = True
+            self._add_polygon(
+                [x for x,y in vertices],
+                [y for x,y in vertices]
+            )
 
-            if lineprops is None:
-                lineprops = dict(color='k', linestyle='-', linewidth=2, alpha=0.5)
-            lineprops['animated'] = self.useblit
-            self.line = Line2D(self._xs, self._ys, **lineprops)
-            self.ax.add_line(self.line)
+    def _add_polygon(self, xs, ys):
+        self._xs = copy.copy(xs)
+        self._ys = copy.copy(ys)
+        # Append end-point of closed polygon
+        self._xs.append(self._xs[0])
+        self._ys.append(self._ys[0])
+        self._polygon_completed = True
 
-            if markerprops is None:
-                markerprops = dict(markeredgecolor='k',
-                                   markerfacecolor=lineprops.get('color', 'k'))
-            self._polygon_handles = ToolHandles(self.ax, self._xs, self._ys,
-                                                useblit=self.useblit,
-                                                marker_props=markerprops)
+        self.line = Line2D(self._xs, self._ys, **self.lineprops)
+        self.ax.add_line(self.line)
 
-            self._active_handle_idx = -1
-            self.vertex_select_radius = vertex_select_radius
+        self._polygon_handles = ToolHandles(self.ax, self._xs, self._ys,
+                                            useblit=self.useblit,
+                                            marker_props=self.markerprops)
 
-            self.artists = [self.line, self._polygon_handles.artist]
+        self._active_handle_idx = -1
+
+        self.artists = [self.line, self._polygon_handles.artist]
+        self.set_visible(True)
+
+    def _on_key_release(self, event):
+        """Key release event handler"""
+        # Add back the pending vertex if leaving the 'move_vertex' or
+        # 'move_all' mode (by checking the released key)
+        if (not self._polygon_completed
+                and
+                (event.key == self.state_modifier_keys.get('move_vertex')
+                 or event.key == self.state_modifier_keys.get('move_all'))):
+            self._xs.append(event.xdata)
+            self._ys.append(event.ydata)
+            self._draw_polygon()
+        # Reset the polygon if the released key is the 'clear' key.
+        elif event.key == self.state_modifier_keys.get('clear'):
+            event = self._clean_event(event)
+            self._xs, self._ys = [event.xdata], [event.ydata]
+            self._polygon_completed = False
+            self._draw_polygon()
             self.set_visible(True)
+        # Copy polygon to paste buffer using handle
+        elif event.key.upper() == 'C':
+            if self.copy_handle is not None:
+                self.copy_handle(self)
+        # Add polygon from paste buffer handle
+        elif event.key.upper() == 'V':
+            if self.paste_handle is not None:
+                obj = self.paste_handle()
+                self._xs, self._ys = copy.copy(obj._xs), copy.copy(obj._ys)
+                self._polygon_completed = copy.copy(obj._polygon_completed)
+                self._draw_polygon()
 
 
 def default_layout(fig, n):
