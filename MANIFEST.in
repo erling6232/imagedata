@@ -14,6 +14,8 @@ include data/tree/file0
 include data/tree/file1
 include data/tree/file2
 recursive-include data *.json
+recursive-include data *.zip
+recursive-include data *.nii.gz
 # prune data
 prune .idea
 prune devtests
