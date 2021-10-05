@@ -1785,8 +1785,12 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
-    def to_rgb(self):
+    def to_rgb(self, colormap='Greys', lut=None):
         """Create an RGB color image of self.
+
+        Args:
+            colormap (str): Matplotlib colormap name. Defaults: 'Greys'.
+            lut (int): Number of rgb quantization levels. Default: None, lut is calculated from the voxel values.
 
         Returns:
             Series: RGB Series object
@@ -1795,22 +1799,33 @@ class Series(np.ndarray):
         if self.color:
             return self
 
-        shape = self.shape + (3,)
-        largest_image_pixel_value = (self.max().item())
-        img = np.zeros(shape, dtype=np.uint8)
-        if largest_image_pixel_value > 255:
-            scaling = 256 / largest_image_pixel_value
-            img[...,0] = np.uint8(self[:] * scaling)
-            img[...,1] = np.uint8(self[:] * scaling)
-            img[...,2] = np.uint8(self[:] * scaling)
-        else:
-            img[...,0] = self[:]
-            img[...,1] = self[:]
-            img[...,2] = self[:]
+        # shape = self.shape + (3,)
+        if lut is None:
+            lut = (self.max().item()) + 1
+        # img = np.zeros(shape, dtype=np.uint8)
+        # if largest_image_pixel_value > 255:
+        #     scaling = 256 / largest_image_pixel_value
+        #     img[...,0] = np.uint8(self[:] * scaling)
+        #     img[...,1] = np.uint8(self[:] * scaling)
+        #     img[...,2] = np.uint8(self[:] * scaling)
+        # else:
+        #     img[...,0] = self[:]
+        #     img[...,1] = self[:]
+        #     img[...,2] = self[:]
+
+        import matplotlib.pyplot as plt
+        cm = plt.get_cmap(colormap, lut=lut)
+        rgb = Series(
+            cm(self, bytes=True)[...,:3],  # Strip off alpha color
+            input_order=self.input_order,
+            geometry=self,
+            axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+        )
+
         # rgb = Series(img, template=self, geometry=self)
-        rgb = Series(img, input_order=self.input_order, geometry=self,
-                     axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
-                     )
+        #rgb = Series(img, input_order=self.input_order, geometry=self,
+        #             axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+        #             )
         # rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.color = True
