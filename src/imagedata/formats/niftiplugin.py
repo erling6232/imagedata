@@ -999,15 +999,19 @@ class NiftiPlugin(AbstractPlugin):
                 flipVecs[i][1] = -1 if (i & 2) == 1 else 1
                 flipVecs[i][2] = -1 if (i & 4) == 1 else 1
                 corner[i] = np.array([0.,0.,0.])  # assume no reflections
-                if (flipVecs[i][0]) < 1: corner[i][0] = h.dim[1]-1  # reflect X
-                if (flipVecs[i][1]) < 1: corner[i][1] = h.dim[2]-1  # reflect Y
-                if (flipVecs[i][2]) < 1: corner[i][2] = h.dim[3]-1  # reflect Z
+                if (flipVecs[i][0]) < 1:
+                    corner[i][0] = h.dim[1]-1  # reflect X
+                if (flipVecs[i][1]) < 1:
+                    corner[i][1] = h.dim[2]-1  # reflect Y
+                if (flipVecs[i][2]) < 1:
+                    corner[i][2] = h.dim[3]-1  # reflect Z
                 corner[i] = xyz2mm(s, corner[i])
             # find extreme edge from ALL corners....
             _min = corner[0]
             for i in range(8):
                 for j in range(3):
-                    if corner[i][j] < _min[j]: _min[j] = corner[i][j]
+                    if corner[i][j] < _min[j]:
+                        _min[j] = corner[i][j]
             # dx: observed distance from corner
             min_dx = getDistance(corner[0], _min)
             min_index = 0  # index of corner closest to _min
@@ -1064,8 +1068,10 @@ class NiftiPlugin(AbstractPlugin):
             ret = np.array([0, 0, 0])
             for i in range(3):
                 for j in range(3):
-                    if m[i,j] > 0: ret[j] = i+1
-                    if m[i,j] < 0: ret[j] = -(i+1)
+                    if m[i,j] > 0:
+                        ret[j] = i+1
+                    elif m[i,j] < 0:
+                        ret[j] = - (i + 1)
             return ret
 
         def orthoOffsetArray(dim, stepBytesPerVox):
@@ -1076,7 +1082,7 @@ class NiftiPlugin(AbstractPlugin):
             if stepBytesPerVox > 0:
                 lut[0] = 0
             else:
-                lut[0] = -stepBytesPerVox  *(dim-1)
+                lut[0] = -stepBytesPerVox * (dim - 1)
             if dim > 1:
                 for i in range(1, dim):
                     lut[i] = lut[i-1] + stepBytesPerVox
@@ -1108,20 +1114,25 @@ class NiftiPlugin(AbstractPlugin):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
             nvox = img.columns * img.rows * img.slices
-            if nvox < 1: return img
+            if nvox < 1:
+                return img
             outDim = np.zeros(3)
             outInc = np.zeros(3)
             for i in range(3):  # set dimensions, pixdim
-                outDim[i] =  h.dim[abs(orientVec[i])]
-                if abs(orientVec[i]) == 1: outInc[i] = 1
-                if abs(orientVec[i]) == 2: outInc[i] = h.dim[1]
-                if abs(orientVec[i]) == 3: outInc[i] = h.dim[1]*h.dim[2]
-                if orientVec[i] < 0: outInc[i] = -outInc[i]  # flip
+                outDim[i] = h.dim[abs(orientVec[i])]
+                if abs(orientVec[i]) == 1:
+                    outInc[i] = 1
+                elif abs(orientVec[i]) == 2:
+                    outInc[i] = h.dim[1]
+                elif abs(orientVec[i]) == 3:
+                    outInc[i] = h.dim[1]*h.dim[2]
+                if orientVec[i] < 0:
+                    outInc[i] = -outInc[i]  # flip
             nvol = 1  # convert all non-spatial volumes from source to destination
             for vol in range(4, 8):
                 if h.dim[vol] > 1:
                     nvol = nvol * h.dim[vol]
-            reOrientImg(img, outDim, outInc, h.bitpix / 8,  nvol)
+            reOrientImg(img, outDim, outInc, h.bitpix / 8, nvol)
             # now change the header....
             outPix = np.array([h.pixdim[abs(orientVec[0])],h.pixdim[abs(orientVec[1])],h.pixdim[abs(orientVec[2])]])
             for i in range(3):
@@ -1159,7 +1170,7 @@ class NiftiPlugin(AbstractPlugin):
         minMM, flipV = minCornerFlip(hdr)
         orient = getBestOrient(s, flipV)
         orientVec = setOrientVec(orient)
-        if orientVec[0]==1 and orientVec[1]==2 and orientVec[2]==3:
+        if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
             logger.debug("Image already near best orthogonal alignment: no need to reorient")
             return img
         is24 = False
@@ -1167,13 +1178,13 @@ class NiftiPlugin(AbstractPlugin):
             return img
             is24 = True
             h.bitpix = 8
-            h.dim[3] = h.dim[3] * 3;
+            h.dim[3] = h.dim[3] * 3
         img = reOrient(img, h,orientVec, orient, minMM)
         if is24:
-            h.bitpix = 24;
+            h.bitpix = 24
             h.dim[3] = h.dim[3] / 3
-        logger.debug("NewRotation= %d %d %d\n", orientVec.v[0],orientVec.v[1],orientVec.v[2]);
-        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0],minMM.v[1],minMM.v[2]);
+        logger.debug("NewRotation= %d %d %d\n", orientVec.v[0],orientVec.v[1],orientVec.v[2])
+        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0],minMM.v[1],minMM.v[2])
         return img
 
     def _nii_save_attributes(self, si, hdr):
