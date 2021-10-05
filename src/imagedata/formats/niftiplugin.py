@@ -6,15 +6,23 @@
 import os.path
 import tempfile
 import logging
+import math
 import numpy as np
 import imagedata.formats
 import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
 import nibabel
 import nibabel.spatialimages
-#import nitransforms
+
+# import nitransforms
 
 logger = logging.getLogger(__name__)
+
+NIFTI_XFORM_UNKNOWN = 0
+NIFTI_XFORM_SCANNER_ANAT = 1
+NIFTI_XFORM_ALIGNED_ANAT = 2
+NIFTI_XFORM_TALAIRACH = 3
+NIFTI_XFORM_MNI_152 = 4
 
 
 class NoInputFile(Exception):
@@ -25,7 +33,6 @@ class FilesGivenForMultipleURLs(Exception):
     pass
 
 
-# noinspection PyUnresolvedReferences
 class NiftiPlugin(AbstractPlugin):
     """Read/write Nifti-1 files."""
 
@@ -175,13 +182,13 @@ class NiftiPlugin(AbstractPlugin):
                     sform[r, c] = - sform[r, c]
             Q = sform[:3, :3]
             # p = sform[:3, 3]
-            p = nibabel.affines.apply_affine(sform, (0, ny-1, 0))
+            p = nibabel.affines.apply_affine(sform, (0, ny - 1, 0))
             if np.linalg.det(Q) < 0:
-                Q[:3,1] = - Q[:3, 1]
+                Q[:3, 1] = - Q[:3, 1]
             # Note: rz, ry, rx, cz, cy, cx
             iop = np.array([
-                Q[2, 0]/dx, Q[1, 0]/dx, Q[0, 0]/dx,
-                Q[2, 1]/dy, Q[1, 1]/dy, Q[0, 1]/dy
+                Q[2, 0] / dx, Q[1, 0] / dx, Q[0, 0] / dx,
+                Q[2, 1] / dy, Q[1, 1] / dy, Q[0, 1] / dy
             ])
 
             for _slice in range(nz):
@@ -437,7 +444,7 @@ class NiftiPlugin(AbstractPlugin):
         L[:3, 0] = colc * dc
         L[:3, 2] = -k
         ny = self.shape[-2]
-        p = self.getPositionForVoxel((0, ny-1, 0))[::-1]
+        p = self.getPositionForVoxel((0, ny - 1, 0))[::-1]
         # L[:3, 3] = self.origin * [-1, -1, 1]
         L[:3, 3] = p * [-1, -1, 1]
         L[3, 3] = 1
@@ -692,6 +699,7 @@ class NiftiPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
+        # TODO # self._save_dicom_to_nifti(si)
         self.shape = si.shape
         self.slices = si.slices
         self.spacing = si.spacing
@@ -699,6 +707,7 @@ class NiftiPlugin(AbstractPlugin):
         self.imagePositions = si.imagePositions
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
+        # slice_direction = _find_slice_direction(si, self.transformationMatrix, self.normal)
 
         logger.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
         assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % si.ndim
@@ -842,3 +851,359 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug('write_numpy_nifti: copy to file %s' % filename)
         _ = archive.add_localfile(f.name, filename)
         os.unlink(f.name)
+
+    def _save_dicom_to_nifti(self, si):
+        """Convert DICOM to Nifti"""
+        hdr = nibabel.Nifti1Header()
+        img = si
+        if si.slices > 1:
+            hdr, slice_direction = self._header_dicom_to_nifti(hdr, si)
+            if slice_direction < 0:
+                hdr, img = self._nii_flip_z(hdr, si)
+                slice_direction = abs(slice_direction)
+            img = self._nii_set_ortho(hdr, img)
+        self._nii_save_attributes(si, hdr)
+
+    def _header_dicom_to_nifti(self, hdr, si):
+        inPlanePhaseEncodingDirection = si.getDicomAttribute('InPlanePhaseEncodingDirection')  # COL/ROW
+        if inPlanePhaseEncodingDirection == 'ROW':
+            hdr.set_dim_info(freq=1, phase=0, slice=2)
+        elif inPlanePhaseEncodingDirection == 'COL':
+            hdr.set_dim_info(freq=0, phase=1, slice=2)
+        slice_direction = 0
+        if si.slices < 2:
+            q44, slice_direction = self._nifti_dicom_mat(si)
+            hdr.set_sform(q44, code=NIFTI_XFORM_UNKNOWN)
+            hdr.set_qform(q44, code=NIFTI_XFORM_UNKNOWN)
+        else:
+            q44, slice_direction = self._nifti_dicom_mat(si)
+            hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+            hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return hdr, slice_direction
+
+    def _nifti_dicom_mat(self, si):
+        """Create NIfTI header based on values from DICOM header"""
+
+        def normalize(v):
+            """Normalize a vector
+
+            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
+
+            Args:
+                v: 3D vector
+            Returns:
+                normalized 3D vector
+            """
+            norm = np.linalg.norm(v, ord=1)
+            if norm == 0:
+                norm = np.finfo(v.dtype).eps
+            return v / norm
+
+        origin, orientation, normal = si.get_transformation_components_xyz()
+        spacing = si.spacing[::-1]  # x,y,z
+
+        q = np.zeros((3, 3))
+        q[0] = normalize(orientation[:3])
+        q[1] = normalize(orientation[3:])
+        q[2] = np.cross(q[0], q[1], axis=0)
+        q = np.transpose(q)
+        if np.linalg.det(q) < 0:
+            q[:2, 2] = - q[:2, 2]
+
+        diagVox = np.diag(spacing)
+
+        q = np.matmul(q, diagVox)
+
+        q44 = np.zeros((4, 4))
+        q44[:3, :3] = q
+        q44[:3, 3] = origin
+        q44[3, 3] = 1
+
+        slice_direction = self._find_slice_direction(si, q44, normal)
+        for c in range(4):  # LPS to nifti RAS
+            for r in range(2):  # Swap rows 0 and 1
+                q44[r, c] = - q44[r, c]
+        return q44, slice_direction
+
+    def _nii_flip_z(self, hdr, si):
+        """Flip slice order"""
+
+        if si.slices < 2:
+            return si
+        # LOAD_MAT33(s,h->srow_x[0],h->srow_x[1],h->srow_x[2], h->srow_y[0],h->srow_y[1],h->srow_y[2],
+        #            h->srow_z[0],h->srow_z[1],h->srow_z[2]);
+        sform = hdr.get_sform()[:3,:3]
+        # LOAD_MAT44(Q44,h->srow_x[0],h->srow_x[1],h->srow_x[2],h->srow_x[3],
+        #            h->srow_y[0],h->srow_y[1],h->srow_y[2],h->srow_y[3],
+        #            h->srow_z[0],h->srow_z[1],h->srow_z[2],h->srow_z[3]);
+        # q44 = np.eye(4)
+        # q44[:3, :3] = sform
+        q44 = hdr.get_sform()
+        # vec4 v= setVec4(0.0f,0.0f,(float) h->dim[3]-1.0f);
+        v = np.array([0, 0, si.slices - 1, 1], dtype=float)
+        # v = nifti_vect44mat44_mul(v, Q44); //after flip this voxel will be the origin
+        v = np.matmul(v, q44)  # after flip this voxel will be the origin
+        # mat33 mFlipZ;
+        # LOAD_MAT33(mFlipZ,1.0f, 0.0f, 0.0f, 0.0f,1.0f,0.0f, 0.0f,0.0f,-1.0f);
+        mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=float)
+        # s= nifti_mat33_mul( s , mFlipZ );
+        sform = np.matmul(sform, mFlipZ)
+        # LOAD_MAT44(Q44, s.m[0][0],s.m[0][1],s.m[0][2],v.v[0],
+        #        s.m[1][0],s.m[1][1],s.m[1][2],v.v[1],
+        #        s.m[2][0],s.m[2][1],s.m[2][2],v.v[2]);
+        q44[:3, :3] = sform
+        q44[:, 3] = v
+        # setQSForm(h,Q44, true);
+        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        # printMessage("nii_flipImgY dims %dx%dx%d %d \n",h->dim[1],h->dim[2], dim3to7,h->bitpix/8);
+        # return self._nii_flip_image_z(hdr, si)
+        return hdr, self._reorder_from_dicom(si, flipud=True)
+
+    def _nii_set_ortho(self, hdr, img):
+
+        def isMat44Canonical(R):
+            # returns true if diagonals >0 and all others =0
+            #  no rotation is necessary - already in perfect orthogonal alignment
+            for i in range(3):
+                for j in range(3):
+                    if (i == j) and (R[i, j] <= 0):
+                        return False
+                    if (i != j) and (R[i, j] != 0):
+                        return False
+            return True
+
+        def xyz2mm(R, v):
+            ret = np.zeros(3)
+            for i in range(3):
+                ret[i] = R[i,0]*v[0] + R[i,1]*v[1] + R[i,2]*v[2] + R[i,3]
+            return ret
+
+        def getDistance(v, _min):
+            # Scalar distance between two 3D points - Pythagorean theorem
+            return math.sqrt(math.pow((v[0] - _min[0]), 2) + math.pow((v[1] - _min[1]), 2) + math.pow((v[2] - _min[2]), 2))
+
+        def minCornerFlip(h):
+            # Orthogonal rotations and reflections applied as 3x3 matrices will cause the origin to shift
+            #  a simple solution is to first compute the most left, posterior, inferior voxel in the source image
+            #  this voxel will be at location i,j,k = 0,0,0, so we can simply use this as the offset for the final 4x4 matrix...
+            # vec3i flipVecs[8]
+            # vec3 corner[8], min
+            flipVecs = {}
+            corner = {}
+            # mat44 s = sFormMat(h);
+            s = h.get_sform()
+            for i in range(8):
+                flipVecs[i] = np.zeros(3)
+                flipVecs[i][0] = -1 if (i & 1) == 1 else 1
+                flipVecs[i][1] = -1 if (i & 2) == 1 else 1
+                flipVecs[i][2] = -1 if (i & 4) == 1 else 1
+                corner[i] = np.array([0.,0.,0.])  # assume no reflections
+                if (flipVecs[i][0]) < 1: corner[i][0] = h.dim[1]-1  # reflect X
+                if (flipVecs[i][1]) < 1: corner[i][1] = h.dim[2]-1  # reflect Y
+                if (flipVecs[i][2]) < 1: corner[i][2] = h.dim[3]-1  # reflect Z
+                corner[i] = xyz2mm(s, corner[i])
+            # find extreme edge from ALL corners....
+            _min = corner[0]
+            for i in range(8):
+                for j in range(3):
+                    if corner[i][j] < _min[j]: _min[j] = corner[i][j]
+            # dx: observed distance from corner
+            min_dx = getDistance(corner[0], _min)
+            min_index = 0  # index of corner closest to _min
+            # see if any corner is closer to absmin than the first one...
+            for i in range(8):
+                dx = getDistance(corner[i], _min)
+                if dx < min_dx:
+                    min_dx = dx
+                    min_index = i
+            # _min = corner[minIndex]  # this is the single corner closest to _min from all
+            return corner[min_index], flipVecs[min_index]
+
+        def getOrthoResidual(orig, transform):
+            # mat33 mat = matDotMul33(orig, transform);
+            mat = orig @ transform
+            return np.sum(mat)
+
+        def getBestOrient(R, flipVec):
+            # flipVec reports flip: [1 1 1]=no flips, [-1 1 1] flip X dimension
+            # LOAD_MAT33(orig,R.m[0][0],R.m[0][1],R.m[0][2],
+            #            R.m[1][0],R.m[1][1],R.m[1][2],
+            #            R.m[2][0],R.m[2][1],R.m[2][2]);
+            ret = np.eye(3) * flipVec
+            orig = R[:3, :3]
+            best = 0.0
+            for rot in range(6):  # 6 rotations
+                if rot == 0:
+                    # LOAD_MAT33(newmat,flipVec.v[0],0,0, 0,flipVec.v[1],0, 0,0,flipVec.v[2])
+                    newmat = np.eye(3) * flipVec
+                elif rot == 1:
+                    # LOAD_MAT33(newmat,flipVec.v[0],0,0, 0,0,flipVec.v[1], 0,flipVec.v[2],0)
+                    newmat = np.array([[flipVec[0],0,0], [0,0,flipVec[1]], [0,flipVec[2],0]])
+                elif rot == 2:
+                    # LOAD_MAT33(newmat,0,flipVec.v[0],0, flipVec.v[1],0,0, 0,0,flipVec.v[2])
+                    newmat = np.array([[0,flipVec[0],0], [flipVec[1],0,0], [0,0,flipVec[2]]])
+                elif rot == 3:
+                    # LOAD_MAT33(newmat,0,flipVec.v[0],0, 0,0,flipVec.v[1], flipVec.v[2],0,0)
+                    newmat = np.array([[0,flipVec[0],0], [0,0,flipVec[1]], [flipVec[2],0,0]])
+                elif rot == 4:
+                    # LOAD_MAT33(newmat,0,0,flipVec.v[0], flipVec.v[1],0,0, 0,flipVec.v[2],0)
+                    newmat = np.array([[0,0,flipVec[0]], [flipVec[1],0,0], [0,flipVec[2],0]])
+                elif rot == 5:
+                    # LOAD_MAT33(newmat,0,0,flipVec.v[0], 0,flipVec.v[1],0, flipVec.v[2],0,0)
+                    newmat = np.array([[0,0,flipVec[0]], [0,flipVec[1],0], [flipVec[2],0,0]])
+                newval = getOrthoResidual(orig, newmat)
+                if newval > best:
+                    best = newval
+                    ret = newmat
+            return ret
+
+        def setOrientVec(m):
+            # Assumes isOrthoMat NOT computed on INVERSE, hence return INVERSE of solution...
+            # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
+            ret = np.array([0, 0, 0])
+            for i in range(3):
+                for j in range(3):
+                    if m[i,j] > 0: ret[j] = i+1
+                    if m[i,j] < 0: ret[j] = -(i+1)
+            return ret
+
+        def orthoOffsetArray(dim, stepBytesPerVox):
+            # return lookup table of length dim with values incremented by stepBytesPerVox
+            #  e.g. if Dim=10 and stepBytes=2: 0,2,4..18, is stepBytes=-2 18,16,14...0
+            # size_t *lut= (size_t *)malloc(dim*sizeof(size_t));
+            lut = np.zeros(dim)
+            if stepBytesPerVox > 0:
+                lut[0] = 0
+            else:
+                lut[0] = -stepBytesPerVox  *(dim-1)
+            if dim > 1:
+                for i in range(1, dim):
+                    lut[i] = lut[i-1] + stepBytesPerVox
+            return lut
+
+        def reOrientImg(img, outDim, outInc, bytePerVox, nvol):
+            # Reslice data to new orientation
+            # Generate look up tables
+            xLUT = orthoOffsetArray(outDim[0], bytePerVox*outInc[0])
+            yLUT = orthoOffsetArray(outDim[1], bytePerVox*outInc[1])
+            zLUT = orthoOffsetArray(outDim[2], bytePerVox*outInc[2])
+            # Convert data
+            bytePerVol = bytePerVox*outDim[0]*outDim[1]*outDim[2]  # number of voxels in spatial dimensions [1,2,3]
+            o = 0  # output address
+            # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
+            # outbuf = (uint8_t *) img  # source image
+            for vol in range(nvol):  # for each volume
+                # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
+                inbuf = np.copy(img[vol])
+                for z in range(outDim[2]):
+                    for y in range(outDim[1]):
+                        for x in range(outDim[0]):
+                            logger.error('Has not verified adressing')
+                            # memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox)
+                            img[vol,z,y,x] = inbuf[xLUT[x], yLUT[y], zLUT[z]]
+                            # o += bytePerVox
+
+        def reOrient(img, h, orientVec, orient, minMM):
+            # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
+
+            nvox = img.columns * img.rows * img.slices
+            if nvox < 1: return img
+            outDim = np.zeros(3)
+            outInc = np.zeros(3)
+            for i in range(3):  # set dimensions, pixdim
+                outDim[i] =  h.dim[abs(orientVec[i])]
+                if abs(orientVec[i]) == 1: outInc[i] = 1
+                if abs(orientVec[i]) == 2: outInc[i] = h.dim[1]
+                if abs(orientVec[i]) == 3: outInc[i] = h.dim[1]*h.dim[2]
+                if orientVec[i] < 0: outInc[i] = -outInc[i]  # flip
+            nvol = 1  # convert all non-spatial volumes from source to destination
+            for vol in range(4, 8):
+                if h.dim[vol] > 1:
+                    nvol = nvol * h.dim[vol]
+            reOrientImg(img, outDim, outInc, h.bitpix / 8,  nvol)
+            # now change the header....
+            outPix = np.array([h.pixdim[abs(orientVec[0])],h.pixdim[abs(orientVec[1])],h.pixdim[abs(orientVec[2])]])
+            for i in range(3):
+                h.dim[i+1] = outDim[i]
+                h.pixdim[i+1] = outPix[i]
+            # mat44 s = sFormMat(h);
+            s = h.get_sform()
+            # mat33 mat; //computer transform
+            # LOAD_MAT33(mat, s.m[0][0],s.m[0][1],s.m[0][2],
+            #                      s.m[1][0],s.m[1][1],s.m[1][2],
+            #                      s.m[2][0],s.m[2][1],s.m[2][2]);
+            mat = s[:3, :3]  # Computer transform
+            # mat = matMul33(  mat, orient);
+            mat = mat @ orient
+            # s = setMat44Vec(mat, minMM); //add offset
+            s = np.eye(4)
+            s[:3, :3] = mat
+            s[:3, 3] = minMM  # Add offset
+            # mat2sForm(h,s);
+            h.set_sform(s)
+            # h->qform_code = h->sform_code; //apply to the quaternion as well
+            _, sform_code = h.get_sform(coded=True)
+            # float dumdx, dumdy, dumdz;
+            # nifti_mat44_to_quatern( s , &h->quatern_b, &h->quatern_c, &h->quatern_d,&h->qoffset_x, &h->qoffset_y, &h->qoffset_z, &dumdx, &dumdy, &dumdz,&h->pixdim[0]) ;
+            h.set_qform(s, code=sform_code)
+            return img
+
+        # mat44 s = sFormMat(h);
+        s = hdr.get_sform()
+        if isMat44Canonical(s):
+            logger.debug("Image in perfect alignment: no need to reorient")
+            return img
+        # vec3i  flipV;
+        flipV = np.zeros(3)
+        minMM, flipV = minCornerFlip(hdr)
+        orient = getBestOrient(s, flipV)
+        orientVec = setOrientVec(orient)
+        if orientVec[0]==1 and orientVec[1]==2 and orientVec[2]==3:
+            logger.debug("Image already near best orthogonal alignment: no need to reorient")
+            return img
+        is24 = False
+        if h.bitpix == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
+            return img
+            is24 = True
+            h.bitpix = 8
+            h.dim[3] = h.dim[3] * 3;
+        img = reOrient(img, h,orientVec, orient, minMM)
+        if is24:
+            h.bitpix = 24;
+            h.dim[3] = h.dim[3] / 3
+        logger.debug("NewRotation= %d %d %d\n", orientVec.v[0],orientVec.v[1],orientVec.v[2]);
+        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0],minMM.v[1],minMM.v[2]);
+        return img
+
+    def _nii_save_attributes(self, si, hdr):
+        pass
+
+    def _find_slice_direction(self, si, affine, normal):
+        """Return slice direction
+
+        Returns
+         None : unknown
+         1 : sag,
+         2 : cor
+         3 : axial
+         - : flipped
+         """
+        if si.ndim < 3:
+            return None
+        slice_direction = 1
+        if abs(normal[1]) >= abs(normal[0]) and abs(normal[1]) >= abs(normal[2]):
+            slice_direction = 2
+        if abs(normal[2]) >= abs(normal[0]) and abs(normal[2]) >= abs(normal[1]):
+            slice_direction = 3
+        # pos = si.patientPosition(slice_direction)
+        pos = si.imagePositions[0][::-1][slice_direction-1]
+        x = np.array([0, 0, si.ndim - 1, 1], dtype=float).reshape((1, 4))
+        # pos1v = nifti_vect44mat44_mul(x, affine)
+        pos1v = x @ affine
+        pos1 = pos1v[0, slice_direction - 1]
+        # Same direction? Note Python indices from 0
+        flip = (pos > affine[slice_direction-1, 3]) != (pos1 > affine[slice_direction-1, 3])
+        if flip:
+            slice_direction = - slice_direction
+        return slice_direction

@@ -3,6 +3,7 @@
 import unittest
 import os.path
 import tempfile
+import shutil
 import numpy as np
 import logging
 import argparse
@@ -230,6 +231,71 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         logging.debug('test_write_3d_nifti_no_opt: si1.slices {}'.format(si1.slices))
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['nifti'])
+
+    def _compare_dicom_nifti_transformation(self, dcm, nifti):
+        self.assertEqual('dicom', dcm.input_format)
+        dt = dcm.transformationMatrix
+        self.assertEqual('nifti', nifti.input_format)
+        nt = nifti.transformationMatrix
+        self.assertEqual(dcm.shape, nifti.shape)
+        # self.assertEqual(dcm.dtype, nifti.dtype)
+        np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix, rtol=1e-3)
+        np.testing.assert_array_equal(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_sag_ap")
+    def test_compare_sag_ap(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_sag_hf")
+    def test_compare_sag_hf(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'sag_hf.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_sag_oblique")
+    def test_compare_sag_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'sag_oblique.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_cor_hf")
+    def test_compare_cor_hf(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'cor_hf.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_cor_oblique")
+    def test_compare_cor_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'cor_oblique.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_cor_rl")
+    def test_compare_cor_rl(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'cor_rl.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_tra_oblique")
+    def test_compare_tra_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'tra_oblique.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    @unittest.skip("skipping test_compare_tra_rl")
+    def test_compare_tra_rl(self):
+        dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'))
+        nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'))
+        self._compare_dicom_nifti_transformation(dcm, nifti)
+
+    # @unittest.skip("skipping test_write_nifti")
+    def test_write_nifti(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
+        self.assertEqual('dicom', dcm.input_format)
+        shutil.rmtree('/tmp/nii-test', ignore_errors=True)
+        dcm.write('/tmp/nii-test', formats=['nifti'])
 
 
 class Test4DNIfTIPlugin(unittest.TestCase):
