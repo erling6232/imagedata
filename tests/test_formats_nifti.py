@@ -290,7 +290,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'))
         self._compare_dicom_nifti_transformation(dcm, nifti)
 
-    # @unittest.skip("skipping test_write_nifti")
+    @unittest.skip("skipping test_write_nifti")
     def test_write_nifti(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
         self.assertEqual('dicom', dcm.input_format)
