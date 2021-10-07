@@ -37,7 +37,7 @@ Several sort criteria are predefined:
 * te: Sort on MR Echo Time
 
 When your data does not match any of these sort criteria, a new sort criteria can be defined.
-E.g., sorting MR images on Inversion Time ('ti'), a new sort criteria 'it' is coupled to the
+E.g., sorting MR images on Inversion Time ('ti'), a new sort criteria 'ti' is coupled to the
 DICOM attribute Inversion Time:
 
 .. code-block:: python
