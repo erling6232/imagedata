@@ -276,7 +276,7 @@ class Series(np.ndarray):
 
         header = None
         for i, input_ in enumerate(inputs):
-            if isinstance(input_, Series):
+            if issubclass(type(input_), Series):
                 if header is None:
                     header = input_.header
                     # logger.debug('Series._unify_headers: copy header')
@@ -412,7 +412,7 @@ class Series(np.ndarray):
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
-        if slicing and isinstance(ret, Series):
+        if slicing and issubclass(type(ret), Series):
             # noinspection PyUnboundLocalVariable
             todo.append(('axes', new_axes[-ret.ndim:]))
             if reduce_dim:
@@ -507,6 +507,14 @@ class Series(np.ndarray):
 
     def __str__(self):
         try:
+            patientID = self.patientID
+        except ValueError:
+            patientID = ''
+        try:
+            patientName = self.patientName
+        except ValueError:
+            patientName = ''
+        try:
             seriesDescription = self.seriesDescription
         except ValueError:
             seriesDescription = ''
@@ -515,7 +523,7 @@ class Series(np.ndarray):
         except ValueError:
             seriesNumber = 0
         return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
-            self.patientID, self.patientName,
+            patientID, patientName,
             self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
             self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
             seriesNumber, seriesDescription,
