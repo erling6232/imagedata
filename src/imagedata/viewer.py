@@ -5,6 +5,7 @@ from matplotlib.widgets import PolygonSelector, ToolHandles
 from matplotlib.lines import Line2D
 # from matplotlib.widgets import Slider
 from matplotlib.path import Path as MplPath
+import mpl_toolkits.axes_grid1
 import numpy as np
 
 from imagedata.series import Series
@@ -18,7 +19,7 @@ class Viewer:
         fig (Figure): matplotlib.plt.figure if already exist (optional).
         ax (Axes): matplotlib axis if already exist (optional).
         follow (bool): Copy ROI to next tag. Default: False.
-        cmap (str): Colour map for display. Default: gray.
+        cmap (str): Colour map for display. Default: Greys.
         windows (number): Window width of signal intensities. Default: DICOM Window Width.
         level (number): Window level of signal intensities. Default: DICOM Window Center.
         link (bool): Whether scrolling is linked between displayed objects. Default: False.
@@ -26,7 +27,7 @@ class Viewer:
     """
 
     def __init__(self, images, fig=None, ax=None, follow=False,
-                 cmap='gray', window=None, level=None, link=False):
+                 cmap='Greys', window=None, level=None, link=False):
         self.fig = fig
         self.ax = ax
         if self.ax is None:
@@ -161,6 +162,11 @@ class Viewer:
                                              )
         ax.add_artist(im['lower_left_text'])
         im['modified'] = True
+
+        if im['cmap'] != 'Greys':
+            divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
+            cax = divider.append_axes('right', size='5%', pad=0.05)
+            self.fig.colorbar(h, cax=cax)
 
         ax.set_axis_off()
         # if im['slices'] == im2['slices']:
