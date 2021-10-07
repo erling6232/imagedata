@@ -9,6 +9,8 @@ The Series class is a subclassed Numpy.ndarray enhancing the array with relevant
 """
 
 import copy
+
+import matplotlib.colors
 import numpy as np
 # from numpy.compat import basestring
 import logging
@@ -504,11 +506,19 @@ class Series(np.ndarray):
         return super().__repr__()
 
     def __str__(self):
+        try:
+            seriesDescription = self.seriesDescription
+        except ValueError:
+            seriesDescription = ''
+        try:
+            seriesNumber = self.seriesNumber
+        except ValueError:
+            seriesNumber = 0
         return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
             self.patientID, self.patientName,
             self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
             self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
-            self.seriesNumber, self.seriesDescription,
+            seriesNumber, seriesDescription,
             imagedata.formats.shape_to_str(self.shape), self.dtype,
             imagedata.formats.input_order_to_dirname_str(self.input_order))
 
@@ -1801,7 +1811,10 @@ class Series(np.ndarray):
 
         # shape = self.shape + (3,)
         if lut is None:
-            lut = (self.max().item()) + 1
+            if np.issubdtype(self.dtype, np.floating):
+                lut = 256
+            else:
+                lut = (self.max().item()) + 1
         # img = np.zeros(shape, dtype=np.uint8)
         # if largest_image_pixel_value > 255:
         #     scaling = 256 / largest_image_pixel_value
@@ -1815,12 +1828,21 @@ class Series(np.ndarray):
 
         import matplotlib.pyplot as plt
         cm = plt.get_cmap(colormap, lut=lut)
-        rgb = Series(
-            cm(self, bytes=True)[...,:3],  # Strip off alpha color
-            input_order=self.input_order,
-            geometry=self,
-            axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
-        )
+        if np.issubdtype(self.dtype, np.floating):
+            norm = (self - np.min(self)) / np.ptp(self)
+            rgb = Series(
+                cm(norm, bytes=True)[...,:3],  # Strip off alpha color
+                input_order=self.input_order,
+                geometry=self,
+                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+            )
+        else:
+            rgb = Series(
+                cm(self, bytes=True)[...,:3],  # Strip off alpha color
+                input_order=self.input_order,
+                geometry=self,
+                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+            )
 
         # rgb = Series(img, template=self, geometry=self)
         #rgb = Series(img, input_order=self.input_order, geometry=self,
@@ -1832,7 +1854,7 @@ class Series(np.ndarray):
         add_template(rgb.header, self.header)
         return rgb
 
-    def show(self, im2=None, fig=None, cmap='gray', window=None, level=None, link=False):
+    def show(self, im2=None, fig=None, cmap='Greys', window=None, level=None, link=False):
         """Show image
 
         With ideas borrowed from Erlend Hodneland (2021).
@@ -1840,7 +1862,7 @@ class Series(np.ndarray):
         Args:
             im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
             fig (matplotlib.plt.Figure, optional): if already exist
-            cmap (str): color map for display. Default: 'gray'
+            cmap (str): color map for display. Default: 'Greys'
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed images. Default: False
@@ -1876,7 +1898,7 @@ class Series(np.ndarray):
         plt.show()
         viewer.disconnect()
 
-    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='gray',
+    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='Greys',
                 window=None, level=None, link=False, single=False):
         """Let user draw ROI on image
 
@@ -1887,7 +1909,7 @@ class Series(np.ndarray):
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
             im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
             fig (matplotlib.plt.Figure, optional) if already exist
-            cmap (str): colour map for display. Default: 'gray'
+            cmap (str): colour map for display. Default: 'Greys'
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed objects. Default: False.
