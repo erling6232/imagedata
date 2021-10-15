@@ -377,14 +377,32 @@ class TestSeries(unittest.TestCase):
         si2.seriesNumber += 10
         self.assertNotEqual(si.seriesNumber, si2.seriesNumber)
 
-    # @nose.tools.raises(AssertionError)
-    @unittest.expectedFailure
+    #@unittest.skip("skipping test_cross_talk_wl")
+    def test_cross_talk_wl(self):
+        si = Series('data/dicom/time', 'time')
+        si1 = si[0] * 10
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_series")
+    def test_cross_talk_series(self):
+        si = Series('data/dicom/time/time00')
+        si1 = Series(si, input_order=si.input_order)
+        si1.setDicomAttribute('WindowWidth', 1)
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_series_template")
+    def test_cross_talk_series_template(self):
+        si = Series('data/dicom/time/time00')
+        si1 = Series(si, input_order=si.input_order, template=si, geometry=si)
+        si1.setDicomAttribute('WindowWidth', 1)
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
     #@unittest.skip("skipping test_cross_talk_spacing")
     def test_cross_talk_spacing(self):
         si = Series('data/dicom/time', 'time')
         si1 = si[0]
         si1.spacing = (1,1,1)
-        np.testing.assert_array_equal(si.spacing, si1.spacing)
+        self.assertNotEqual(si.spacing.tolist(), si1.spacing.tolist())
 
     #@unittest.skip("skipping test_cross_talk_2")
     def test_cross_talk_2(self):
