@@ -1,5 +1,8 @@
 import copy
-import matplotlib.pyplot as plt
+
+import matplotlib.colors
+from matplotlib import cm
+# import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.widgets import PolygonSelector, ToolHandles
 from matplotlib.lines import Line2D
@@ -11,6 +14,9 @@ import numpy as np
 from imagedata.series import Series
 
 
+POSITIVE_EPS = 1e-3
+
+
 class Viewer:
     """Viewer -- a graphical tool to display and interact with Series objects.
 
@@ -19,22 +25,37 @@ class Viewer:
         fig (Figure): matplotlib.plt.figure if already exist (optional).
         ax (Axes): matplotlib axis if already exist (optional).
         follow (bool): Copy ROI to next tag. Default: False.
-        cmap (str): Colour map for display. Default: Greys.
-        windows (number): Window width of signal intensities. Default: DICOM Window Width.
+        colormap (str): Colour map for display. Default: Greys_r.
+        norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+            the `.Normalize` instance used to scale scalar data to the [0, 1] range before mapping to colors using colormap.
+        colorbar (bool): Display colorbar with image. Default: None: determine colorbar based on colormap and norm.
+            range before mapping to colors using colormap.
+        window (number): Window width of signal intensities. Default: DICOM Window Width.
         level (number): Window level of signal intensities. Default: DICOM Window Center.
         link (bool): Whether scrolling is linked between displayed objects. Default: False.
 
     """
 
     def __init__(self, images, fig=None, ax=None, follow=False,
-                 cmap='Greys', window=None, level=None, link=False):
+                 colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None, link=False):
         self.fig = fig
         self.ax = ax
         if self.ax is None:
             self.ax = default_layout(fig, len(images))
         self.im = {}
+        if isinstance(norm, str):
+            if norm == 'linear':
+                norm = matplotlib.colors.Normalize
+            elif norm == 'log':
+                norm = matplotlib.colors.LogNorm
+            # elif norm == 'centered':
+            #     norm = matplotlib.colors.CenteredNorm
+            else:
+                raise ValueError('Unknown normalization function: {}'.format(norm))
+        if colorbar is None:
+            colorbar = colormap != 'Greys_r' or (norm is not None and norm != matplotlib.colors.Normalize)
         for i, im in enumerate(images):
-            self.im[i] = build_info(im, cmap, window, level)
+            self.im[i] = build_info(im, colormap, norm, colorbar, window, level)
         self.follow = follow
         self.link = link
         self.cidenter = None
@@ -117,13 +138,22 @@ class Viewer:
                 im['lower_right_text'].txt.set_text(fmt)
                 im['lower_right_data'] = (im['tag'],)
             # Lower left text
-            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-            window = int(im['window'])
-            level = int(im['level'])
-            if im['lower_left_text'] is not None and im['lower_left_data'] != (window, level, im['idx']):
-                im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
-                im['lower_left_data'] = (window, level, im['idx'])
-            vp['ax'].axes.figure.canvas.draw()
+            if im['color']:
+                fmt = 'SL: {0:d}'
+                if im['lower_left_text'] is not None and im['lower_left_data'] != im['idx']:
+                    im['lower_left_text'].txt.set_text(fmt.format(im['idx']))
+                    im['lower_left_data'] = im['idx']
+            else:
+                fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+                window = int(im['window'])
+                level = int(im['level'])
+                if im['lower_left_text'] is not None and im['lower_left_data'] != (window, level, im['idx']):
+                    im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
+                    im['lower_left_data'] = (window, level, im['idx'])
+            try:
+                vp['ax'].axes.figure.canvas.draw()
+            except ValueError:
+                pass
             im['modified'] = False
 
     def show(self, ax, im):
@@ -131,13 +161,16 @@ class Viewer:
             return None
         if im['slice_axis'] is None:
             # 2D viewer
-            h = ax.imshow(im['im'], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
+            # h = ax.imshow(im['im'], colormap=im['colormap'], norm=im['norm'], vmin=im['vmin'], vmax=im['vmax'])
+            h = ax.imshow(im['im'], cmap=im['colormap'], norm=im['norm'])
         elif im['tag_axis'] is None:
             # 3D viewer
-            h = ax.imshow(im['im'][im['idx'], ...], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
+            # h = ax.imshow(im['im'][im['idx'], ...], colormap=im['colormap'], norm=im['norm'], vmin=im['vmin'], vmax=im['vmax'])
+            h = ax.imshow(im['im'][im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
         else:
             # 4D viewer
-            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
+            # h = ax.imshow(im['im'][im['tag'], im['idx'], ...], colormap=im['colormap'], norm=im['norm'], vmin=im['vmin'], vmax=im['vmax'])
+            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
             # EA# h.figure.subplots_adjust(bottom=0.15)
             # EA# ax_tag = plt.axes([0.23, 0.02, 0.56, 0.04])
             # EA# im['slider'] = Slider(ax_tag, im['input_order'], 0, im['im'].shape[0] - 1, valinit=im['tag'], valstep=1)
@@ -151,11 +184,22 @@ class Viewer:
                                                   loc='lower right'
                                                   )
             ax.add_artist(im['lower_right_text'])
-        fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-        window = int(im['window'])
-        level = int(im['level'])
-        im['lower_left_data'] = (window, level, im['idx'])
-        im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
+
+        # Update lower left text
+        if im['color']:
+            fmt = 'SL: {0:d}'
+            im['lower_left_data'] = (im['idx'])
+            im['lower_left_text'] = AnchoredText(fmt.format(im['idx']),
+                                                 prop=dict(size=6, color='white', backgroundcolor='black'),
+                                                 frameon=False,
+                                                 loc='lower left'
+                                                 )
+        else:
+            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+            window = int(im['window'])
+            level = int(im['level'])
+            im['lower_left_data'] = (window, level, im['idx'])
+            im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
                                              prop=dict(size=6, color='white', backgroundcolor='black'),
                                              frameon=False,
                                              loc='lower left'
@@ -163,9 +207,10 @@ class Viewer:
         ax.add_artist(im['lower_left_text'])
         im['modified'] = True
 
-        if im['cmap'] != 'Greys':
+        if im['colorbar']:
             divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
             cax = divider.append_axes('right', size='5%', pad=0.05)
+            h.set_clim(vmin=im['vmin'], vmax=im['vmax'])
             self.fig.colorbar(h, cax=cax)
 
         ax.set_axis_off()
@@ -538,13 +583,16 @@ class Viewer:
         # On motion, modify window and level, and update display
         im = self.find_image_from_event(event.inaxes)
         if im is not None and im['press'] is not None:
-            dx = 10 * (event.xdata - im['press'][0])
-            dy = 10 * (im['press'][1] - event.ydata)
+            delta = (im['vmax'] - im['vmin']) / 100
+            dx = delta * (event.xdata - im['press'][0])
+            dy = delta * (im['press'][1] - event.ydata)
             im['press'] = event.xdata, event.ydata
-            im['window'] = max(1e-3, im['window'] + dx)
+            im['window'] = max(POSITIVE_EPS, im['window'] + dx)
+            assert im['window'] >= 0, "Window must be non-negative."
             im['level'] = im['level'] + dy
             im['vmin'] = im['level'] - im['window'] / 2
             im['vmax'] = im['level'] + im['window'] / 2
+            im['vmin'], im['vmax'] = _check_vmin_vmax(im['vmin'], im['vmax'], im['norm'])
             im['modified'] = True
             self.update()
 
@@ -795,11 +843,15 @@ def get_level(si, level):
         except (KeyError, AttributeError):
             pass
     if level is None:
-        level = (si.max() - si.min()) / 2
+        diff = si.max() - si.min()
+        if abs(diff) < 2:
+            level = (float(si.max()) - si.min()) / 2
+        else:
+            level = (si.max() - si.min()) / 2
     return level
 
 
-def get_window_level(si, window, level):
+def get_window_level(si, norm, window, level):
     if window is None:
         # First, attempt to get DICOM attribute
         try:
@@ -809,25 +861,42 @@ def get_window_level(si, window, level):
     if window is None:
         window = si.max() - si.min()
     level = get_level(si, level)
-    vmin = level - window / 2
-    vmax = level + window / 2
+    vmin, vmax = _check_vmin_vmax(level - window / 2, level + window / 2, norm)
     return window, level, vmin, vmax
 
 
-def build_info(im, cmap, window, level):
+def _check_vmin_vmax(vmin, vmax, norm):
+    if type(norm) == type:
+        norm = norm(vmin=vmin, vmax=vmax)
+    if type(norm) == matplotlib.colors.LogNorm:
+        vmin = max(POSITIVE_EPS, vmin)
+        vmax = max(POSITIVE_EPS, vmin, vmax)
+    return vmin, vmax
+
+
+def build_info(im, colormap, norm, colorbar, window, level):
     if im is None:
         return None
     if not issubclass(type(im), Series):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
-    if cmap is None:
-        cmap = 'gray'
-    window, level, vmin, vmax = get_window_level(im, window, level)
+    if colormap is None:
+        colormap = 'Greys_r'
+    lut = 256 if np.issubdtype(im.dtype, np.floating) else (im.max().item()) + 1
+    if not issubclass(type(colormap), matplotlib.colors.Colormap):
+        colormap = cm.get_cmap(colormap, lut)
+    colormap.set_bad(color='k')  # Important for log display of non-positive values
+    colormap.set_under(color='k')
+    colormap.set_over(color='w')
+    window, level, vmin, vmax = get_window_level(im, norm, window, level)
+    if type(norm) == type:
+        norm = norm(vmin=vmin, vmax=vmax)
     tag_axis = get_tag_axis(im)
     slice_axis = get_slice_axis(im)
 
     return {
         'im': im,  # Image Series instance
         'input_order': im.input_order,
+        'color': im.color,
         'modified': True,  # update()
         'slider': None,  # 4D slider
         'lower_left_text': None,  # AnchoredText object
@@ -844,7 +913,9 @@ def build_info(im, cmap, window, level):
         'idx': im.slices // 2,  # Displayed slice index
         'tag_axis': tag_axis,  # Axis instance of im
         'slice_axis': slice_axis,  # Axis instance of im
-        'cmap': cmap,  # Colour map
+        'colormap': colormap,  # Colour map
+        'norm': norm,  # Normalization function
+        'colorbar': colorbar,  # Display colorbar
         'window': window,  # Window center
         'level': level,  # Window level
         'vmin': vmin,  # Lower window value
