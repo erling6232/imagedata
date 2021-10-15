@@ -98,6 +98,7 @@ class Series(np.ndarray):
                 # Copy attributes from existing Series to newly created obj
                 # obj.__dict__ = data.__dict__.copy()  # carry forward attributes
                 obj.header = copy.copy(data.header)  # carry forward attributes
+                obj.header.DicomHeaderDict = copy.deepcopy(data.header.DicomHeaderDict)
 
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
@@ -256,6 +257,8 @@ class Series(np.ndarray):
         if results and isinstance(results[0], Series):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
+            results[0].setDicomAttribute('WindowCenter', results[0].max()/2)
+            results[0].setDicomAttribute('WindowWidth', results[0].max())
 
         return results[0] if len(results) == 1 else results
 
@@ -277,10 +280,19 @@ class Series(np.ndarray):
         header = None
         for i, input_ in enumerate(inputs):
             if issubclass(type(input_), Series):
-                if header is None:
-                    header = input_.header
-                    # logger.debug('Series._unify_headers: copy header')
-                # else:
+                if input_.header is None:
+                    logger.warning('Series._unify_headers: new header')
+                    header = Header()
+                    header.input_order = imagedata.formats.INPUT_ORDER_NONE
+                else:
+                    logger.debug('Series._unify_headers: copy header')
+                    header = copy.copy(input_.header)
+                    header.input_order = input_.input_order
+                    header.set_default_values(input_.axes)
+                    add_template(header, input_.header)
+                    add_geometry(header, input_.header, input_.header)
+                    header.DicomHeaderDict = copy.deepcopy(input_.header.DicomHeaderDict)
+
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
                 # The simplest resolution, however, is to take the
@@ -1803,12 +1815,14 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
-    def to_rgb(self, colormap='Greys', lut=None):
+    def to_rgb(self, colormap='Greys_r', lut=None, norm='linear'):
         """Create an RGB color image of self.
 
         Args:
-            colormap (str): Matplotlib colormap name. Defaults: 'Greys'.
+            colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
             lut (int): Number of rgb quantization levels. Default: None, lut is calculated from the voxel values.
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+                the `.Normalize` instance used to scale scalar data to the [0, 1] range before mapping to colors using colormap.
 
         Returns:
             Series: RGB Series object
@@ -1817,52 +1831,51 @@ class Series(np.ndarray):
         if self.color:
             return self
 
-        # shape = self.shape + (3,)
-        if lut is None:
-            if np.issubdtype(self.dtype, np.floating):
-                lut = 256
-            else:
-                lut = (self.max().item()) + 1
-        # img = np.zeros(shape, dtype=np.uint8)
-        # if largest_image_pixel_value > 255:
-        #     scaling = 256 / largest_image_pixel_value
-        #     img[...,0] = np.uint8(self[:] * scaling)
-        #     img[...,1] = np.uint8(self[:] * scaling)
-        #     img[...,2] = np.uint8(self[:] * scaling)
-        # else:
-        #     img[...,0] = self[:]
-        #     img[...,1] = self[:]
-        #     img[...,2] = self[:]
-
+        import matplotlib as mpl
         import matplotlib.pyplot as plt
-        cm = plt.get_cmap(colormap, lut=lut)
+        from imagedata.viewer import get_window_level
+
+        if lut is None:
+            lut = 256 if np.issubdtype(self.dtype, np.floating) else (self.max().item()) + 1
+        if isinstance(norm, str):
+            if norm == 'linear':
+                norm = matplotlib.colors.Normalize
+            elif norm == 'log':
+                norm = matplotlib.colors.LogNorm
+            # elif norm == 'centered':
+            #     norm = matplotlib.colors.CenteredNorm
+            else:
+                raise ValueError('Unknown normalization function: {}'.format(norm))
+        if not issubclass(type(colormap), matplotlib.colors.Colormap):
+            colormap = plt.get_cmap(colormap, lut)
+        colormap.set_bad(color='k')  # Important for log display of non-positive values
+        colormap.set_under(color='k')
+        colormap.set_over(color='w')
+        if type(norm) == type:
+            window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+            norm = norm(vmin=vmin, vmax=vmax)
+        data = norm(self)
         if np.issubdtype(self.dtype, np.floating):
-            norm = (self - np.min(self)) / np.ptp(self)
             rgb = Series(
-                cm(norm, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[...,:3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
                 axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
             )
         else:
             rgb = Series(
-                cm(self, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[...,:3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
                 axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
             )
 
-        # rgb = Series(img, template=self, geometry=self)
-        #rgb = Series(img, input_order=self.input_order, geometry=self,
-        #             axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
-        #             )
-        # rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.color = True
         add_template(rgb.header, self.header)
         return rgb
 
-    def show(self, im2=None, fig=None, cmap='Greys', window=None, level=None, link=False):
+    def show(self, im2=None, fig=None, colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None, link=False):
         """Show image
 
         With ideas borrowed from Erlend Hodneland (2021).
@@ -1870,7 +1883,10 @@ class Series(np.ndarray):
         Args:
             im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
             fig (matplotlib.plt.Figure, optional): if already exist
-            cmap (str): color map for display. Default: 'Greys'
+            colormap (str): color map for display. Default: 'Greys_r'
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+                the `.Normalize` instance used to scale scalar data to the [0, 1] range before mapping to colors using colormap.
+            colorbar (bool): Display colorbar with image. Default: None: determine colorbar based on colormap and norm.
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed images. Default: False
@@ -1898,7 +1914,7 @@ class Series(np.ndarray):
         axes = default_layout(fig, len(images))
         try:
             viewer = Viewer(images, fig=fig, ax=axes,
-                            cmap=cmap, window=window, level=level, link=link)
+                            colormap=colormap, norm=norm, colorbar=colorbar, window=window, level=level, link=link)
         except AssertionError:
             raise
         v = viewer.connect()
@@ -1906,8 +1922,8 @@ class Series(np.ndarray):
         plt.show()
         viewer.disconnect()
 
-    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='Greys',
-                window=None, level=None, link=False, single=False):
+    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, colormap='Greys_r',
+                norm='linear', colorbar=None, window=None, level=None, link=False, single=False):
         """Let user draw ROI on image
 
         Args:
@@ -1917,7 +1933,10 @@ class Series(np.ndarray):
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
             im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
             fig (matplotlib.plt.Figure, optional) if already exist
-            cmap (str): colour map for display. Default: 'Greys'
+            colormap (str): colour map for display. Default: 'Greys_r'
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+                the `.Normalize` instance used to scale scalar data to the [0, 1] range before mapping to colors using colormap.
+            colorbar (bool): Display colorbar with image. Default: None: determine colorbar based on colormap and norm.
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed objects. Default: False.
@@ -1953,7 +1972,7 @@ class Series(np.ndarray):
         axes = default_layout(fig, len(images))
         try:
             viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
-                            cmap=cmap, window=window, level=level, link=link)
+                            colormap=colormap, norm=norm, colorbar=colorbar, window=window, level=level, link=link)
         except AssertionError:
             raise
         v = viewer.connect_draw(roi=roi, color=color)
