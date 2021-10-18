@@ -96,9 +96,9 @@ class Series(np.ndarray):
 
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
-                # obj.__dict__ = data.__dict__.copy()  # carry forward attributes
                 obj.header = copy.copy(data.header)  # carry forward attributes
-                obj.header.DicomHeaderDict = copy.deepcopy(data.header.DicomHeaderDict)
+                add_template(obj.header, data.header)  # Includes DicomHeaderDict
+                add_geometry(obj.header, data.header, data.header)
 
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
@@ -110,26 +110,22 @@ class Series(np.ndarray):
             return obj
         logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
-        if issubclass(type(data), np.uint16) or issubclass(type(data), np.float32):
-            obj = np.asarray(data).view(cls)
-            # cls.__init_attributes(cls, obj)
-            obj.header = Header()
-            obj.header.input_order = input_order
-            obj.header.set_default_values(obj.axes if axes is None else axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
-            return obj
-
         # Assuming data is url to input data
         if isinstance(data, np.compat.basestring) or issubclass(type(data), PurePath):
             urls = data
         elif isinstance(data, list):
             urls = data
         else:
-            obj = np.asarray(data).view(cls)
+            if np.ndim(data) == 0:
+                obj = np.asarray([data]).view(cls)
+            else:
+                obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             obj.header.input_order = input_order
+            obj.header.input_format = type(data)
+            if np.ndim(data) == 0:
+                obj.header.axes = [imagedata.axis.UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
             add_template(obj.header, template)
             add_geometry(obj.header, template, geometry)
@@ -289,9 +285,8 @@ class Series(np.ndarray):
                     header = copy.copy(input_.header)
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
-                    add_template(header, input_.header)
+                    add_template(header, input_.header)  # Includes DicomHeaderDict
                     add_geometry(header, input_.header, input_.header)
-                    header.DicomHeaderDict = copy.deepcopy(input_.header.DicomHeaderDict)
 
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
