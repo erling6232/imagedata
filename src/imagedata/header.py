@@ -209,11 +209,90 @@ def __make_DicomHeaderDict_from_template(this, template):
             except KeyError:
                 template_tag = tag
             try:
-                templateHeader = copy.deepcopy(template[_slice][tag][2])
+                # templateHeader = copy.deepcopy(template[_slice][tag][2])
+                templateHeader = __copy_DicomHeaderDict(template[_slice][tag][2])
             except KeyError:
-                templateHeader = copy.deepcopy(default_header)
+                # templateHeader = copy.deepcopy(default_header)
+                templateHeader = __copy_DicomHeaderDict(default_header)
             DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
     return DicomHeaderDict
+
+
+def __copy_DicomHeaderDict(source, filename=None):
+
+    # sop_ins_uid = self.new_uid()
+
+    # Populate required values for file meta information
+    file_meta = pydicom.dataset.FileMetaDataset()
+    # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+    # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+    # file_meta.ImplementationClassUID = "%s.1" % self.root
+    file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+    ds = pydicom.dataset.FileDataset(
+        filename,
+        {},
+        file_meta=file_meta,
+        preamble=b"\0" * 128
+    )
+
+    for element in source.iterall():
+        #print('__copy_DicomHeaderDict: element {} {}'.format(
+        #    element.tag,
+        #    imagedata.formats.get_size(element)))
+        if element.tag == 0x7fe00010:
+            continue  # Do not copy pixel data, will be added later
+        # ds.add(copy.copy(element))
+        ds.add(element)
+
+    #print('__copy_DicomHeaderDict: {} -> {}'.format(
+    #    imagedata.formats.get_size(source),
+    #    imagedata.formats.get_size(ds)
+    #))
+    return ds
+
+
+def deepcopy_DicomHeaderDict(source, filename=None):
+
+
+    if isinstance(source, dict):
+        ds = {}
+        for tag, element in source.items():
+            if tag == 0x7fe00010:
+                continue  # Do not copy pixel data, will be added later
+            ds[tag] = copy.deepcopy(element)
+            # ds.add(element)
+    else:
+        # sop_ins_uid = self.new_uid()
+
+        # Populate required values for file meta information
+        file_meta = pydicom.dataset.FileMetaDataset()
+        # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+        # file_meta.ImplementationClassUID = "%s.1" % self.root
+        file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+        ds = pydicom.dataset.FileDataset(
+            filename,
+            {},
+            file_meta=file_meta,
+            preamble=b"\0" * 128
+        )
+
+        for element in source.iterall():
+            #print('deepcopy_DicomHeaderDict: element {} {}'.format(
+            #    element.tag,
+            #    imagedata.formats.get_size(element)))
+            if element.tag == 0x7fe00010:
+                continue  # Do not copy pixel data, will be added later
+            ds.add(copy.deepcopy(element))
+            # ds.add(element)
+
+    #print('deepcopy_DicomHeaderDict: {} -> {}'.format(
+    #    imagedata.formats.get_size(source),
+    #    imagedata.formats.get_size(ds)
+    #))
+    return ds
 
 
 def __make_tags_from_template(this, template, geometry):
