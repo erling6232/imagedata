@@ -959,7 +959,8 @@ class DICOMPlugin(AbstractPlugin):
         """
         logger.debug("write_enhanced {} {}".format(filename, self.serInsUid))
 
-        if np.issubdtype(si.dtype, np.floating):
+        # if np.issubdtype(si.dtype, np.floating):
+        if si.dtype.kind == 'f':
             safe_si = np.nan_to_num(si)
         else:
             safe_si = si
@@ -1104,7 +1105,8 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug("write_slice {} {}".format(filename, self.serInsUid))
 
-        if np.issubdtype(si.dtype, np.floating):
+        # if np.issubdtype(si.dtype, np.floating):
+        if si.dtype.kind == 'f':
             safe_si = np.nan_to_num(si)
         else:
             safe_si = si

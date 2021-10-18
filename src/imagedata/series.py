@@ -1831,7 +1831,7 @@ class Series(np.ndarray):
         from imagedata.viewer import get_window_level
 
         if lut is None:
-            lut = 256 if np.issubdtype(self.dtype, np.floating) else (self.max().item()) + 1
+            lut = 256 if self.dtype.kind == 'f' else (self.max().item()) + 1
         if isinstance(norm, str):
             if norm == 'linear':
                 norm = matplotlib.colors.Normalize
@@ -1850,7 +1850,8 @@ class Series(np.ndarray):
             window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
             norm = norm(vmin=vmin, vmax=vmax)
         data = norm(self)
-        if np.issubdtype(self.dtype, np.floating):
+        # if np.issubdtype(self.dtype, np.floating):
+        if self.dtype.kind == 'f':
             rgb = Series(
                 colormap(data, bytes=True)[...,:3],  # Strip off alpha color
                 input_order=self.input_order,
