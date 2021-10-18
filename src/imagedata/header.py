@@ -176,7 +176,7 @@ def add_template(this, template):
         if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
             __set_attribute(this, attr, __get_attribute(template, attr))
     # Make sure DicomHeaderDict is set last
-    template_dhd = copy.deepcopy(__get_attribute(template, 'DicomHeaderDict'))
+    template_dhd = __get_attribute(template, 'DicomHeaderDict')
     if template_dhd is not None:
         __set_attribute(this, 'DicomHeaderDict',
                         __make_DicomHeaderDict_from_template(this, template_dhd))
@@ -209,9 +209,9 @@ def __make_DicomHeaderDict_from_template(this, template):
             except KeyError:
                 template_tag = tag
             try:
-                templateHeader = template[_slice][tag][2]
+                templateHeader = copy.deepcopy(template[_slice][tag][2])
             except KeyError:
-                templateHeader = default_header
+                templateHeader = copy.deepcopy(default_header)
             DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
     return DicomHeaderDict
 
