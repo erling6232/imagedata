@@ -52,7 +52,8 @@ class Viewer:
             else:
                 raise ValueError('Unknown normalization function: {}'.format(norm))
         if colorbar is None:
-            colorbar = colormap != 'Greys_r' or (norm is not None and norm != matplotlib.colors.Normalize)
+            colorbar = colormap != 'Greys_r' or \
+                       (norm is not None and norm != matplotlib.colors.Normalize)
         for i, im in enumerate(images):
             self.im[i] = build_info(im, colormap, norm, colorbar, window, level)
         self.follow = follow
@@ -927,7 +928,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'slice_axis': slice_axis,  # Axis instance of im
         'colormap': colormap,  # Colour map
         'norm': norm,  # Normalization function
-        'colorbar': colorbar,  # Display colorbar
+        'colorbar': colorbar and not im.color,  # Display colorbar unless RGB image
         'window': window,  # Window center
         'level': level,  # Window level
         'vmin': vmin,  # Lower window value
