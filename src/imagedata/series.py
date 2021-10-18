@@ -1810,6 +1810,12 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
+    def deepcopy(self):
+        """Create a copy using deepcopy."""
+        a = Series(np.copy(self), template=self, geometry=self)
+        a.header.DicomHeaderDict = imagedata.header.deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
+        return a
+
     def to_rgb(self, colormap='Greys_r', lut=None, norm='linear'):
         """Create an RGB color image of self.
 
