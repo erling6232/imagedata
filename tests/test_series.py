@@ -46,6 +46,18 @@ class TestSeries(unittest.TestCase):
                 pydicom.datadict.tag_for_keyword('PatientID')),
             '19.02.07-14:04:17-STD-1.3.12.2.1107.5.2.43.66035')
 
+    #@unittest.skip("skipping test_create_series_1")
+    def test_create_series_1(self):
+        si = Series(np.uint16(1))
+        self.assertEqual(np.uint16, si.dtype)
+        self.assertEqual((1,), si.shape)
+
+    #@unittest.skip("skipping test_create_series_tuple_1D")
+    def test_create_series_tuple_1D(self):
+        si = Series((1, 2, 3))
+        self.assertEqual(np.int64, si.dtype)
+        self.assertEqual((3,), si.shape)
+
     #@unittest.skip("skipping test_create_series")
     def test_create_series(self):
         a = np.eye(128)
