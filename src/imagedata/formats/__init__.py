@@ -176,6 +176,8 @@ def shape_to_str(shape):
         return "{}x{}x{}".format(shape[0], shape[1], shape[2])
     elif len(shape) == 2:
         return "{}x{}".format(shape[0], shape[1])
+    elif len(shape) == 1:
+        return "{}".format(shape[0])
     else:
         raise ValueError("Unknown shape")
 
