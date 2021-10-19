@@ -79,13 +79,13 @@ These operations are possible:
 .. code-block:: python
 
       # View a Series instance
-      a.view()
+      a.show()
 
       # View both a and b Series
-      a.view(b)
+      a.show(b)
 
       # View several Series
-      a.view([b, c, d])
+      a.show([b, c, d])
 
 Converting data from DICOM and back
 -----------------------------------
