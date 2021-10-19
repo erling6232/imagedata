@@ -1739,11 +1739,14 @@ class Series(np.ndarray):
         for s in slices:
             for t in tags:
                 tg, fname, im = self.DicomHeaderDict[s][t]
-                if _tag in im:
-                    im[_tag].value = value
-                else:
-                    VR = pydicom.datadict.dictionary_VR(_tag)
-                    im.add_new(_tag, VR, value)
+                # if _tag in im:
+                #     im[_tag].value = value
+                # else:
+                #     VR = pydicom.datadict.dictionary_VR(_tag)
+                #     im.add_new(_tag, VR, value)
+                # Always make a new attribute to avoid cross-talk after copying Series instances.
+                VR = pydicom.datadict.dictionary_VR(_tag)
+                im.add_new(_tag, VR, value)
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r
