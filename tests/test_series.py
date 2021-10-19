@@ -380,24 +380,24 @@ class TestSeries(unittest.TestCase):
 
     #@unittest.skip("skipping test_cross_talk")
     def test_cross_talk(self):
-        si = Series('data/dicom/time', 'time')
+        si = Series('data/dicom/time/time00')
         si1 = si[0]
         si1.seriesNumber = si.seriesNumber + 10
         self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
 
-        si2 = Series('data/dicom/time', 'time')
+        si2 = Series('data/dicom/time/time00')
         si2.seriesNumber += 10
         self.assertNotEqual(si.seriesNumber, si2.seriesNumber)
 
     #@unittest.skip("skipping test_cross_talk_wl_ref")
     def test_cross_talk_wl_ref(self):
-        si = Series('data/dicom/time', 'time')
+        si = Series('data/dicom/time/time00')
         si1 = si[0] * 10
         self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
 
     #@unittest.skip("skipping test_cross_talk_wl")
     def test_cross_talk_wl(self):
-        si = Series('data/dicom/time', 'time')
+        si = Series('data/dicom/time/time00')
         si1 = si.deepcopy()[0] * 10
         self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
 
@@ -411,10 +411,9 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_cross_talk_series")
     def test_cross_talk_series(self):
         si = Series('data/dicom/time/time00')
-        # si1 = Series(copy.deepcopy(si), input_order=si.input_order)
         si1 = si.deepcopy()
-        print(si1)
         si1.setDicomAttribute('WindowWidth', 1)
+        self.assertEqual(1, si1.getDicomAttribute('WindowWidth'))
         self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
 
     #@unittest.skip("skipping test_cross_talk_series_template")
