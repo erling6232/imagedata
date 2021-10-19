@@ -254,7 +254,7 @@ def __copy_DicomHeaderDict(source, filename=None):
 
 def deepcopy_DicomHeaderDict(source, filename=None):
     """Deepcopy contents of DicomHeaderDict."""
-    
+
     if isinstance(source, dict):
         ds = {}
         for tag, element in source.items():

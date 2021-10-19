@@ -393,7 +393,7 @@ class TestSeries(unittest.TestCase):
     def test_cross_talk_wl_ref(self):
         si = Series('data/dicom/time', 'time')
         si1 = si[0] * 10
-        self.assertEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
 
     #@unittest.skip("skipping test_cross_talk_wl")
     def test_cross_talk_wl(self):
@@ -406,7 +406,7 @@ class TestSeries(unittest.TestCase):
         si = Series('data/dicom/time/time00')
         si1 = Series(si, input_order=si.input_order)
         si1.setDicomAttribute('WindowWidth', 1)
-        self.assertEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
 
     #@unittest.skip("skipping test_cross_talk_series")
     def test_cross_talk_series(self):
