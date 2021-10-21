@@ -82,6 +82,14 @@ class TestDicomPlugin(unittest.TestCase):
         # for axis in si1.axes:
         #    logging.debug('test_read_dicom_4D: axis {}'.format(axis))
 
+    # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
+    def test_read_dicom_4D_wrong_order(self):
+        with self.assertRaises(imagedata.formats.CannotSort) as context:
+            si1 = Series(
+                os.path.join('data', 'dicom', 'time'),
+                'none',
+                self.opts)
+
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
     def test_read_dicom_user_defined_TI(self):
         si1 = Series(

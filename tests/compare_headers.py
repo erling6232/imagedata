@@ -15,13 +15,13 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
     self.assertEqual(hdr.version, newhdr.version)
     self.assertEqual(hdr.url, newhdr.url)
     self.assertEqual(hdr.input_order, newhdr.input_order)
-    # self.assertEqual(hdr.sort_on, newhdr.sort_on)
+    # obj.assertEqual(hdr.sort_on, newhdr.sort_on)
 
     # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
     try:
         self.assertEqual(hdr.DicomHeaderDict.keys(), newhdr.DicomHeaderDict.keys())
         # for k in hdr.DicomHeaderDict.keys():
-        #    self.assertEqual(hdr.DicomHeaderDict[k], newhdr.DicomHeaderDict[k])
+        #    obj.assertEqual(hdr.DicomHeaderDict[k], newhdr.DicomHeaderDict[k])
     except ValueError:
         pass
     self.assertEqual(hdr.tags.keys(), newhdr.tags.keys())
@@ -29,7 +29,7 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
         np.testing.assert_array_equal(hdr.tags[k], newhdr.tags[k])
     if uid:
         compare_optional(self, hdr, newhdr, 'studyInstanceUID')
-        # compare_optional(self, hdr, newhdr, 'seriesInstanceUID')
+        # compare_optional(obj, hdr, newhdr, 'seriesInstanceUID')
         compare_optional(self, hdr, newhdr, 'frameOfReferenceUID')
     compare_optional(self, hdr, newhdr, 'seriesNumber')
     compare_optional(self, hdr, newhdr, 'seriesDescription')

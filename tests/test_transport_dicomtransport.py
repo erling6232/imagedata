@@ -47,7 +47,7 @@ class TestDicomTransport(unittest.TestCase):
         ae = AE()
         ae.ae_title = 'Temp'
         ae.supported_contexts = StoragePresentationContexts
-        # ae.on_c_store = self.on_c_store
+        # ae.on_c_store = obj.on_c_store
         handlers = [(evt.EVT_C_STORE, self.handle_store)]
         # Returns a ThreadedAssociationServer instance
         self.server = ae.start_server(('localhost', port), block=False, evt_handlers=handlers)
@@ -120,7 +120,7 @@ class TestDicomTransport(unittest.TestCase):
         si2 = Series(
             scpdir.name
         )
-        # compare_headers(self, si1, si2)
+        # compare_headers(obj, si1, si2)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
