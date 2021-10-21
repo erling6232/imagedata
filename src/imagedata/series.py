@@ -94,14 +94,16 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             # obj.header = Header() # Already set in __array_finalize__
 
+            # set the new 'input_order' attribute to the value passed
+            obj.header.input_order = input_order
+
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
                 obj.header = copy.copy(data.header)  # carry forward attributes
+                obj.input_order = data.input_order
                 obj.header.add_template(data.header)  # Includes DicomHeaderDict
                 obj.header.add_geometry(data.header, data.header)
 
-            # set the new 'input_order' attribute to the value passed
-            obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
             if axes is not None:
                 obj.header.axes = copy.copy(axes)
