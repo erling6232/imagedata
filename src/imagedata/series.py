@@ -23,7 +23,7 @@ import imagedata.axis
 import imagedata.formats
 import imagedata.readdata as readdata
 import imagedata.formats.dicomlib.uid
-from imagedata.header import Header, add_template, add_geometry
+from imagedata.header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -97,16 +97,16 @@ class Series(np.ndarray):
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
                 obj.header = copy.copy(data.header)  # carry forward attributes
-                add_template(obj.header, data.header)  # Includes DicomHeaderDict
-                add_geometry(obj.header, data.header, data.header)
+                obj.header.add_template(data.header)  # Includes DicomHeaderDict
+                obj.header.add_geometry(data.header, data.header)
 
             # set the new 'input_order' attribute to the value passed
             obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
             if axes is not None:
                 obj.header.axes = copy.copy(axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
+            obj.header.add_template(template)
+            obj.header.add_geometry(template, geometry)
             return obj
         logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -127,8 +127,8 @@ class Series(np.ndarray):
             if np.ndim(data) == 0:
                 obj.header.axes = [imagedata.axis.UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
+            obj.header.add_template(template)
+            obj.header.add_geometry(template, geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -139,20 +139,22 @@ class Series(np.ndarray):
 
         # set the new 'input_order' attribute to the value passed
         obj.header.input_order = input_order
+        obj.header.input_format = hdr.input_format
         # Copy attributes from hdr dict to newly created obj
         logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
         if axes is not None:
-            new_axes = axes
-        elif obj.axes is None and 'axes' in hdr:
-            new_axes = hdr['axes']
-        else:
-            new_axes = obj.axes
-        obj.header.set_default_values(new_axes)
-        for attr in hdr.keys():
-            setattr(obj.header, attr, hdr[attr])
+            obj.axes = copy.copy(axes)
+        elif hdr.axes is not None:
+            obj.axes = hdr.axes
+        obj.header.set_default_values(obj.axes)
+        obj.header.add_template(hdr)
+        obj.header.add_geometry(hdr, hdr)
+        # for attr in __attributes(hdr):
+        #     __set_attribute(obj.header, attr, __get_attribute(template, attr))
+        #     setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
-        add_template(obj.header, template)
-        add_geometry(obj.header, template, geometry)
+        obj.header.add_template(template)
+        obj.header.add_geometry(template, geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -253,7 +255,7 @@ class Series(np.ndarray):
         if results and isinstance(results[0], Series):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
-            results[0].setDicomAttribute('WindowCenter', results[0].max()/2)
+            results[0].setDicomAttribute('WindowCenter', results[0].max() / 2)
             results[0].setDicomAttribute('WindowWidth', results[0].max())
 
         return results[0] if len(results) == 1 else results
@@ -285,8 +287,8 @@ class Series(np.ndarray):
                     header = copy.copy(input_.header)
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
-                    add_template(header, input_.header)  # Includes DicomHeaderDict
-                    add_geometry(header, input_.header, input_.header)
+                    header.add_template(input_.header)  # Includes DicomHeaderDict
+                    header.add_geometry(input_.header, input_.header)
 
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
@@ -430,6 +432,10 @@ class Series(np.ndarray):
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
+            new_uid = ret.header.new_uid()
+            ret.setDicomAttribute('SeriesInstanceUID', new_uid)
+            # ret.setDicomAttribute('SeriesInstanceUID', ret.header.new_uid())
+            ret.seriesInstanceUID = new_uid
         return ret
 
     def __get_sliceLocations(self, spec):
@@ -974,7 +980,7 @@ class Series(np.ndarray):
             >>> si.spacing = ds, dr, dc
         """
         try:
-            #if self.header.spacing is not None:
+            # if self.header.spacing is not None:
             #    return self.header.spacing
             slice_axis = self.find_axis('slice')
             ds = slice_axis.step
@@ -993,7 +999,6 @@ class Series(np.ndarray):
     @spacing.setter
     def spacing(self, *args):
         if args[0] is None:
-            # self.header.spacing = None
             return
         logger.debug("spacing.setter {} {}".format(len(args), args))
         for arg in args:
@@ -1298,7 +1303,10 @@ class Series(np.ndarray):
             self.header.seriesInstanceUID = None
             return
         try:
-            self.header.seriesInstanceUID = str(uid)
+            if isinstance(uid, str):
+                self.header.seriesInstanceUID = uid
+            else:
+                self.header.seriesInstanceUID = str(uid)
         except AttributeError:
             raise TypeError("Given series instance UID is not printable")
 
@@ -1862,25 +1870,26 @@ class Series(np.ndarray):
         # if np.issubdtype(self.dtype, np.floating):
         if self.dtype.kind == 'f':
             rgb = Series(
-                colormap(data, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                axes=self.axes + [imagedata.axis.VariableAxis('rgb', ['r', 'g', 'b'])]
             )
         else:
             rgb = Series(
-                colormap(data, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                axes=self.axes + [imagedata.axis.VariableAxis('rgb', ['r', 'g', 'b'])]
             )
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.color = True
-        add_template(rgb.header, self.header)
+        rgb.header.add_template(self.header)
         return rgb
 
-    def show(self, im2=None, fig=None, colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None, link=False):
+    def show(self, im2=None, fig=None, colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
+             link=False):
         """Show image
 
         With ideas borrowed from Erlend Hodneland (2021).
@@ -1999,8 +2008,8 @@ class Series(np.ndarray):
                 new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
         new_roi = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_roi.seriesDescription = 'ROI'
-        new_roi.setDicomAttribute('WindowCenter',.5)
-        new_roi.setDicomAttribute('WindowWidth',1)
+        new_roi.setDicomAttribute('WindowCenter', .5)
+        new_roi.setDicomAttribute('WindowWidth', 1)
         if vertices:
             return new_roi, viewer.get_roi()  # Return grid and vertices
         else:
