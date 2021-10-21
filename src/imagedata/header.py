@@ -9,7 +9,6 @@ import pydicom.datadict
 import imagedata.formats
 import imagedata.formats.dicomlib.uid
 
-
 logger = logging.getLogger(__name__)
 
 header_tags = ['input_format',
@@ -121,21 +120,19 @@ class Header(object):
                     tags = len(axis)
 
             self.DicomHeaderDict = {}
-            i = 0
             for _slice in range(slices):
                 self.DicomHeaderDict[_slice] = []
                 for tag in range(tags):
                     self.DicomHeaderDict[_slice].append(
-                        (tag, None, self._empty_ds())
+                        (tag, None, self.empty_ds())
                     )
-                    i += 1
             if self.tags is None:
                 self.tags = {}
                 for _slice in range(slices):
                     self.tags[_slice] = [i for i in range(tags)]
 
     # noinspection PyPep8Naming
-    def _empty_ds(self):
+    def empty_ds(self):
         SOPInsUID = self.new_uid()
 
         ds = pydicom.dataset.Dataset()
@@ -156,100 +153,150 @@ class Header(object):
 
         return ds
 
+    def add_template(self, template):
+        """Add template data to this header.
+        Does not add geometry data.
 
-def add_template(this, template):
-    """Add template data to this header.
-    Does not add geometry data.
+        Args:
+            template: template header. Can be None.
+        """
 
-    Args:
-        this: header or dict
-        template: template header or dict. Can be None.
-    Raises:
-        ValueError: When the template is not a Header or dict.
-    """
+        if template is None:
+            return
+        # for attr in attributes(template):
+        for attr in template.__dict__:
+            if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
+                value = getattr(template, attr, None)
+                if value is not None:
+                    setattr(self, attr, getattr(template, attr, None))
+        # Make sure DicomHeaderDict is set last
+        if template.DicomHeaderDict is not None:
+            self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(template.DicomHeaderDict)
 
-    if template is None:
-        return
-    if not issubclass(type(this), Header) and not issubclass(type(this), dict):
-        raise ValueError('Object is not Header or dict.')
-    for attr in __attributes(template):
-        if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
-            __set_attribute(this, attr, __get_attribute(template, attr))
-    # Make sure DicomHeaderDict is set last
-    template_dhd = __get_attribute(template, 'DicomHeaderDict')
-    if template_dhd is not None:
-        __set_attribute(this, 'DicomHeaderDict',
-                        __make_DicomHeaderDict_from_template(this, template_dhd))
+    def __get_tags_and_slices(self):
+        slices = tags = 1
+        if self.axes is not None:
+            for axis in self.axes:
+                if axis.name == 'slice':
+                    slices = len(axis)
+                elif axis.name not in {'row', 'column', 'rgb'}:
+                    tags = len(axis)
+        return tags, slices
 
+    def __make_DicomHeaderDict_from_template(self, template):
+        """Shallow copy of template Dataset.
+        When modifying attributes with Series.setDicomAttribute,
+        new attribute will be set to there avoid cross-talk.
+        """
 
-def __get_tags_and_slices(obj):
-    slices = tags = 1
-    try:
-        axes = __get_attribute(obj, 'axes')
-    except Exception as e:
-        print(e)
-        raise
-    for axis in axes:
-        if axis.name == 'slice':
-            slices = len(axis)
-        elif axis.name not in {'row', 'column', 'rgb'}:
-            tags = len(axis)
-    return tags, slices
+        DicomHeaderDict = {}
+        default_header = template[0][0][2]
+        tags, slices = self.__get_tags_and_slices()
+        for _slice in range(slices):
+            DicomHeaderDict[_slice] = []
+            for tag in range(tags):
+                try:
+                    template_tag = template[_slice][tag][0]
+                except KeyError:
+                    template_tag = tag
+                try:
+                    templateHeader = copy.copy(template[_slice][tag][2])
+                except KeyError:
+                    templateHeader = copy.copy(default_header)
+                DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
+        return DicomHeaderDict
 
+    # def __copy_DicomHeaderDict(self, source, filename=None):
+    #     sop_ins_uid = self.new_uid()
+    #
+    #     # Populate required values for file meta information
+    #     file_meta = pydicom.dataset.FileMetaDataset()
+    #     # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+    #     file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+    #     # file_meta.ImplementationClassUID = "%s.1" % obj.root
+    #     file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+    #
+    #     ds = pydicom.dataset.FileDataset(
+    #         filename,
+    #         {},
+    #         file_meta=file_meta,
+    #         preamble=b"\0" * 128
+    #     )
+    #
+    #     for element in source.iterall():
+    #         if element.tag == 0x7fe00010:
+    #             continue  # Do not copy pixel data, will be added later
+    #         # ds.add(copy.copy(element))
+    #         ds.add(element)
+    #     ds.SOPInstanceUID = sop_ins_uid
+    #
+    #     return ds
 
-def __make_DicomHeaderDict_from_template(this, template):
-    DicomHeaderDict = {}
-    default_header = template[0][0][2]
-    tags, slices = __get_tags_and_slices(this)
-    for _slice in range(slices):
-        DicomHeaderDict[_slice] = []
-        for tag in range(tags):
-            try:
-                template_tag = template[_slice][tag][0]
-            except KeyError:
-                template_tag = tag
-            try:
-                # templateHeader = copy.deepcopy(template[_slice][tag][2])
-                templateHeader = __copy_DicomHeaderDict(template[_slice][tag][2])
-            except KeyError:
-                # templateHeader = copy.deepcopy(default_header)
-                templateHeader = __copy_DicomHeaderDict(default_header)
-            DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
-    return DicomHeaderDict
+    def __set_tags_from_template(self, template, geometry):
+        self.tags = {}
+        tags, slices = self.__get_tags_and_slices()
+        for _slice in range(slices):
+            self.tags[_slice] = []
+            if issubclass(type(geometry[_slice]), dict):
+                geometry_tag_list = list(geometry[_slice].values())
+            else:
+                geometry_tag_list = list(geometry[_slice])
+            template_tag_list = []
+            if template is not None:
+                if issubclass(type(template[_slice]), dict):
+                    template_tag_list = list(template[_slice].values())
+                else:
+                    template_tag_list = list(template[_slice])
+            if len(geometry_tag_list) >= tags:
+                self.tags[_slice] = geometry_tag_list[:tags]
+            elif len(template_tag_list) >= tags:
+                self.tags[_slice] = template_tag_list[:tags]
+            else:
+                raise IndexError('Cannot get tag list with length {}'.format(tags))
 
+    def __set_axes_from_template(self, template_axes, geometry_axes):
+        if self.axes is None:
+            ndim = 1
+            if geometry_axes is not None:
+                ndim = len(geometry_axes)
+            elif template_axes is not None:
+                ndim = len(template_axes)
+            self.axes = [False for _ in range(ndim)]
+        for i, axis in enumerate(self.axes):
+            if geometry_axes is not None:
+                for geometry_axis in geometry_axes:
+                    if geometry_axis.name == axis.name:
+                        self.axes[i] = copy.copy(geometry_axis)
+            elif template_axes is not None:
+                for template_axis in template_axes:
+                    if template_axis.name == axis.name:
+                        self.axes[i] = copy.copy(template_axis)
 
-def __copy_DicomHeaderDict(source, filename=None):
+    def add_geometry(self, template, geometry):
+        """Add geometry data to obj header.
 
-    # sop_ins_uid = self.new_uid()
+        Args:
+            self: header or dict
+            template: template header or dict. Can be None.
+            geometry: geometry template header or dict. Can be None.
+        """
 
-    # Populate required values for file meta information
-    file_meta = pydicom.dataset.FileMetaDataset()
-    # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
-    # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
-    # file_meta.ImplementationClassUID = "%s.1" % self.root
-    file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-
-    ds = pydicom.dataset.FileDataset(
-        filename,
-        {},
-        file_meta=file_meta,
-        preamble=b"\0" * 128
-    )
-
-    for element in source.iterall():
-        #print('__copy_DicomHeaderDict: element {} {}'.format(
-        #    element.tag,
-        #    imagedata.formats.get_size(element)))
-        if element.tag == 0x7fe00010:
-            continue  # Do not copy pixel data, will be added later
-        # ds.add(copy.copy(element))
-        ds.add(element)
-
-    #print('__copy_DicomHeaderDict: {} -> {}'.format(
-    #    imagedata.formats.get_size(source),
-    #    imagedata.formats.get_size(ds)
-    #))
-    return ds
+        if geometry is None:
+            return
+        for attr in geometry.__dict__:
+            if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
+                value = getattr(geometry, attr, None)
+                if value is not None:
+                    setattr(self, attr, value)
+        # Make sure tags and axes are set last. Template and/or geometry may be None
+        self.__set_tags_from_template(
+            getattr(template, 'tags', None),
+            getattr(geometry, 'tags', None)
+        )
+        self.__set_axes_from_template(
+            getattr(template, 'axes', None),
+            getattr(geometry, 'axes', None)
+        )
 
 
 def deepcopy_DicomHeaderDict(source, filename=None):
@@ -263,13 +310,13 @@ def deepcopy_DicomHeaderDict(source, filename=None):
             ds[tag] = copy.deepcopy(element)
             # ds.add(element)
     else:
-        # sop_ins_uid = self.new_uid()
+        # sop_ins_uid = obj.new_uid()
 
         # Populate required values for file meta information
         file_meta = pydicom.dataset.FileMetaDataset()
         # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
         # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
-        # file_meta.ImplementationClassUID = "%s.1" % self.root
+        # file_meta.ImplementationClassUID = "%s.1" % obj.root
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
         ds = pydicom.dataset.FileDataset(
@@ -280,7 +327,7 @@ def deepcopy_DicomHeaderDict(source, filename=None):
         )
 
         for element in source.iterall():
-            #print('deepcopy_DicomHeaderDict: element {} {}'.format(
+            # print('deepcopy_DicomHeaderDict: element {} {}'.format(
             #    element.tag,
             #    imagedata.formats.get_size(element)))
             if element.tag == 0x7fe00010:
@@ -288,111 +335,8 @@ def deepcopy_DicomHeaderDict(source, filename=None):
             ds.add(copy.deepcopy(element))
             # ds.add(element)
 
-    #print('deepcopy_DicomHeaderDict: {} -> {}'.format(
+    # print('deepcopy_DicomHeaderDict: {} -> {}'.format(
     #    imagedata.formats.get_size(source),
     #    imagedata.formats.get_size(ds)
-    #))
+    # ))
     return ds
-
-
-def __make_tags_from_template(this, template, geometry):
-    tag_dict = {}
-    tags, slices = __get_tags_and_slices(this)
-    for _slice in range(slices):
-        tag_dict[_slice] = []
-        if issubclass(type(geometry[_slice]), dict):
-            geometry_tag_list = list(geometry[_slice].values())
-        else:
-            geometry_tag_list = list(geometry[_slice])
-        template_tag_list = []
-        if template is not None:
-            if issubclass(type(template[_slice]), dict):
-                template_tag_list = list(template[_slice].values())
-            else:
-                template_tag_list = list(template[_slice])
-        if len(geometry_tag_list) >= tags:
-            tag_dict[_slice] = geometry_tag_list[:tags]
-        elif len(template_tag_list) >= tags:
-            tag_dict[_slice] = template_tag_list[:tags]
-        else:
-            raise IndexError('Cannot get tag list with length {}'.format(tags))
-    return tag_dict
-
-
-def __make_axes_from_template(this, template_axes, geometry_axes):
-    axes = __get_attribute(this, 'axes')
-    for i, axis in enumerate(axes):
-        if geometry_axes is not None:
-            for geometry_axis in geometry_axes:
-                if geometry_axis.name == axis.name:
-                    axes[i] = copy.copy(geometry_axis)
-        elif template_axes is not None:
-            for template_axis in template_axes:
-                if template_axis.name == axis.name:
-                    axes[i] = copy.copy(template_axis)
-    return axes
-
-
-def add_geometry(this, template, geometry):
-    """Add geometry data to this header.
-
-    Args:
-        this: header or dict
-        template: template header or dict. Can be None.
-        geometry: geometry template header or dict. Can be None.
-    Raises:
-        ValueError: When the template is not a Header or dict.
-    """
-
-    if geometry is None:
-        return
-    if not issubclass(type(this), Header) and not issubclass(type(this), dict):
-        raise ValueError('Object is not Header or dict.')
-    for attr in __attributes(geometry):
-        if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
-            __set_attribute(this, attr, __get_attribute(geometry, attr))
-    # Make sure tags and axes are set last
-    __set_attribute(this, 'tags',
-                    __make_tags_from_template(
-                        this,
-                        __get_attribute(template, 'tags'),
-                        __get_attribute(geometry, 'tags')
-                    ))
-    __set_attribute(this, 'axes',
-                    __make_axes_from_template(
-                        this,
-                        __get_attribute(template, 'axes'),
-                        __get_attribute(geometry, 'axes')
-                    ))
-    return
-
-
-def __attributes(obj):
-    if issubclass(type(obj), Header):
-        for attr in obj.__dict__:
-            yield attr
-    elif issubclass(type(obj), dict):
-        for attr in obj:
-            yield attr
-    else:
-        raise ValueError('Template is not Header nor dict.')
-
-
-def __get_attribute(obj, name):
-    if obj is None:
-        return None
-    if issubclass(type(obj), Header):
-        return getattr(obj, name, None)
-    elif issubclass(type(obj), dict):
-        return copy.copy(obj[name])
-    else:
-        raise ValueError('Object is not Header nor dict.')
-
-
-def __set_attribute(obj, name, value):
-    if issubclass(type(obj), Header):
-        setattr(obj, name, value)
-    elif issubclass(type(obj), dict):
-        obj[name] = value
-    else:
-        raise ValueError('Source is not Header nor dict.')
