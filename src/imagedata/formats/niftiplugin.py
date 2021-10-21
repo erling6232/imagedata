@@ -69,10 +69,10 @@ class NiftiPlugin(AbstractPlugin):
             self: format plugin instance
             f: file handle or filename (depending on self._need_local_file)
             opts: Input options (dict)
-            hdr: Header dict
+            hdr: Header
         Returns:
             Tuple of
-                hdr: Header dict
+                hdr: Header
                     Return values:
                         - info: Internal data for the plugin
                             None if the given file should not be included (e.g. raw file)
@@ -123,10 +123,10 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: format plugin instance
             image_list: list with (img,si) tuples
-            hdr: Header dict
+            hdr: Header
             si: numpy array (multi-dimensional)
         Returns:
-            hdr: Header dict
+            hdr: Header
         """
 
         img, si = image_list[0]
@@ -161,7 +161,7 @@ class NiftiPlugin(AbstractPlugin):
         elif _xyzt_units[1] == 'usec':
             dt = dt / 1000000.
         self.spacing = (float(dz), float(dy), float(dx))
-        hdr['spacing'] = (float(dz), float(dy), float(dx))
+        hdr.spacing = (float(dz), float(dy), float(dx))
 
         # Simplify shape
         self._reduce_shape(si)
@@ -173,7 +173,7 @@ class NiftiPlugin(AbstractPlugin):
             raise ValueError('qfac (pixdim[0]) should be 1 or -1')
 
         # Image orientation and positions
-        hdr['imagePositions'] = {}
+        hdr.imagePositions = {}
         if sform is not None and scode != 0:
             logger.debug("Method 3 - sform: orientation")
 
@@ -197,7 +197,7 @@ class NiftiPlugin(AbstractPlugin):
                     (Q[1, 2] * _slice + p[1]),
                     (Q[2, 2] * _slice + p[2])
                 ])
-                hdr['imagePositions'][_slice] = _p[::-1]
+                hdr.imagePositions[_slice] = _p[::-1]
 
         elif qform is not None and qcode != 0:
             logger.debug("Method 2 - qform: orientation")
@@ -224,7 +224,7 @@ class NiftiPlugin(AbstractPlugin):
                     ty * qfac * dz * _slice - qoffset_y,  # NIfTI is RAS+, DICOM is LPS+
                     tz * qfac * dz * _slice + qoffset_z
                 ])
-                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
+                hdr.imagePositions[_slice] = _p[::-1]  # Reverse x,y,z
         else:
             logger.debug("Method 1 - assume axial: orientation")
             iop = np.array([0, 0, 1, 0, 1, 0])
@@ -234,8 +234,8 @@ class NiftiPlugin(AbstractPlugin):
                     0,  # NIfTI is RAS+, DICOM is LPS+
                     dz * _slice
                 ])
-                hdr['imagePositions'][_slice] = _p[::-1]  # Reverse x,y,z
-        hdr['orientation'] = iop
+                hdr.imagePositions[_slice] = _p[::-1]  # Reverse x,y,z
+        hdr.orientation = iop
 
         self.shape = si.shape
 
@@ -247,12 +247,12 @@ class NiftiPlugin(AbstractPlugin):
         tags = {}
         for z in range(nz):
             tags[z] = np.array(times)
-        hdr['tags'] = tags
+        hdr.tags = tags
 
         axes = list()
         if si.ndim > 3:
             axes.append(imagedata.axis.UniformLengthAxis(
-                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                imagedata.formats.input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt,
                 dt)
@@ -276,10 +276,19 @@ class NiftiPlugin(AbstractPlugin):
             nx,
             dx)
         )
-        hdr['axes'] = axes
+        hdr.axes = axes
 
-        hdr['photometricInterpretation'] = 'MONOCHROME2'
-        hdr['color'] = False
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        hdr.color = False
+
+        # Set dummy DicomHeaderDict
+        hdr.DicomHeaderDict = {}
+        for _slice in range(nz):
+            hdr.DicomHeaderDict[_slice] = []
+            for tag in range(nt):
+                hdr.DicomHeaderDict[_slice].append(
+                    (times[tag], None, hdr.empty_ds())
+                )
 
     # def nifti_to_affine(self, affine, shape):
     #
@@ -373,22 +382,22 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: NiftiPlugin instance
             q: nifti Qform
-            hdr['spacing']
+            hdr.spacing
         Returns:
-            hdr: header dict
-                - hdr['imagePositions'][0]
-                - hdr['orientation']
-                - hdr['transformationMatrix']
+            hdr: header
+                - hdr.imagePositions[0]
+                - hdr.orientation
+                - hdr.transformationMatrix
         """
 
         # Swap back from nifti patient space, flip x and y directions
         affine = np.dot(np.diag([-1, -1, 1, 1]), q)
         # Set imagePositions for first slice
         x, y, z = affine[0:3, 3]
-        hdr['imagePositions'] = {0: np.array([z, y, x])}
-        logger.debug("getGeometryFromAffine: hdr imagePositions={}".format(hdr['imagePositions']))
+        hdr.imagePositions = {0: np.array([z, y, x])}
+        logger.debug("getGeometryFromAffine: hdr imagePositions={}".format(hdr.imagePositions))
         # Set slice orientation
-        ds, dr, dc = hdr['spacing']
+        ds, dr, dc = hdr.spacing
         logger.debug("getGeometryFromAffine: spacing ds {}, dr {}, dc {}".format(ds, dr, dc))
 
         colr = affine[:3, 0][::-1] / dr
@@ -401,7 +410,7 @@ class NiftiPlugin(AbstractPlugin):
         for i in range(3):
             orient.append(colr[i])
         logger.debug("getGeometryFromAffine: orient {}".format(orient))
-        hdr['orientation'] = orient
+        hdr.orientation = orient
         return
 
     # noinspection PyPep8Naming
