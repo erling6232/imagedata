@@ -3,6 +3,14 @@
 ReleaseNotes
 ============
 
+1.3.7
+-----
+* Format plugin classes: Header.add_template() and Header.add_geometry are now Header member functions.
+* Header class: hdr is now a Header instance. Was: dict. Dict is no longer accepted.
+* Viewer class now inherits object class.
+* Series.setDicomAttribute(): Always make a new attribute to avoid cross-talk after copying Series instances.
+* Added Series.deepcopy().
+
 1.3.6
 -----
 
