@@ -105,12 +105,12 @@ class ITKPlugin(AbstractPlugin):
             raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
 
         # Color image?
-        hdr['photometricInterpretation'] = 'MONOCHROME2'
-        hdr['color'] = False
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        hdr.color = False
         if o.GetNumberOfComponentsPerPixel() == 3:
             logger.debug('ITKPlugin._read_image: RGB color')
-            hdr['photometricInterpretation'] = 'RGB'
-            hdr['color'] = True
+            hdr.photometricInterpretation = 'RGB'
+            hdr.color = True
 
         return o, img
 
@@ -179,7 +179,7 @@ class ITKPlugin(AbstractPlugin):
         v = spacing.GetVnlVector()
         logger.debug('ITKPlugin._set_tags: hdr {}'.format(hdr))
         logger.debug('ITKPlugin._set_tags: spacing {} {} {}'.format(v.get(2), v.get(1), v.get(0)))
-        hdr['spacing'] = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
+        hdr.spacing = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
         if v.size() > 3:
             dt = float(v.get(3))
         else:
@@ -187,8 +187,8 @@ class ITKPlugin(AbstractPlugin):
 
         # Set imagePositions for first slice
         v = origin.GetVnlVector()
-        hdr['imagePositions'] = {}
-        hdr['imagePositions'][0] = np.array([v.get(2), v.get(1), v.get(0)])
+        hdr.imagePositions = {}
+        hdr.imagePositions[0] = np.array([v.get(2), v.get(1), v.get(0)])
 
         # Do not calculate transformationMatrix here. Will be calculated by Series() when needed.
         # self.transformationMatrix = transformMatrix(direction, hdr['imagePositions'][0])
@@ -198,14 +198,14 @@ class ITKPlugin(AbstractPlugin):
         # Set image orientation
         iop = self._orientation_from_vnl_matrix(direction)
         logger.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
-        hdr['orientation'] = np.array((iop[2], iop[1], iop[0],
+        hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                        iop[5], iop[4], iop[3]))
 
         # Set tags
         axes = list()
         _actual_shape = si.shape
         _color = False
-        if 'color' in hdr and hdr['color']:
+        if hdr.color:
             _actual_shape = si.shape[:-1]
             _color = True
             logger.debug('ITKPlugin.read: color')
@@ -213,28 +213,28 @@ class ITKPlugin(AbstractPlugin):
         nt = nz = 1
         axes.append(imagedata.axis.UniformLengthAxis(
             'row',
-            hdr['imagePositions'][0][1],
+            hdr.imagePositions[0][1],
             _actual_shape[-2],
-            hdr['spacing'][1])
+            hdr.spacing[1])
         )
         axes.append(imagedata.axis.UniformLengthAxis(
             'column',
-            hdr['imagePositions'][0][2],
+            hdr.imagePositions[0][2],
             _actual_shape[-1],
-            hdr['spacing'][2])
+            hdr.spacing[2])
         )
         if _actual_ndim > 2:
             nz = _actual_shape[-3]
             axes.insert(0, imagedata.axis.UniformLengthAxis(
                 'slice',
-                hdr['imagePositions'][0][0],
+                hdr.imagePositions[0][0],
                 nz,
-                hdr['spacing'][0])
+                hdr.spacing[0])
                         )
         if _actual_ndim > 3:
             nt = _actual_shape[-4]
             axes.insert(0, imagedata.axis.UniformLengthAxis(
-                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                imagedata.formats.input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt,
                 dt)
@@ -250,8 +250,8 @@ class ITKPlugin(AbstractPlugin):
                     ['r', 'g', 'b']
                 )
             )
-        hdr['axes'] = axes
-        hdr['tags'] = tags
+        hdr.axes = axes
+        hdr.tags = tags
 
         logger.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
 
