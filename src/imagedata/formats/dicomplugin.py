@@ -16,6 +16,7 @@ from pydicom.datadict import tag_for_keyword
 import imagedata.formats
 import imagedata.axis
 from imagedata.formats.abstractplugin import AbstractPlugin
+from imagedata.header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -103,9 +104,9 @@ class DICOMPlugin(AbstractPlugin):
 
         Args:
             self: DICOMPlugin instance
-            hdr: header dict
+            hdr: header
         Returns:
-            hdr: header dict
+            hdr: header
                 - seriesNumber
                 - seriesDescription
                 - imageType
@@ -114,38 +115,38 @@ class DICOMPlugin(AbstractPlugin):
                 - imagePositions
                 - axes
         """
-        hdr['studyInstanceUID'] = \
+        hdr.studyInstanceUID = \
             self.getDicomAttribute(tag_for_keyword('StudyInstanceUID'))
-        hdr['studyID'] = \
+        hdr.studyID = \
             self.getDicomAttribute(tag_for_keyword('StudyID'))
-        hdr['seriesInstanceUID'] = \
+        hdr.seriesInstanceUID = \
             self.getDicomAttribute(tag_for_keyword('SeriesInstanceUID'))
         frame_uid = self.getDicomAttribute(tag_for_keyword('FrameOfReferenceUID'))
         if frame_uid:
-            hdr['frameOfReferenceUID'] = frame_uid
-        hdr['SOPClassUID'] = self.getDicomAttribute(tag_for_keyword('SOPClassUID'))
-        hdr['seriesNumber'] = self.getDicomAttribute(tag_for_keyword('SeriesNumber'))
-        hdr['seriesDescription'] = self.getDicomAttribute(tag_for_keyword('SeriesDescription'))
-        hdr['imageType'] = self.getDicomAttribute(tag_for_keyword('ImageType'))
+            hdr.frameOfReferenceUID = frame_uid
+        hdr.SOPClassUID = self.getDicomAttribute(tag_for_keyword('SOPClassUID'))
+        hdr.seriesNumber = self.getDicomAttribute(tag_for_keyword('SeriesNumber'))
+        hdr.seriesDescription = self.getDicomAttribute(tag_for_keyword('SeriesDescription'))
+        hdr.imageType = self.getDicomAttribute(tag_for_keyword('ImageType'))
 
-        hdr['accessionNumber'] = self.getDicomAttribute(tag_for_keyword('AccessionNumber'))
-        hdr['patientName'] = self.getDicomAttribute(tag_for_keyword('PatientName'))
-        hdr['patientID'] = self.getDicomAttribute(tag_for_keyword('PatientID'))
-        hdr['patientBirthDate'] = self.getDicomAttribute(tag_for_keyword('PatientBirthDate'))
+        hdr.accessionNumber = self.getDicomAttribute(tag_for_keyword('AccessionNumber'))
+        hdr.patientName = self.getDicomAttribute(tag_for_keyword('PatientName'))
+        hdr.patientID = self.getDicomAttribute(tag_for_keyword('PatientID'))
+        hdr.patientBirthDate = self.getDicomAttribute(tag_for_keyword('PatientBirthDate'))
 
-        hdr['spacing'] = self.__get_voxel_spacing()
+        hdr.spacing = self.__get_voxel_spacing()
 
         # Image position (patient)
         # Reverse orientation vectors from (x,y,z) to (z,y,x)
         iop = self.getDicomAttribute(tag_for_keyword("ImageOrientationPatient"))
         if iop is not None:
-            hdr['orientation'] = np.array((iop[2], iop[1], iop[0],
-                                           iop[5], iop[4], iop[3]))
+            hdr.orientation = np.array((iop[2], iop[1], iop[0],
+                                        iop[5], iop[4], iop[3]))
 
         # Extract imagePositions
-        hdr['imagePositions'] = {}
-        for _slice in hdr['DicomHeaderDict']:
-            hdr['imagePositions'][_slice] = self.getOriginForSlice(_slice)
+        hdr.imagePositions = {}
+        for _slice in hdr.DicomHeaderDict:
+            hdr.imagePositions[_slice] = self.getOriginForSlice(_slice)
 
     def __get_voxel_spacing(self):
         # Spacing
@@ -219,7 +220,7 @@ class DICOMPlugin(AbstractPlugin):
             opts: input options (dict)
         Returns:
             Tuple of
-                - hdr: Header dict
+                - hdr: Header
                     - input_format
                     - input_order
                     - slices
@@ -254,11 +255,11 @@ class DICOMPlugin(AbstractPlugin):
 
         # Look-up first image to determine pixel type
         _color = 0
-        tag, member_name, im = hdr['DicomHeaderDict'][0][0]
-        hdr['photometricInterpretation'] = 'MONOCHROME2'
-        hdr['color'] = False
+        tag, member_name, im = hdr.DicomHeaderDict[0][0]
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        hdr.color = False
         if 'PhotometricInterpretation' in im:
-            hdr['photometricInterpretation'] = im.PhotometricInterpretation
+            hdr.photometricInterpretation = im.PhotometricInterpretation
         matrix_dtype = np.uint16
         if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
                 (abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
@@ -268,9 +269,9 @@ class DICOMPlugin(AbstractPlugin):
         logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
             _color = 1
-            hdr['color'] = True
+            hdr.color = True
             shape = shape + (im.SamplesPerPixel,)
-            hdr['axes'].append(
+            hdr.axes.append(
                 imagedata.axis.VariableAxis(
                     'rgb',
                     ['r', 'g', 'b']
@@ -296,16 +297,16 @@ class DICOMPlugin(AbstractPlugin):
         si = np.zeros(shape, matrix_dtype)
         # process = psutil.Process()
         # print(process.memory_info())
-        for _slice in hdr['DicomHeaderDict']:
+        for _slice in hdr.DicomHeaderDict:
             # noinspection PyUnusedLocal
-            _done = [False for x in range(len(hdr['DicomHeaderDict'][_slice]))]
-            for tag, member_name, im in hdr['DicomHeaderDict'][_slice]:
+            _done = [False for x in range(len(hdr.DicomHeaderDict[_slice]))]
+            for tag, member_name, im in hdr.DicomHeaderDict[_slice]:
                 archive, fname = member_name
                 member = archive.getmembers([fname, ])
                 if len(member) != 1:
                     raise IndexError('Should not be multiple files for a filename')
                 member = member[0]
-                tgs = np.array(hdr['tags'][_slice])
+                tgs = np.array(hdr.tags[_slice])
                 # idx = np.where(hdr.tags[_slice] == tag)[0][0] # tags is not numpy array
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
@@ -340,11 +341,11 @@ class DICOMPlugin(AbstractPlugin):
                     raise
 
         # Simplify shape
-        self._reduce_shape(si, hdr['axes'])
+        self._reduce_shape(si, hdr.axes)
         logger.debug('DICOMPlugin.read: si {}'.format(si.shape))
 
-        # nz = len(hdr['DicomHeaderDict'])
-        # hdr['slices'] = nz
+        # nz = len(hdr.DicomHeaderDict)
+        # hdr.slices = nz
 
         if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr, si)
@@ -432,10 +433,10 @@ class DICOMPlugin(AbstractPlugin):
             self: format plugin instance
             f: file handle or filename (depending on self._need_local_file)
             opts: Input options (dict)
-            hdr: Header dict
+            hdr: Header
         Returns:
             Tuple of
-                - hdr: Header dict
+                - hdr: Header
                     Return values:
                     - info: Internal data for the plugin
                           None if the given file should not be included (e.g. raw file)
@@ -450,10 +451,10 @@ class DICOMPlugin(AbstractPlugin):
         Args:
             self: format plugin instance
             image_list: list with (info,img) tuples
-            hdr: Header dict
+            hdr: Header
             si: numpy array (multi-dimensional)
         Returns:
-            hdr: Header dict
+            hdr: Header
         """
 
         pass
@@ -469,7 +470,7 @@ class DICOMPlugin(AbstractPlugin):
             skip_pixels: Do not read pixel data (default: True)
         Returns:
             Tuple of
-                - hdr: header dict
+                - hdr: header
                 - shape: required shape of image data
         """
 
@@ -505,7 +506,7 @@ class DICOMPlugin(AbstractPlugin):
             skip_pixels: Do not read pixel data (default: True)
         Returns:
             Tuple of
-                - hdr: dict
+                - hdr: Header
                 - shape: tuple
         """
         logger.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
@@ -551,7 +552,7 @@ class DICOMPlugin(AbstractPlugin):
             opts: options (dict)
         Returns:
             Tuple of
-                - hdr dict
+                - hdr
                     - input_format
                     - input_order
                     - slices
@@ -560,12 +561,13 @@ class DICOMPlugin(AbstractPlugin):
                     - tags
                 - shape
         """
-        hdr = {
-            'input_format': self.name,
-            'input_order': input_order}
+
+        hdr = Header()
+        hdr.input_format = self.name
+        hdr.input_order = input_order
         sliceLocations = sorted(header_dict)
-        # hdr['slices'] = len(sliceLocations)
-        hdr['sliceLocations'] = sliceLocations
+        # hdr.slices = len(sliceLocations)
+        hdr.sliceLocations = sliceLocations
 
         # Verify same number of images for each slice
         if len(header_dict) == 0:
@@ -644,8 +646,8 @@ class DICOMPlugin(AbstractPlugin):
                 i += 1
             islice += 1
         self.DicomHeaderDict = sorted_headers
-        hdr['DicomHeaderDict'] = sorted_headers
-        hdr['tags'] = tag_list
+        hdr.DicomHeaderDict = sorted_headers
+        hdr.tags = tag_list
         nz = len(header_dict)
         if frames is not None and frames > 1:
             nz = frames
@@ -681,7 +683,7 @@ class DICOMPlugin(AbstractPlugin):
             ipp[2],
             columns,
             spacing[2]))
-        hdr['axes'] = axes
+        hdr.axes = axes
         return hdr, shape
 
     def process_member(self, image_dict, archive, member_name, member, opts, skip_pixels=True):
@@ -726,16 +728,16 @@ class DICOMPlugin(AbstractPlugin):
         # si[t,slice,rows,columns]
 
         # Extract acqtime for each image
-        slices = len(hdr['sliceLocations'])
+        slices = len(hdr.sliceLocations)
         timesteps = self._count_timesteps(hdr)
         logger.info(
-            "Slices: %d, apparent time steps: %d, actual time steps: %d" % (slices, len(hdr['tags']), timesteps))
+            "Slices: %d, apparent time steps: %d, actual time steps: %d" % (slices, len(hdr.tags), timesteps))
         new_shape = (timesteps, slices, si.shape[2], si.shape[3])
         newsi = np.zeros(new_shape, dtype=si.dtype)
         acq = np.zeros([slices, timesteps])
-        for _slice in hdr['DicomHeaderDict']:
+        for _slice in hdr.DicomHeaderDict:
             t = 0
-            for tg, fname, im in hdr['DicomHeaderDict'][_slice]:
+            for tg, fname, im in hdr.DicomHeaderDict[_slice]:
                 # logger.debug(_slice, tg, fname)
                 acq[_slice, t] = tg
                 t += 1
@@ -748,32 +750,32 @@ class DICOMPlugin(AbstractPlugin):
                 acq[_slice, t] = min_acq
 
         # Set new acqtime for each image
-        for _slice in hdr['DicomHeaderDict']:
+        for _slice in hdr.DicomHeaderDict:
             t = 0
-            for tg, fname, im in hdr['DicomHeaderDict'][_slice]:
+            for tg, fname, im in hdr.DicomHeaderDict[_slice]:
                 im.AcquisitionTime = "%f" % acq[_slice, t]
                 newsi[t, _slice, :, :] = si[t, _slice, :, :]
                 t += 1
 
         # Update taglist in hdr
         new_tag_list = {}
-        for _slice in hdr['DicomHeaderDict']:
+        for _slice in hdr.DicomHeaderDict:
             new_tag_list[_slice] = []
             for t in range(acq.shape[1]):
                 new_tag_list[_slice].append(acq[0, t])
-        hdr['tags'] = new_tag_list
+        hdr.tags = new_tag_list
         return newsi
 
     # noinspection PyArgumentList
     @staticmethod
     def _count_timesteps(hdr):
-        slices = len(hdr['sliceLocations'])
+        slices = len(hdr.sliceLocations)
         timesteps = np.zeros([slices], dtype=int)
-        for _slice in hdr['DicomHeaderDict']:
-            # for tg, fname, image in hdr['DicomHeaderDict'][_slice]:
-            # for _ in hdr['DicomHeaderDict'][_slice]:
+        for _slice in hdr.DicomHeaderDict:
+            # for tg, fname, image in hdr.DicomHeaderDict[_slice]:
+            # for _ in hdr.DicomHeaderDict[_slice]:
             #    timesteps[_slice] += 1
-            timesteps[_slice] = len(hdr['DicomHeaderDict'][_slice])
+            timesteps[_slice] = len(hdr.DicomHeaderDict[_slice])
             if timesteps.min() != timesteps.max():
                 raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
         return timesteps.max()
@@ -899,10 +901,10 @@ class DICOMPlugin(AbstractPlugin):
             self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
-        # Not used # self.seriesTime = self.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
+        # Not used # self.seriesTime = obj.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
         # self.serInsUid = si.header.seriesInstanceUID
         # Set new series instance UID when writing
-        self.serInsUid = si.header.new_uid()
+        self.serInsUid = si.header.seriesInstanceUID
         self.input_options = opts
 
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
@@ -1551,7 +1553,7 @@ class DICOMPlugin(AbstractPlugin):
         :param hdr: list with sorted dicom files
         """
 
-        slices = hdr['slices']
+        slices = hdr.slices
 
         # Create affine matrix
         # (http://nipy.sourceforge.net/nibabel/dicom/dicom_orientation.html#dicom-slice-affine)
@@ -1582,8 +1584,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             step = (image_pos - last_image_pos) / (1 - slices)
 
-        # check if this is actually a volume and not all slices on the same
-        # location
+        # check if this is actually a volume and not all slices on the same location
         if np.linalg.norm(step) == 0.0:
             raise ValueError("NOT_A_VOLUME")
 
