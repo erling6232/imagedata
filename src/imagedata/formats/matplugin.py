@@ -66,10 +66,10 @@ class MatPlugin(AbstractPlugin):
             self: format plugin instance
             f: file handle or filename (depending on self._need_local_file)
             opts: Input options (dict)
-            hdr: Header dict
+            hdr: Header
         Returns:
             Tuple of
-                hdr: Header dict
+                hdr: Header
                     Return values:
                         - info: Internal data for the plugin
                             None if the given file should not be included (e.g. raw file)
@@ -103,14 +103,14 @@ class MatPlugin(AbstractPlugin):
         Args:
             self: format plugin instance
             image_list: list with (info,img) tuples
-            hdr: Header dict
+            hdr: Header
             si: numpy array (multi-dimensional)
         Returns:
-            hdr: Header dict
+            hdr: Header
         """
 
         # Set spacing
-        hdr['spacing'] = (1.0, 1.0, 1.0)
+        hdr.spacing = (1.0, 1.0, 1.0)
 
         axes = list()
         axes.append(imagedata.axis.UniformLengthAxis(
@@ -135,11 +135,11 @@ class MatPlugin(AbstractPlugin):
         if si.ndim > 3:
             nt = si.shape[-4]
             axes.insert(0, imagedata.axis.UniformLengthAxis(
-                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+                imagedata.formats.input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt)
                         )
-        hdr['axes'] = axes
+        hdr.axes = axes
         logger.debug('matplugin._set_tags nt {}, nz {}'.format(
             nt, nz))
         dt = 1
@@ -147,11 +147,11 @@ class MatPlugin(AbstractPlugin):
         tags = {}
         for slice in range(nz):
             tags[slice] = np.array(times)
-        hdr['tags'] = tags
+        hdr.tags = tags
         # logger.debug('matplugin._set_tags tags {}'.format(tags))
 
-        hdr['photometricInterpretation'] = 'MONOCHROME2'
-        hdr['color'] = False
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        hdr.color = False
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as MAT file
