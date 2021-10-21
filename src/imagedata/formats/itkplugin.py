@@ -199,7 +199,7 @@ class ITKPlugin(AbstractPlugin):
         iop = self._orientation_from_vnl_matrix(direction)
         logger.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
         hdr.orientation = np.array((iop[2], iop[1], iop[0],
-                                       iop[5], iop[4], iop[3]))
+                                    iop[5], iop[4], iop[3]))
 
         # Set tags
         axes = list()

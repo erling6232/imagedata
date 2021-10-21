@@ -381,12 +381,12 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_cross_talk")
     def test_cross_talk(self):
         si = Series('data/dicom/time/time00')
-        print('si before', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
+        # print('si before', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
         si1 = si[0]
         si1.seriesNumber = si.seriesNumber + 10
         self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
-        print('si after', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
-        print('si1', si1.getDicomAttribute('SeriesInstanceUID'), si1.seriesInstanceUID)
+        # print('si after', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
+        # print('si1', si1.getDicomAttribute('SeriesInstanceUID'), si1.seriesInstanceUID)
         self.assertNotEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
 
         si2 = Series('data/dicom/time/time00')
