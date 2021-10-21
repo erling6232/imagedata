@@ -220,6 +220,12 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a, s)
         self.assertEqual(s.slices, 4)
 
+    #@unittest.skip("skipping test_assign_slice_input_order")
+    def test_assign_slice_input_order(self):
+        si = Series('data/dicom/time', 'time')
+        sic = Series(si)
+        self.assertEqual(si.input_order, sic.input_order)
+
     #@unittest.skip("skipping test_slicing_z")
     def test_slicing_z(self):
         a1 = np.eye(128)
