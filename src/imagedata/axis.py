@@ -36,10 +36,6 @@ class UniformAxis(Axis):
         self.step = step
 
     def __getitem__(self, item):
-        # logger.debug('UniformAxis: item {}'.format(item))
-        # logger.debug('UniformAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, stop, step = 0, None, 1
         # logger.debug('UniformAxis: item %s' % type(item))
         if type(item) == Ellipsis:
@@ -90,10 +86,6 @@ class UniformLengthAxis(UniformAxis):
         self.n = n
 
     def __getitem__(self, item):
-        # logger.debug('UniformLengthAxis: item {}'.format(item))
-        # logger.debug('UniformLengthAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, n, step = self.start, self.n, self.step
         # logger.debug('UniformLengthAxis: item %s' % type(item))
         if type(item) == Ellipsis:
@@ -142,10 +134,6 @@ class VariableAxis(Axis):
         """Slice the axis
         - item: tuple of slice indices
         """
-        # logger.debug('VariableAxis: item {}'.format(item))
-        # logger.debug('VariableAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, stop, step = 0, None, 1
         # logger.debug('VariableAxis: item %s' % type(item))
         if type(item) == Ellipsis:
