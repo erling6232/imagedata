@@ -11,6 +11,7 @@ import logging
 import numpy as np
 # import pydicom.dataset
 import imagedata.formats
+from imagedata.header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +105,9 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 - si[tag,slice,rows,columns]: numpy array
         """
 
-        hdr = {
-            'input_format': self.name,
-            'input_order': input_order
-        }
+        hdr = Header()
+        hdr.input_format = self.name
+        hdr.input_order = input_order
 
         # image_list: list of tuples (hdr,si)
         logger.debug("AbstractPlugin.read: sources {}".format(sources))
@@ -155,21 +155,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
 
         _shape = si.shape
-        if 'color' in hdr and hdr['color']:
+        if hdr.color:
             _shape = si.shape[:-1]
             logger.debug('AbstractPlugin.read: color')
         logger.debug('AbstractPlugin.read: _shape {}'.format(_shape))
         _ndim = len(_shape)
         nz = 1
-        # ny, nx = _shape[-2:]
         if _ndim > 2:
             nz = _shape[-3]
-        # if _ndim > 3:
-        #     nt = _shape[-4]
-        # hdr['slices'] = nz
         logger.debug('AbstractPlugin.read: slices {}'.format(nz))
 
-        # hdr['spacing'], hdr['tags']
         logger.debug('AbstractPlugin.read: calling _set_tags')
         self._set_tags(image_list, hdr, si)
         # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
@@ -180,9 +175,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        logger.debug('AbstractPlugin.read: hdr {}'.format(
-            hdr.keys()))
-        # logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
+        logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
         return hdr, si
 
     def _need_local_file(self):
