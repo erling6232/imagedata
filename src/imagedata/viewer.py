@@ -16,7 +16,7 @@ from imagedata.series import Series
 POSITIVE_EPS = 1e-3
 
 
-class Viewer:
+class Viewer(object):
     """Viewer -- a graphical tool to display and interact with Series objects.
 
     Args:
