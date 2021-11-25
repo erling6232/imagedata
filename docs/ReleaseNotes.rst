@@ -3,6 +3,10 @@
 ReleaseNotes
 ============
 
+1.3.8
+-----
+Dicomplugin.sort_images(): Re-raise exception when data cannot be sorted, or when tag is None.
+
 1.3.7
 -----
 * Format plugin classes: Header.add_template() and Header.add_geometry are now Header member functions.
