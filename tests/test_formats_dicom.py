@@ -356,6 +356,22 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    # @unittest.skip("skipping test_read_dicom_not_DWI")
+    def test_read_dicom_not_DWI(self):
+        with self.assertRaises(imagedata.formats.CannotSort) as context:
+            d = Series(
+                os.path.join('data', 'dicom', 'time'),
+                'b'
+            )
+
+    # @unittest.skip("skipping test_read_dicom_not_DWI_no_CSA")
+    def test_read_dicom_not_DWI_no_CSA(self):
+        with self.assertRaises(imagedata.formats.CannotSort) as context:
+            d = Series(
+                os.path.join('data', 'dicom', 'lena_color.dcm'),
+                'b'
+            )
+
 
 class TestDicomSlicing(unittest.TestCase):
     def setUp(self):
