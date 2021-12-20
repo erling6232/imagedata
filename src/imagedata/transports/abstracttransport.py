@@ -24,6 +24,8 @@ class AbstractTransport(object, metaclass=ABCMeta):
     walk() method
     """
 
+    plugin_type = 'transport'
+
     def __init__(self, name, description, authors, version, url, schemes):
         object.__init__(self)
         self.__name = name
