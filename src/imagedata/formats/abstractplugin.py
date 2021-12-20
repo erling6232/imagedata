@@ -36,6 +36,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         transformationMatrix
     """
 
+    plugin_type = 'format'
+
     def __init__(self, name, description, authors, version, url):
         object.__init__(self)
         self.__name = name
