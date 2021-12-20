@@ -605,6 +605,7 @@ class DICOMPlugin(AbstractPlugin):
                         raise imagedata.formats.CannotSort('Tag not found in dataset')
                 except Exception as e:
                     print(e)
+                    raise
                 if tag not in tag_list[islice] or accept_duplicate_tag:
                     tag_list[islice].append(tag)
                 else:
