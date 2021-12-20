@@ -33,6 +33,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
     write() method
     """
 
+    plugin_type = 'archive'
+
     def __init__(self, name, description, authors, version, url, _mimetypes):
         object.__init__(self)
         self.__name = name
