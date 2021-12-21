@@ -116,6 +116,7 @@ class TestDicomTransport(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
+        self.assertEqual((192, 152), si1.shape)
         si1.write('dicom://localhost:11112/Temp', formats=['dicom'])
         si2 = Series(
             scpdir.name
