@@ -208,3 +208,12 @@ def get_size(obj, seen=None):
 def get_plugins_list():
     from imagedata import plugins
     return plugins['format'] if 'format' in plugins else []
+
+
+def find_plugin(ftype):
+    """Return plugin for given format type."""
+    plugins = get_plugins_list()
+    for pname, ptype, pclass in plugins:
+        if ptype == ftype:
+            return pclass()
+    raise FormatPluginNotFound("Plugin for format {} not found.".format(ftype))
