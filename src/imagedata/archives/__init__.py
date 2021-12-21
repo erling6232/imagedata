@@ -57,9 +57,7 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
     if mimetype is None:
         logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
         return find_plugin('filesystem', url, mode, opts=opts)
-    logger.debug("imagedata.archive.find_mimetype_plugins: {}".format(plugins['archive'].keys()))
-    for ptype in plugins['archive'].keys():
-        pname, pclass = plugins['archive'][ptype]
+    for pname, ptype, pclass in plugins['archive']:
         logger.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
             logger.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(ptype, mode))
