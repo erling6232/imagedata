@@ -26,4 +26,5 @@ for _plugin in _plugins:
     _class = _plugin.load()
     if _class.plugin_type not in plugins:
         plugins[_class.plugin_type] = []
-    plugins[_class.plugin_type].append((_plugin.name, _class.name, _class))
+    if (_plugin.name, _class.name, _class) not in plugins[_class.plugin_type]:
+        plugins[_class.plugin_type].append((_plugin.name, _class.name, _class))
