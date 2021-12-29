@@ -17,7 +17,6 @@ upload:
 
 git:
 	git log --oneline --decorate
-	read a
 	git tag -a `cat VERSION.txt`
 	git push origin master --tags
 
