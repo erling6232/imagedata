@@ -3,6 +3,26 @@
 Developer Documentation
 =======================
 
+Writing plugins
+---------------
+
+Plugins will be defined by entry points in setup.cfg. See
+`imagedata_format_ps <https://github.com/erling6232/imagedata_format_ps>`_
+for an example.
+
+Entry points are defined the *setup.cfg*, and shall always be named **imagedata_plugins**:
+
+.. code-block::
+
+    [options.entry_points]
+    imagedata_plugins =
+        psformat = imagedata_format_ps.psplugin:PSPlugin
+
+The plugin should inherit **AbstractPlugin**, **AbstractArchive** or
+**AbstractTransport**.
+The inheritance will determine whether the plugin handles format, archive or transport.
+
+
 Generating distribution archives
 --------------------------------
 
