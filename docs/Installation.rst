@@ -12,11 +12,11 @@ and transports:
 
     pip install imagedata
 
-The included formats include DICOM, ITK, mat files and Nifti-1.
+The formats include DICOM, ITK, mat files and Nifti-1.
 
-The included archives include filesystem and zip archive.
+The archives include filesystem and zip archive.
 
-The included transports include file, dicom and xnat.
+The transports include file, dicom and xnat.
 
 Separate plugins provide support for formats including PostScript (PDF) (read-only) and BIFF. To install:
 
