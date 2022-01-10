@@ -5,7 +5,7 @@ Plugin Architecture
 
 The imagedata package defines a plugin architecture allowing the user to
 add modules for image format, archive and transport methods.
-The architecture is depicted in Figure 3.
+The architecture is depicted in the Figure here.
 
 .. image:: Figure_Architecture.png
 
