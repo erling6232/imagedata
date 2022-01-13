@@ -1,14 +1,17 @@
 ---
-title: 'Imagedata: A Python library to read and write medical image data into NumPy arrays'
+
+title: 'Imagedata: A Python library to manage medical image data
+in a NumPy array subclass `Series`'
 
 tags:
-  - dicom
+  - DICOM
   - python
   - medical
   - imaging
   - pydicom
   - pynetdicom
-  - itk
+  - ITK
+  - NIfTI
 
 authors:
   - name: Erling Andersen
@@ -29,7 +32,7 @@ bibliography: paper.bib
 
 `Imagedata` is a python library to read and write medical image data into
 NumPy arrays.
-``Imagedata`` will handle multi-dimensional data.
+`Imagedata` will handle multi-dimensional data.
 In particular, imagedata will read, sort and write ``DICOM`` 3D and 4D series based on
 defined tags.
 Imagedata will handle geometry information between the medical image data formats
@@ -73,13 +76,16 @@ and referenced from text using \autoref{fig:plugins}.
 
 A simple example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_:
 
-    from imagedata.series import Series
-    a = Series('dirA', 'time')
-    b = Series('dirB', 'time')
-    assert a.shape == b.shape, "Shape of a and b differ"
-    # Notice how a and b are treated as numpy arrays
-    c = (a + b) / 2
-    c.write('dirMean')
+~~~
+from imagedata.series import Series
+a = Series('dirA', 'time')
+b = Series('dirB', 'time')
+assert a.shape == b.shape, "Shape of a and b differ"
+
+# Notice how a and b are treated as numpy arrays
+c = (a + b) / 2
+c.write('dirMean')
+~~~
 
 ## Sorting
 
@@ -106,14 +112,16 @@ These operations are possible:
 * Step through tags (time, b-values, etc.): Left/right array keys.
 * Move through series when many series are displayed: PageUp/PageDown keys.
 
-      # View a Series instance
-      a.show()
+~~~
+# View a Series instance
+a.show()
 
-      # View both a and b Series
-      a.show(b)
+# View both a and b Series
+a.show(b)
 
-      # View several Series
-      a.show([b, c, d])
+# View several Series
+a.show([b, c, d])
+~~~
 
 ## Converting data from DICOM and back
 
@@ -122,31 +130,37 @@ In order to maintain the coupling to patient data, you may convert your data to 
 
 Example using the command line utility image_data:
 
-    image_data --of nifti niftiDir dicomDir # Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+~~~
+image_data --of nifti niftiDir dicomDir
 
-    # Convert the niftiResult back to DICOM, using dicomDir as a template
-    image_data --of dicom --template dicomDir dicomResult niftiResult
-    # The resulting dicomResult will be a new DICOM series that could be added to a PACS
+# Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
 
-    # Set series number and series description before transmitting to PACS using DICOM transport
-    image_data --sernum 1004 --serdes 'Processed data' \
-    dicom://server:104/AETITLE dicomResult
+# Convert the niftiResult back to DICOM, using dicomDir as a template
+image_data --of dicom --template dicomDir dicomResult niftiResult
+# The resulting dicomResult will be a new DICOM series that could be added to a PACS
+
+# Set series number and series description before transmitting to PACS using DICOM transport
+image_data --sernum 1004 --serdes 'Processed data' \
+           dicom://server:104/AETITLE dicomResult
+~~~
 
 The same example using python code:
 
-    from imagedata.series import Series
-    a = Series('dicomDir')
-    a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
+~~~
+from imagedata.series import Series
+a = Series('dicomDir')
+a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
 
-    # Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+# Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
 
-    b = Series('niftiResult', template=a)    # Or template='dicomDir'
-    b.write('dicomResult')   # Here, DICOM is default output format
+b = Series('niftiResult', template=a)    # Or template='dicomDir'
+b.write('dicomResult')   # Here, DICOM is default output format
 
-    # Set series number and series description before transmitting to PACS using DICOM transport
-    b.seriesNumber = 1004
-    b.seriesDescription = 'Processed data'
-    b.write(' dicom://server:104/AETITLE')
+# Set series number and series description before transmitting to PACS using DICOM transport
+b.seriesNumber = 1004
+b.seriesDescription = 'Processed data'
+b.write(' dicom://server:104/AETITLE')
+~~~
 
 # Acknowledgements
 
