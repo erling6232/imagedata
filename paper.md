@@ -1,5 +1,5 @@
 ---
-title: 'imagedata: A Python library to read and write medical image data into numpy arrays'
+title: 'Imagedata: A Python library to read and write medical image data into NumPy arrays'
 
 tags:
   - dicom
@@ -11,7 +11,7 @@ tags:
   - itk
 
 authors:
-  - name: Erling Andersen^[first author]
+  - name: Erling Andersen
     orcid: 0000-0001-8268-1206
     affiliation: "1"
 
@@ -27,7 +27,7 @@ bibliography: paper.bib
 
 # Summary
 
-``Imagedata`` is a python library to read and write medical image data into
+`Imagedata` is a python library to read and write medical image data into
 NumPy arrays.
 ``Imagedata`` will handle multi-dimensional data.
 In particular, imagedata will read, sort and write ``DICOM`` 3D and 4D series based on
