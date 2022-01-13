@@ -1,7 +1,6 @@
 ---
 
-title: 'Imagedata: A Python library to manage medical image data
-in a NumPy array subclass `Series`'
+title: 'Imagedata: A Python library to manage medical image data in a NumPy array subclass `Series`'
 
 tags:
   - DICOM
