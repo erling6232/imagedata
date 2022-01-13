@@ -1,17 +1,15 @@
 ---
-
-title: 'Imagedata: A Python library to manage medical image data in a
-NumPy array subclass Series'
+title: 'Imagedata: A Python library to manage medical image data in a NumPy array subclass Series'
 
 tags:
-  - DICOM
+  - dicom
   - python
   - medical
   - imaging
   - pydicom
   - pynetdicom
-  - ITK
-  - NIfTI
+  - itk
+  - nifti
 
 authors:
   - name: Erling Andersen
@@ -23,44 +21,42 @@ affiliations:
     index: 1
 
 date: 13 January 2022
-
 bibliography: paper.bib
-
 ---
 
 # Summary
 
 `Imagedata` is a python library to read and write medical image data into
 NumPy arrays.
-`Imagedata` will handle multi-dimensional data.
-In particular, imagedata will read, sort and write ``DICOM`` 3D and 4D series based on
+Imagedata will handle multi-dimensional data.
+In particular, imagedata will read, sort and write DICOM 3D and 4D series based on
 defined tags.
 Imagedata will handle geometry information between the medical image data formats
-like ``DICOM``, ``NIfTI`` and ``ITK``.
+like DICOM, NIfTI and ITK.
 
 # Statement of need
 
-``DICOM`` is the standard image format and protocol when working with
+DICOM is the standard image format and protocol when working with
 medical images in the clinic. Python has support for reading and writing
 DICOM images through the use of python packages, e.g. pydicom or GDCM.
 These packages, however, leave the reading and sorting of multiple files
 to the user.  Also, they do not easily provide access to medical images
-stored in other formats: ``NIfTI`` [@nifti1] and ``ITK`` [@itk2002] to name a few.
+stored in other formats: NIfTI [@nifti1] and ITK [@itk2002] to name a few.
 
 When setting up pipelines to process clinical data, patient information
 should be maintained throughout to maintain patient safety. If the
-process involves ``DICOM`` data only, this requirement is easily fulfilled.
+process involves DICOM data only, this requirement is easily fulfilled.
 However, some popular image processing systems require formats that do
 not maintain patient information. The ability to attach DICOM header
 data to these other formats let the user exploit a wider set of image
 processing software.
 
-``Imagedata`` extends NumPy arrays [@harris2020array] with ``DICOM``
+Imagedata extends NumPy arrays [@harris2020array] with DICOM
 information and functionality.
 Additionally, importing and exporting images to other image formats is available
 through a plugin architecture.
 
-``Imagedata`` as a Python package provides functions which supports developing Python
+Imagedata as a Python package provides functions which supports developing Python
 applications, including reading and writing complete image series, and displaying
 image series using a simple viewer.
 
@@ -89,8 +85,8 @@ c.write('dirMean')
 
 ## Sorting
 
-Sorting of ``DICOM`` slices is considered a major task. Imagedata will sort slices into volumes based on slice location.
-Volumes may be sorted on a number of ``DICOM`` tags:
+Sorting of DICOM slices is considered a major task. Imagedata will sort slices into volumes based on slice location.
+Volumes may be sorted on a number of DICOM tags:
 
 * 'time': Dynamic time series, sorted on acquisition time
 * 'b': Diffusion weighted series, sorted on diffusion _b_ value
@@ -125,8 +121,8 @@ a.show([b, c, d])
 
 ## Converting data from DICOM and back
 
-In many situations you need to process patient data using a tool that do not accept ``DICOM`` data.
-In order to maintain the coupling to patient data, you may convert your data to e.g. ``NIfTI`` and back.
+In many situations you need to process patient data using a tool that do not accept DICOM data.
+In order to maintain the coupling to patient data, you may convert your data to e.g. NIfTI and back.
 
 Example using the command line utility image_data:
 
