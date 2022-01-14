@@ -98,9 +98,24 @@ providing NumPy ndarrays, and accessing medical images in various formats.
 
 # Architecture
 
-Figures can be included like this:
+The `Series class` is a `numpy.ndarray` subclass. 
+A Series object is instantiated from a source, either from input files, 
+from a server connection, or from an ndarray.
+DICOM metadata is handled by a `Header` class, which also maintains an `Axes`class
+defining the axes of the array dimensions.
+
+Handling specific image data formats are done by Formats plugins,
+while Archives plugins give access to files stored both
+in the filesystem and in compressed archives.
+The Transports plugins let the user access networked resources given by a URL.
+
+See the plugin architecture and main classes in Figure \autoref{fig:plugins}.
+
+Plugins are defined using python's entry_point [@pythonEntryPoints] mechanism.
+The naming convention requires any plugin to advertise on the `imagedata_plugins` list.
+
 ![Plugin architecture.\label{fig:plugins}](docs/Plugin_Architecture.png)
-and referenced from text using \autoref{fig:plugins}.
+
 
 # Features
 
