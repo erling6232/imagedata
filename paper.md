@@ -120,7 +120,7 @@ Handling specific image data formats are done by Formats plugins,
 while Archives plugins give access to files stored both in the filesystem
 and in compressed archives.
 The Transports plugins let the user access networked resources given
-by a URL.\label{fig:plugins}](docs/Plugin_Architecture.png)
+by a URL.\label{fig:plugins}](docs/Plugin_Architecture.png){ width=75% }
 
 
 # Examples
