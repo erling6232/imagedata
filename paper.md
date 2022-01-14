@@ -120,7 +120,7 @@ Handling specific image data formats are done by Formats plugins,
 while Archives plugins give access to files stored both in the filesystem
 and in compressed archives.
 The Transports plugins let the user access networked resources given
-by a URL..\label{fig:plugins}](docs/Plugin_Architecture.png)
+by a URL.\label{fig:plugins}](docs/Plugin_Architecture.png)
 
 
 # Examples
@@ -167,7 +167,7 @@ Like the ndarray, the Series object can be sliced.
 The imagedata package attempts to maintain the geometry of the sliced data.
 
 ~~~
-
+>>> ...
 >>> # Extract slice no. 5
 >>> slice5 = si[5,…]
 >>> slice5.sliceLocations
@@ -178,8 +178,8 @@ array(6.8320046343748)
 
 ## Viewing
 
-A simple viewer which let the user scroll through the image stack,
-and step through the tags of a 4D dataset, is included.
+A simple viewer is included. The viewer lets the user scroll through the image stack,
+and step through the tags of a 4D dataset.
 These operations are possible:
 
 * Window/level adjustment: Move mouse with left key pressed.
@@ -196,6 +196,31 @@ a.show(b)
 
 # View several Series
 a.show([b, c, d])
+~~~
+
+## Draw a region of interest
+
+A region of interest (ROI) can be drawn, producing a mask as a NumPy ndarray. 
+This example will obtain a mask image `segment`,
+convert the original grayscale image into a corresponding RGB image,
+and mask the green and blue color bands inside the ROI.
+
+~~~
+from imagedata.series import Series
+
+T2 = Series('801_Obl T2 TSE HR SENSE/')
+segment = T2.get_roi()
+
+# Convert grayscale image to RGB image
+T2rgb = T2.to_rgb()
+segment_indices = segment == 1
+
+# Clear green and blue components inside segmentation,
+# leaving the red component
+T2rgb[segment_indices, 1:] = 0
+
+# Display final image where pixels inside the ROI are red
+T2rgb.show()
 ~~~
 
 ## Converting data from DICOM and back
