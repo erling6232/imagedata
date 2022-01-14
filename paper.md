@@ -171,7 +171,7 @@ The imagedata package attempts to maintain the geometry of the sliced data.
 >>> # Extract slice no. 5
 >>> slice5 = si[5,…]
 >>> slice5.sliceLocations
-array(6.8320046343748)
+array(6.8)
 >>> # Save slice 5 to slice5/ directory
 >>> slice5.write(’slice5/’)
 ~~~
@@ -233,13 +233,18 @@ In order to maintain the coupling to patient data, you may convert your data to 
 ~~~
 image_data --of nifti niftiDir dicomDir
 
-# Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+# Now do your processing on Nifti data in niftiDir/,
+# leaving the result in niftiResult/.
 
-# Convert the niftiResult back to DICOM, using dicomDir as a template
+# Convert the niftiResult back to DICOM,
+# using dicomDir as a template
 image_data --of dicom --template dicomDir dicomResult niftiResult
-# The resulting dicomResult will be a new DICOM series that could be added to a PACS
 
-# Set series number and series description before transmitting to PACS using DICOM transport
+# The resulting dicomResult will be a new DICOM series
+# that could be added to a PACS
+
+# Set series number and series description before 
+# transmitting to PACS using DICOM transport
 image_data --sernum 1004 --serdes 'Processed data' \
            dicom://server:104/AETITLE dicomResult
 ~~~
@@ -249,14 +254,16 @@ image_data --sernum 1004 --serdes 'Processed data' \
 ~~~
 from imagedata.series import Series
 a = Series('dicomDir')
-a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
+# Explicitly select nifti as output format
+a.write('niftiDir', formats=['nifti'])
 
-# Now do your processing on Nifti data in niftiDir/, leaving the result in niftiResult/.
+# Now do your processing on Nifti data in niftiDir/,
+# leaving the result in niftiResult/.
 
-b = Series('niftiResult', template=a)    # Or template='dicomDir'
-b.write('dicomResult')   # Here, DICOM is default output format
+b = Series('niftiResult', template=a)
 
-# Set series number and series description before transmitting to PACS using DICOM transport
+# Set series number and series description before
+# transmitting to PACS using DICOM transport
 b.seriesNumber = 1004
 b.seriesDescription = 'Processed data'
 b.write('dicom://server:104/AETITLE')
