@@ -109,17 +109,28 @@ while Archives plugins give access to files stored both
 in the filesystem and in compressed archives.
 The Transports plugins let the user access networked resources given by a URL.
 
-See the plugin architecture and main classes in Figure \autoref{fig:plugins}.
+See the plugin architecture and main classes in \autoref{fig:plugins}.
 
 Plugins are defined using python's entry_point [@pythonEntryPoints] mechanism.
 The naming convention requires any plugin to advertise on the `imagedata_plugins` list.
 
-![Plugin architecture.\label{fig:plugins}](docs/Plugin_Architecture.png)
+![Plugin architecture and main classes of the imagedata package.
+The Series class is subclassed from numpy.ndarray.
+Handling specific image data formats are done by Formats plugins,
+while Archives plugins give access to files stored both in the filesystem
+and in compressed archives.
+The Transports plugins let the user access networked resources given
+by a URL..\label{fig:plugins}](docs/Plugin_Architecture.png)
 
 
-# Features
+# Examples
 
-## Example code
+In this section, we demonstrate the usage of imagedata in the python language.
+In addition, there is a command-line program `image_data` which comes in handy when
+the sole purpose is to convert and store an image dataset from one format
+to another.
+
+## Compute mean of two datasets
 
 A simple example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_:
 
@@ -136,7 +147,8 @@ c.write('dirMean')
 
 ## Sorting
 
-Sorting of DICOM slices is considered a major task. Imagedata will sort slices into volumes based on slice location.
+Sorting of DICOM slices is considered a major task.
+Imagedata will sort slices into volumes based on slice location.
 Volumes may be sorted on a number of DICOM tags:
 
 * 'time': Dynamic time series, sorted on acquisition time
@@ -149,9 +161,25 @@ In addition, volumes can be sorted on user defined tags.
 Some non-DICOM formats don't specify the labelling of the 4D data.
 In this case, you can specify the sorting manually.
 
+## Slicing
+
+Like the ndarray, the Series object can be sliced.
+The imagedata package attempts to maintain the geometry of the sliced data.
+
+~~~
+
+>>> # Extract slice no. 5
+>>> slice5 = si[5,…]
+>>> slice5.sliceLocations
+array(6.8320046343748)
+>>> # Save slice 5 to slice5/ directory
+>>> slice5.write(’slice5/’)
+~~~
+
 ## Viewing
 
-A simple viewer. Scroll through the image stack, step through the tags of a 4D dataset.
+A simple viewer which let the user scroll through the image stack,
+and step through the tags of a 4D dataset, is included.
 These operations are possible:
 
 * Window/level adjustment: Move mouse with left key pressed.
@@ -175,7 +203,7 @@ a.show([b, c, d])
 In many situations you need to process patient data using a tool that do not accept DICOM data.
 In order to maintain the coupling to patient data, you may convert your data to e.g. NIfTI and back.
 
-Example using the command line utility image_data:
+### Example using the command line utility image_data
 
 ~~~
 image_data --of nifti niftiDir dicomDir
@@ -191,7 +219,7 @@ image_data --sernum 1004 --serdes 'Processed data' \
            dicom://server:104/AETITLE dicomResult
 ~~~
 
-The same example using python code:
+### Example using python code
 
 ~~~
 from imagedata.series import Series
