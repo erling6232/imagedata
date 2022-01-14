@@ -99,7 +99,7 @@ providing NumPy ndarrays, and accessing medical images in various formats.
 # Architecture
 
 Figures can be included like this:
-![Plugin architecture.\label{fig:plugins}](Figure_Architecture.png)
+![Plugin architecture.\label{fig:plugins}](docs/Plugin_Architecture.png)
 and referenced from text using \autoref{fig:plugins}.
 
 # Features
