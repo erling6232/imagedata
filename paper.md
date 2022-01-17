@@ -30,7 +30,7 @@ bibliography: paper.bib
 In particular, imagedata will sort, read and write DICOM 3D and 4D series based on
 defined tags.
 Imagedata will handle geometry information between the medical image data formats
-like DICOM, NIfTI and ITK.
+like DICOM .tm :registered: \textsuperscript{\textregistered}, NIfTI and ITK.
 
 Imagedata provides a Series class inheriting the `numpy.ndarray` class,
 adding DICOM data structures.
@@ -47,9 +47,9 @@ _E.g._, a pipeline based on a clinical DICOM series can be converted to NIfTI,
 processed by some NIfTI-based tool (_e.g._ FreeSurfer).
 Finally, the result can be converted back to DICOM, and stored as a new series in PACS.
 
-A simple viewer is included, allowing the display of a stack of images,
+A viewer is included, allowing the display of a stack of images,
 including modifying window width and centre, and scrolling through 3D and 4D image stacks.
-A region of interest (ROI) can be drawn, and handled as a NumPy mask.
+A region of interest (ROI) can be drawn, giving a mask as a NumPy ndarray.
 
 # Statement of need
 
@@ -65,17 +65,17 @@ The more modern enhanced formats which can accomodate a complete 3D or 4D acquis
 one file, are only slowly adopted by manufacturers of medical equipment.
 
 Working with legacy DICOM medical images in python can be accomplished using libraries
-like pydicom, GDCM, NiBabel or ITK [@itk2002].
+like `pydicom`, `GDCM`, `NiBabel` or `ITK` [@itk2002].
 Pydicom and GDCM are native DICOM libraries. As such, they do not
 provide access to medical images stored in other formats.
 NiBabel and ITK are mostly focused on NIfTI [@nifti1] and ITK MetaIO image formats, respectively.
 These formats are popular in research tools. However, DICOM support is rudimentary.
 All these libraries leave the sorting of legacy DICOM image files to the user.
 
-Highdicom focus on storage of parametric maps, annotations and segmentations,
+`Highdicom` focus on parametric maps, annotations and segmentations,
 using enhanced DICOM images.
 Highdicom does an excellent job of promoting the enhanced DICOM standards,
-including storage of boolean and floating-point data.
+including storage of `boolean` and floating-point data.
 The handling of legacy DICOM objects are left to pydicom. 
 
 NumPy ndarrays is the data object of choice for numerical computations in Python. 
@@ -98,20 +98,19 @@ providing NumPy ndarrays, and accessing medical images in various formats.
 
 # Architecture
 
-The `Series class` is a `numpy.ndarray` subclass. 
+The `Series` class is a `numpy.ndarray` subclass. 
 A Series object is instantiated from a source, either from input files, 
 from a server connection, or from an ndarray.
-DICOM metadata is handled by a `Header` class, which also maintains an `Axes`class
+DICOM metadata is handled by a `Header` class, which also maintains an `Axes` class
 defining the axes of the array dimensions.
 
-Handling specific image data formats are done by Formats plugins,
-while Archives plugins give access to files stored both
+Handling specific image data formats are done by `Formats` plugins,
+while `Archives` plugins give access to files stored both
 in the filesystem and in compressed archives.
-The Transports plugins let the user access networked resources given by a URL.
-
+The `Transports` plugins let the user access networked resources given by a _URL_.
 See the plugin architecture and main classes in \autoref{fig:plugins}.
 
-Plugins are defined using python's entry_point [@pythonEntryPoints] mechanism.
+Plugins are defined using python's `entry_point` [@pythonEntryPoints] mechanism.
 The naming convention requires any plugin to advertise on the `imagedata_plugins` list.
 
 ![Plugin architecture and main classes of the imagedata package.
@@ -132,7 +131,8 @@ to another.
 
 ## Compute mean of two datasets
 
-A simple example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_:
+A example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_.
+The input data format is automatically detected, and is not specified:
 
 ~~~
 from imagedata.series import Series
@@ -153,8 +153,8 @@ Volumes may be sorted on a number of DICOM tags:
 
 * 'time': Dynamic time series, sorted on acquisition time
 * 'b': Diffusion weighted series, sorted on diffusion _b_ value
-* 'fa': Flip angle series, sorted on flip angle
-* 'te': Sort on echo time _TE_
+* 'fa': Flip angle series, sorted on MR flip angle
+* 'te': Sort on MR echo time _TE_
 
 In addition, volumes can be sorted on user defined tags.
 
@@ -178,9 +178,9 @@ array(6.8)
 
 ## Viewing
 
-A simple viewer is included. The viewer lets the user scroll through the image stack,
+A viewer based on `matplotlib` is included. The viewer lets the user scroll through the image stack,
 and step through the tags of a 4D dataset.
-These operations are possible:
+These operations are implemented:
 
 * Window/level adjustment: Move mouse with left key pressed.
 * Scroll through slices of an image stack: Mouse scroll wheel, or up/down array keys.
@@ -225,15 +225,17 @@ T2rgb.show()
 
 ## Converting data from DICOM and back
 
-In many situations you need to process patient data using a tool that do not accept DICOM data.
+In some workflows you need to process patient data using a tool that do not accept DICOM data.
 In order to maintain the coupling to patient data, you may convert your data to e.g. NIfTI and back.
 
 ### Example using the command line utility image_data
 
 ~~~
+# Original DICOM data in dicomDir/
 image_data --of nifti niftiDir dicomDir
 
 # Now do your processing on Nifti data in niftiDir/,
+# ...
 # leaving the result in niftiResult/.
 
 # Convert the niftiResult back to DICOM,
@@ -251,16 +253,30 @@ image_data --sernum 1004 --serdes 'Processed data' \
 
 ### Example using python code
 
+This code will store the Series data in a NIfTI format, letting some
+NIfTI-dependent code to produce a result in _niftiResult_.
+This NIfTI dataset is loaded into a Series object, using the original
+DICOM data as template to maintain patient and study metadata.
+Finally, the new dataset is sent to a DICOM server
+using the DICOM protocol.
+
 ~~~
+import tempfile
 from imagedata.series import Series
 a = Series('dicomDir')
-# Explicitly select nifti as output format
-a.write('niftiDir', formats=['nifti'])
 
-# Now do your processing on Nifti data in niftiDir/,
-# leaving the result in niftiResult/.
+# Prepare temporary storage for NIfTI data
+with tempfile.TemporaryDirectory() as niftiDir, \
+    tempfile.TemporaryDirectory() as niftiResult:
+    # Explicitly select nifti as output format
+    a.write(niftiDir, formats=['nifti'])
 
-b = Series('niftiResult', template=a)
+    # Now do your processing on NIfTI data in niftiDir
+    # ...
+    # leaving the result in niftiResult
+
+    # Load the NIfTI data, using original Series `a' as template
+    b = Series(niftiResult, template=a)
 
 # Set series number and series description before
 # transmitting to PACS using DICOM transport
