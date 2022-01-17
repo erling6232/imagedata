@@ -26,6 +26,12 @@ class TestSeries(unittest.TestCase):
             'data/dicom/time/time00')
         r = si.__repr__()
 
+    #@unittest.skip("skipping test_str")
+    def test_str(self):
+        si = Series(
+            'data/dicom/time/time00/Image_00020.dcm')
+        r = '{}'.format(si)
+
     #@unittest.skip("skipping test_max")
     def test_max(self):
         si = Series(
