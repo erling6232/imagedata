@@ -26,11 +26,11 @@ bibliography: paper.bib
 # Summary
 
 `Imagedata` is a python library to read and write medical image data into
-`Series` objects (multidimensional NumPy ndarrays).
+`Series` objects (multidimensional NumPy ndarrays [@harris2020array]).
 In particular, imagedata will sort, read and write DICOM 3D and 4D series based on
 defined tags.
 Imagedata will handle geometry information between the medical image data formats
-like DICOM .tm :registered: \textsuperscript{\textregistered}, NIfTI and ITK.
+like DICOM\textsuperscript{\textregistered}, NIfTI[@nifti1] and ITK[@itk2002].
 
 Imagedata provides a Series class inheriting the `numpy.ndarray` class,
 adding DICOM data structures.
@@ -38,14 +38,15 @@ Plugins provide functions to import and export DICOM and other data formats.
 The DICOM plugin can read complete series, sorting the data as requested into
 multidimensional arrays.
 Input and output data can be accessed on various locations, including local files,
-DICOM servers and XNAT servers.
+DICOM servers and XNAT[@marcus2007] servers.
 The Series class enables NumPy and derived libraries to work on
 medical images, simplifying input and output.
 
 An added benefit is the conversion between different image formats.
 _E.g._, a pipeline based on a clinical DICOM series can be converted to NIfTI,
-processed by some NIfTI-based tool (_e.g._ FreeSurfer).
-Finally, the result can be converted back to DICOM, and stored as a new series in PACS.
+processed by some NIfTI-based tool (_e.g._ FSL[@FSL2004]).
+Finally, the result can be converted back to DICOM, and stored as a new series in
+PACS (Picture Archive and Communication System).
 
 A viewer is included, allowing the display of a stack of images,
 including modifying window width and centre, and scrolling through 3D and 4D image stacks.
@@ -65,21 +66,22 @@ The more modern enhanced formats which can accomodate a complete 3D or 4D acquis
 one file, are only slowly adopted by manufacturers of medical equipment.
 
 Working with legacy DICOM medical images in python can be accomplished using libraries
-like `pydicom`, `GDCM`, `NiBabel` or `ITK` [@itk2002].
+like `pydicom`[@darcy_mason_2021_5543955], `GDCM`[@GDCMReferenceManual],
+`NiBabel`[@nibabel2020] or `ITK`.
 Pydicom and GDCM are native DICOM libraries. As such, they do not
 provide access to medical images stored in other formats.
-NiBabel and ITK are mostly focused on NIfTI [@nifti1] and ITK MetaIO image formats, respectively.
+NiBabel and ITK are mostly focused on NIfTI and ITK MetaIO image formats, respectively.
 These formats are popular in research tools. However, DICOM support is rudimentary.
 All these libraries leave the sorting of legacy DICOM image files to the user.
 
-`Highdicom` focus on parametric maps, annotations and segmentations,
-using enhanced DICOM images.
+`Highdicom`[@bridge2021highdicom] focus on parametric maps, annotations
+and segmentations, using enhanced DICOM images.
 Highdicom does an excellent job of promoting the enhanced DICOM standards,
 including storage of `boolean` and floating-point data.
 The handling of legacy DICOM objects are left to pydicom. 
 
 NumPy ndarrays is the data object of choice for numerical computations in Python. 
-Imagedata extends NumPy arrays [@harris2020array] with DICOM
+Imagedata extends NumPy arrays with DICOM
 information and functionality.
 Additionally, importing and exporting images to other image formats is available
 through a plugin architecture.
@@ -178,7 +180,8 @@ array(6.8)
 
 ## Viewing
 
-A viewer based on `matplotlib` is included. The viewer lets the user scroll through the image stack,
+A viewer based on `matplotlib`[@Hunter:2007] is included.
+The viewer lets the user scroll through the image stack,
 and step through the tags of a 4D dataset.
 These operations are implemented:
 
