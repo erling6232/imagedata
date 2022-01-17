@@ -26,13 +26,14 @@ bibliography: paper.bib
 # Summary
 
 `Imagedata` is a python library to read and write medical image data into
-`Series` objects (multidimensional NumPy ndarrays [@harris2020array]).
-In particular, imagedata will read, sort and write DICOM 3D and 4D series based on
-defined attributes.
-Imagedata will handle geometry information between the medical image data formats
-like DICOM\textsuperscript{\textregistered}, NIfTI [@nifti1] and ITK [@itk2002].
+`Series` objects.
+In particular, imagedata will read, sort and write DICOM\textsuperscript{\textregistered}
+3D and 4D series based on defined attributes.
+As far as possible, imagedata will handle geometry information between
+the medical image data formats
+like DICOM, NIfTI [@nifti1] and ITK [@itk2002].
 
-Imagedata provides a Series class inheriting the `numpy.ndarray` class,
+Imagedata provides a Series class inheriting the `numpy.ndarray` class [@harris2020array],
 adding DICOM data structures.
 Plugins provide functions to import and export DICOM and other data formats.
 The DICOM plugin can read complete series, sorting the data as requested into
@@ -50,7 +51,8 @@ PACS (Picture Archive and Communication system).
 
 A viewer is included, allowing the display of a stack of images,
 including modifying window width and centre, and scrolling through 3D and 4D image stacks.
-A region of interest (ROI) can be drawn, giving a mask as a NumPy ndarray.
+A region of interest (ROI) can be drawn, resulting in a mask as a NumPy ndarray,
+or as an outline.
 
 # Statement of need
 
@@ -84,10 +86,10 @@ NumPy ndarrays is the data object of choice for numerical computations in Python
 Imagedata extends NumPy arrays with DICOM
 information and functionality.
 Additionally, importing and exporting images to other image formats is available
-through a plugin architecture.
+through the plugin architecture.
 
 When setting up pipelines to process clinical data, patient information
-should be maintained throughout to maintain patient safety. If the
+should be maintained throughout to ensure patient safety. If the
 process involves DICOM data only, this requirement is easily fulfilled.
 However, some popular image processing systems require formats that do
 not maintain patient information. The ability to attach DICOM metadata
@@ -111,6 +113,9 @@ while `Archives` plugins give access to files stored both
 in the filesystem and in compressed archives.
 The `Transports` plugins let the user access networked resources given by a _URL_.
 See the plugin architecture and main classes in \autoref{fig:plugins}.
+_E.g._, an xnat:// _URL_ will employ the `XnatTransport` plugin
+to fetch a compressed zip archive,
+and the `ZipfileArchive` to extract individual files from the archive.
 
 Plugins are defined using python's `entry_point` [@pythonEntryPoints] mechanism.
 The naming convention requires any plugin to advertise itself on the `imagedata_plugins` list.
@@ -133,9 +138,9 @@ to another.
 
 ## Compute mean of two datasets
 
-An example reading two time series from folders _dirA_ and _dirB_,
+A basic example reading two time series from folders _dirA_ and _dirB_,
 and writing their mean to folder _dirMean_.
-The input data format is automatically detected, and is not specified:
+The format of the input data is automatically detected, and is not specified:
 
 ~~~
 from imagedata.series import Series
@@ -186,10 +191,11 @@ The viewer lets the user scroll through the image stack,
 and step through the tags of a 4D dataset.
 These operations are implemented:
 
+* Read-out voxel value: Move mouse over.
 * Window/level adjustment: Move mouse with left key pressed.
 * Scroll through slices of an image stack: Mouse scroll wheel, or up/down array keys.
 * Step through tags (time, b-values, etc.): Left/right array keys.
-* Move through series when many series are displayed: PageUp/PageDown keys.
+* Page through series in a multi-series display: PageUp/PageDown keys.
 
 ~~~
 # View a Series instance
@@ -219,7 +225,7 @@ segment = T2.get_roi()
 T2rgb = T2.to_rgb()
 segment_indices = segment == 1
 
-# Clear green and blue components inside segmentation,
+# Clear green and blue components inside segment,
 # leaving the red component
 T2rgb[segment_indices, 1:] = 0
 
@@ -229,7 +235,7 @@ T2rgb.show()
 
 ## Converting data from DICOM and back
 
-Some workflows need to process patient data using a tool that do not accept DICOM data.
+Some workflows process patient data using a tool that do not accept DICOM data.
 In order to maintain the coupling to patient data, the data can be converted to
 _e.g._ NIfTI and back.
 
