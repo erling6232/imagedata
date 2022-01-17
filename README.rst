@@ -71,6 +71,7 @@ Viewing
 A simple viewer. Scroll through the image stack, step through the tags of a 4D dataset.
 These operations are possible:
 
+* Read-out voxel value: Move mouse over.
 * Window/level adjustment: Move mouse with left key pressed.
 * Scroll through slices of an image stack: Mouse scroll wheel, or up/down array keys.
 * Step through tags (time, b-values, etc.): Left/right array keys.
