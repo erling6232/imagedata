@@ -38,15 +38,15 @@ Plugins provide functions to import and export DICOM and other data formats.
 The DICOM plugin can read complete series, sorting the data as requested into
 multidimensional arrays.
 Input and output data can be accessed on various locations, including local files,
-DICOM servers and XNAT [@marcus2007] servers.
-The Series class enables NumPy and derived libraries to work on
-medical images, simplifying input and output.
+DICOM servers and XNAT servers [@marcus2007].
+The Series class enables NumPy and derived libraries (like SciPy [@2020SciPy-NMeth])
+to work on medical images, simplifying input and output.
 
-An added benefit is the conversion between different image formats.
+A feature is the conversion between different image formats.
 _E.g._, a pipeline based on a clinical DICOM series can be converted to NIfTI,
 processed by some NIfTI-based tool (_e.g._ FSL [@FSL2004]).
 Finally, the result can be converted back to DICOM, and stored as a new series in
-PACS (Picture Archive and Communication System).
+PACs (Picture Archive and Communication system).
 
 A viewer is included, allowing the display of a stack of images,
 including modifying window width and centre, and scrolling through 3D and 4D image stacks.
@@ -60,7 +60,7 @@ In tomographic imaging, the legacy DICOM formats
 like computed tomography (CT) and magnetic resonance (MR)
 information object definitions (IOD),
 are in common use.
-These legacy formats store slices file by file, leaving the sorting of the
+These formats store slices file by file, leaving the sorting of the
 files to the user.
 The more modern enhanced formats which can accomodate a complete 3D or 4D acquisition in
 one file, are only slowly adopted by manufacturers of medical equipment.
@@ -72,7 +72,7 @@ Pydicom and GDCM are native DICOM libraries. As such, they do not
 provide access to medical images stored in other formats.
 NiBabel and ITK are mostly focused on NIfTI and ITK MetaIO image formats, respectively.
 These formats are popular in research tools. However, DICOM support is rudimentary.
-All these libraries leave the sorting of legacy DICOM image files to the user.
+All these libraries typically leave the sorting of legacy DICOM image files to the user.
 
 `Highdicom` [@bridge2021highdicom] focus on parametric maps, annotations
 and segmentations, using enhanced DICOM images.
@@ -101,7 +101,7 @@ providing NumPy ndarrays, and accessing medical images in various formats.
 # Architecture
 
 The `Series` class is a `numpy.ndarray` subclass. 
-A Series object is instantiated from a source, either from input files, 
+A Series object is instantiated from an image source, either from input files, 
 from a server connection, or from an ndarray.
 DICOM metadata is handled by a `Header` class, which also maintains an `Axes` class
 defining the axes of the array dimensions.
@@ -133,7 +133,7 @@ to another.
 
 ## Compute mean of two datasets
 
-A example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_.
+An example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_.
 The input data format is automatically detected, and is not specified:
 
 ~~~
@@ -151,21 +151,21 @@ c.write('dirMean')
 
 Sorting of DICOM slices is considered a major task.
 Imagedata will sort slices into volumes based on slice location.
-Volumes may be sorted on a number of DICOM tags:
+Volumes may be sorted on various DICOM attributes:
 
 * 'time': Dynamic time series, sorted on acquisition time
 * 'b': Diffusion weighted series, sorted on diffusion _b_ value
 * 'fa': Flip angle series, sorted on MR flip angle
 * 'te': Sort on MR echo time _TE_
 
-In addition, volumes can be sorted on user defined tags.
+In addition, volumes can be sorted on user-defined attributes.
 
-Some non-DICOM formats don't specify the labelling of the 4D data.
-In this case, you can specify the sorting manually.
+Some non-DICOM formats do not specify the labelling of 4D data.
+In this case, the sorting can be specified manually.
 
 ## Slicing
 
-Like the ndarray, the Series object can be sliced.
+Like ndarray, the Series object can be sliced.
 The imagedata package attempts to maintain the geometry of the sliced data.
 
 ~~~
@@ -228,8 +228,9 @@ T2rgb.show()
 
 ## Converting data from DICOM and back
 
-In some workflows you need to process patient data using a tool that do not accept DICOM data.
-In order to maintain the coupling to patient data, you may convert your data to e.g. NIfTI and back.
+Some workflows need to process patient data using a tool that do not accept DICOM data.
+In order to maintain the coupling to patient data, the data can be converted to
+_e.g._ NIfTI and back.
 
 ### Example using the command line utility image_data
 
@@ -237,7 +238,7 @@ In order to maintain the coupling to patient data, you may convert your data to 
 # Original DICOM data in dicomDir/
 image_data --of nifti niftiDir dicomDir
 
-# Now do your processing on Nifti data in niftiDir/,
+# Now process on Nifti data in niftiDir/,
 # ...
 # leaving the result in niftiResult/.
 
@@ -257,7 +258,7 @@ image_data --sernum 1004 --serdes 'Processed data' \
 ### Example using python code
 
 This code will store the Series data in a NIfTI format, letting some
-NIfTI-dependent code to produce a result in _niftiResult_.
+NIfTI-dependent code produce a result in _niftiResult_.
 This NIfTI dataset is loaded into a Series object, using the original
 DICOM data as template to maintain patient and study metadata.
 Finally, the new dataset is sent to a DICOM server
@@ -274,7 +275,7 @@ with tempfile.TemporaryDirectory() as niftiDir, \
     # Explicitly select nifti as output format
     a.write(niftiDir, formats=['nifti'])
 
-    # Now do your processing on NIfTI data in niftiDir
+    # Now process on NIfTI data in niftiDir
     # ...
     # leaving the result in niftiResult
 
