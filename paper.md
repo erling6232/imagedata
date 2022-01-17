@@ -1,5 +1,5 @@
 ---
-title: 'Imagedata: A Python library to manage medical image data in NumPy array subclass Series'
+title: 'Imagedata: A Python library to handle medical image data in NumPy array subclass Series'
 
 tags:
   - dicom
@@ -27,8 +27,8 @@ bibliography: paper.bib
 
 `Imagedata` is a python library to read and write medical image data into
 `Series` objects (multidimensional NumPy ndarrays [@harris2020array]).
-In particular, imagedata will sort, read and write DICOM 3D and 4D series based on
-defined tags.
+In particular, imagedata will read, sort and write DICOM 3D and 4D series based on
+defined attributes.
 Imagedata will handle geometry information between the medical image data formats
 like DICOM\textsuperscript{\textregistered}, NIfTI [@nifti1] and ITK [@itk2002].
 
@@ -45,8 +45,8 @@ to work on medical images, simplifying input and output.
 A feature is the conversion between different image formats.
 _E.g._, a pipeline based on a clinical DICOM series can be converted to NIfTI,
 processed by some NIfTI-based tool (_e.g._ FSL [@FSL2004]).
-Finally, the result can be converted back to DICOM, and stored as a new series in
-PACs (Picture Archive and Communication system).
+Finally, the result can be converted back to DICOM and stored as a new series in
+PACS (Picture Archive and Communication system).
 
 A viewer is included, allowing the display of a stack of images,
 including modifying window width and centre, and scrolling through 3D and 4D image stacks.
@@ -62,7 +62,7 @@ information object definitions (IOD),
 are in common use.
 These formats store slices file by file, leaving the sorting of the
 files to the user.
-The more modern enhanced formats which can accomodate a complete 3D or 4D acquisition in
+The more recent enhanced formats which can accommodate a complete 3D or 4D acquisition in
 one file, are only slowly adopted by manufacturers of medical equipment.
 
 Working with legacy DICOM medical images in python can be accomplished using libraries
@@ -90,8 +90,8 @@ When setting up pipelines to process clinical data, patient information
 should be maintained throughout to maintain patient safety. If the
 process involves DICOM data only, this requirement is easily fulfilled.
 However, some popular image processing systems require formats that do
-not maintain patient information. The ability to attach DICOM header
-data to these other formats let the user exploit a wider set of image
+not maintain patient information. The ability to attach DICOM metadata
+to these other formats let the user exploit a wider set of image
 processing software.
 
 `Imagedata` builds on several of these libraries,
@@ -113,7 +113,7 @@ The `Transports` plugins let the user access networked resources given by a _URL
 See the plugin architecture and main classes in \autoref{fig:plugins}.
 
 Plugins are defined using python's `entry_point` [@pythonEntryPoints] mechanism.
-The naming convention requires any plugin to advertise on the `imagedata_plugins` list.
+The naming convention requires any plugin to advertise itself on the `imagedata_plugins` list.
 
 ![Plugin architecture and main classes of the imagedata package.
 The Series class is subclassed from numpy.ndarray.
@@ -121,19 +121,20 @@ Handling specific image data formats are done by Formats plugins,
 while Archives plugins give access to files stored both in the filesystem
 and in compressed archives.
 The Transports plugins let the user access networked resources given
-by a URL.\label{fig:plugins}](docs/Plugin_Architecture.png){ width=75% }
+by a _URL_.\label{fig:plugins}](docs/Plugin_Architecture.png){ width=75% }
 
 
 # Examples
 
-In this section, we demonstrate the usage of imagedata in the python language.
-In addition, there is a command-line program `image_data` which comes in handy when
+In this section, we demonstrate the use of imagedata in the python language.
+In addition, there is a console application `image_data` which comes in handy when
 the sole purpose is to convert and store an image dataset from one format
 to another.
 
 ## Compute mean of two datasets
 
-An example reading two time series from _dirA_ and _dirB_, and writing their mean to _dirMean_.
+An example reading two time series from folders _dirA_ and _dirB_,
+and writing their mean to folder _dirMean_.
 The input data format is automatically detected, and is not specified:
 
 ~~~
@@ -142,14 +143,14 @@ a = Series('dirA', 'time')
 b = Series('dirB', 'time')
 assert a.shape == b.shape, "Shape of a and b differ"
 
-# Notice how a and b are treated as numpy arrays
+# Notice how series a and b are treated as NumPy arrays
 c = (a + b) / 2
 c.write('dirMean')
 ~~~
 
 ## Sorting
 
-Sorting of DICOM slices is considered a major task.
+Sorting of DICOM slices is an important feature.
 Imagedata will sort slices into volumes based on slice location.
 Volumes may be sorted on various DICOM attributes:
 
@@ -174,13 +175,13 @@ The imagedata package attempts to maintain the geometry of the sliced data.
 >>> slice5 = si[5,…]
 >>> slice5.sliceLocations
 array(6.8)
->>> # Save slice 5 to slice5/ directory
+>>> # Save slice 5 to slice5/ folder
 >>> slice5.write(’slice5/’)
 ~~~
 
 ## Viewing
 
-A viewer based on `matplotlib` [@Hunter:2007] is included.
+A viewer based on `matplotlib imshow` [@Hunter:2007] is included.
 The viewer lets the user scroll through the image stack,
 and step through the tags of a 4D dataset.
 These operations are implemented:
@@ -232,7 +233,7 @@ Some workflows need to process patient data using a tool that do not accept DICO
 In order to maintain the coupling to patient data, the data can be converted to
 _e.g._ NIfTI and back.
 
-### Example using the command line utility image_data
+### Example using the console application image_data
 
 ~~~
 # Original DICOM data in dicomDir/
