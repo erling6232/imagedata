@@ -237,6 +237,28 @@ def timeline():
     return 0
 
 
+def show():
+    parser = argparse.ArgumentParser()
+    imagedata.cmdline.add_argparse_options(parser)
+    parser.add_argument("in_dirs", nargs='+',
+                        help="Input directories and files")
+    args = parser.parse_args()
+    logger.setLevel(args.loglevel)
+    # if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
+
+    try:
+        si = Series(args.in_dirs, args.input_order, args)
+    except imagedata.formats.NotImageError:
+        print("Could not determine input format of %s." % args.in_dirs[0])
+        import traceback
+        traceback.print_exc(file=sys.stdout)
+        return 1
+
+    si.show()
+    return 0
+
+
 def conversion():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
