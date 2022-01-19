@@ -5,6 +5,7 @@
 
 import os
 import logging
+import warnings
 import math
 from datetime import date, datetime, timedelta
 import numpy as np
@@ -1429,7 +1430,9 @@ class DICOMPlugin(AbstractPlugin):
                 pass
             b_tag = choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
-                import nibabel.nicom.csareader as csa
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    import nibabel.nicom.csareader as csa
                 csa_head = csa.get_csa_header(im)
                 try:
                     value = csa.get_b_value(csa_head)
@@ -1482,7 +1485,9 @@ class DICOMPlugin(AbstractPlugin):
             # b_tag = opts['b'] if 'b' in opts else b_tag = 'csa_header'
             b_tag = choose_tag('b', "csa_header")
             if b_tag == "csa_header":
-                import nibabel.nicom.csareader as csa
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", category=UserWarning)
+                    import nibabel.nicom.csareader as csa
                 csa_head = csa.get_csa_header(im)
                 try:
                     if csa.get_b_value(csa_head) != float(value):
