@@ -3,6 +3,12 @@
 ReleaseNotes
 ============
 
+1.4.0
+-----
+* New plugin architecture using python's entry_points.
+* imagedata_format_ps is split out in separate package.
+* Added image_show console application.
+
 1.3.8
 -----
 Dicomplugin.sort_images(): Re-raise exception when data cannot be sorted, or when tag is None.
