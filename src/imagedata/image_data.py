@@ -20,7 +20,6 @@ from imagedata.series import Series
 logger = logging.getLogger()
 
 
-# noinspection PyPep8Naming
 def dump():
     parser = argparse.ArgumentParser()
     imagedata.cmdline.add_argparse_options(parser)
@@ -28,17 +27,39 @@ def dump():
                         help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    # if args.version:
-    #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    print("Output format: %s, %s, in %s directory." % (
-        args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
+
+    # Let in_opts be a dict from args
+    if args is None:
+        in_opts = {}
+    elif issubclass(type(args), dict):
+        in_opts = args
+    elif issubclass(type(args), argparse.Namespace):
+        in_opts = vars(args)
+    else:
+        raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
 
     reader = imagedata.formats.find_plugin('dicom')
     logger.debug("in_dirs {}".format(args.in_dirs))
-    # noinspection PyUnresolvedReferences
-    urls, files = imagedata.readdata.sanitize_urls(args.in_dirs)
+    sources = imagedata.readdata._get_sources(args.in_dirs, mode='r')
 
-    hdr, shape = reader.read_headers(urls, files, args.input_order, args)
+    image_dict = {}
+    for source in sources:
+        archive = source['archive']
+        scan_files = source['files']
+        if scan_files is None or len(scan_files) == 0:
+            scan_files = ['*']
+        for path in archive.getnames(scan_files):
+            if os.path.basename(path) == 'DICOMDIR':
+                continue
+            member = archive.getmembers([path, ])
+            if len(member) != 1:
+                raise IndexError('Should not be multiple files for a filename')
+            member = member[0]
+            try:
+                with archive.open(member, mode='rb') as f:
+                    reader.process_member(image_dict, archive, path, f, in_opts, skip_pixels=True)
+            except Exception as e:
+                raise
 
     StuInsUID = {}
     SerInsUID = {}
@@ -47,11 +68,8 @@ def dump():
     AcqNum = {}
     ImaTyp = {}
     Echo = {}
-    f = open('files', 'w')
-    for slice in hdr['DicomHeaderDict']:
-        for tag, member_name, im in hdr['DicomHeaderDict'][slice]:
-            # print('{}'.format(image))
-            f.write('{}\n'.format(member_name[1]))
+    for sloc in image_dict.keys():
+        for archive, member_name, im in image_dict[sloc]:
             if im.StudyInstanceUID not in StuInsUID:
                 StuInsUID[im.StudyInstanceUID] = 0
             StuInsUID[im.StudyInstanceUID] += 1
@@ -62,7 +80,7 @@ def dump():
                 SerTim[im.SeriesTime] = 0
             SerTim[im.SeriesTime] += 1
             if im.SequenceName not in SeqNam:
-                SeqNam[im.SequenceName] = 1
+                SeqNam[im.SequenceName] = 0
             SeqNam[im.SequenceName] += 1
             try:
                 num = im.AcquisitionNumber
@@ -83,8 +101,6 @@ def dump():
                 Echo[num] = 0
             Echo[num] += 1
 
-    f.close()
-
     for uid in StuInsUID:
         print("StuInsUID {}: {} images".format(uid, StuInsUID[uid]))
     for uid in SerInsUID:
@@ -103,7 +119,8 @@ def dump():
 
 
 def calculator():
-    # noinspection PyTypeChecker
+    import math
+
     parser = argparse.ArgumentParser(description='Image calculator.',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Expression examples:
@@ -111,13 +128,16 @@ def calculator():
         a*2: Multiply first input by 2
         a+b: Add first and second image""")
     imagedata.cmdline.add_argparse_options(parser)
-    parser.add_argument('--mask',
-                        help='Mask value', default=1)
+    #parser.add_argument('--mask',
+    #                    help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
     parser.add_argument("expression", help="Expression")
     parser.add_argument("indirs", help="Input arguments", nargs="+")
     args = parser.parse_args()
+
     logger.setLevel(args.loglevel)
+    if len(args.output_format) == 0:
+        args.output_format.append('dicom')
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -129,10 +149,11 @@ def calculator():
     ch = "abcdefghijklmnopqrstuvwxyz"
     si = {}
     i = 0
+    names = {}
     for indir in args.indirs:
         key = ch[i]
+        names[key] = indir
         try:
-            print("Open {} as {}:".format(indir, key))
             si[key] = Series(indir, args.input_order, args)
         except imagedata.formats.NotImageError:
             print("Could not determine input format of {}.".format(indir))
@@ -145,22 +166,24 @@ def calculator():
     mask=mask.astype(int)
     """
 
-    # Convert input to float64
-    # output_dtype
+    # Convert input if requested
     if args.dtype:
-        print("Converting input...")
-        for k in si.keys():
-            si[k] = si[k].astype(args.dtype)
+        for key in si.keys():
+            si[key] = si[key].astype(args.dtype)
 
-    print("before", si['a'].dtype, si['a'].shape, si['a'].min(), si['a'].max())
+    # Print input data
+    for key in si.keys():
+        print("{} = {} {} {}".format(key, names[key], si[key].shape, si[key].dtype))
+
+    # Calculate
     out = si['a'].copy()
     for tag in range(si['a'].shape[0]):
         for key in si.keys():
             exec("""{}=si['{}'][tag]""".format(key, key))
         out[tag] = eval(args.expression)
-    print("after", out.dtype, out.shape, out.min(), out.max())
 
-    # Save masked image
+    # Save output series
+    print("{} = {} {} {}".format(args.outdir, args.expression, out.shape, out.dtype))
     out.write(args.outdir, opts=args)
     return 0
 
