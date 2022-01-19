@@ -7,6 +7,7 @@ import os.path
 import tempfile
 import logging
 import math
+
 import numpy as np
 import imagedata.formats
 import imagedata.axis
