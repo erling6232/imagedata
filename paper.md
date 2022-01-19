@@ -115,7 +115,7 @@ The `Transports` plugins let the user access networked resources given by a _URL
 See the plugin architecture and main classes in \autoref{fig:plugins}.
 _E.g._, an xnat:// _URL_ will employ the `XnatTransport` plugin
 to fetch a compressed zip archive,
-and the `ZipfileArchive` to extract individual files from the archive.
+and the `ZipfileArchive` will extract individual files from the archive.
 
 Plugins are defined using python's `entry_point` [@pythonEntryPoints] mechanism.
 The naming convention requires any plugin to advertise itself on the `imagedata_plugins` list.
