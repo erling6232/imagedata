@@ -120,7 +120,7 @@ def add_argparse_options(parser):
                         help="Store all images in a single or multiple directories (default: single)",
                         choices=['single', 'multi'], default='single')
     parser.add_argument('--template',
-                        help="Directory to get DICOM template from")
+                        help="Source to get DICOM template from")
     parser.add_argument('--geometry',
                         help="Second DICOM template for geometry attributes")
     parser.add_argument('--frame',
