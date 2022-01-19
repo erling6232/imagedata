@@ -87,7 +87,32 @@ Some options:
 
     \-\-serdes <string>: Set DICOM series description.
 
+    \-\-imagetype: Set DICOM imagetype, comma-separated. *E.g.* 'DERIVED,SECONDARY,MASK'
+
 See "imagedata \-\-help" for other options.
+
+Example:
+First a DICOM volume is converted to ITK MetaImage.
+Next, the ITK MetaImage is read, adding DICOM attributes from the original
+DICOM volume.
+After setting series number and description, the images are sent to PACS
+using the DICOM protocol.
+
+.. code-block:: bash
+
+   # Convert dicom/volume to itk/Image.mha
+   #                   Output        Input
+   image_data --of itk itk/Image.mha dicom/volume
+
+   # Convert itk/Image.mha to dicom using original data as template
+   # Send to DICOM store
+   image_data --of dicom \
+       --template dicom/volume \
+       --sernum 1000 \
+       --serdes 'Series description' \
+       --imagetype 'DERIVED,SECONDARY,MASK' \
+       dicom://server:104/AETITLE # Output destination \
+       itk/Image.mha              # Input data
 
 image_list
 -----------------
@@ -156,26 +181,4 @@ See Figure for an example:
        si.write(args.out_name, opts=args)
 
 This python script can be called from the command line to convert and
-transport images, like in Figure 5. First a DICOM volume is converted to
-ITK MetaImage. Next, the ITK MetaImage is read, adding DICOM attributes
-from the original DICOM volume. After setting series number and
-description, the images are sent to PACS using the DICOM protocol.
-
-.. code-block:: bash
-
-   # Convert dicom/volume to itk/Image.mha
-   image_data --of itk \
-       itk/Image.mha # Output \
-       dicom/volume  # Input
-
-
-   # Convert itk/Image.mha to dicom using original data as template
-   # Send to DICOM store
-   image_data --of dicom \
-       --template dicom/volume \
-       --sernum 1000 \
-       --serdes 'Series description' \
-       --imagetype 'DERIVED,SECONDARY,MASK' \
-       dicom://server:104/AETITLE # Output destination \
-       itk/Image.mha              # Input data
-
+transport images.
