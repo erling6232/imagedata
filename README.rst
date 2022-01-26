@@ -2,7 +2,7 @@
 imagedata
 #########
 
-|Docs Badge| |buildstatus|  |coverage| |pypi|
+|Docs Badge| |joss| |buildstatus|  |coverage| |pypi|
 
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
@@ -279,3 +279,8 @@ The command line program *image_data* can be used to convert between various ima
 .. |pypi| image:: https://img.shields.io/pypi/v/imagedata.svg
     :target: https://pypi.python.org/pypi/imagedata
     :alt: PyPI Version
+
+.. |joss| image:: https://joss.theoj.org/papers/6a1bc6ea5a200a7a9204cfafcd6e49b8/status.svg
+    :target: https://joss.theoj.org/papers/6a1bc6ea5a200a7a9204cfafcd6e49b8
+    :alt: JOSS Status
+
