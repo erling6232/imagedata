@@ -3,6 +3,10 @@
 ReleaseNotes
 ============
 
+1.4.1
+-----
+* Fixed problem where Window Center and Level with multiple pairs of windows were not read correctly.
+
 1.4.0
 -----
 * New plugin architecture using python's entry_points.
