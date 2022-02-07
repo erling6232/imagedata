@@ -855,6 +855,11 @@ def get_level(si, level):
             level = si.getDicomAttribute('WindowCenter')
         except (KeyError, AttributeError):
             pass
+        try:
+            if len(level) > 1:
+                level = level[0]
+        except TypeError:
+            pass
     if level is None:
         diff = si.max() - si.min()
         if abs(diff) < 2:
@@ -870,6 +875,12 @@ def get_window_level(si, norm, window, level):
         try:
             window = si.getDicomAttribute('WindowWidth')
         except (KeyError, AttributeError):
+            pass
+        try:
+            if len(window) > 1:
+                window = window[0]
+            # print('Viewer.get_window_level: {} len {}'.format(window, len(window)))
+        except TypeError:
             pass
     if window is None:
         window = si.max() - si.min()
