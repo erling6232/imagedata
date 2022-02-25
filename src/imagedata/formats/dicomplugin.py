@@ -262,6 +262,9 @@ class DICOMPlugin(AbstractPlugin):
         if 'PhotometricInterpretation' in im:
             hdr.photometricInterpretation = im.PhotometricInterpretation
         matrix_dtype = np.uint16
+        if 'PixelRepresentation' in im:
+            if im.PixelRepresentation == 1:
+                matrix_dtype = np.int16
         if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
                 (abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
             matrix_dtype = float
