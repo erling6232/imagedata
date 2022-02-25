@@ -66,7 +66,7 @@ class DICOMPlugin(AbstractPlugin):
     url = "www.helse-bergen.no"
 
     root = "2.16.578.1.37.1.1.4"
-    smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8')
+    smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8', 'int16')
 
     def __init__(self):
         super(DICOMPlugin, self).__init__(self.name, self.description,
@@ -1193,8 +1193,16 @@ class DICOMPlugin(AbstractPlugin):
         ds.WindowCenter = self.center
         ds.WindowWidth = self.width
         if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
-            ds.SmallestImagePixelValue = np.uint16(safe_si.min().astype('uint16'))
-            ds.LargestImagePixelValue = np.uint16(safe_si.max().astype('uint16'))
+            _VR = 'SS' if np.issubdtype(safe_si.dtype, np.signedinteger) else 'US'
+            _VR = 'US' if safe_si.color else _VR
+            _min = 0 if safe_si.color else safe_si.min()
+            _max = 255 if safe_si.color else safe_si.max()
+            if 'SmallestImagePixelValue' in ds:
+                del ds.SmallestImagePixelValue
+            if 'LargestImagePixelValue' in ds:
+                del ds.LargestImagePixelValue
+            ds.add_new(tag_for_keyword('SmallestImagePixelValue'), _VR, _min)
+            ds.add_new(tag_for_keyword('LargestImagePixelValue'), _VR, _max)
             if 'RescaleSlope' in ds:
                 del ds.RescaleSlope
             if 'RescaleIntercept' in ds:
@@ -1210,8 +1218,6 @@ class DICOMPlugin(AbstractPlugin):
             except OverflowError:
                 ds.RescaleSlope = "%d" % int(self.a)
             ds.RescaleIntercept = "%f" % self.b
-        ds[0x0028, 0x0106].VR = 'US'
-        ds[0x0028, 0x0107].VR = 'US'
         # General Image Module Attributes
         ds.InstanceNumber = ifile + 1
         ds.ContentDate = self.today
@@ -1305,7 +1311,7 @@ class DICOMPlugin(AbstractPlugin):
         # logger.debug('DICOMPlugin.insert_pixeldata: arr.itemsize  %s' % arr.itemsize)
 
         ds.SamplesPerPixel = 1
-        ds.PixelRepresentation = 0
+        ds.PixelRepresentation = 1 if np.issubdtype(arr.dtype, np.signedinteger) else 0
         try:
             ds.PhotometricInterpretation = arr.photometricInterpretation
             if arr.photometricInterpretation == 'RGB':
