@@ -90,6 +90,10 @@ class TestFileArchiveItk(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    def test_write_ndarray(self):
+        with tempfile.TemporaryDirectory() as d:
+            Series(np.eye(128, dtype=np.float32)).write(d, formats=['itk'])
+
     # @unittest.skip("skipping test_write_3d_single_file")
     def test_write_3d_single_file(self):
         si1 = Series(

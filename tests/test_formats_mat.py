@@ -129,6 +129,10 @@ class Test3DMatPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    def test_write_ndarray(self):
+        with tempfile.TemporaryDirectory() as d:
+            Series(np.eye(128)).write(d, formats=['mat'])
+
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
