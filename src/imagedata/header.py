@@ -4,6 +4,7 @@
 
 import copy
 import logging
+import numpy as np
 import pydicom.dataset
 import pydicom.datadict
 import imagedata.formats
@@ -111,6 +112,8 @@ class Header(object):
             return
         self.axes = copy.copy(axes)
 
+        self.spacing = np.array([1, 1, 1])
+        self.orientation = np.array([0, 0, 1, 0, 1, 0], dtype=np.float32)
         slices = tags = 1
         if axes is not None:
             for axis in axes:
@@ -120,7 +123,9 @@ class Header(object):
                     tags = len(axis)
 
             self.DicomHeaderDict = {}
+            self.imagePositions = {}
             for _slice in range(slices):
+                self.imagePositions[_slice] = np.array([_slice,0,0])
                 self.DicomHeaderDict[_slice] = []
                 for tag in range(tags):
                     self.DicomHeaderDict[_slice].append(
