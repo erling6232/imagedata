@@ -524,8 +524,9 @@ class ITKPlugin(AbstractPlugin):
                 m = np.hstack((colr[:2], colc[:2])).reshape((2, 2))
             else:
                 m = np.hstack((colr, colc, coln)).reshape((3, 3))
-            itk_m = itk.GetMatrixFromArray(m)
-            return itk_m
+            # itk_m = itk.GetMatrixFromArray(m)
+            # return itk_m
+            return m
 
         image.SetDirection(
             itkMatrix_from_orientation(
