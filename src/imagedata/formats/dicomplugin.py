@@ -1186,38 +1186,8 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             pass
 
-        ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries)
-        ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries)
-        ds[0x0028, 0x0108].VR = 'US'
-        ds[0x0028, 0x0109].VR = 'US'
-        ds.WindowCenter = self.center
-        ds.WindowWidth = self.width
-        if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
-            _VR = 'SS' if np.issubdtype(safe_si.dtype, np.signedinteger) else 'US'
-            _VR = 'US' if safe_si.color else _VR
-            _min = 0 if safe_si.color else safe_si.min()
-            _max = 255 if safe_si.color else safe_si.max()
-            if 'SmallestImagePixelValue' in ds:
-                del ds.SmallestImagePixelValue
-            if 'LargestImagePixelValue' in ds:
-                del ds.LargestImagePixelValue
-            ds.add_new(tag_for_keyword('SmallestImagePixelValue'), _VR, _min)
-            ds.add_new(tag_for_keyword('LargestImagePixelValue'), _VR, _max)
-            if 'RescaleSlope' in ds:
-                del ds.RescaleSlope
-            if 'RescaleIntercept' in ds:
-                del ds.RescaleIntercept
-        else:
-            # if np.issubdtype(safe_si.dtype, np.floating):
-            # ds.SmallestImagePixelValue = ((safe_si.min() - self.b) / self.a).astype('uint16')
-            # ds.LargestImagePixelValue = ((safe_si.max() - self.b) / self.a).astype('uint16')
-            ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
-            ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
-            try:
-                ds.RescaleSlope = "%f" % self.a
-            except OverflowError:
-                ds.RescaleSlope = "%d" % int(self.a)
-            ds.RescaleIntercept = "%f" % self.b
+        self._set_pixel_rescale(ds, si)
+
         # General Image Module Attributes
         ds.InstanceNumber = ifile + 1
         ds.ContentDate = self.today
@@ -1353,12 +1323,22 @@ class DICOMPlugin(AbstractPlugin):
             ds.HighBit = 15
 
     def _calculate_rescale(self, arr):
-        """Calculate rescale parameters.
+        """Calculate rescale parameters for series.
 
         y = ax + b
         x in 0:65535 correspond to y in ymin:ymax
         2^16 = 65536 possible steps in 16 bits dicom
+        Returns:
+            self.a: Rescale slope
+            self.b: Rescale intercept
+            self.center: Window center
+            self.width: Window width
+            self.smallestPixelValueInSeries: arr.min()
+            self.largestPixelValueInSeries: arr.max()
+            self.range_VR: The VR to use for DICOM elements
         """
+        self.range_VR = 'SS' if np.issubdtype(arr.dtype, np.signedinteger) else 'US'
+        self.range_VR = 'US' if arr.color else self.range_VR
         # Window center/width
         ymin = np.nanmin(arr).item()
         ymax = np.nanmax(arr).item()
@@ -1369,8 +1349,8 @@ class DICOMPlugin(AbstractPlugin):
             # No need to rescale
             self.a = None
             self.b = None
-            self.smallestPixelValueInSeries = arr.min().astype('int8')
-            self.largestPixelValueInSeries = arr.max().astype('int8')
+            # self.smallestPixelValueInSeries = arr.min().astype('int16')
+            # self.largestPixelValueInSeries = arr.max().astype('int16')
         else:
             # Other high precision data type, like float
             # Must rescale data
@@ -1380,9 +1360,76 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 self.a = 1.0
             logger.debug("Rescale slope %f, rescale intercept %s" % (self.a, self.b))
-            self.smallestPixelValueInSeries = (ymin - self.b) / self.a
-            self.largestPixelValueInSeries = (ymax - self.b) / self.a
-        return self.a, self.b
+        self.smallestPixelValueInSeries = ymin
+        self.largestPixelValueInSeries = ymax
+
+    def _set_pixel_rescale(self, ds, arr):
+        """Set pixel rescale elements:
+        - RescaleSlope
+        - RescaleIntercept
+        - WindowCenter
+        - WindowWidth
+        - SmallestPixelValueInSeries
+        - LargestPixelValueInSeries
+        Args:
+            self.a: Rescale slope
+            self.b: Rescale intercept
+            self.center: Window center
+            self.width: Window width
+            self.smallestPixelValueInSeries: arr.min()
+            self.largestPixelValueInSeries: arr.max()
+            self.range_VR: The VR to use for DICOM elements
+            ds: DICOM dataset
+            arr: pixel series
+        """
+        ds.WindowCenter = self.center
+        ds.WindowWidth = self.width
+        # Remove existing elements
+        for element in ['SmallestImagePixelValue', 'LargestImagePixelValue',
+                        'SmallestPixelValueInSeries', 'LargestPixelValueInSeries',
+                        'RescaleSlope', 'RescaleIntercept']:
+            if element in ds:
+                del ds[element]
+        #if 'SmallestImagePixelValue' in ds:
+        #    del ds.SmallestImagePixelValue
+        #if 'LargestImagePixelValue' in ds:
+        #    del ds.LargestImagePixelValue
+        #if 'SmallestPixelValueInSeries' in ds:
+        #    del ds.SmallestPixelValueInSeries
+        #if 'LargestPixelValueInSeries' in ds:
+        #    del ds.LargestPixelValueInSeries
+        if self.a is None:
+        #if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
+            # No rescale slope
+            _min = 0 if arr.color else arr.min()
+            _max = 255 if arr.color else arr.max()
+            _series_min = 0 if arr.color else self.smallestPixelValueInSeries
+            _series_max = 255 if arr.color else self.largestPixelValueInSeries
+            #if 'RescaleSlope' in ds:
+            #    del ds.RescaleSlope
+            #if 'RescaleIntercept' in ds:
+            #    del ds.RescaleIntercept
+        else:
+            # if np.issubdtype(safe_si.dtype, np.floating):
+            # ds.SmallestImagePixelValue = ((safe_si.min() - self.b) / self.a).astype('uint16')
+            # ds.LargestImagePixelValue = ((safe_si.max() - self.b) / self.a).astype('uint16')
+            # ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
+            # ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
+            # ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries)
+            # ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries)
+            try:
+                ds.RescaleSlope = "%f" % self.a
+            except OverflowError:
+                ds.RescaleSlope = "%d" % int(self.a)
+            ds.RescaleIntercept = "%f" % self.b
+            _min = np.array((arr.min() - self.b) / self.a).astype('uint16')
+            _max = np.array((arr.max() - self.b) / self.a).astype('uint16')
+            _series_min = np.array((self.smallestPixelValueInSeries - self.b) / self.a).astype('uint16')
+            _series_max = np.array((self.largestPixelValueInSeries - self.b) / self.a).astype('uint16')
+        ds.add_new(tag_for_keyword('SmallestImagePixelValue'), self.range_VR, _min)
+        ds.add_new(tag_for_keyword('LargestImagePixelValue'), self.range_VR, _max)
+        ds.add_new(tag_for_keyword('SmallestPixelValueInSeries'), self.range_VR, _series_min)
+        ds.add_new(tag_for_keyword('LargestPixelValueInSeries'), self.range_VR, _series_max)
 
     @staticmethod
     def _add_time(now, add):
