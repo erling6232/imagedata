@@ -132,7 +132,7 @@ def calculator():
     #                    help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
     parser.add_argument("expression", help="Expression")
-    parser.add_argument("indirs", help="Input arguments", nargs="+")
+    parser.add_argument("indirs", help="Input arguments", nargs="*")
     args = parser.parse_args()
 
     logger.setLevel(args.loglevel)
@@ -160,6 +160,13 @@ def calculator():
             return 1
         i += 1
 
+    # DICOM templates
+    template = geometry = None
+    if args.template is not None:
+        template = Series(args.template, opts=args)
+    if args.geometry is not None:
+        geometry = Series(args.geometry, opts=args)
+
     # si[key][tag,slice,rows,columns]
     """
     mask=mask.round()
@@ -176,11 +183,14 @@ def calculator():
         print("{} = {} {} {}".format(key, names[key], si[key].shape, si[key].dtype))
 
     # Calculate
-    out = si['a'].copy()
-    for tag in range(si['a'].shape[0]):
-        for key in si.keys():
-            exec("""{}=si['{}'][tag]""".format(key, key))
-        out[tag] = eval(args.expression)
+    if args.indirs:
+        out = si['a'].copy()
+        for tag in range(si['a'].shape[0]):
+            for key in si.keys():
+                exec("""{}=si['{}'][tag]""".format(key, key))
+            out[tag] = eval(args.expression)
+    else:
+        out = Series(eval(args.expression), template=template, geometry=geometry)
 
     # Save output series
     print("{} = {} {} {}".format(args.outdir, args.expression, out.shape, out.dtype))
