@@ -1399,7 +1399,6 @@ class DICOMPlugin(AbstractPlugin):
         #if 'LargestPixelValueInSeries' in ds:
         #    del ds.LargestPixelValueInSeries
         if self.a is None:
-        #if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
             # No rescale slope
             _min = 0 if arr.color else arr.min()
             _max = 255 if arr.color else arr.max()
