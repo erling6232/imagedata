@@ -49,20 +49,48 @@ Example calculating mean of three series. The input data are converted to float6
 
 .. code-block::
 
-    % image_calculator --dtype float64 mean '(a+b+c)/3' T1_VIBE_FLIP*
+    % image_calculator --serdes 'Mean T1_VIBE_FLIP' --dtype float64 \
+        mean '(a+b+c)/3' T1_VIBE_FLIP*
     Converting input...
     a = T1_VIBE_FLIP18_0013 (30, 192, 192) float64
     b = T1_VIBE_FLIP3_0011 (30, 192, 192) float64
     c = T1_VIBE_FLIP8_0012 (30, 192, 192) float64
     mean = (a+b+c)/3 (30, 192, 192) float64
 
-Example creating a mask=1 of equal size to input data:
+Example creating a mask=1 of equal size to input data. Notice the
+input data is only used to give matrix dimensions:
 
 .. code-block::
 
     % image_calculator mask '1' T1_VIBE_FLIP8_0012/
     a = T1_VIBE_FLIP8_0012/ (30, 192, 192) uint16
     mask = 1 (30, 192, 192) uint16
+
+Example creating a mask = np.eye(128). Notice there is no input data:
+
+.. code-block::
+
+    % image_calculator eye 'Series(np.eye(128))'
+    eye = Series(np.eye(128)) (128, 128) float64
+
+By default, np.eye() will produce float64 data as above. There are three methods to set the output to uint16:
+
+.. code-block::
+
+    % image_calculator eye 'Series(np.eye(128, dtype=np.uint16))'
+    eye = Series(np.eye(128,dtype=np.uint16)) (128, 128) uint16
+
+    % image_calculator --dtype uint16 eye 'Series(np.eye(128))'
+    eye = Series(np.eye(128)) (128, 128) float64
+
+In the latter case, the output float64 data is converted to uint16 when writing the output.
+
+An existing DICOM object can be used as template to set DICOM attributes:
+
+.. code-block::
+
+    % image_calculator --template dicom/input --geometry dicom/input eye 'Series(np.eye(128))'
+    eye = Series(np.eye(128)) (128, 128) float64
 
 image_data
 -----------------
