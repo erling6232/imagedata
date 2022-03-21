@@ -103,6 +103,8 @@ class Series(np.ndarray):
                 obj.input_order = data.input_order
                 obj.header.add_template(data.header)  # Includes DicomHeaderDict
                 obj.header.add_geometry(data.header, data.header)
+            else:
+                obj.header.set_default_values(obj.axes if axes is None else axes)
 
             # obj.header.set_default_values() # Already done in __array_finalize__
             if axes is not None:
