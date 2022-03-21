@@ -119,9 +119,9 @@ def add_argparse_options(parser):
     parser.add_argument('--odir', dest="output_dir",
                         help="Store all images in a single or multiple directories (default: single)",
                         choices=['single', 'multi'], default='single')
-    parser.add_argument('--template',
+    parser.add_argument('--template', default=None,
                         help="Source to get DICOM template from")
-    parser.add_argument('--geometry',
+    parser.add_argument('--geometry', default=None,
                         help="Second DICOM template for geometry attributes")
     parser.add_argument('--frame',
                         help="Set DICOM frame of reference uid")
