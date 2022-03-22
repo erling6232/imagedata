@@ -474,6 +474,14 @@ class TestSeries(unittest.TestCase):
                      axes=si1.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
                      )
 
+    #@unittest.skip("skipping test_header_axes")
+    def test_header_axes(self):
+        geometry = Series('data/dicom/time/time00')
+        si = Series(np.eye(128), geometry=geometry)
+        self.assertEqual(len(si.axes), 2)
+        for i in range(len(si.axes)):
+            self.assertEqual(len(si.axes[i]), si.shape[i])
+
 
 if __name__ == '__main__':
     unittest.main()
