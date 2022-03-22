@@ -3,6 +3,21 @@
 ReleaseNotes
 ============
 
+1.4.3
+-----
+* Specify exact python versions supported.
+* Verify that template axes are adjusted to present data.
+* Refactor calculation of smallest/largest pixel value in image/series.
+* image_data.calculator: When no indirs arguments, calculate a new image, optionally with template and geometry given.
+* Series: Set default header when input is np.ndarray.
+* ITKPlugin.get_image_from_numpy(): return image as np.ndarray, not itk matrix.
+* Header.set_default_values(): Set default geometry.
+
+1.4.2
+-----
+* Set Pixel Representation depending on dtype.
+* Handle DICOM signed integer depending on value of Pixel Representation.
+
 1.4.1
 -----
 * Fixed problem where Window Center and Level with multiple pairs of windows were not read correctly.
