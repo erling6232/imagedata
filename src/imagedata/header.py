@@ -9,6 +9,7 @@ import pydicom.dataset
 import pydicom.datadict
 import imagedata.formats
 import imagedata.formats.dicomlib.uid
+from imagedata.axis import UniformAxis, UniformLengthAxis, VariableAxis
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,6 @@ class Header(object):
         frameOfReferenceUID
         DicomHeaderDict
         tags
-        axes
     """
 
     def __init__(self):
@@ -271,11 +271,34 @@ class Header(object):
             if geometry_axes is not None:
                 for geometry_axis in geometry_axes:
                     if geometry_axis.name == axis.name:
-                        self.axes[i] = copy.copy(geometry_axis)
+                        # Ensure geometry_axis length agree with matrix size
+                        self.axes[i] = self.__adjust_axis_from_template(axis, geometry_axis)
             elif template_axes is not None:
                 for template_axis in template_axes:
                     if template_axis.name == axis.name:
-                        self.axes[i] = copy.copy(template_axis)
+                        # Ensure template_axis length agree with matrix size
+                        self.axes[i] = self.__adjust_axis_from_template(axis, template_axis)
+
+    def __adjust_axis_from_template(self, axis, template):
+        """Construct new axis from template, retaining axis length.
+        """
+        # UniformLengthAxis is subclassed from UniformAxis, so check first
+        if isinstance(template, UniformLengthAxis):
+            return UniformLengthAxis(axis.name,
+                                 template.start,
+                                 len(axis),
+                                 template.step)
+        elif isinstance(template, UniformAxis):
+            return UniformAxis(axis.name,
+                               template.start,
+                               template.start + (len(axis)+1)*template.step,  # stop
+                               template.step)
+        elif isinstance(template, VariableAxis):
+            return VariableAxis(axis.name,
+                                template.values[:len(axis)])
+        else:
+            raise ValueError('Unknown template axis class: {}'.format(
+                type(template)))
 
     def add_geometry(self, template, geometry):
         """Add geometry data to obj header.
