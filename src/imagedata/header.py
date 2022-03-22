@@ -285,9 +285,9 @@ class Header(object):
         # UniformLengthAxis is subclassed from UniformAxis, so check first
         if isinstance(template, UniformLengthAxis):
             return UniformLengthAxis(axis.name,
-                                 template.start,
-                                 len(axis),
-                                 template.step)
+                                     template.start,
+                                     len(axis),
+                                     template.step)
         elif isinstance(template, UniformAxis):
             return UniformAxis(axis.name,
                                template.start,
