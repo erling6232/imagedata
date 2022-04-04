@@ -1,7 +1,7 @@
-"""Read/Write image files from a zipfile
+"""Read/Write files from a zipfile
 """
 
-# Copyright (c) 2018-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
@@ -13,9 +13,8 @@ import urllib.parse
 import logging
 from abc import ABC
 
-import imagedata.archives
-import imagedata.transports
-from imagedata.archives.abstractarchive import AbstractArchive
+from .abstractarchive import AbstractArchive, Member
+from ..transports import Transport
 import zipfile
 
 logger = logging.getLogger(__name__)
@@ -36,37 +35,37 @@ class WriteFileIO(io.FileIO):
     """Local object making sure the new file is written to zip
     archive before closing."""
 
-    def __init__(self, archive, filename, localfile):
+    def __init__(self, archive, member, local_file):
         """Make a WriteFileIO object.
 
         Args:
             archive: ZipFile object
-            filename: path name in zip archive
-            localfile: path name to local, temporary file
+            member: member of the zip archive
+            local_file: local temporary file
         """
-        super(WriteFileIO, self).__init__(localfile.name, mode='wb')
+        super(WriteFileIO, self).__init__(local_file.name, mode='wb')
         self.__archive = archive
-        self.__filename = filename
-        self.__localfile = localfile
+        self.__filename = member.filename
+        self.__local_file = local_file
 
     def close(self):
         """Close file, copy it to archive, then delete local file."""
         logger.debug("ZipfileArchive.WriteFileIO.close:")
         ret = super(WriteFileIO, self).close()
-        self.__localfile.close()
+        self.__local_file.close()
         logger.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
-                     (self.__localfile.name, self.__filename))
-        self.__archive.write(self.__localfile.name, self.__filename)
+                     (self.__local_file.name, self.__filename))
+        self.__archive.write(self.__local_file.name, self.__filename)
         logger.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
-                     self.__localfile.name)
-        os.remove(self.__localfile.name)
+                     self.__local_file.name)
+        os.remove(self.__local_file.name)
         return ret
 
     def __enter__(self):
         """Enter context manager.
         """
         logger.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
-                     (self.__filename, self.__localfile.name))
+                     (self.__filename, self.__local_file.name))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -83,7 +82,7 @@ class ZipfileArchive(AbstractArchive, ABC):
     name = "zip"
     description = "Read and write image files from a zipfile."
     authors = "Erling Andersen"
-    version = "1.0.0"
+    version = "1.1.0"
     url = "www.helse-bergen.no"
     mimetypes = ['application/zip', 'application/x-zip-compressed']
 
@@ -96,11 +95,11 @@ class ZipfileArchive(AbstractArchive, ABC):
     # self.__tmpdir: Local directory where zip file is unpacked.
     # self.__files: dict of files in the zip archive.
     #   key is path name in the zip archive.
-    #   value is a dict of member info:
-    #     'unpacked': whether the file is unpacked in tmpdir (boolean)
-    #     'name': path name in the zip archive
-    #     'fh': file handle when open, otherwise None
-    #     'localfile': local filename of unpacked file
+    #   value is a Member object:
+    #     info['unpacked']: whether the file is unpacked in tmpdir (boolean)
+    #     filename: path name in the zip archive
+    #     fh: file handle when open, otherwise None
+    #     local_file: local filename of unpacked file
 
     def __init__(self, transport=None, url=None, mode='r', read_directory_only=False, opts=None):
         super(ZipfileArchive, self).__init__(
@@ -130,7 +129,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 # self.__path = urldict.path
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                              (urldict.scheme, netloc))
-                self.__transport = imagedata.transports.Transport(
+                self.__transport = Transport(
                     urldict.scheme,
                     netloc=urldict.netloc,
                     root=urldict.path,
@@ -141,7 +140,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 netloc, self.__path = os.path.split(self.__path)
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                              (urldict.scheme, netloc))
-                self.__transport = imagedata.transports.Transport(
+                self.__transport = Transport(
                     urldict.scheme,
                     root=netloc,
                     mode=mode,
@@ -175,8 +174,9 @@ class ZipfileArchive(AbstractArchive, ABC):
             if not _is_dir:
                 # member = {'unpacked': False, 'name': norm_fname, 'fh': None}
                 # self.__files[norm_fname] = member
-                member = {'unpacked': False, 'name': fname, 'fh': None}
-                self.__files[fname] = member
+                self.__files[fname] = Member(fname,
+                                             info={'unpacked': False}
+                                             )
         # logger.debug("ZipFile self.__files: {}".format(self.__files))
 
     @property
@@ -186,40 +186,46 @@ class ZipfileArchive(AbstractArchive, ABC):
         return self.__transport
 
     def use_query(self):
-        """Do the plugin need the ?query part of the url?"""
+        """Does the plugin need the ?query part of the url?"""
         return True
 
     def getnames(self, files=None):
         """Get name list of the members.
 
+        Args:
+            files: List or single str of filename matches
+
         Returns:
             The members as a list of their names.
                 It has the same order as the members of the archive.
+        Raises:
+            FileNotFoundError: When no matching file is found.
         """
-        if files is None or \
-                (issubclass(type(files), str) and files == '*') or \
-                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
+        if files is not None and issubclass(type(files), str):
+            wanted_files = [files]
+        else:
+            wanted_files = files
+        if wanted_files is None or \
+                (issubclass(type(wanted_files), list) and (
+                        len(wanted_files) == 0 or
+                        len(wanted_files) > 0 and wanted_files[0] == '*')):
             logger.debug('ZipfileArchive.getnames: found files {}'.format(len(self.__files)))
             return sorted(self.__files.keys())
         else:
             filelist = list()
             for filename in self.__files:
                 logger.debug('ZipfileArchive.getnames: member {}'.format(filename))
-                for required_filename in files:
+                for required_filename in wanted_files:
                     logger.debug('ZipfileArchive.getnames: required {}'.format(required_filename))
                     if required_filename[-1] == '/':
                         required_filename = required_filename[:-1]
-                    # if fnmatch.fnmatchcase(filename, os.path.normpath(required_filename)):
-                    #     filelist.append(filename)
-                    # elif fnmatch.fnmatchcase(filename, os.path.normpath(required_filename) + '/*'):
-                    #     filelist.append(filename)
                     if fnmatch.fnmatchcase(filename, required_filename):
                         filelist.append(filename)
                     elif fnmatch.fnmatchcase(filename, required_filename + '/*'):
                         filelist.append(filename)
             logger.debug('ZipfileArchive.getnames: found files {}'.format(len(filelist)))
             if len(filelist) < 1:
-                raise FileNotFoundError('No such file: %s' % files)
+                raise FileNotFoundError('No such file: {}'.format(wanted_files))
             return filelist
 
     def basename(self, filehandle):
@@ -230,8 +236,11 @@ class ZipfileArchive(AbstractArchive, ABC):
 
         Args:
             filehandle: reference to member object
+
+        Returns:
+            Basename of file: str
         """
-        return os.path.basename(filehandle['name'])
+        return os.path.basename(filehandle.filename)
 
     @staticmethod
     def _longest_prefix(keys, required):
@@ -244,45 +253,54 @@ class ZipfileArchive(AbstractArchive, ABC):
         return prefix
 
     def _filehandle_in_files(self, filehandle):
-        fname = filehandle['name']
+        fname = filehandle.filename
         prefix = self._longest_prefix(self.__files.keys(), fname)
         return prefix in self.__files
 
-    def open(self, filehandle, mode='rb'):
+    def open(self, member, mode='rb'):
         """Open file.
-
-        Returns:
-             A member object for member with filehandle.
 
         Extract the member object to local file space.
         This is necessary to allow the seek() operation on open files.
+
+        Args:
+            member (Member): Handle to file.
+            mode (str): Open mode.
+        Returns:
+            An IO object for the member.
+        Raises:
+            FileNotFoundError: when file is not found.
+            PermissionError: When archive is read-only.
         """
 
+        if isinstance(member, str):
+            member = Member(member)
         logger.debug('ZipfileArchive.open: mode %s' % mode)
-        logger.debug('ZipfileArchive.open: filehandle %s' % filehandle)
+        logger.debug('ZipfileArchive.open: member %s' % member.filename)
         if mode[0] == 'r':
-            if filehandle['name'] not in self.__files:
+            if member.filename not in self.__files:
                 raise FileNotFoundError(
-                    'No such file: %s' % filehandle['name'])
-            filehandle['localfile'] = self.__archive.extract(
-                filehandle['name'], path=self.__tmpdir)
-            filehandle['unpacked'] = True
-            filehandle['fh'] = open(filehandle['localfile'], mode=mode)
-            return filehandle['fh']
+                    'No such file: %s' % member.filename)
+            member.local_file = self.__archive.extract(
+                member.filename, path=self.__tmpdir)
+            member.info['unpacked'] = True
+            member.fh = open(member.local_file, mode=mode)
+            return member.fh
         elif mode[0] == 'w':
             if self.__mode[0] == 'r':
                 raise PermissionError(
                     'Cannot write on an archive opened for read')
             # Open local file for write
-            localfile = tempfile.NamedTemporaryFile(delete=False)
+            local_file = tempfile.NamedTemporaryFile(delete=False)
             logger.debug('ZipfileArchive.open: mode %s file %s' % (
-                mode, localfile))
-            fh = WriteFileIO(self.__archive, filehandle, localfile)
-            member = {'unpacked': True,
-                      'name': filehandle,
-                      'fh': fh,
-                      'localfile': localfile}
-            self.__files[filehandle] = member
+                mode, local_file))
+            fh = WriteFileIO(self.__archive, member, local_file)
+            # Update info on member file
+            self.__files[member.filename] = Member(member.filename,
+                                                   info={'unpacked': True},
+                                                   fh=fh,
+                                                   local_file=local_file
+                                                   )
             return fh
         else:
             raise ValueError('Unknown mode "%s"' % mode)
@@ -290,25 +308,30 @@ class ZipfileArchive(AbstractArchive, ABC):
     def getmembers(self, files=None):
         """Get the members of the archive.
 
+        Args:
+            files: List of filename matches
+
         Returns:
-            The members of the archive as a list of member objects.
-                The list has the same order as the members in the archive.
+            The members of the archive as a list of Filehandles.
+                The list same order as the members in the archive.
         """
-        if files is None or \
-                (issubclass(type(files), str) and files == '*') or \
-                (issubclass(type(files), list) and len(files) > 0 and files[0] == '*'):
-            return self.__files
+        if files is not None and issubclass(type(files), str):
+            wanted_files = [files]
+        else:
+            wanted_files = files
+        if wanted_files is None or \
+                (issubclass(type(wanted_files), list) and (
+                        len(wanted_files) == 0 or len(wanted_files) > 0 and wanted_files[0] == '*')):
+            return list(self.__files.values())
         else:
             # logger.debug('ZipfileArchive.getmembers: files {}'.format(len(files)))
             if issubclass(type(files), list):
                 wanted_files = []
                 for file in files:
-                    # wanted_files.append(os.path.normpath(file))
                     if file[-1] == '/':
                         file = file[:-1]
                     wanted_files.append(file)
             else:
-                # wanted_files = list((os.path.normpath(files),))
                 if files[-1] == '/':
                     files = files[:-1]
                 wanted_files = list((files,))
@@ -317,13 +340,9 @@ class ZipfileArchive(AbstractArchive, ABC):
             filelist = list()
             for filename in self.__files:
                 for i, required_filename in enumerate(wanted_files):
-                    #if i == 0:
-                    #    logger.debug('ZipfileArchive.getmembers: compare {} {} {}'.format(os.path.normpath(filename), required_filename,
-                    #        os.path.normpath(required_filename)))
                     if fnmatch.fnmatchcase(filename, required_filename):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
-                    # elif fnmatch.fnmatchcase(filename, required_filename + os.sep + '*'):
                     elif fnmatch.fnmatchcase(filename, required_filename + '/*'):
                         filelist.append(self.__files[filename])
                         found_match[i] = True
@@ -335,18 +354,23 @@ class ZipfileArchive(AbstractArchive, ABC):
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
 
-    def to_localfile(self, filehandle):
+    def to_localfile(self, member):
         """Access a member object through a local file.
+
+        Args:
+            member: handle to member file.
+        Returns:
+            filename to file guaranteed to be local.
+        Raises:
+            FileNotFoundError: when file is not found.
         """
-        if not self._filehandle_in_files(filehandle):
-            raise FileNotFoundError(
-                'No such file: %s' % filehandle['name'])
-        if not filehandle['unpacked']:
-            filehandle['localfile'] = \
-                self.__archive.extract(filehandle['name'])
-            filehandle['unpacked'] = True
-            self.__files[filehandle['name']] = filehandle
-        return filehandle['localfile']
+        if not self._filehandle_in_files(member):
+            raise FileNotFoundError('No such file: {}'.format(member.filename))
+        if not member.info['unpacked']:
+            member.local_file = self.__archive.extract(member.filename)
+            member.info['unpacked'] = True
+            self.__files[member.filename] = member
+        return member.local_file
 
     def add_localfile(self, local_file, filename):
         """Add a local file to the archive.
@@ -354,16 +378,12 @@ class ZipfileArchive(AbstractArchive, ABC):
         Args:
             local_file: named local file
             filename: filename in the archive
-        Returns:
-            filehandle to file in the archive
         """
         if self.__mode[0] == 'r':
             raise PermissionError(
                 'Cannot write on an archive opened for read')
-        member = {'unpacked': True,
-                  'name': filename,
-                  'fh': None,
-                  'localfile': local_file}
+        member = Member(filename, info={'unpacked': True},
+                        local_file=local_file)
         self.__archive.write(local_file, arcname=filename)
         logger.debug('ZipfileArchive.add_localfile: local {} as {}'.format(
             local_file, filename))
@@ -380,9 +400,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         if self.__mode[0] == 'r':
             raise PermissionError(
                 'Cannot write on an archive opened for read')
-        member = {'unpacked': False,
-                  'name': filename,
-                  'fh': None}
+        member = Member(filename, info={'unpacked': False})
         self.__archive.writestr(filename, data)
         self.__files[filename] = member
 
@@ -395,10 +413,16 @@ class ZipfileArchive(AbstractArchive, ABC):
         logger.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
         self.__transport.close()
 
-    def is_file(self, filehandle):
+    def is_file(self, member):
         """Determine whether the named file is a single file.
+
+        Args:
+            member: file member
+
+        Returns:
+            whether named file is a single file (bool)
         """
-        pass
+        return member.filename in self.__files and self._filehandle_in_files(member)
 
     def __enter__(self):
         """Enter context manager.
