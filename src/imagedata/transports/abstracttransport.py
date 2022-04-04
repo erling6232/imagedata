@@ -3,10 +3,9 @@
 Defines generic functions.
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
-# import imagedata.transports
 
 
 class NoOtherInstance(Exception):
