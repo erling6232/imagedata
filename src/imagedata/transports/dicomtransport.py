@@ -1,15 +1,15 @@
 """Transfer DICOM images to and from DICOM Storage SCP
 """
 
-# Copyright (c) 2019-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2019-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import platform
 import urllib
 import logging
 import pydicom
 import pynetdicom
-from imagedata.transports.abstracttransport import AbstractTransport
-from imagedata.transports import FunctionNotSupported
+from .abstracttransport import AbstractTransport
+from . import FunctionNotSupported
 
 logger = logging.getLogger(__name__)
 

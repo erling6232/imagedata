@@ -3,7 +3,7 @@
 Standard plugins provides support for DICOM and Nifti image file formats.
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 import sys

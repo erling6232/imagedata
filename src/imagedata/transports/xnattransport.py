@@ -1,7 +1,7 @@
 """Read/write files in xnat database
 """
 
-# Copyright (c) 2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2021-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import urllib
 import xnat
-from imagedata.transports.abstracttransport import AbstractTransport
+from .abstracttransport import AbstractTransport
 
 logger = logging.getLogger(__name__)
 

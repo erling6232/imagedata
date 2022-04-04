@@ -18,12 +18,12 @@ logger.setLevel(logging.DEBUG)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("sys.path = \n{}".format(sys.path))
 
-from imagedata.formats.abstractplugin import AbstractPlugin
-import imagedata.formats as formats
+from .formats.abstractplugin import AbstractPlugin
+from .formats import get_plugins_list
 
 if __name__ == '__main__':
     print("__main__")
-    plugins = formats.get_plugins_list()
+    plugins = get_plugins_list()
     print("Plugin Table List")
     print("=================")
     for pname, ptype, pclass in plugins:

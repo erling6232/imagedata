@@ -22,6 +22,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'nifti', '--serdes', '1'])
 
+    def test_nifti_plugin(self):
         plugins = imagedata.formats.get_plugins_list()
         self.nifti_plugin = None
         for pname, ptype, pclass in plugins:
@@ -70,7 +71,6 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_qform_3D(self):
         dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', dcm.input_format)
-        dcm.write('tt', formats=['nifti'])
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             n = Series(d)

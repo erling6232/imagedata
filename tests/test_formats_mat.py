@@ -32,6 +32,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'mat', '--serdes', '1'])
 
+    def test_mat_plugin(self):
         plugins = imagedata.formats.get_plugins_list()
         self.mat_plugin = None
         for pname, ptype, pclass in plugins:

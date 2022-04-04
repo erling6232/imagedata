@@ -19,11 +19,12 @@ import pydicom.dataset
 import pydicom.datadict
 # import numpy.core._multiarray_umath
 
-import imagedata.axis
-import imagedata.formats
-import imagedata.readdata as readdata
-import imagedata.formats.dicomlib.uid
-from imagedata.header import Header
+from .axis import UniformAxis, UniformLengthAxis, VariableAxis
+from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
+from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
+from .formats.dicomlib.uid import get_uid_for_storage_class
+from .readdata import read as r_read, write as r_write
+from .header import Header, deepcopy_DicomHeaderDict
 
 logger = logging.getLogger(__name__)
 
@@ -129,14 +130,14 @@ class Series(np.ndarray):
             obj.header.input_order = input_order
             obj.header.input_format = type(data)
             if np.ndim(data) == 0:
-                obj.header.axes = [imagedata.axis.UniformAxis('number', 0, 1)]
+                obj.header.axes = [UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
             obj.header.add_template(template)
             obj.header.add_geometry(template, geometry)
             return obj
 
         # Read input, hdr is dict of attributes
-        hdr, si = readdata.read(urls, input_order, opts)
+        hdr, si = r_read(urls, input_order, opts)
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
@@ -285,7 +286,7 @@ class Series(np.ndarray):
                 if input_.header is None:
                     logger.warning('Series._unify_headers: new header')
                     header = Header()
-                    header.input_order = imagedata.formats.INPUT_ORDER_NONE
+                    header.input_order = INPUT_ORDER_NONE
                 else:
                     logger.debug('Series._unify_headers: copy header')
                     header = copy.copy(input_.header)
@@ -413,7 +414,7 @@ class Series(np.ndarray):
                     todo.append(('imagePositions', None))  # Wipe existing positions
                     if ipp is not None:
                         todo.append(('imagePositions', ipp))
-                elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+                elif axis.name == input_order_to_dirname_str(self.input_order):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
@@ -432,7 +433,7 @@ class Series(np.ndarray):
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
                 if ret.axes[-ret.ndim].name in ['slice', 'row', 'column', 'color']:
-                    ret.input_order = imagedata.formats.INPUT_ORDER_NONE
+                    ret.input_order = INPUT_ORDER_NONE
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
@@ -496,7 +497,7 @@ class Series(np.ndarray):
             start, stop, step, axis = specs[d]
             if axis.name == 'slice':
                 slice_spec = slice(start, stop, step)
-            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+            elif axis.name == input_order_to_dirname_str(self.input_order):
                 tag_spec = slice(start, stop, step)
         # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
         hdr = {}
@@ -544,8 +545,8 @@ class Series(np.ndarray):
             self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
             self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
             seriesNumber, seriesDescription,
-            imagedata.formats.shape_to_str(self.shape), self.dtype,
-            imagedata.formats.input_order_to_dirname_str(self.input_order))
+            shape_to_str(self.shape), self.dtype,
+            input_order_to_dirname_str(self.input_order))
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
@@ -567,7 +568,7 @@ class Series(np.ndarray):
             start, stop, step, axis = specs[d]
             if axis.name == "slice":
                 slice_spec = slice(start, stop, step)
-            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+            elif axis.name == input_order_to_dirname_str(self.input_order):
                 tag_spec = slice(start, stop, step)
         # tags: dict[slice] is np.array(tags)
         new_tags = {}
@@ -596,7 +597,7 @@ class Series(np.ndarray):
         logger.debug('Series.write: url    : {}'.format(url))
         logger.debug('Series.write: formats: {}'.format(formats))
         logger.debug('Series.write: opts   : {}'.format(opts))
-        readdata.write(self, url, formats=formats, opts=opts)
+        r_write(self, url, formats=formats, opts=opts)
 
     @property
     def input_order(self):
@@ -620,7 +621,7 @@ class Series(np.ndarray):
 
     @input_order.setter
     def input_order(self, order):
-        if order in imagedata.formats.input_order_set:
+        if order in input_order_set:
             self.header.input_order = order
         else:
             raise ValueError("Unknown input order: {}".format(order))
@@ -660,7 +661,7 @@ class Series(np.ndarray):
 
     @input_sort.setter
     def input_sort(self, order):
-        if order is None or order in imagedata.formats.sort_on_set:
+        if order is None or order in sort_on_set:
             self.header.input_sort = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
@@ -687,7 +688,7 @@ class Series(np.ndarray):
 
     @sort_on.setter
     def sort_on(self, order):
-        if order in imagedata.formats.sort_on_set:
+        if order in sort_on_set:
             self.header.sort_on = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
@@ -914,7 +915,7 @@ class Series(np.ndarray):
         i = 0
         for d in super(Series, self).shape:
             self.header.axes.append(
-                imagedata.axis.UniformLengthAxis(
+                UniformLengthAxis(
                     _labels[i], 0, d, 1
                 )
             )
@@ -1361,7 +1362,7 @@ class Series(np.ndarray):
             self.header.SOPClassUID = None
             return
         try:
-            self.header.SOPClassUID = imagedata.formats.dicomlib.uid.get_uid_for_storage_class(uid)
+            self.header.SOPClassUID = get_uid_for_storage_class(uid)
         except ValueError:
             raise
 
@@ -1675,7 +1676,7 @@ class Series(np.ndarray):
         Raises:
             ValueError: tags for dataset is not time tags
         """
-        if self.input_order == imagedata.formats.INPUT_ORDER_TIME:
+        if self.input_order == INPUT_ORDER_TIME:
             timeline = [0.0]
             for t in range(1, len(self.tags[0])):
                 timeline.append(self.tags[0][t] - self.tags[0][0])
@@ -1691,7 +1692,7 @@ class Series(np.ndarray):
         Raises:
             ValueError: tags for dataset is not b tags
         """
-        if self.input_order == imagedata.formats.INPUT_ORDER_B:
+        if self.input_order == INPUT_ORDER_B:
             return np.array(self.tags[0])
         else:
             raise ValueError("No b-value tags are available. Input order: {}".format(self.input_order))
@@ -1828,7 +1829,7 @@ class Series(np.ndarray):
     def deepcopy(self):
         """Create a copy using deepcopy."""
         a = Series(np.copy(self), template=self, geometry=self)
-        a.header.DicomHeaderDict = imagedata.header.deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
+        a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
         return a
 
     def to_rgb(self, colormap='Greys_r', lut=None, norm='linear'):
@@ -1849,7 +1850,7 @@ class Series(np.ndarray):
 
         import matplotlib as mpl
         import matplotlib.pyplot as plt
-        from imagedata.viewer import get_window_level
+        from .viewer import get_window_level
 
         if lut is None:
             lut = 256 if self.dtype.kind == 'f' else (self.max().item()) + 1
@@ -1877,14 +1878,14 @@ class Series(np.ndarray):
                 colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb', ['r', 'g', 'b'])]
+                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
             )
         else:
             rgb = Series(
                 colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb', ['r', 'g', 'b'])]
+                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
             )
 
         rgb.header.photometricInterpretation = 'RGB'
@@ -1913,7 +1914,7 @@ class Series(np.ndarray):
             ValueError: when image is not a subclass of Series, or too many viewports are requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from imagedata.viewer import Viewer, default_layout
+        from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
 
         # im2 can be single image or list of images
@@ -1971,7 +1972,7 @@ class Series(np.ndarray):
             ValueError: when image is not a subclass of Series, or too many viewports are requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from imagedata.viewer import Viewer, default_layout, grid_from_roi
+        from .viewer import Viewer, default_layout, grid_from_roi
         import matplotlib.pyplot as plt
 
         # im2 can be single image or list of images

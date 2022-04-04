@@ -2,7 +2,7 @@
 
 """Read/write image data to file(s). Handles DICOM, Nifti, VTI and mhd."""
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import os.path
@@ -10,19 +10,18 @@ import argparse
 import urllib
 import logging
 import numpy as np
-import imagedata
-import imagedata.cmdline
-import imagedata.formats
-import imagedata.readdata
-import imagedata.transports
-from imagedata.series import Series
+from .cmdline import add_argparse_options
+from .formats import find_plugin, NotImageError
+from .readdata import _get_sources
+from .transports import Transport
+from .series import Series
 
 logger = logging.getLogger()
 
 
 def dump():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -38,9 +37,9 @@ def dump():
     else:
         raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
 
-    reader = imagedata.formats.find_plugin('dicom')
+    reader = find_plugin('dicom')
     logger.debug("in_dirs {}".format(args.in_dirs))
-    sources = imagedata.readdata._get_sources(args.in_dirs, mode='r')
+    sources = _get_sources(args.in_dirs, mode='r')
 
     image_dict = {}
     for source in sources:
@@ -127,7 +126,7 @@ def calculator():
         1  : New image, same shape, all ones
         a*2: Multiply first input by 2
         a+b: Add first and second image""")
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     #parser.add_argument('--mask',
     #                    help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
@@ -155,7 +154,7 @@ def calculator():
         names[key] = indir
         try:
             si[key] = Series(indir, args.input_order, args)
-        except imagedata.formats.NotImageError:
+        except NotImageError:
             print("Could not determine input format of {}.".format(indir))
             return 1
         i += 1
@@ -200,7 +199,7 @@ def calculator():
 
 def statistics():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument('--mask',
                         help='Image mask', default=None)
     parser.add_argument('--bash', action='store_true',
@@ -212,7 +211,7 @@ def statistics():
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -222,7 +221,7 @@ def statistics():
     if args.mask is not None:
         try:
             mask = Series(args.mask) > 0
-        except imagedata.formats.NotImageError:
+        except NotImageError:
             print("Could not determine input format of %s." % args.mask)
             return 1
 
@@ -250,7 +249,7 @@ def statistics():
 
 def timeline():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -260,7 +259,7 @@ def timeline():
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -272,7 +271,7 @@ def timeline():
 
 def show():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -282,7 +281,7 @@ def show():
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -294,7 +293,7 @@ def show():
 
 def conversion():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("out_name",
                         help="Output directory")
     parser.add_argument("in_dirs", nargs='+',
@@ -304,11 +303,11 @@ def conversion():
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     #print("Output format: %s, %s, in %s directory." % (
-    #    args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
+    #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -320,7 +319,7 @@ def conversion():
 
 def image_list():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("-r", "--recursive", help="Descend into directory tree", action="store_true")
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
@@ -329,7 +328,7 @@ def image_list():
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)
     netloc = '{}://{}'.format(url_tuple.scheme, url_tuple.netloc)
-    transport = imagedata.transports.Transport(args.input)
+    transport = Transport(args.input)
     found = False
     for root, dirs, files in transport.walk('*'):
         found = True

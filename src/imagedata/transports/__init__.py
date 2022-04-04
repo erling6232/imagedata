@@ -3,10 +3,11 @@
 Standard plugins provides support for file, http/https and xnat transports.
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
-import urllib
+from urllib import parse
+from .abstracttransport import AbstractTransport
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ def Transport(
     if opts is None:
         opts = {}
     if netloc is None and root is None:
-        url_tuple = urllib.parse.urlsplit(scheme)
+        url_tuple = parse.urlsplit(scheme)
         scheme = url_tuple.scheme
         netloc = url_tuple.hostname
         # netloc = url_tuple.netloc
