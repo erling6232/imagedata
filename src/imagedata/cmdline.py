@@ -1,13 +1,15 @@
 """Add standard command line options."""
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import argparse
 import copy
 import logging
-import imagedata
-import imagedata.formats
+from . import __version__
+from .formats import str_to_sort_on, str_to_input_order, str_to_dtype
+from .formats import SORT_ON_SLICE
+from .formats import INPUT_ORDER_NONE
 
 
 class DictAction(argparse.Action):
@@ -63,7 +65,7 @@ class SortOnAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        sort = imagedata.formats.str_to_sort_on(values)
+        sort = str_to_sort_on(values)
         setattr(namespace, self.dest, sort)
 
 
@@ -75,7 +77,7 @@ class InputOrderAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        input_order = imagedata.formats.str_to_input_order(values)
+        input_order = str_to_input_order(values)
         setattr(namespace, self.dest, input_order)
 
 
@@ -87,7 +89,7 @@ class DtypeAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        output_dtype = imagedata.formats.str_to_dtype(values)
+        output_dtype = str_to_dtype(values)
         setattr(namespace, self.dest, output_dtype)
 
 
@@ -99,12 +101,12 @@ def add_argparse_options(parser):
                         default=[])
     parser.add_argument('--sort', dest="output_sort", action=SortOnAction,
                         help="Sort output file on slice or input order 'tag' (default: slice)",
-                        choices=['slice', 'tag'], default=imagedata.formats.SORT_ON_SLICE)
+                        choices=['slice', 'tag'], default=SORT_ON_SLICE)
     parser.add_argument('--order', dest="input_order",
                         action=InputOrderAction,
                         help="How to sort input file (time, b-value, fa, te) (default: none)",
                         choices=['none', 'time', 'b', 'fa', 'te', 'faulty'],
-                        default=imagedata.formats.INPUT_ORDER_NONE)
+                        default=INPUT_ORDER_NONE)
     # readdata.str_to_dtype() will convert choice to numpy dtype
     parser.add_argument('--dtype', action=DtypeAction,
                         help="Specify output datatype. Otherwise keep input datatype",
@@ -157,7 +159,7 @@ def add_argparse_options(parser):
                         default=None)
     parser.add_argument('--input_sort', action=SortOnAction,
                         help="Sort input file on slice or input order 'tag' (default: slice)",
-                        choices=['slice', 'tag'], default=imagedata.formats.SORT_ON_SLICE)
+                        choices=['slice', 'tag'], default=SORT_ON_SLICE)
     parser.add_argument('-d', '--debug',
                         help="Print lots of debugging statements",
                         action="store_const", dest="loglevel",
@@ -170,4 +172,4 @@ def add_argparse_options(parser):
     parser.add_argument('-V', '--version',
                         help='Show program version',
                         action='version',
-                        version='{} {}'.format(sys.argv[0], imagedata.__version__))
+                        version='{} {}'.format(sys.argv[0], __version__))
