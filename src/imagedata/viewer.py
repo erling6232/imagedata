@@ -11,7 +11,7 @@ from matplotlib.path import Path as MplPath
 import mpl_toolkits.axes_grid1
 import numpy as np
 
-from imagedata.series import Series
+from .series import Series
 
 POSITIVE_EPS = 1e-3
 
