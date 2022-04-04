@@ -3,7 +3,7 @@
 Standard plugins provides support for file, http/https and xnat transports.
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 import urllib
