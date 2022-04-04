@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -14,10 +14,11 @@ import pydicom.errors
 import pydicom.uid
 from pydicom.datadict import tag_for_keyword
 
-import imagedata.formats
-import imagedata.axis
-from imagedata.formats.abstractplugin import AbstractPlugin
-from imagedata.header import Header
+from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str, SORT_ON_SLICE,\
+    INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE
+from ..axis import VariableAxis, UniformLengthAxis
+from .abstractplugin import AbstractPlugin
+from ..header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -247,11 +248,11 @@ class DICOMPlugin(AbstractPlugin):
         # pydicom.config.debug(True)
         try:
             hdr, shape = self.read_headers(sources, input_order, opts, skip_pixels=True)
-        except imagedata.formats.CannotSort:
+        except CannotSort:
             raise
         except Exception as e:
             logger.debug('DICOMPlugin.read: exception\n%s' % e)
-            raise imagedata.formats.NotImageError('{}'.format(e))
+            raise NotImageError('{}'.format(e))
         # pydicom.config.debug(False)
 
         # Look-up first image to determine pixel type
@@ -276,7 +277,7 @@ class DICOMPlugin(AbstractPlugin):
             hdr.color = True
             shape = shape + (im.SamplesPerPixel,)
             hdr.axes.append(
-                imagedata.axis.VariableAxis(
+                VariableAxis(
                     'rgb',
                     ['r', 'g', 'b']
                 )
@@ -489,7 +490,7 @@ class DICOMPlugin(AbstractPlugin):
         #    #import traceback
         #    #traceback.print_exc()
         #    #logger.info("process_member: Could not read {}".format(member_name))
-        #    raise imagedata.formats.NotImageError(
+        #    raise NotImageError(
         #        'Does not look like a DICOM file: {}'.format(sources))
         # except Exception as e:
         #    logger.debug('DICOMPlugin.read_headers: Exception {}'.format(e))
@@ -520,11 +521,10 @@ class DICOMPlugin(AbstractPlugin):
             archive = source['archive']
             scan_files = source['files']
             logger.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
-            if scan_files is None or len(scan_files) == 0:
-                scan_files = ['*']
+            # if scan_files is None or len(scan_files) == 0:
+            #     scan_files = ['*']
             logger.debug("get_dicom_headers: source: {} {}".format(type(source), source))
             logger.debug("get_dicom_headers: scan_files: {}".format(scan_files))
-            # for member in archive.getmembers(scan_files):
             for path in archive.getnames(scan_files):
                 logger.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
@@ -542,7 +542,6 @@ class DICOMPlugin(AbstractPlugin):
                         self.process_member(image_dict, archive, path, f, opts, skip_pixels=skip_pixels)
                 except Exception as e:
                     logger.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
-                    # except FileNotFoundError:
                     raise
         return self.sort_images(image_dict, input_order, opts)
 
@@ -603,18 +602,18 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     tag = self._get_tag(im, input_order, opts)
                 except KeyError:
-                    if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
+                    if input_order == INPUT_ORDER_FAULTY:
                         tag = i
                     else:
-                        raise imagedata.formats.CannotSort('Tag not found in dataset')
+                        raise CannotSort('Tag not found in dataset')
                 except Exception:
                     raise
                 if tag is None:
-                    raise imagedata.formats.CannotSort("Tag {} not found in data".format(input_order))
+                    raise CannotSort("Tag {} not found in data".format(input_order))
                 if tag not in tag_list[islice] or accept_duplicate_tag:
                     tag_list[islice].append(tag)
                 else:
-                    raise imagedata.formats.CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                    raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
                 i += 1
             islice += 1
         for islice in range(len(header_dict)):
@@ -630,7 +629,7 @@ class DICOMPlugin(AbstractPlugin):
             # Pre-fill sorted_headers
             sorted_headers[islice] = [False for _ in range(count[islice])]
             for archive, filename, im in sorted(header_dict[sloc]):
-                if input_order == imagedata.formats.INPUT_ORDER_FAULTY:
+                if input_order == INPUT_ORDER_FAULTY:
                     tag = i
                 else:
                     tag = self._get_tag(im, input_order, opts)
@@ -670,21 +669,21 @@ class DICOMPlugin(AbstractPlugin):
         axes = list()
         if len(tag_list[0]) > 1:
             axes.append(
-                imagedata.axis.VariableAxis(
-                    imagedata.formats.input_order_to_dirname_str(input_order),
+                VariableAxis(
+                    input_order_to_dirname_str(input_order),
                     tag_list[0])
             )
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'slice',
             ipp[0],
             nz,
             spacing[0]))
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'row',
             ipp[1],
             rows,
             spacing[1]))
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'column',
             ipp[2],
             columns,
@@ -881,7 +880,7 @@ class DICOMPlugin(AbstractPlugin):
         self.DicomHeaderDict = si.DicomHeaderDict
 
         # Defaults
-        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        self.output_sort = SORT_ON_SLICE
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
         self.output_dir = 'single'
@@ -919,7 +918,7 @@ class DICOMPlugin(AbstractPlugin):
             self.write_enhanced(si, archive, filename_template)
         else:
             # Either legacy CT/MR, or another modality
-            if self.output_sort == imagedata.formats.SORT_ON_SLICE:
+            if self.output_sort == SORT_ON_SLICE:
                 ifile = 0
                 digits = len("{}".format(steps))
                 for tag in range(steps):
@@ -928,7 +927,7 @@ class DICOMPlugin(AbstractPlugin):
                             filename = filename_template % ifile
                         else:  # self.output_dir == 'multi'
                             dirn = "{0}{1:0{2}}".format(
-                                imagedata.formats.input_order_to_dirname_str(si.input_order),
+                                input_order_to_dirname_str(si.input_order),
                                 tag, digits)
                             if _slice == 0:
                                 # Restart file number in each subdirectory
@@ -937,7 +936,7 @@ class DICOMPlugin(AbstractPlugin):
                                                     filename_template % ifile)
                         self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
                         ifile += 1
-            else:  # self.output_sort == imagedata.formats.SORT_ON_TAG:
+            else:  # self.output_sort == SORT_ON_TAG:
                 ifile = 0
                 digits = len("{}".format(si.slices))
                 for _slice in range(si.slices):
@@ -1455,9 +1454,9 @@ class DICOMPlugin(AbstractPlugin):
 
         if input_order is None:
             return 0
-        if input_order == imagedata.formats.INPUT_ORDER_NONE:
+        if input_order == INPUT_ORDER_NONE:
             return 0
-        elif input_order == imagedata.formats.INPUT_ORDER_TIME:
+        elif input_order == INPUT_ORDER_TIME:
             time_tag = choose_tag('time', 'AcquisitionTime')
             # if 'TriggerTime' in opts:
             #    return(float(image.TriggerTime))
@@ -1477,7 +1476,7 @@ class DICOMPlugin(AbstractPlugin):
                 return td.total_seconds()
             else:
                 return float(im.data_element(time_tag).value)
-        elif input_order == imagedata.formats.INPUT_ORDER_B:
+        elif input_order == INPUT_ORDER_B:
             b_tag = choose_tag('b', 'DiffusionBValue')
             try:
                 return float(im.data_element(b_tag).value)
@@ -1492,14 +1491,14 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     value = csa.get_b_value(csa_head)
                 except TypeError:
-                    raise imagedata.formats.CannotSort("Unable to extract b value from header.")
+                    raise CannotSort("Unable to extract b value from header.")
             else:
                 value = float(im.data_element(b_tag).value)
             return value
-        elif input_order == imagedata.formats.INPUT_ORDER_FA:
+        elif input_order == INPUT_ORDER_FA:
             fa_tag = choose_tag('fa', 'FlipAngle')
             return float(im.data_element(fa_tag).value)
-        elif input_order == imagedata.formats.INPUT_ORDER_TE:
+        elif input_order == INPUT_ORDER_TE:
             te_tag = choose_tag('te', 'EchoTime')
             return float(im.data_element(te_tag).value)
         else:
@@ -1516,9 +1515,9 @@ class DICOMPlugin(AbstractPlugin):
 
         if input_order is None:
             pass
-        elif input_order == imagedata.formats.INPUT_ORDER_NONE:
+        elif input_order == INPUT_ORDER_NONE:
             pass
-        elif input_order == imagedata.formats.INPUT_ORDER_TIME:
+        elif input_order == INPUT_ORDER_TIME:
             # AcquisitionTime
             time_tag = choose_tag("time", "AcquisitionTime")
             if time_tag not in im:
@@ -1536,7 +1535,7 @@ class DICOMPlugin(AbstractPlugin):
                 im.data_element(time_tag).value = time_str
             else:
                 im.data_element(time_tag).value = float(value)
-        elif input_order == imagedata.formats.INPUT_ORDER_B:
+        elif input_order == INPUT_ORDER_B:
             # b_tag = opts['b'] if 'b' in opts else b_tag = 'csa_header'
             b_tag = choose_tag('b', "csa_header")
             if b_tag == "csa_header":
@@ -1551,10 +1550,10 @@ class DICOMPlugin(AbstractPlugin):
                     raise ValueError('Replacing b value in CSA header has not been implemented.')
             else:
                 im.data_element(b_tag).value = float(value)
-        elif input_order == imagedata.formats.INPUT_ORDER_FA:
+        elif input_order == INPUT_ORDER_FA:
             fa_tag = choose_tag('fa', 'FlipAngle')
             im.data_element(fa_tag).value = float(value)
-        elif input_order == imagedata.formats.INPUT_ORDER_TE:
+        elif input_order == INPUT_ORDER_TE:
             te_tag = choose_tag('te', 'EchoTime')
             im.data_element(te_tag).value = float(value)
         else:
