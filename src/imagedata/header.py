@@ -7,9 +7,9 @@ import logging
 import numpy as np
 import pydicom.dataset
 import pydicom.datadict
-import imagedata.formats
-import imagedata.formats.dicomlib.uid
-from imagedata.axis import UniformAxis, UniformLengthAxis, VariableAxis
+from .formats import INPUT_ORDER_NONE
+from .formats.dicomlib.uid import get_uid
+from .axis import UniformAxis, UniformLengthAxis, VariableAxis
 
 logger = logging.getLogger(__name__)
 
@@ -70,14 +70,14 @@ class Header(object):
         This is created in Series.__array_finalize__() and Series.__new__()
         """
         object.__init__(self)
-        self.input_order = imagedata.formats.INPUT_ORDER_NONE
+        self.input_order = INPUT_ORDER_NONE
         self.sort_on = None
         for attr in header_tags + geometry_tags:
             try:
                 setattr(self, attr, None)
             except AttributeError:
                 pass
-        self.__uid_generator = imagedata.formats.dicomlib.uid.get_uid()
+        self.__uid_generator = get_uid()
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
@@ -357,14 +357,14 @@ def deepcopy_DicomHeaderDict(source, filename=None):
         for element in source.iterall():
             # print('deepcopy_DicomHeaderDict: element {} {}'.format(
             #    element.tag,
-            #    imagedata.formats.get_size(element)))
+            #    get_size(element)))
             if element.tag == 0x7fe00010:
                 continue  # Do not copy pixel data, will be added later
             ds.add(copy.deepcopy(element))
             # ds.add(element)
 
     # print('deepcopy_DicomHeaderDict: {} -> {}'.format(
-    #    imagedata.formats.get_size(source),
-    #    imagedata.formats.get_size(ds)
+    #    get_size(source),
+    #    get_size(ds)
     # ))
     return ds
