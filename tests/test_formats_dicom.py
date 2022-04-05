@@ -24,6 +24,7 @@ class TestDicomPlugin(unittest.TestCase):
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['dicom']
 
+    def test_dicom_plugin(self):
         plugins = imagedata.formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
