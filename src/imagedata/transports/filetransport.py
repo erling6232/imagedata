@@ -6,6 +6,7 @@
 import os
 import os.path
 import io
+from typing import IO
 import logging
 from imagedata.transports.abstracttransport import AbstractTransport
 from imagedata.transports import RootIsNotDirectory, RootDoesNotExist
@@ -14,10 +15,26 @@ logger = logging.getLogger(__name__)
 
 
 class FileTransport(AbstractTransport):
-    """Read/write local files."""
+    """Read/write local files.
+
+    Args:
+        netloc (str): Not used.
+        root (str): Root path.
+        mode (str): Filesystem access mode.
+        read_directory_only (bool): Whether root should refer to a directory.
+        opts (dict): Options
+
+    Returns:
+        FileTransport instance
+
+    Raises:
+        RootIsNotDirectory: when the root is not a directory when read_directory_only is True.
+        RootDoesNotExist: Specified root does not exist.
+        AssertionError: When root is None.
+    """
 
     name = "file"
-    description = "Read and write local image files."
+    description = "Read and write local files."
     authors = "Erling Andersen"
     version = "1.1.0"
     url = "www.helse-bergen.no"
@@ -44,22 +61,29 @@ class FileTransport(AbstractTransport):
         """
         return
 
-    def _get_path(self, path):
-        """Return either relative or absolute path.
+    def _get_path(self, path) -> str:
+        """Get absolute path of object.
+        If path is relative path, prepend self.__root.
+        If path is absolute path, return path only.
 
-        If path is relative path, prepend self.__root
-        If path is absolute path, return path only
+        Args:
+            path: Absolute or relative path to object.
+
+        Returns:
+            Absolute path of object.
         """
         if os.path.isabs(path):
             return path
         return os.path.join(self.__root, path)
 
-    def walk(self, top):
+    def walk(self, top) -> tuple:
         """Generate the file names in a directory tree by walking the tree.
-        Input:
-        - top: starting point for walk (str)
-        Return:
-        - tuples of (root, dirs, files) 
+
+        Args:
+            top: starting point for walk (str)
+
+        Returns:
+            tuples of (root, dirs, files)
         """
         for root, dirs, files in os.walk(self._get_path(top)):
             local_root = root
@@ -67,17 +91,27 @@ class FileTransport(AbstractTransport):
                 local_root = root[len(self.__root) + 1:]  # Strip off root
             yield local_root, dirs, files
 
-    def isfile(self, path):
-        """Return True if path is an existing regular file.
+    def isfile(self, path) -> bool:
+        """Check whether path refers to an existing regular file.
+
+        Args:
+            path: Path to file.
+
+        Returns:
+            Existense of regular file (bool)
         """
         return os.path.isfile(os.path.join(self.__root, path))
 
-    def open(self, path, mode='r'):
+    def open(self, path, mode='r') -> IO[bytes]:
         """Extract a member from the archive as a file-like object.
+
+        Args:
+            path (str): Path to file.
+            mode (str): Open mode, can be 'r', 'w', 'x' or 'a'
         """
         logger.debug("FileTransport open: {} ({})".format(path, mode))
         filename = os.path.join(self.__root, path)
-        if mode[0] == 'w':
+        if mode[0] in ['w', 'x', 'a']:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
         logger.debug("FileTransport open: {} ({})".format(filename, mode))
         return io.FileIO(filename, mode)

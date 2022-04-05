@@ -3,10 +3,10 @@
 Defines generic functions.
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
-# import imagedata.transports
+from typing import IO
 
 
 class NoOtherInstance(Exception):
@@ -102,7 +102,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def open(self, path, mode='r'):
+    def open(self, path, mode='r') -> IO[bytes]:
         """Extract a member from the archive as a file-like object.
         """
         pass

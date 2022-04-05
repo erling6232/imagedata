@@ -1,15 +1,16 @@
 """Transfer DICOM images to and from DICOM Storage SCP
 """
 
-# Copyright (c) 2019-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2019-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import platform
+from typing import IO
 import urllib
 import logging
 import pydicom
 import pynetdicom
-from imagedata.transports.abstracttransport import AbstractTransport
-from imagedata.transports import FunctionNotSupported
+from .abstracttransport import AbstractTransport
+from . import FunctionNotSupported
 
 logger = logging.getLogger(__name__)
 
@@ -191,7 +192,7 @@ class DicomTransport(AbstractTransport):
         """
         raise FunctionNotSupported('Accessing the DICOM server is not supported.')
 
-    def open(self, path, mode='r'):
+    def open(self, path, mode='r') -> IO[bytes]:
         """Extract a member from the archive as a file-like object.
         """
         # raise FunctionNotSupported('Open the DICOM server is not supported.')
