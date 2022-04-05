@@ -30,6 +30,7 @@ except AttributeError:
     # pydicom < 2.3
     pydicom.config.enforce_valid_values = False
 
+
 class FilesGivenForMultipleURLs(Exception):
     pass
 
