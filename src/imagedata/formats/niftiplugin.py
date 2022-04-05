@@ -1,19 +1,19 @@
 """Read/Write Nifti-1 files
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import tempfile
 import logging
 import math
-
-import numpy as np
-import imagedata.formats
-import imagedata.axis
-from imagedata.formats.abstractplugin import AbstractPlugin
 import nibabel
 import nibabel.spatialimages
+import numpy as np
+from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str, shape_to_str, sort_on_to_str,\
+    SORT_ON_SLICE
+from ..axis import UniformLengthAxis
+from .abstractplugin import AbstractPlugin
 
 # import nitransforms
 
@@ -96,7 +96,7 @@ class NiftiPlugin(AbstractPlugin):
         try:
             img = nibabel.load(f)
         except nibabel.spatialimages.ImageFileError:
-            raise imagedata.formats.NotImageError(
+            raise NotImageError(
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
             raise
@@ -252,26 +252,26 @@ class NiftiPlugin(AbstractPlugin):
 
         axes = list()
         if si.ndim > 3:
-            axes.append(imagedata.axis.UniformLengthAxis(
-                imagedata.formats.input_order_to_dirname_str(hdr.input_order),
+            axes.append(UniformLengthAxis(
+                input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt,
                 dt)
             )
         if si.ndim > 2:
-            axes.append(imagedata.axis.UniformLengthAxis(
+            axes.append(UniformLengthAxis(
                 'slice',
                 0,
                 nz,
                 dz)
             )
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'row',
             0,
             ny,
             dy)
         )
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'column',
             0,
             nx,
@@ -672,7 +672,7 @@ class NiftiPlugin(AbstractPlugin):
     #
     #     # check if this is actually a volume and not all slices on the same location
     #     if np.linalg.norm(step) == 0.0:
-    #         raise imagedata.formats.NotImageError("Not a volume")
+    #         raise NotImageError("Not a volume")
     #
     #     affine = np.array(
     #         [[-image_orient1[0] * delta_c, -image_orient2[0] * delta_r, -step[0], -image_pos[0]],
@@ -700,7 +700,7 @@ class NiftiPlugin(AbstractPlugin):
         """
 
         if si.color:
-            raise imagedata.formats.WriteNotImplemented(
+            raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
         logger.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
@@ -719,7 +719,7 @@ class NiftiPlugin(AbstractPlugin):
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
         # slice_direction = _find_slice_direction(si, self.transformationMatrix, self.normal)
 
-        logger.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
         assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 3D." % si.ndim
 
         fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
@@ -762,7 +762,7 @@ class NiftiPlugin(AbstractPlugin):
         """
 
         if si.color:
-            raise imagedata.formats.WriteNotImplemented(
+            raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
         logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
@@ -780,7 +780,7 @@ class NiftiPlugin(AbstractPlugin):
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         # Defaults
-        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        self.output_sort = SORT_ON_SLICE
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
@@ -794,7 +794,7 @@ class NiftiPlugin(AbstractPlugin):
 
         logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(self.output_sort)))
+            sort_on_to_str(self.output_sort)))
 
         steps = si.shape[0]
         slices = si.shape[1]

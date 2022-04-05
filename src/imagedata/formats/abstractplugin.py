@@ -4,14 +4,13 @@ Defines generic functions.
 """
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
-# Copyright (c) 2017-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2017-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
 import logging
 import numpy as np
-# import pydicom.dataset
-import imagedata.formats
-from imagedata.header import Header
+from . import NotImageError, shape_to_str, INPUT_ORDER_TIME
+from ..header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -118,21 +117,25 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             logger.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
             archive = source['archive']
             scan_files = source['files']
-            if scan_files is None or len(scan_files) == 0:
-                scan_files = archive.getnames()
+            # if scan_files is None or len(scan_files) == 0:
+            #     scan_files = archive.getnames()
             # logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
-                logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle))
+                logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle.filename))
                 if self._need_local_file():
-                    logger.debug("AbstractPlugin.read: need local file {}".format(file_handle))
+                    logger.debug("AbstractPlugin.read: need local file {}".format(file_handle.filename))
                     f = archive.to_localfile(file_handle)
                     logger.debug("AbstractPlugin.read: local file {}".format(f))
                     info, si = self._read_image(f, opts, hdr)
                 else:
                     f = archive.open(file_handle, mode='rb')
                     logger.debug("AbstractPlugin.read: file {}".format(f))
-                    info, si = self._read_image(f, opts, hdr)
-                    f.close()
+                    try:
+                        info, si = self._read_image(f, opts, hdr)
+                    except NotImageError:
+                        raise
+                    finally:
+                        f.close()
                 # info is None when no image was read
                 if info is not None:
                     image_list.append((info, si))
@@ -171,7 +174,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         self._set_tags(image_list, hdr, si)
         # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
-        logger.info("Data shape read: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape read: {}".format(shape_to_str(si.shape)))
 
         # Add any DICOM template
         if pre_hdr is not None:
@@ -258,7 +261,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         Raises:
             ValueError: tags for dataset is not time tags
         """
-        if self.input_order == imagedata.formats.INPUT_ORDER_TIME:
+        if self.input_order == INPUT_ORDER_TIME:
             timeline = [0.0]
             for t in range(1, len(self.tags[0])):
                 timeline.append(self.tags[0][t] - self.tags[0][0])
