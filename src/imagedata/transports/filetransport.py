@@ -1,15 +1,15 @@
-"""Read/Write local image files
+"""Read/Write local files
 """
 
-# Copyright (c) 2018-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
 import io
 from typing import IO
 import logging
-from imagedata.transports.abstracttransport import AbstractTransport
-from imagedata.transports import RootIsNotDirectory, RootDoesNotExist
+from .abstracttransport import AbstractTransport
+from . import RootIsNotDirectory, RootDoesNotExist
 
 logger = logging.getLogger(__name__)
 

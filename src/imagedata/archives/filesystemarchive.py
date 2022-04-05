@@ -25,8 +25,7 @@ import logging
 
 from .abstractarchive import AbstractArchive, Member
 from . import FileAlreadyExistsError
-from imagedata.transports import Transport, RootDoesNotExist, RootIsNotDirectory
-from imagedata.transports.abstracttransport import AbstractTransport
+from ..transports import Transport, RootDoesNotExist, RootIsNotDirectory
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +118,7 @@ class FilesystemArchive(AbstractArchive, ABC):
 
         logger.debug("FilesystemArchive path: {}".format(self.__path))
         logger.debug("FilesystemArchive mode: %s" % self.__mode)
+        logger.debug("FilesystemArchive open zipfile mode %s" % self.__mode)
 
         # If the URL refers to a single file, let directory_name refer to the
         # directory and basename to the file

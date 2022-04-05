@@ -3,6 +3,7 @@
 """Test file archive
 """
 
+import os
 import unittest
 import argparse
 import tempfile
@@ -48,6 +49,15 @@ class TestArchiveFile(unittest.TestCase):
                 'r')
         except imagedata.transports.RootIsNotDirectory:
             pass
+
+    # @unittest.skip("skipping test_read_one_file")
+    def test_read_one_file(self):
+        archive = imagedata.archives.find_mimetype_plugin(
+            None,
+            '.',
+            'r')
+        files = archive.getnames(os.path.join('.', 'data', 'lena_color.gif'))
+        self.assertEqual(1, len(files))
 
     # @unittest.skip("skipping test_new_archive")
     def test_new_archive(self):

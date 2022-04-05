@@ -25,8 +25,7 @@ import urllib.parse
 import logging
 
 from .abstractarchive import AbstractArchive, Member
-from imagedata.transports import Transport
-from imagedata.transports.abstracttransport import AbstractTransport
+from ..transports import Transport
 import zipfile
 
 logger = logging.getLogger(__name__)
@@ -397,7 +396,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.__files[member.filename] = member
         return member.local_file
 
-    def add_localfile(self, local_file: str, filename: str) -> None:
+    def add_localfile(self, local_file, filename):
         """Add a local file to the archive.
 
         Args:
