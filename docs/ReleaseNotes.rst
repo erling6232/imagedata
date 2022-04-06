@@ -6,6 +6,10 @@ ReleaseNotes
 1.4.4
 -----
 * Do not scan all local subdirectories when looking up a specific file.
+* Removed setup.py.
+* AbstractPlugin.read(): Use try..finally to ensure files are closed.
+* Using relative imports for internal imagedata modules.
+* FilesystemArchive: Do not maintain a cache of local files.
 
 1.4.3
 -----
