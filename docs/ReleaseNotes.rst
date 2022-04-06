@@ -3,6 +3,10 @@
 ReleaseNotes
 ============
 
+1.4.4
+-----
+* Do not scan all local subdirectories when looking up a specific file.
+
 1.4.3
 -----
 * Specify exact python versions supported.
