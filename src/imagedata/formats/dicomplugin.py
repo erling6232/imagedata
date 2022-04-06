@@ -10,6 +10,7 @@ import math
 from datetime import date, datetime, timedelta
 import numpy as np
 import pydicom
+import pydicom.config
 import pydicom.errors
 import pydicom.uid
 from pydicom.datadict import tag_for_keyword
@@ -21,6 +22,13 @@ from .abstractplugin import AbstractPlugin
 from ..header import Header
 
 logger = logging.getLogger(__name__)
+try:
+    # pydicom >= 2.3
+    pydicom.config.settings.reading_validation_mode = pydicom.config.IGNORE
+    pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+except AttributeError:
+    # pydicom < 2.3
+    pydicom.config.enforce_valid_values = False
 
 
 class FilesGivenForMultipleURLs(Exception):
