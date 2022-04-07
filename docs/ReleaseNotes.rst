@@ -10,6 +10,7 @@ ReleaseNotes
 * AbstractPlugin.read(): Use try..finally to ensure files are closed.
 * Using relative imports for internal imagedata modules.
 * FilesystemArchive: Do not maintain a cache of local files.
+* Support for pydicom version 2.3.
 
 1.4.3
 -----
