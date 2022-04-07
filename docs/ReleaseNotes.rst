@@ -1,7 +1,7 @@
 .. _ReleaseNotes:
 
-ReleaseNotes
-============
+Release Notes
+=============
 
 1.4.4
 -----
