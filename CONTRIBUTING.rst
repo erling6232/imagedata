@@ -38,7 +38,7 @@ and help you to craft the change so that it is successfully accepted into the pr
 Developer Documentation
 -----------------------
 
-See developer_ for details on the structure of the code.
+See `Developer Documentation`_ for details on the structure of the code.
 
 .. _submit:
 ---------------------
@@ -252,4 +252,4 @@ helpful to reference the related part of the
 explanations intuitive and understandable also for users not fluent in DICOM.
 
 .. _github: https://github.com/erling6232/imagedata
-.. _developer: https://imagedata.readthedocs.io/en/latest/DeveloperDocumentation.html
+.. _Developer Documentation: https://imagedata.readthedocs.io/en/latest/DeveloperDocumentation.html
