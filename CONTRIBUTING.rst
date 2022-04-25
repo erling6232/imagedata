@@ -38,18 +38,16 @@ and help you to craft the change so that it is successfully accepted into the pr
 Developer Documentation
 -----------------------
 
-See
-:ref:`Developer Documentation <docs/DeveloperDocumentation>`
-for details on the structure of the code.
+See developer_ for details on the structure of the code.
 
+.. _submit:
 ---------------------
 Submission Guidelines
 ---------------------
-.. _submit:
 
+.. _submit-issue:
 Submitting an Issue
 -------------------
-.. _submit-issue:
 
 Before you submit an issue, please search the issue tracker, maybe an issue
 for your problem already exists and the discussion might inform you of
@@ -254,3 +252,4 @@ helpful to reference the related part of the
 explanations intuitive and understandable also for users not fluent in DICOM.
 
 .. _github: https://github.com/erling6232/imagedata
+.. _developer: https://imagedata.readthedocs.io/en/latest/DeveloperDocumentation.html
