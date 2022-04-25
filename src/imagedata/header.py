@@ -202,7 +202,7 @@ class Header(object):
             for tag in range(tags):
                 try:
                     template_tag = template[_slice][tag][0]
-                except KeyError:
+                except (KeyError, IndexError):
                     template_tag = tag
                 try:
                     templateHeader = copy.copy(template[_slice][tag][2])
