@@ -11,11 +11,73 @@ _Note:_
 If you want to contribute new functionality, you may first consider if this 
 functionality belongs to the imagedata core, or is better suited for
 a plugin or an application program.
-[contrib-pydicom](https://github.com/pydicom/contrib-pydicom). contrib-pydicom
+
 If you're not sure where your contribution belongs,
 create an issue where you can discuss this before creating a pull request.
 
 
+------------
+Found a Bug?
+------------
+If you find a bug in the source code, you can help us by
+[submitting an issue](submit-issue_) to our [GitHub Repository][github_].
+Even better, you can [submit a Pull Request](submit-pr_) with a fix.
+
+------------------
+Missing a Feature?
+------------------
+You can *request* a new feature by [submitting an issue](submit-issue_) to our GitHub Repository.
+If you would like to *implement* a new feature, please submit an issue with a proposal for your work first, to be sure that we can use it. Please consider what kind of change it is:
+
+* For a **Major Feature**, first open an issue and outline your proposal so that it can be
+discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
+and help you to craft the change so that it is successfully accepted into the project.
+* **Small Features** can be crafted and directly [submitted as a Pull Request](submit-pr_).
+
+-----------------------
+Developer Documentation
+-----------------------
+
+See
+:ref:`Developer Documentation <docs/DeveloperDocumentation>`
+for details on the structure of the code.
+
+---------------------
+Submission Guidelines
+---------------------
+.. _submit:
+
+Submitting an Issue
+-------------------
+.. _submit-issue:
+
+Before you submit an issue, please search the issue tracker, maybe an issue
+for your problem already exists and the discussion might inform you of
+workarounds readily available.
+
+We want to fix all the issues as soon as possible, but before fixing a bug
+we need to reproduce and confirm it.
+In order to reproduce bugs, we will systematically ask you to provide a
+minimal, complete, and verifiable example.
+Having a minimal, complete, and verifiable example gives us a wealth of
+important information without going back & forth to you with additional questions like:
+
+- version of imagedata, pydicom and pynetdicom used
+- and most importantly - a use-case that fails
+
+We will be insisting on a minimal, complete, and verifiable example in order
+to save maintainers time and ultimately be able to fix more bugs.
+We understand that sometimes it might be hard to extract essentials bits
+of code from a larger code-base but we really need to isolate the problem before we can fix it.
+
+Unfortunately, we are not able to investigate / fix bugs without a minimal,
+complete, and verifiable example, so if we don't hear back from you we
+are going to close an issue that doesn't have enough info to be reproduced.
+
+You can file new issues by filling out our
+[new issue form](https://github.com/erling6232/imagedata/issues/new).
+
+.. _submit-pr:
 How to contribute
 -----------------
 
@@ -115,34 +177,19 @@ submit a pull request:
 You can also check for common programming errors and style issues with the
 following tools:
 
--  Code with good unittest **coverage** (current coverage or better), check
- with:
+-  Code with good unittest **coverage** (current coverage or better), check with:
 
 .. code-block:: bash
 
-  $ pip install pytest pytest-cov
-  $ py.test --cov=pydicom path/to/test_for_package
+  $ pip install coverage
+  $ coverage run -m unittest discover
 
--  No pyflakes warnings, check with:
-
-.. code-block:: bash
-
-  $ pip install pyflakes
-  $ pyflakes path/to/module.py
-
--  No PEP8 warnings, check with:
+-  No flake8 warnings, check with:
 
 .. code-block:: bash
 
-  $ pip install pycodestyle  # formerly called pep8 
-  $ pycodestyle path/to/module.py
-
--  AutoPEP8 can help you fix some of the easy redundant errors:
-
-.. code-block:: bash
-
-  $ pip install autopep8
-  $ autopep8 path/to/pep8.py
+  $ pip install flake8
+  $ flake8 .
 
 Filing bugs
 -----------
@@ -205,3 +252,5 @@ When you are writing documentation that references DICOM, it is often
 helpful to reference the related part of the
 [DICOM standard](https://www.dicomstandard.org/current/). Try to make the
 explanations intuitive and understandable also for users not fluent in DICOM.
+
+.. _github: https://github.com/erling6232/imagedata
