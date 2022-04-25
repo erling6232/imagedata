@@ -41,11 +41,13 @@ Developer Documentation
 See `Developer Documentation`_ for details on the structure of the code.
 
 .. _submit:
+
 ---------------------
 Submission Guidelines
 ---------------------
 
 .. _submit-issue:
+
 Submitting an Issue
 -------------------
 
@@ -76,6 +78,7 @@ You can file new issues by filling out our
 [new issue form](https://github.com/erling6232/imagedata/issues/new).
 
 .. _submit-pr:
+
 How to contribute
 -----------------
 
