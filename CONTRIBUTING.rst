@@ -21,7 +21,7 @@ Found a Bug?
 ------------
 If you find a bug in the source code, you can help us by
 `submitting an issue <submit-issue_>`_ to our `GitHub Repository <github_>`_.
-Even better, you can `submit a Pull Request <How to contribute>`_ with a fix.
+Even better, you can `submit a Pull Request <How to contribute_>`_ with a fix.
 
 ------------------
 Missing a Feature?
