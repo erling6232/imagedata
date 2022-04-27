@@ -44,37 +44,46 @@ Developer Documentation
 See the `Developer Documentation`_ for details on the structure of the code.
 
 -------------------------------
-_`Submission Guidelines`
+Submission Guidelines
 -------------------------------
 
-_`Submitting an Issue`
+Submitting an Issue
 ----------------------
 
-Before you submit an issue, please search the issue tracker, maybe an issue
-for your problem already exists and the discussion might inform you of
-workarounds readily available.
+We use GitHub issues to track all bugs and feature requests; feel free to
+open an issue if you have found a bug or wish to see a feature implemented.
 
-We want to fix all the issues as soon as possible, but before fixing a bug
-we need to reproduce and confirm it.
-In order to reproduce bugs, we will systematically ask you to provide a
-minimal, complete, and verifiable example.
-Having a minimal, complete, and verifiable example gives us a wealth of
-important information without going back & forth to you with additional questions like:
+It is recommended to check that your issue complies with the
+following rules before submitting:
 
-- version of imagedata, pydicom and pynetdicom used
-- and most importantly - a use-case that fails
+-  Verify that your issue is not being currently addressed by other
+   `issues <github-issues_>`_
+   or `pull requests <github-pull-requests_>`_.
 
-We will be insisting on a minimal, complete, and verifiable example in order
-to save maintainers time and ultimately be able to fix more bugs.
-We understand that sometimes it might be hard to extract essentials bits
-of code from a larger code-base but we really need to isolate the problem before we can fix it.
+-  You can file new issues by filling out our `new issue form`_.
 
-Unfortunately, we are not able to investigate / fix bugs without a minimal,
-complete, and verifiable example, so if we don't hear back from you we
-are going to close an issue that doesn't have enough info to be reproduced.
+-  Please ensure all code snippets and error messages are formatted in
+   appropriate code blocks.
+   See `Creating and highlighting code blocks <creating-and-highlighting-code-blocks_>`_.
 
-You can file new issues by filling out our
-`new issue form`_.
+-  Please include your operating system type and version number, as well
+   as your Python, pydicom and imagedata versions.
+
+   Please, run the following code snippet:
+
+.. code-block:: python
+
+   import platform, sys, pydicom, pynetdicom, imagedata
+   print(platform.platform(),
+         "\nPython", sys.version,
+         "\npydicom", pydicom.__version__,
+         "\npynetdicom", pynetdicom.__version__,
+         "\nimagedata", imagedata.__version__)
+
+-  please include a `reproducible <mcve_>`_ code
+   snippet or link to a `gist`_. If an exception is
+   raised, please provide the traceback. (use `%xmode` in ipython to use the
+   non beautified version of the traceback)
 
 How to contribute
 --------------------
@@ -188,40 +197,6 @@ following tools:
   $ pip install flake8
   $ flake8 .
 
-Filing bugs
------------
-We use GitHub issues to track all bugs and feature requests; feel free to
-open an issue if you have found a bug or wish to see a feature implemented.
-
-It is recommended to check that your issue complies with the
-following rules before submitting:
-
--  Verify that your issue is not being currently addressed by other
-   `issues <github-issues_>`_
-   or `pull requests <github-pull-requests_>`_.
-
--  Please ensure all code snippets and error messages are formatted in
-   appropriate code blocks.
-   See `Creating and highlighting code blocks <creating-and-highlighting-code-blocks_>`_.
-
--  Please include your operating system type and version number, as well
-   as your Python, pydicom and imagedata versions.
-
-   Please, run the following code snippet:
-
-.. code-block:: python
-
-   import platform, sys, pydicom, pynetdicom, imagedata
-   print(platform.platform(),
-         "\nPython", sys.version,
-         "\npydicom", pydicom.__version__,
-         "\npynetdicom", pynetdicom.__version__,
-         "\nimagedata", imagedata.__version__)
-
--  please include a `reproducible <mcve_>`_ code
-   snippet or link to a `gist`_. If an exception is
-   raised, please provide the traceback. (use `%xmode` in ipython to use the
-   non beautified version of the traceback)
 
 
 Documentation
