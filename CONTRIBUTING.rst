@@ -21,7 +21,7 @@ Found a Bug?
 ------------
 If you find a bug in the source code, you can help us by
 `submitting an issue <submit-issue_>`_ to our `GitHub Repository <github_>`_.
-Even better, you can `submit a Pull Request <submit-pr_>`_ with a fix.
+Even better, you can `submit a Pull Request <How to contribute>`_ with a fix.
 
 ------------------
 Missing a Feature?
@@ -35,7 +35,7 @@ Please consider what kind of change it is:
   discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
   and help you to craft the change so that it is successfully accepted into the project.
 
-* **Small Features** can be crafted and directly `submitted as a Pull Request <submit-pr_>`_.
+* **Small Features** can be crafted and directly `submitted as a Pull Request <How to contribute>`_.
 
 -----------------------
 Developer Documentation
@@ -78,8 +78,8 @@ are going to close an issue that doesn't have enough info to be reproduced.
 You can file new issues by filling out our
 [new issue form](https://github.com/erling6232/imagedata/issues/new).
 
-How to contribute _`submit-pr`
------------------
+_`How to contribute`
+--------------------
 
 The preferred workflow for contributing to imagedata is to fork the
 [main repository](https://github.com/erling6232/imagedata) on
