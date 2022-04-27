@@ -43,11 +43,9 @@ Developer Documentation
 
 See `Developer Documentation`_ for details on the structure of the code.
 
-.. _submit:
-
----------------------
-Submission Guidelines
----------------------
+-------------------------------
+Submission Guidelines _`submit`
+-------------------------------
 
 .. _submit-issue:
 
@@ -80,9 +78,7 @@ are going to close an issue that doesn't have enough info to be reproduced.
 You can file new issues by filling out our
 [new issue form](https://github.com/erling6232/imagedata/issues/new).
 
-.. _submit-pr:
-
-How to contribute
+How to contribute _`submit-pr`
 -----------------
 
 The preferred workflow for contributing to imagedata is to fork the
