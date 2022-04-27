@@ -163,7 +163,7 @@ submit a pull request:
    if the contribution is complete and ready for a detailed review. Some of the
    core developers will review your code, make suggestions for changes, and
    approve it as soon as it is ready for merge. Pull requests are usually merged
-   after two approvals by core developers, or other developers asked to review the code. 
+   after approval by core developers, or other developers asked to review the code.
    An incomplete contribution -- where you expect to do more work before receiving a full
    review -- should be prefixed with `[WIP]` (to indicate a work in progress) and
    changed to `[MRG]` when it matures. WIPs may be useful to: indicate you are
@@ -209,8 +209,7 @@ reStructuredText documents live in the source code repository under the
 
 You can edit the documentation using any text editor and then generate
 the HTML output by typing ``make html`` from the ``docs/`` directory.
-Alternatively, ``make`` can be used to quickly generate the
-documentation without the example gallery. The resulting HTML files will
+The resulting HTML files will
 be placed in ``_build/html/`` and are viewable in a web browser. See the
 ``README`` file in the ``docs/`` directory for more information.
 
