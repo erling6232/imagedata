@@ -80,9 +80,10 @@ are going to close an issue that doesn't have enough info to be reproduced.
 You can file new issues by filling out our
 [new issue form](https://github.com/erling6232/imagedata/issues/new).
 
+.. _submit-pr:
+
 How to contribute
 -----------------
-.. _submit-pr:
 
 The preferred workflow for contributing to imagedata is to fork the
 [main repository](https://github.com/erling6232/imagedata) on
