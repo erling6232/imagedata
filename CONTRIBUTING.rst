@@ -20,13 +20,13 @@ create an issue where you can discuss this before creating a pull request.
 Found a Bug?
 ------------
 If you find a bug in the source code, you can help us by
-`submitting an issue <submit-issue_>`_ to our `GitHub Repository <github_>`_.
+`submitting an issue <Submitting an Issue_>`_ to our `GitHub Repository <github_>`_.
 Even better, you can `submit a Pull Request <How to contribute_>`_ with a fix.
 
 ------------------
 Missing a Feature?
 ------------------
-You can *request* a new feature by `submitting an issue <submit-issue_>`_ to our GitHub Repository.
+You can *request* a new feature by `submitting an issue <Submitting an Issue_>`_ to our GitHub Repository.
 If you would like to *implement* a new feature, please submit an issue
 with a proposal for your work first, to be sure that we can use it.
 Please consider what kind of change it is:
@@ -35,22 +35,20 @@ Please consider what kind of change it is:
   discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
   and help you to craft the change so that it is successfully accepted into the project.
 
-* **Small Features** can be crafted and directly `submitted as a Pull Request <How to contribute>`_.
+* **Small Features** can be crafted and directly `submitted as a Pull Request <How to contribute_>`_.
 
 -----------------------
 Developer Documentation
 -----------------------
 
-See `Developer Documentation`_ for details on the structure of the code.
+See the `Developer Documentation`_ for details on the structure of the code.
 
 -------------------------------
-Submission Guidelines _`submit`
+_`Submission Guidelines`
 -------------------------------
 
-.. _submit-issue:
-
-Submitting an Issue
--------------------
+_`Submitting an Issue`
+----------------------
 
 Before you submit an issue, please search the issue tracker, maybe an issue
 for your problem already exists and the discussion might inform you of
@@ -76,19 +74,19 @@ complete, and verifiable example, so if we don't hear back from you we
 are going to close an issue that doesn't have enough info to be reproduced.
 
 You can file new issues by filling out our
-[new issue form](https://github.com/erling6232/imagedata/issues/new).
+`new issue form`_.
 
 _`How to contribute`
 --------------------
 
 The preferred workflow for contributing to imagedata is to fork the
-[main repository](https://github.com/erling6232/imagedata) on
+`main repository <github_>`_ on
 GitHub, clone, and develop on a branch. Steps:
 
-1. Fork the [project repository](https://github.com/erling6232/imagedata)
+1. Fork the `project repository <github_>`_
    by clicking on the 'Fork' button near the top right of the page. This creates
    a copy of the code under your GitHub user account. For more details on
-   how to fork a repository see [this guide](https://help.github.com/articles/fork-a-repo/).
+   how to fork a repository see `this guide  <fork-a-repo_>`_.
 
 2. Clone your fork of the imagedata repo from your GitHub account to your local disk:
 
@@ -116,7 +114,7 @@ GitHub, clone, and develop on a branch. Steps:
    squashed into one commit with all commit messages combined. The commit
    messages can be edited during the merge, but it helps if they are clearly
    and briefly showing what has been done in the commit. Check out the 
-   [seven commonly accepted rules](https://www.theserverside.com/video/Follow-these-git-commit-message-guidelines)
+   `seven commonly accepted rules <seven-commonly-accepted-rules_>`_
    for commit messages.
    
 6. To record your changes in Git, push the changes to your GitHub
@@ -126,11 +124,11 @@ GitHub, clone, and develop on a branch. Steps:
 
    $ git push -u origin my-feature
 
-7. Follow [these instructions](https://help.github.com/articles/creating-a-pull-request-from-a-fork)
+7. Follow `these instructions <creating-a-pull-request-from-a-fork_>`_
    to create a pull request from your fork. This will send an email to the committers.
 
 (If any of the above seems like magic to you, please look up the
-[Git documentation](https://git-scm.com/documentation) on the web, or ask a friend or another contributor for help.)
+`Git documentation <git_>`_ on the web, or ask a friend or another contributor for help.)
 
 Pull Request Checklist
 ----------------------
@@ -139,9 +137,8 @@ We recommend that your contribution complies with the following rules before you
 submit a pull request:
 
 -  Follow the style used in the rest of the code. That mostly means to
-   follow [PEP-8 guidelines](https://www.python.org/dev/peps/pep-0008/) for
-   the code, and the [Google style](https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings)
-   for documentation.
+   follow `PEP-8 guidelines <PEP-8_>`_ for the code,
+   and the `Google style <Google-style_>`_ for documentation.
    
 -  If your pull request addresses an issue, please use the pull request title to
    describe the issue and mention the issue number in the pull request
@@ -164,15 +161,15 @@ submit a pull request:
    working on something to avoid duplicated work, request broad review of
    functionality or API, or seek collaborators. WIPs often benefit from the
    inclusion of a
-   [task list](https://github.com/blog/1375-task-lists-in-gfm-issues-pulls-comments)
+   `task list <task-list_>`_
    in the PR description.
 
 -  Documentation and high-coverage tests are necessary for enhancements to be
    accepted. Bug-fixes shall be provided with 
-   [regression tests](https://en.wikipedia.org/wiki/regression_testing) that
+   `regression tests <regression-tests_>`_ that
    fail before the fix. For new features, the correct behavior shall be
    verified by feature tests. A good practice to write sufficient tests is 
-   [test-driven development](https://en.wikipedia.org/wiki/Test-driven_development).
+   `test-driven development <test-driven-development_>`_.
 
 You can also check for common programming errors and style issues with the
 following tools:
@@ -200,12 +197,12 @@ It is recommended to check that your issue complies with the
 following rules before submitting:
 
 -  Verify that your issue is not being currently addressed by other
-   [issues](https://github.com/erling6232/imagedata/issues?q=)
-   or [pull requests](https://github.com/erling6232/imagedata/pulls?q=).
+   `issues <github-issues_>`_
+   or `pull requests <github-pull-requests_>`_.
 
 -  Please ensure all code snippets and error messages are formatted in
    appropriate code blocks.
-   See [Creating and highlighting code blocks](https://help.github.com/articles/creating-and-highlighting-code-blocks).
+   See `Creating and highlighting code blocks <creating-and-highlighting-code-blocks_>`_.
 
 -  Please include your operating system type and version number, as well
    as your Python, pydicom and imagedata versions.
@@ -221,10 +218,10 @@ following rules before submitting:
          "\npynetdicom", pynetdicom.__version__,
          "\nimagedata", imagedata.__version__)
 
--  please include a [reproducible](http://stackoverflow.com/help/mcve) code
-   snippet or link to a [gist](https://gist.github.com). If an exception is
+-  please include a `reproducible <mcve_>`_ code
+   snippet or link to a `gist`_. If an exception is
    raised, please provide the traceback. (use `%xmode` in ipython to use the
-   non beautified version of the trackeback)
+   non beautified version of the traceback)
 
 
 Documentation
@@ -243,15 +240,33 @@ be placed in ``_build/html/`` and are viewable in a web browser. See the
 ``README`` file in the ``docs/`` directory for more information.
 
 For building the documentation, you will need
-[sphinx](https://www.sphinx-doc.org/),
-[numpy](http://numpy.org/),
-[matplotlib](http://matplotlib.org/), and
-[pillow](http://pillow.readthedocs.io/en/latest/).
+`sphinx`_,
+`numpy`_, and
+`matplotlib`_.
 
 When you are writing documentation that references DICOM, it is often
-helpful to reference the related part of the
-[DICOM standard](https://www.dicomstandard.org/current/). Try to make the
+helpful to reference the related part of the `DICOM standard`_.
+Try to make the
 explanations intuitive and understandable also for users not fluent in DICOM.
 
 .. _github: https://github.com/erling6232/imagedata
 .. _Developer Documentation: https://imagedata.readthedocs.io/en/latest/DeveloperDocumentation.html
+.. _new issue form: https://github.com/erling6232/imagedata/issues/new
+.. _github-issues: https://github.com/erling6232/imagedata/issues?q=
+.. _github-pull-requests: https://github.com/erling6232/imagedata/pulls?q=
+.. _fork-a-repo: https://help.github.com/articles/fork-a-repo/
+.. _seven-commonly-accepted-rules: https://www.theserverside.com/video/Follow-these-git-commit-message-guidelines
+.. _creating-a-pull-request-from-a-fork: https://help.github.com/articles/creating-a-pull-request-from-a-fork
+.. _git: https://git-scm.com/documentation
+.. _PEP-8: https://www.python.org/dev/peps/pep-0008/
+.. _Google-style: https://github.com/google/styleguide/blob/gh-pages/pyguide.md#38-comments-and-docstrings
+.. _task-list: https://github.com/blog/1375-task-lists-in-gfm-issues-pulls-comments
+.. _regression-tests: https://en.wikipedia.org/wiki/regression_testing
+.. _test-driven-development: https://en.wikipedia.org/wiki/Test-driven_development
+.. _creating-and-highlighting-code-blocks: https://help.github.com/articles/creating-and-highlighting-code-blocks
+.. _mcve: http://stackoverflow.com/help/mcve
+.. _gist: https://gist.github.com
+.. _sphinx: https://www.sphinx-doc.org/
+.. _numpy: http://numpy.org/
+.. _matplotlib: http://matplotlib.org/
+.. _DICOM standard: https://www.dicomstandard.org/current/
