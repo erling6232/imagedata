@@ -7,7 +7,7 @@ filing issues. Please read it carefully to help make the code review
 process go as smoothly as possible and maximize the likelihood of your
 contribution being merged.
 
-_Note:_  
+*Note:*
 If you want to contribute new functionality, you may first consider if this 
 functionality belongs to the imagedata core, or is better suited for
 a plugin or an application program.
@@ -20,14 +20,16 @@ create an issue where you can discuss this before creating a pull request.
 Found a Bug?
 ------------
 If you find a bug in the source code, you can help us by
-`submitting an issue`_ to our [GitHub Repository][github_].
-Even better, you can [submit a Pull Request](submit-pr_) with a fix.
+`submitting an issue <submit-issue_>`_ to our `GitHub Repository <github_>`_.
+Even better, you can `submit a Pull Request <submit-pr_>`_ with a fix.
 
 ------------------
 Missing a Feature?
 ------------------
-You can *request* a new feature by `submitting an issue`_ to our GitHub Repository.
-If you would like to *implement* a new feature, please submit an issue with a proposal for your work first, to be sure that we can use it. Please consider what kind of change it is:
+You can *request* a new feature by `submitting an issue <submit-issue_>`_ to our GitHub Repository.
+If you would like to *implement* a new feature, please submit an issue
+with a proposal for your work first, to be sure that we can use it.
+Please consider what kind of change it is:
 
 * For a **Major Feature**, first open an issue and outline your proposal so that it can be
   discussed. This will also allow us to better coordinate our efforts, prevent duplication of work,
@@ -41,15 +43,16 @@ Developer Documentation
 
 See `Developer Documentation`_ for details on the structure of the code.
 
+.. _submit:
 
 ---------------------
 Submission Guidelines
 ---------------------
-.. _submit:
+
+.. _submit-issue:
 
 Submitting an Issue
 -------------------
-.. _submitting an issue:
 
 Before you submit an issue, please search the issue tracker, maybe an issue
 for your problem already exists and the discussion might inform you of
