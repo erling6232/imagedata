@@ -13,11 +13,13 @@ tags:
 authors:
   - name: Erling Andersen
     orcid: 0000-0001-8268-1206
-    affiliation: "1"
+    affiliation: "1, 2"
 
 affiliations:
   - name: Haukeland University Hospital, Dept. of Clinical Engineering, N-5021 Bergen, Norway
     index: 1
+  - name: Mohn Medical Imaging and Visualization Centre, Haukeland University Hospital, Dept. of Radiology, N-5021 Bergen, Norway
+    index: 2
 
 date: 14 January 2022
 bibliography: paper.bib

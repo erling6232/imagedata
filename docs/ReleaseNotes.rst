@@ -3,6 +3,12 @@
 Release Notes
 =============
 
+1.4.5
+-----
+* Header.__make_DicomHeaderDict_from_template(): Catch IndexError exception when template size does not match data size.
+* Documentation updates.
+
+
 1.4.4
 -----
 * Do not scan all local subdirectories when looking up a specific file.
