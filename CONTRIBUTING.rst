@@ -76,7 +76,7 @@ are going to close an issue that doesn't have enough info to be reproduced.
 You can file new issues by filling out our
 `new issue form`_.
 
-_`How to contribute`
+How to contribute
 --------------------
 
 The preferred workflow for contributing to imagedata is to fork the
