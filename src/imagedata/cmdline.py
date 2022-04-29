@@ -118,6 +118,12 @@ def add_argparse_options(parser):
                              "driver=png16m/pnggray (default=png16m); "
                              "rotate=90 (default=0)",
                         default=None)
+    parser.add_argument('--pdfopt',
+                        help="PDF options (opt=value,opt=value) where opt can be: " +
+                             "dpi= (Resolution in pixels/inch of image, default=150); " +
+                             "rotate=90 (default=0); " +
+                             "encapsulate=True (default=False",
+                        default=None)
     parser.add_argument('--odir', dest="output_dir",
                         help="Store all images in a single or multiple directories (default: single)",
                         choices=['single', 'multi'], default='single')
