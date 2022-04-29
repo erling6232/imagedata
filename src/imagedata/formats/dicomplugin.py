@@ -814,18 +814,19 @@ class DICOMPlugin(AbstractPlugin):
         self.instanceNumber = 0
 
         _ndim = si.ndim
-        try:
-            if si.color:
-                _ndim -= 1
-        except AttributeError:
-            pass
-        logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
-            si.shape, si.slices, _ndim))
-        assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % _ndim
+        if _ndim > 0:
+            try:
+                if si.color:
+                    _ndim -= 1
+            except AttributeError:
+                pass
+            logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
+                si.shape, si.slices, _ndim))
+            assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % _ndim
 
-        self._calculate_rescale(si)
-        logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
-        logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
+            self._calculate_rescale(si)
+            logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
+            logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # self.serInsUid = si.header.seriesInstanceUID
@@ -841,7 +842,14 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Either legacy CT/MR, or another modality
             ifile = 0
-            if _ndim < 3:
+            if _ndim == 0:
+                logger.debug('DICOMPlugin.write_3d_numpy: write DICOM object')
+                try:
+                    filename = filename_template % 0
+                except TypeError:
+                    filename = filename_template
+                self.write_object(si, archive, filename, ifile)
+            elif _ndim < 3:
                 logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
                 try:
                     filename = filename_template % 0
@@ -1091,6 +1099,54 @@ class DICOMPlugin(AbstractPlugin):
         #         ds.save_as(f, write_like_original=False)
         raise ValueError("write_enhanced: to be implemented")
 
+    def write_object(self, si, archive, filename, ifile):
+        """Write object to DICOM file
+
+        Args:
+            self: DICOMPlugin instance
+            si: Series instance, including these attributes:
+            -   DicomHeaderDict
+            -   seriesNumber
+            -   seriesDescription
+            -   imageType
+            archive: archive object
+            filename: file name, possible without '.dcm' extension
+            ifile: instance number in series
+        """
+
+        logger.debug("write_object {} {}".format(filename, self.serInsUid))
+        try:
+            tg, member_name, im = si.DicomHeaderDict[0][0]
+        except (KeyError, IndexError):
+            raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]" % (0, 0))
+        except ValueError:
+            raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
+        ds = self.construct_dicom(filename, im, si)
+        try:
+            ds.SeriesNumber = si.seriesNumber
+        except ValueError:
+            ds.SeriesNumber = 1
+        try:
+            ds.SeriesDescription = si.seriesDescription
+        except ValueError:
+            ds.SeriesDescription = ''
+        try:
+            ds.ImageType = "\\".join(si.imageType)
+        except ValueError:
+            ds.ImageType = 'DERIVED\\SECONDARY'
+        if len(os.path.splitext(filename)[1]) > 0:
+            fn = filename
+        else:
+            fn = filename + '.dcm'
+        logger.debug("write_slice: filename {}".format(fn))
+        if archive.transport.name == 'dicom':
+            # Store dicom set ds directly
+            archive.transport.store(ds)
+        else:
+            # Store dicom set ds as file
+            with archive.open(fn, 'wb') as f:
+                ds.save_as(f, write_like_original=False)
+
     # noinspection PyPep8Naming,PyArgumentList
     def write_slice(self, tag, slice, si, archive, filename, ifile):
         """Write single slice to DICOM file
@@ -1264,6 +1320,7 @@ class DICOMPlugin(AbstractPlugin):
         ds.PatientName = si.header.patientName
         ds.PatientID = si.header.patientID
         ds.PatientBirthDate = si.header.patientBirthDate
+        ds.PatientSex = si.header.patientSex
 
         # Set the transfer syntax
         ds.is_little_endian = True
