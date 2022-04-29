@@ -142,6 +142,14 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if len(image_list) < 1:
             raise ValueError('No image data read')
         info, si = image_list[0]
+
+        # Add any DICOM template
+        if pre_hdr is not None:
+            hdr.update(pre_hdr)
+
+        if si is None:
+            return hdr, si
+
         self._reduce_shape(si)
         logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
         shape = (len(image_list),) + si.shape
@@ -175,10 +183,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
         logger.info("Data shape read: {}".format(shape_to_str(si.shape)))
-
-        # Add any DICOM template
-        if pre_hdr is not None:
-            hdr.update(pre_hdr)
 
         logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
         return hdr, si
