@@ -107,6 +107,14 @@ class Header(object):
     def set_default_values(self, axes):
         """Set default values.
         """
+
+        self.accessionNumber = ''
+        self.patientName = 'ANONYMOUS'
+        self.patientID = '0'
+        self.patientBirthDate = '19700101'
+        self.patientSex = 'O'
+        self.studyID = '1'
+
         self.color = False
         if self.DicomHeaderDict is not None:
             return
