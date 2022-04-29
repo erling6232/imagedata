@@ -95,7 +95,7 @@ class ITKPlugin(AbstractPlugin):
             logger.info("Data shape read ITK: {}".format(img.shape))
 
             o = reader
-        except NotImageError as e:
+        except (NotImageError, RuntimeError) as e:
             logger.error('itkplugin._read_image: inner exception {}'.format(e))
             raise NotImageError('{} does not look like a ITK file'.format(f))
 
