@@ -261,7 +261,10 @@ def write(si, url, opts=None, formats=None):
             destination = destinations[0]
             logger.debug('readdata.write: destination {}'.format(destination))
             try:
-                if write_si.ndim - _color == 4 and write_si.shape[0] > 1:
+                if write_si.ndim == 0:
+                    # No pixel data - could be some other DICOM object
+                    writer.write_3d_numpy(write_si, destination, out_opts)
+                elif write_si.ndim - _color == 4 and write_si.shape[0] > 1:
                     # 4D data
                     writer.write_4d_numpy(write_si, destination, out_opts)
                 elif write_si.ndim - _color >= 2:
