@@ -2,7 +2,7 @@
 imagedata
 #########
 
-|Docs Badge| |joss| |buildstatus|  |coverage| |pypi|
+|Docs Badge| |joss| |buildstatus|  |coverage| |pypi| |zenodo|
 
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
@@ -284,3 +284,6 @@ The command line program *image_data* can be used to convert between various ima
     :target: https://joss.theoj.org/papers/6a1bc6ea5a200a7a9204cfafcd6e49b8
     :alt: JOSS Status
 
+.. |zenodo| image:: https://zenodo.org/badge/123263810.svg
+   :target: https://zenodo.org/badge/latestdoi/123263810
+   :alt: Zenodo DOI
