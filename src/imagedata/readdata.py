@@ -57,7 +57,7 @@ def read(urls, order=None, opts=None):
     #    if len(my_urls) < 1:
     #        raise ValueError("No URL(s) where given")
     #    logger.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
-    sources = _get_sources(urls, mode='r')
+    sources = _get_sources(urls, mode='r', opts=opts)
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
     logger.debug("reader.read: sources {}".format(sources))
@@ -85,7 +85,7 @@ def read(urls, order=None, opts=None):
     pre_hdr = None
     if 'template' in in_opts and in_opts['template']:
         logger.debug("readdata.read template {}".format(in_opts['template']))
-        template_source = _get_sources(in_opts['template'], mode='r')
+        template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
         pre_hdr, _ = reader.read_headers(template_source, input_order, in_opts)
 
@@ -93,7 +93,7 @@ def read(urls, order=None, opts=None):
     geom_hdr = None
     if 'geometry' in in_opts and in_opts['geometry']:
         logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
-        geometry_source = _get_sources(in_opts['geometry'], mode='r')
+        geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
         geom_hdr, _ = reader.read_headers(geometry_source, input_order, in_opts)
         # if pre_hdr is None:
