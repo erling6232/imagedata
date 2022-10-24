@@ -15,7 +15,8 @@ import pydicom.errors
 import pydicom.uid
 from pydicom.datadict import tag_for_keyword
 
-from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str, SORT_ON_SLICE,\
+from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str,\
+    SORT_ON_SLICE,\
     INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -275,7 +276,7 @@ class DICOMPlugin(AbstractPlugin):
             if im.PixelRepresentation == 1:
                 matrix_dtype = np.int16
         if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
-                (abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
+                (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
             matrix_dtype = float
         elif im.BitsAllocated == 8:
             matrix_dtype = np.uint8
@@ -300,8 +301,10 @@ class DICOMPlugin(AbstractPlugin):
             # except ValueError:
             #    ds.PhotometricInterpretation = 'MONOCHROME2'
 
-        logger.debug("SOPClassUID: {}".format(self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
-        logger.debug("TransferSyntaxUID: {}".format(self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
+        logger.debug("SOPClassUID: {}".format(
+            self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
+        logger.debug("TransferSyntaxUID: {}".format(
+            self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
         if 'headers_only' in opts and opts['headers_only']:
             return hdr, None
 
@@ -391,16 +394,18 @@ class DICOMPlugin(AbstractPlugin):
         try:
             # logger.debug("Set si[{}]".format(idx))
             if 'RescaleSlope' in im and 'RescaleIntercept' in im:
-                _use_float = abs(im.RescaleSlope-1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
+                _use_float = abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
             if _use_float:
-                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + float(im.RescaleIntercept)
+                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) +\
+                         float(im.RescaleIntercept)
             else:
                 pixels = im.pixel_array.copy()
             if shape != pixels.shape:
                 # This happens only when images in a series have varying shape
                 # Place the pixels in the upper left corner of the matrix
-                assert len(shape) == len(pixels.shape), "Shape of matrix ({}) differ from pixel shape ({})".format(
-                    shape, pixels.shape)
+                assert len(shape) == len(pixels.shape),\
+                    "Shape of matrix ({}) differ from pixel shape ({})".format(
+                        shape, pixels.shape)
                 # Assume that pixels can be expanded to match si shape
                 si = np.zeros(shape, pixels.dtype)
                 roi = []
@@ -522,7 +527,8 @@ class DICOMPlugin(AbstractPlugin):
                 - hdr: Header
                 - shape: tuple
         """
-        logger.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(type(sources), sources))
+        logger.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(
+            type(sources), sources))
 
         image_dict = {}
         for source in sources:
@@ -537,9 +543,11 @@ class DICOMPlugin(AbstractPlugin):
                 logger.debug("get_dicom_headers: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
                     continue
-                # logger.debug("get_dicom_headers: calling archive.getmembers: {}".format(len(path)))
+                # logger.debug("get_dicom_headers: calling archive.getmembers: {}".format(
+                #     len(path)))
                 member = archive.getmembers([path, ])
-                # logger.debug("get_dicom_headers: returned from archive.getmembers: {}".format(len(member)))
+                # logger.debug("get_dicom_headers: returned from archive.getmembers: {}".format(
+                #     len(member)))
                 if len(member) != 1:
                     raise IndexError('Should not be multiple files for a filename')
                 member = member[0]
@@ -547,7 +555,8 @@ class DICOMPlugin(AbstractPlugin):
                     with archive.open(member, mode='rb') as f:
                         logger.debug('DICOMPlugin.get_dicom_headers: process_member {}'.format(
                             member))
-                        self.process_member(image_dict, archive, path, f, opts, skip_pixels=skip_pixels)
+                        self.process_member(image_dict, archive, path, f, opts,
+                                            skip_pixels=skip_pixels)
                 except Exception as e:
                     logger.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
                     raise
@@ -706,7 +715,8 @@ class DICOMPlugin(AbstractPlugin):
         else:
             try:
                 # defer_size: Do not load large attributes until requested
-                # image=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, defer_size=200)
+                # image=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels,
+                #     defer_size=200)
                 im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
             except pydicom.errors.InvalidDicomError:
                 # traceback.print_exc()
@@ -744,7 +754,8 @@ class DICOMPlugin(AbstractPlugin):
         slices = len(hdr.sliceLocations)
         timesteps = self._count_timesteps(hdr)
         logger.info(
-            "Slices: %d, apparent time steps: %d, actual time steps: %d" % (slices, len(hdr.tags), timesteps))
+            "Slices: %d, apparent time steps: %d, actual time steps: %d" % (
+                slices, len(hdr.tags), timesteps))
         new_shape = (timesteps, slices, si.shape[2], si.shape[3])
         newsi = np.zeros(new_shape, dtype=si.dtype)
         acq = np.zeros([slices, timesteps])
@@ -790,7 +801,8 @@ class DICOMPlugin(AbstractPlugin):
             #    timesteps[_slice] += 1
             timesteps[_slice] = len(hdr.DicomHeaderDict[_slice])
             if timesteps.min() != timesteps.max():
-                raise ValueError("Number of time steps ranges from %d to %d." % (timesteps.min(), timesteps.max()))
+                raise ValueError("Number of time steps ranges from %d to %d." % (
+                    timesteps.min(), timesteps.max()))
         return timesteps.max()
 
     def write_3d_numpy(self, si, destination, opts):
@@ -806,7 +818,8 @@ class DICOMPlugin(AbstractPlugin):
         logger.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
         filename_template = 'Image_%05d.dcm'
-        logger.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(destination['files']))
+        logger.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(
+            destination['files']))
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
         logger.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
@@ -821,7 +834,8 @@ class DICOMPlugin(AbstractPlugin):
             pass
         logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
             si.shape, si.slices, _ndim))
-        assert _ndim == 2 or _ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % _ndim
+        assert _ndim == 2 or _ndim == 3,\
+            "write_3d_series: input dimension %d is not 2D/3D." % _ndim
 
         self._calculate_rescale(si)
         logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
@@ -972,6 +986,7 @@ class DICOMPlugin(AbstractPlugin):
         Raises:
 
         """
+        filename = 'dummy'
         logger.debug("write_enhanced {} {}".format(filename, self.serInsUid))
 
         # if np.issubdtype(si.dtype, np.floating):
@@ -1075,7 +1090,8 @@ class DICOMPlugin(AbstractPlugin):
         # logger.debug("write_enhanced: filename {}".format(filename))
 
         # Set tag
-        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
+        # safe_si will always have only the present tag
+        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1132,7 +1148,8 @@ class DICOMPlugin(AbstractPlugin):
             tg, member_name, im = si.DicomHeaderDict[0][0]
             # tg,member_name,image = si.DicomHeaderDict[slice][tag]
         except (KeyError, IndexError):
-            raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]" % (slice, tag))
+            raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]"
+                             % (slice, tag))
         # except AttributeError:
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
@@ -1206,7 +1223,8 @@ class DICOMPlugin(AbstractPlugin):
         # logger.debug("write_slice: filename {}".format(filename))
 
         # Set tag
-        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])  # safe_si will always have only the present tag
+        # safe_si will always have only the present tag
+        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1311,7 +1329,8 @@ class DICOMPlugin(AbstractPlugin):
                 ds.BitsStored = 16
                 ds.HighBit = 15
             else:
-                raise TypeError('Cannot store {} itemsize {} without scaling'.format(arr.dtype, arr.itemsize))
+                raise TypeError('Cannot store {} itemsize {} without scaling'.format(
+                    arr.dtype, arr.itemsize))
         elif np.issubdtype(arr.dtype, np.bool_):
             # No scaling. Pack bits in 16-bit words
             ds.PixelData = arr.astype('uint16').tobytes()
@@ -1397,32 +1416,13 @@ class DICOMPlugin(AbstractPlugin):
                         'RescaleSlope', 'RescaleIntercept']:
             if element in ds:
                 del ds[element]
-        #if 'SmallestImagePixelValue' in ds:
-        #    del ds.SmallestImagePixelValue
-        #if 'LargestImagePixelValue' in ds:
-        #    del ds.LargestImagePixelValue
-        #if 'SmallestPixelValueInSeries' in ds:
-        #    del ds.SmallestPixelValueInSeries
-        #if 'LargestPixelValueInSeries' in ds:
-        #    del ds.LargestPixelValueInSeries
         if self.a is None:
             # No rescale slope
             _min = 0 if arr.color else arr.min()
             _max = 255 if arr.color else arr.max()
             _series_min = 0 if arr.color else self.smallestPixelValueInSeries
             _series_max = 255 if arr.color else self.largestPixelValueInSeries
-            #if 'RescaleSlope' in ds:
-            #    del ds.RescaleSlope
-            #if 'RescaleIntercept' in ds:
-            #    del ds.RescaleIntercept
         else:
-            # if np.issubdtype(safe_si.dtype, np.floating):
-            # ds.SmallestImagePixelValue = ((safe_si.min() - self.b) / self.a).astype('uint16')
-            # ds.LargestImagePixelValue = ((safe_si.max() - self.b) / self.a).astype('uint16')
-            # ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
-            # ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
-            # ds.SmallestPixelValueInSeries = np.uint16(self.smallestPixelValueInSeries)
-            # ds.LargestPixelValueInSeries = np.uint16(self.largestPixelValueInSeries)
             try:
                 ds.RescaleSlope = "%f" % self.a
             except OverflowError:
@@ -1430,8 +1430,10 @@ class DICOMPlugin(AbstractPlugin):
             ds.RescaleIntercept = "%f" % self.b
             _min = np.array((arr.min() - self.b) / self.a).astype('uint16')
             _max = np.array((arr.max() - self.b) / self.a).astype('uint16')
-            _series_min = np.array((self.smallestPixelValueInSeries - self.b) / self.a).astype('uint16')
-            _series_max = np.array((self.largestPixelValueInSeries - self.b) / self.a).astype('uint16')
+            _series_min = np.array(
+                (self.smallestPixelValueInSeries - self.b) / self.a).astype('uint16')
+            _series_max = np.array(
+                (self.largestPixelValueInSeries - self.b) / self.a).astype('uint16')
         ds.add_new(tag_for_keyword('SmallestImagePixelValue'), self.range_VR, _min)
         ds.add_new(tag_for_keyword('LargestImagePixelValue'), self.range_VR, _max)
         ds.add_new(tag_for_keyword('SmallestPixelValueInSeries'), self.range_VR, _series_min)
@@ -1519,7 +1521,8 @@ class DICOMPlugin(AbstractPlugin):
     def _set_dicom_tag(self, im, input_order, value):
 
         # Example: _tag = choose_tag('b', 'csa_header')
-        choose_tag = lambda tag, default: self.input_options[tag] if tag in self.input_options else default
+        choose_tag = lambda tag, default: self.input_options[tag] \
+            if tag in self.input_options else default
 
         if input_order is None:
             pass
@@ -1553,7 +1556,8 @@ class DICOMPlugin(AbstractPlugin):
                 csa_head = csa.get_csa_header(im)
                 try:
                     if csa.get_b_value(csa_head) != float(value):
-                        raise ValueError('Replacing b value in CSA header has not been implemented.')
+                        raise ValueError(
+                            'Replacing b value in CSA header has not been implemented.')
                 except Exception:
                     raise ValueError('Replacing b value in CSA header has not been implemented.')
             else:

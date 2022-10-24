@@ -37,7 +37,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def name(self):
         """Plugin name
-        
+
         Single word string describing the image format.
         Typical names: file, dicom, xnat
         """
@@ -46,7 +46,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def description(self):
         """Plugin description
-        
+
         Single line string describing the transport method.
         """
         return self.__description
@@ -54,7 +54,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def authors(self):
         """Plugin authors
-        
+
         Multi-line string naming the author(s) of the plugin.
         """
         return self.__authors
@@ -62,7 +62,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def version(self):
         """Plugin version
-        
+
         String giving the plugin version.
         Version scheme: 1.0.0
         """
@@ -71,7 +71,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def url(self):
         """Plugin URL
-        
+
         URL string to the site of the plugin or the author(s).
         """
         return self.__url
@@ -79,7 +79,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @property
     def schemes(self):
         """List of transport schemes supported by this plugin.
-        
+
         List of strings.
         """
         return self.__schemes
@@ -90,7 +90,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         Input:
         - top: starting point for walk (str)
         Return:
-        - tuples of (root, dirs, files) 
+        - tuples of (root, dirs, files)
         """
         pass
 

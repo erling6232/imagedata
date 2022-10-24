@@ -26,7 +26,6 @@ class DictAction(argparse.Action):
 
         # noinspection PyProtectedMember
         items = copy.copy(getattr(namespace, self.dest, {}))  # Default mutables, use copy!
-        # items = copy.copy(argparse._ensure_value(namespace, self.dest, {}))  # Default mutables, use copy!
         items[k] = v
         setattr(namespace, self.dest, items)
 
@@ -95,8 +94,8 @@ class DtypeAction(argparse.Action):
 
 def add_argparse_options(parser):
     parser.add_argument('--of', dest="output_format", action=OutputFormatAction,
-                        help="Output format [dicom|itk|nifti|biff|mat|ps] (default: dicom). Replaces %%p in output "
-                             "path.",
+                        help="Output format [dicom|itk|nifti|biff|mat|ps] (default: dicom). "
+                             "Replaces %%p in output path.",
                         choices=['dicom', 'itk', 'nifti', 'biff', 'mat', 'ps'],
                         default=[])
     parser.add_argument('--sort', dest="output_sort", action=SortOnAction,
@@ -110,7 +109,8 @@ def add_argparse_options(parser):
     # readdata.str_to_dtype() will convert choice to numpy dtype
     parser.add_argument('--dtype', action=DtypeAction,
                         help="Specify output datatype. Otherwise keep input datatype",
-                        choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
+                        choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32',
+                                 'float64', 'double'],
                         default=None)
     parser.add_argument('--psopt',
                         help="Postscript options (opt=value,opt=value) where opt can be: " +
@@ -119,7 +119,8 @@ def add_argparse_options(parser):
                              "rotate=90 (default=0)",
                         default=None)
     parser.add_argument('--odir', dest="output_dir",
-                        help="Store all images in a single or multiple directories (default: single)",
+                        help="Store all images in a single or multiple directories "
+                             "(default: single)",
                         choices=['single', 'multi'], default='single')
     parser.add_argument('--template', default=None,
                         help="Source to get DICOM template from")
@@ -151,7 +152,8 @@ def add_argparse_options(parser):
                         help='Calling AEtitle',
                         default=None)
     parser.add_argument('--correct_acq', action='store_true',
-                        help="Correct acquisition time on dynamic series (DICOM only) (implies --order time)")
+                        help="Correct acquisition time on dynamic series (DICOM only) "
+                             "(implies --order time)")
     parser.add_argument('--headers_only', action='store_true',
                         help="Read headers only")
     parser.add_argument('--input_shape',

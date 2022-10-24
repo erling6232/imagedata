@@ -2,7 +2,7 @@
 imagedata
 #########
 
-|Docs Badge| |joss| |buildstatus|  |coverage| |pypi| |zenodo|
+|zenodo| |joss| |Docs Badge| |pypi| |buildstatus|  |coverage|
 
 
 Imagedata is a python library to read and write medical image data into numpy arrays.

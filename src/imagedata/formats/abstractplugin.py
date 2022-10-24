@@ -51,7 +51,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
     @property
     def name(self):
         """Plugin name
-        
+
         Single word string describing the image format.
         Typical names: dicom, nifti, itk.
         """
@@ -60,7 +60,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
     @property
     def description(self):
         """Plugin description
-        
+
         Single line string describing the image format.
         """
         return self.__description
@@ -68,7 +68,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
     @property
     def authors(self):
         """Plugin authors
-        
+
         Multi-line string naming the author(s) of the plugin.
         """
         return self.__authors
@@ -76,7 +76,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
     @property
     def version(self):
         """Plugin version
-        
+
         String giving the plugin version.
         Version scheme: 1.0.0
         """
@@ -85,7 +85,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
     @property
     def url(self):
         """Plugin URL
-        
+
         URL string to the site of the plugin or the author(s).
         """
         return self.__url
@@ -123,7 +123,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             for file_handle in archive.getmembers(scan_files):
                 logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle.filename))
                 if self._need_local_file():
-                    logger.debug("AbstractPlugin.read: need local file {}".format(file_handle.filename))
+                    logger.debug("AbstractPlugin.read: need local file {}".format(
+                        file_handle.filename))
                     f = archive.to_localfile(file_handle)
                     logger.debug("AbstractPlugin.read: local file {}".format(f))
                     info, si = self._read_image(f, opts, hdr)
@@ -150,7 +151,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            # logger.debug('AbstractPlugin.read: img {} si {} {}'.format(img.shape, si.shape, si.dtype))
+            # logger.debug('AbstractPlugin.read: img {} si {} {}'.format(
+            #     img.shape, si.shape, si.dtype))
             si[i] = img
             i += 1
         logger.debug('AbstractPlugin.read: si {}'.format(si.shape))
@@ -253,7 +255,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
     def getTimeline(self):
         """Get timeline
-        
+
         Returns:
             Timeline in seconds, as numpy array of floats
                 Delta time is given as seconds. First image is t=0.
@@ -267,7 +269,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 timeline.append(self.tags[0][t] - self.tags[0][0])
             return np.array(timeline)
         else:
-            raise ValueError("No timeline tags are available. Input order: {}".format(self.input_order))
+            raise ValueError("No timeline tags are available. Input order: {}".format(
+                self.input_order))
 
     '''
     def getQform(self):
@@ -437,7 +440,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         Will not reduce to less than 2-dimensional image.
         Also reduce axes when reducing shape.
-        
+
         Args:
             self: format plugin instance
             si[...]: Series array
@@ -493,8 +496,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        si[d, tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag, d], flip=flip,
-                                                                      flipud=flipud)
+                        si[d, tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag, d],
+                                                                      flip=flip, flipud=flipud)
                         # if flip:
                         #    si[d,tag,slice,:,:] = \
                         #    (data[:,:,slice,tag,d]).T
@@ -508,7 +511,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             si = np.zeros((tags, slices, rows, columns), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    si[tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag], flip=flip, flipud=flipud)
+                    si[tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag],
+                                                               flip=flip, flipud=flipud)
                     # if flip:
                     #    si[tag,slice,:,:] = (data[:,:,slice,tag]).T
                     #    #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
@@ -577,8 +581,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             for d in range(d5):
                 for tag in range(tags):
                     for slice in range(slices):
-                        si[:, :, slice, tag, d] = self._reorder_slice(data[d, tag, slice, :, :], flip=flip,
-                                                                      flipud=flipud)
+                        si[:, :, slice, tag, d] = self._reorder_slice(data[d, tag, slice, :, :],
+                                                                      flip=flip, flipud=flipud)
                         # if flip:
                         #    si[:,:,slice,tag,d] = \
                         #    np.fliplr(data[d,tag,slice,:,:]).T
@@ -591,7 +595,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             si = np.zeros((rows, columns, slices, tags), data.dtype)
             for tag in range(tags):
                 for slice in range(slices):
-                    si[:, :, slice, tag] = self._reorder_slice(data[tag, slice, :, :], flip=flip, flipud=flipud)
+                    si[:, :, slice, tag] = self._reorder_slice(data[tag, slice, :, :],
+                                                               flip=flip, flipud=flipud)
                     # if flip:
                     #    si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
                     # else:

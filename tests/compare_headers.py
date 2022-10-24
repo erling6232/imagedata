@@ -1,3 +1,4 @@
+import imagedata.axis
 import numpy as np
 
 
@@ -68,3 +69,21 @@ def compare_geometry_headers(self, hdr, newhdr):
             newhdr.imagePositions[k],
             decimal=4)
     np.testing.assert_array_almost_equal(hdr.transformationMatrix, newhdr.transformationMatrix, decimal=3)
+
+
+def compare_axes(self, axes, new_axes):
+    self.assertEqual(len(axes), len(new_axes))
+    for axis, new_axis in zip(axes, new_axes):
+        self.assertEqual(type(axis), type(new_axis))
+        self.assertEqual(axis.name, new_axis.name)
+        if isinstance(axis, imagedata.axis.VariableAxis):
+            np.testing.assert_array_equal(axis.values, new_axis.values)
+        elif isinstance(axis, imagedata.axis.UniformLengthAxis):
+            self.assertEqual(axis.n, new_axis.n)
+            self.assertEqual(axis.start, new_axis.start)
+            self.assertEqual(axis.stop, new_axis.stop)
+            self.assertEqual(axis.step, new_axis.step)
+        elif isinstance(axis, imagedata.axis.UniformAxis):
+            self.assertEqual(axis.start, new_axis.start)
+            self.assertEqual(axis.stop, new_axis.stop)
+            self.assertEqual(axis.step, new_axis.step)

@@ -205,7 +205,7 @@ def draw_circle_mask(canvas, center_x, center_y, outer_radius, colour, threshold
         print("_draw_8point", _cx + x,  _cy + y)
         print("_draw_8point", _cx - x,  _cy - y)
         print("_draw_8point", _cx - x,  _cy + y)
-        
+
         _canvas[_cy + y,  _cx - x] = _colour
         _canvas[_cy + y,  _cx + x] = _colour
         _canvas[_cy - y,  _cx - x] = _colour

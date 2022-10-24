@@ -151,7 +151,8 @@ def read(urls, order=None, opts=None):
 #        pre_hdr['orientation']    = geometry['orientation'].copy()
 #        pre_hdr['imagePositions'] = {}
 #        logger.debug("_add_dicom_geometry:")
-#        logger.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
+#        logger.debug("_add_dicom_geometry: geometry.imagePositions {}".format(
+#            geometry['imagePositions'].keys()))
 #        for k in geometry['imagePositions'].keys():
 #            pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
 #        pre_hdr['axes'] = geometry['axes'].copy()
@@ -268,7 +269,8 @@ def write(si, url, opts=None, formats=None):
                     # 2D-3D data
                     writer.write_3d_numpy(write_si, destination, out_opts)
                 else:
-                    raise ValueError("Don't know how to write image of shape {}".format(write_si.shape))
+                    raise ValueError("Don't know how to write image of shape {}".format(
+                        write_si.shape))
                 written = True
             except WriteNotImplemented:
                 raise
@@ -424,7 +426,7 @@ def _simplify_locations(locations):
 
 def _get_sources(urls, mode, opts=None):
     """Determine transport, archive and file from each url.
-    
+
     Handle both single url, a url tuple, and a url list
 
     Args:

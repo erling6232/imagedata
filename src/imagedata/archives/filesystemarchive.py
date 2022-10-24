@@ -371,7 +371,8 @@ class FilesystemArchive(AbstractArchive, ABC):
     def __enter__(self):
         """Enter context manager.
         """
-        logger.debug("FilesystemArchive __enter__: {} mode {}".format(type(self.__transport), self.__mode))
+        logger.debug("FilesystemArchive __enter__: {} mode {}".format(
+            type(self.__transport), self.__mode))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

@@ -7,7 +7,7 @@ Standard plugins provides support for file, http/https and xnat transports.
 
 import logging
 from urllib import parse
-from .abstracttransport import AbstractTransport
+# from .abstracttransport import AbstractTransport
 
 logger = logging.getLogger(__name__)
 

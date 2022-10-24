@@ -74,7 +74,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def name(self):
         """Plugin name
-        
+
         Single word string describing the image format.
         Typical names: dicom, nifti, itk.
         """
@@ -83,7 +83,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def description(self):
         """Plugin description
-        
+
         Single line string describing the image format.
         """
         return self.__description
@@ -91,7 +91,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def authors(self):
         """Plugin authors
-        
+
         Multi-line string naming the author(s) of the plugin.
         """
         return self.__authors
@@ -99,7 +99,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def version(self):
         """Plugin version
-        
+
         String giving the plugin version.
         Version scheme: 1.0.0
         """
@@ -108,7 +108,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def url(self):
         """Plugin URL
-        
+
         URL string to the site of the plugin or the author(s).
         """
         return self.__url
@@ -122,7 +122,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def mimetypes(self):
         """MIME types supported by this plugin.
-        
+
         List of strings.
         """
         return self.__mimetypes
@@ -299,7 +299,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
 #         for archive in self.__archives:
 #             logging.debug("ArchiveCollection: construct archive {}".format(archive))
 #             filedict = archive.getnames()
-#             logging.debug("ArchiveCollection: construct filelist {} {}".format(type(filedict), filedict))
+#             logging.debug("ArchiveCollection: construct filelist {} {}".format(
+#                 type(filedict), filedict))
 #             for key in filedict.keys():
 #                 self.__memberlist[key] = (archive, filedict[key])
 #

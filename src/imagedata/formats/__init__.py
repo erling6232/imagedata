@@ -22,8 +22,8 @@ INPUT_ORDER_B = 'b'
 INPUT_ORDER_FA = 'fa'
 INPUT_ORDER_TE = 'te'
 INPUT_ORDER_FAULTY = 'faulty'
-input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE,
-                   INPUT_ORDER_FAULTY}
+input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA,
+                   INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
 
 class NotImageError(Exception):

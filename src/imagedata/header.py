@@ -125,7 +125,7 @@ class Header(object):
             self.DicomHeaderDict = {}
             self.imagePositions = {}
             for _slice in range(slices):
-                self.imagePositions[_slice] = np.array([_slice,0,0])
+                self.imagePositions[_slice] = np.array([_slice, 0, 0])
                 self.DicomHeaderDict[_slice] = []
                 for tag in range(tags):
                     self.DicomHeaderDict[_slice].append(
@@ -176,7 +176,8 @@ class Header(object):
                     setattr(self, attr, getattr(template, attr, None))
         # Make sure DicomHeaderDict is set last
         if template.DicomHeaderDict is not None:
-            self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(template.DicomHeaderDict)
+            self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
+                template.DicomHeaderDict)
 
     def __get_tags_and_slices(self):
         slices = tags = 1

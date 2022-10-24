@@ -8,8 +8,8 @@ import logging
 import numpy as np
 import scipy
 import scipy.io
-from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, shape_to_str, sort_on_to_str,\
-    SORT_ON_SLICE
+from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented,\
+    shape_to_str, sort_on_to_str, SORT_ON_SLICE
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 
@@ -85,11 +85,14 @@ class MatPlugin(AbstractPlugin):
                 names = []
                 for name, shape, dtype in mdictlist:
                     names.append(name)
-                logger.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(len(mdictlist)))
+                logger.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(
+                    len(mdictlist)))
                 logger.debug('matplugin._read_image: Multiple variables in MAT file {}'.format(f))
-                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: {}'.format(f, names))
+                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: '
+                                                    '{}'.format(f, names))
             name, shape, dtype = mdictlist[0]
-            logger.debug('matplugin._read_image: name {} shape {} dtype {}'.format(name, shape, dtype))
+            logger.debug('matplugin._read_image: name {} shape {} dtype {}'.format(
+                name, shape, dtype))
             mdict = scipy.io.loadmat(f, variable_names=(name,))
             logger.debug('matplugin._read_image variable {}'.format(name))
             si = self._reorder_to_dicom(mdict[name])
@@ -187,10 +190,12 @@ class MatPlugin(AbstractPlugin):
             si.shape = si.shape[1:]
         # if si.ndim == 2:
         #    si.shape = (1,) + si.shape
-        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
+        assert si.ndim == 2 or si.ndim == 3,\
+            "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[0]
         # if slices != si.slices:
-        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ "
+        #        "from input array ({}).".format(si.slices, slices))
 
         # newshape = tuple(reversed(si.shape))
         # logger.info("Data shape matlab write: {}".format(shape_to_str(newshape)))
@@ -263,12 +268,12 @@ class MatPlugin(AbstractPlugin):
         slices = si.shape[1]
         if steps != len(si.tags[0]):
             raise ValueError(
-                "write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]),
-                                                                                                    steps))
+                "write_4d_series: tags of dicom template ({}) differ "
+                "from input array ({}).".format(len(si.tags[0]), steps))
         if slices != si.slices:
             raise ValueError(
-                "write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices,
-                                                                                                      slices))
+                "write_4d_series: slices of dicom template ({}) differ "
+                "from input array ({}).".format(si.slices, slices))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)

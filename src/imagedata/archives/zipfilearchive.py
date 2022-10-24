@@ -321,7 +321,8 @@ class ZipfileArchive(AbstractArchive, ABC):
             wanted_files = files
         if wanted_files is None or \
                 (issubclass(type(wanted_files), list) and (
-                        len(wanted_files) == 0 or len(wanted_files) > 0 and wanted_files[0] == '*')):
+                        len(wanted_files) == 0 or len(wanted_files) > 0 and \
+                        wanted_files[0] == '*')):
             return list(self.__files.values())
         else:
             # logger.debug('ZipfileArchive.getmembers: files {}'.format(len(files)))
@@ -427,7 +428,8 @@ class ZipfileArchive(AbstractArchive, ABC):
     def __enter__(self):
         """Enter context manager.
         """
-        logger.debug("ZipfileArchive __enter__: {} mode {}".format(type(self.__transport), self.__mode))
+        logger.debug("ZipfileArchive __enter__: {} mode {}".format(
+            type(self.__transport), self.__mode))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

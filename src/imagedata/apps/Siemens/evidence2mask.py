@@ -170,8 +170,8 @@ def make_mask_in_slice(roi_type, si, points, shape):
         # width = ?
         # height = ?
 
-        for p in points:
-            save_x(p)
+        # for p in points:
+        #     save_x(p)
         polygon = transform_data_points_to_voxels(si, points)
         points_matrix = roi.get_points_matrix(si)
         """
@@ -198,10 +198,10 @@ def make_mask_in_slice(roi_type, si, points, shape):
         angle1 = angles[1]
         radius_cm = math.sqrt(angle1[0] * angle1[0] + angle1[1] * angle1[1] + angle1[2] * angle1[2])
         adjacent_cm = centre_cm + np.array((0, 0, radius_cm))
-        save_x((centre_cm + np.array((0, 0, radius_cm)))[0])
-        save_x((centre_cm - np.array((0, 0, radius_cm)))[0])
-        save_x((centre_cm + np.array((radius_cm, 0, 0)))[0])
-        save_x((centre_cm - np.array((radius_cm, 0, 0)))[0])
+        # save_x((centre_cm + np.array((0, 0, radius_cm)))[0])
+        # save_x((centre_cm - np.array((0, 0, radius_cm)))[0])
+        # save_x((centre_cm + np.array((radius_cm, 0, 0)))[0])
+        # save_x((centre_cm - np.array((radius_cm, 0, 0)))[0])
         adjacent = transform_data_points_to_voxels(si, adjacent_cm)[0]
         radius = abs(centre[1] - adjacent[1])
 

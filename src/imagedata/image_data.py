@@ -57,7 +57,7 @@ def dump():
             try:
                 with archive.open(member, mode='rb') as f:
                     reader.process_member(image_dict, archive, path, f, in_opts, skip_pixels=True)
-            except Exception as e:
+            except Exception:
                 raise
 
     StuInsUID = {}
@@ -118,7 +118,6 @@ def dump():
 
 
 def calculator():
-    import math
 
     parser = argparse.ArgumentParser(description='Image calculator.',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -127,7 +126,7 @@ def calculator():
         a*2: Multiply first input by 2
         a+b: Add first and second image""")
     add_argparse_options(parser)
-    #parser.add_argument('--mask',
+    # parser.add_argument('--mask',
     #                    help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
     parser.add_argument("expression", help="Expression")
@@ -238,7 +237,8 @@ def statistics():
     _dtype = selection.dtype
 
     if args.bash:
-        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(_min, _max, _mean, _std, _median))
+        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(
+            _min, _max, _mean, _std, _median))
         print('export min max mean std median')
     else:
         print('Min: {}, max: {}'.format(_min, _max))
@@ -302,7 +302,7 @@ def conversion():
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    #print("Output format: %s, %s, in %s directory." % (
+    # print("Output format: %s, %s, in %s directory." % (
     #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
@@ -320,7 +320,8 @@ def conversion():
 def image_list():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
-    parser.add_argument("-r", "--recursive", help="Descend into directory tree", action="store_true")
+    parser.add_argument("-r", "--recursive", help="Descend into directory tree",
+                        action="store_true")
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)

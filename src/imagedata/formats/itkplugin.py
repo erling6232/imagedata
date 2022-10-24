@@ -8,8 +8,8 @@ import logging
 import tempfile
 import itk
 import numpy as np
-from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, SORT_ON_SLICE, \
-    SORT_ON_TAG, sort_on_to_str
+from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented,\
+    SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
 from ..axis import UniformLengthAxis, VariableAxis
 from .abstractplugin import AbstractPlugin
 
@@ -188,7 +188,8 @@ class ITKPlugin(AbstractPlugin):
         # Do not calculate transformationMatrix here. Will be calculated by Series() when needed.
         # self.transformationMatrix = transformMatrix(direction, hdr['imagePositions'][0])
         # hdr['transformationMatrix'] = self.transformationMatrix
-        # logger.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(self.transformationMatrix))
+        # logger.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(
+        #     self.transformationMatrix))
 
         # Set image orientation
         iop = self._orientation_from_vnl_matrix(direction)
@@ -294,10 +295,12 @@ class ITKPlugin(AbstractPlugin):
         # assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
         # if si.shape[0] != 1:
         #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
+        assert si.ndim == 2 or si.ndim == 3,\
+            "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[1]
         # if slices != si.slices:
-        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ "
+        #        "from input array ({}).".format(si.slices, slices))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)
@@ -363,12 +366,12 @@ class ITKPlugin(AbstractPlugin):
         slices = si.shape[1]
         if steps != len(si.tags[0]):
             raise ValueError(
-                "write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]),
-                                                                                                    steps))
+                "write_4d_series: tags of dicom template ({}) differ "
+                "from input array ({}).".format(len(si.tags[0]), steps))
         if slices != si.slices:
             raise ValueError(
-                "write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices,
-                                                                                                      slices))
+                "write_4d_series: slices of dicom template ({}) differ "
+                "from input array ({}).".format(si.slices, slices))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)
@@ -499,10 +502,10 @@ class ITKPlugin(AbstractPlugin):
 
         If the image_type is supported, will be automatically transformed to that type,
         otherwise the most suitable is selected.
-        
+
         Note: always use this instead of directly the itk.PyBuffer, as that
                 object transposes the image axes.
-        
+
         Args:
             image an array, type image np.ndarray
 
@@ -566,4 +569,5 @@ class ITKPlugin(AbstractPlugin):
             return itk.Image[itk.template(image)[1][0],
                              itk.template(image)[1][1]]
         except IndexError:
-            raise (NotImplementedError, 'The python wrappers of ITK define no template class for this data type.')
+            raise (NotImplementedError,
+                   'The python wrappers of ITK define no template class for this data type.')

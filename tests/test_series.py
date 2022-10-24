@@ -10,6 +10,7 @@ import pydicom.datadict
 from .context import imagedata
 from imagedata.series import Series
 import imagedata.axis
+from .compare_headers import compare_axes
 
 
 class TestSeries(unittest.TestCase):
@@ -317,6 +318,23 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2], s[1:-1])
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-1,:,:])
         np.testing.assert_array_equal(s[0:1,:,:], s[0:-2,:,:])
+
+    #@unittest.skip("skipping test_slicing_t_drop")
+    def test_slicing_t_drop(self):
+        from numpy.random import default_rng
+        rng = default_rng()
+        s = Series(rng.standard_normal(192).reshape((3,4,4,4)))
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
+        s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s_axes = copy.copy(s.axes)
+        self.assertEqual(len(s_axes), 4)
+
+        sum = np.sum(s, axis=0)
+        compare_axes(self, s.axes, s_axes)
+        # del sum.axes[0]
+        self.assertEqual(len(s_axes), 4)
+        compare_axes(self, s_axes[1:], sum.axes)
 
     #@unittest.skip("skipping test_multiple_ellipses")
     def test_multiple_ellipses(self):

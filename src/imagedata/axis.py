@@ -55,7 +55,7 @@ class UniformAxis(Axis):
     def __len__(self):
         try:
             return abs(int((self.stop - self.start) / self.step))
-        except ValueError as e:
+        except ValueError:
             return sys.maxsize
         except Exception:
             raise
@@ -65,9 +65,9 @@ class UniformAxis(Axis):
         return self.start, self.stop, self.step
 
     def __repr__(self):
-        return("{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
+        return "{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
@@ -98,7 +98,7 @@ class UniformLengthAxis(UniformAxis):
             step = (item.step or 1) * self.step
             try:
                 n = int(round((stop - start) / step))
-            except ValueError as e:
+            except ValueError:
                 n = sys.maxsize
             except Exception:
                 raise
@@ -110,9 +110,9 @@ class UniformLengthAxis(UniformAxis):
         return self.n
 
     def __repr__(self):
-        return("{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
+        return "{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
@@ -152,9 +152,9 @@ class VariableAxis(Axis):
         return len(self.values)
 
     def __repr__(self):
-        return("{0}({1.name!s},{1.values!r})".format(
+        return "{0}({1.name!s},{1.values!r})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.values!s}".format(self)
