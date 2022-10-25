@@ -332,7 +332,7 @@ class TestSeries(unittest.TestCase):
 
         sum = np.sum(s, axis=0)
         compare_axes(self, s.axes, s_axes)
-        # del sum.axes[0]
+        del sum.axes[0]  # TODO
         self.assertEqual(len(s_axes), 4)
         compare_axes(self, s_axes[1:], sum.axes)
 
