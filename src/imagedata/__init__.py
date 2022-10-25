@@ -23,7 +23,8 @@ __author__ = 'Erling Andersen, Haukeland University Hospital, Bergen, Norway'
 __email__ = 'Erling.Andersen@Helse-Bergen.NO'
 
 plugins = {}
-_plugins = entry_points()['imagedata_plugins']
+# _plugins = entry_points()['imagedata_plugins']
+_plugins = entry_points(group='imagedata_plugins')
 for _plugin in _plugins:
     _class = _plugin.load()
     if _class.plugin_type not in plugins:
