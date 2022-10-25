@@ -211,7 +211,9 @@ class EllipseROI(ROI):
         self.angles_cm = angles
         self.thickness_cm = thickness
         angle1 = angles[1]
-        self.radius_cm = math.sqrt(angle1[0] * angle1[0] + angle1[1] * angle1[1] + angle1[2] * angle1[2])
+        self.radius_cm = math.sqrt(angle1[0] * angle1[0] +
+                                   angle1[1] * angle1[1] +
+                                   angle1[2] * angle1[2])
         self.radius_matrix = None
 
     def get_points_cm(self):
@@ -225,7 +227,9 @@ class EllipseROI(ROI):
             self.points[0, :] = self.centre_cm[0, :]
             i = 1
             for angle in np.arange(0.0, 2 * math.pi, math.pi / 12):
-                self.points[i, :] = self.centre_cm + self.radius_cm * np.array((math.sin(angle), 0, math.cos(angle)))
+                self.points[i, :] = self.centre_cm +\
+                                    self.radius_cm *\
+                                    np.array((math.sin(angle), 0, math.cos(angle)))
                 i += 1
         return self.points
 

@@ -171,7 +171,8 @@ class Viewer(object):
             h = ax.imshow(im['im'][im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
         else:
             # 4D viewer
-            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
+            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['colormap'],
+                          norm=im['norm'])
             # Lower right text
             fmt = '{}[{}]: {}'.format(im['input_order'], im['tag'], pretty_tag_value(im))
             im['lower_right_data'] = (im['tag'],)
@@ -242,22 +243,24 @@ class Viewer(object):
             if self.follow:
                 for tag in range(self.im[0]['tags']):
                     for i in range(self.im[0]['slices']):
-                        vertices = copy.copy(self.vertices[tag, i])\
+                        vertices = copy.copy(self.vertices[tag, i]) \
                             if (tag, i) in self.vertices else None
                         self.poly[tag, i] = MyPolygonSelector(self.ax[0, 0], self.onselect,
                                                               lineprops={
                                                                   'color': self.poly_color},
-                                                              vertices=vertices, tag=(tag, i),
-                                                              copy=self.on_copy, paste=self.on_paste)
+                                                              vertices=vertices,
+                                                              tag=(tag, i),
+                                                              copy=self.on_copy,
+                                                              paste=self.on_paste)
                         # Polygon on single slice and tag 0, only
                         if i == idx and tag == 0:
-                            assert self.poly[tag, i].tag == (tag, i),\
+                            assert self.poly[tag, i].tag == (tag, i), \
                                 "Tag index mismatch {}!={}".format((tag, i), self.poly[tag, i].tag)
                             self.poly[tag, i].connect_default_events()
                             self.poly[tag, i].set_visible(True)
                             self.poly[tag, i].update()
                         else:
-                            assert self.poly[tag, i].tag == (tag, i),\
+                            assert self.poly[tag, i].tag == (tag, i), \
                                 "Tag index mismatch {}!={}".format((tag, i), self.poly[tag, i].tag)
                             self.poly[tag, i].disconnect_events()
                             self.poly[tag, i].set_visible(False)
@@ -271,7 +274,7 @@ class Viewer(object):
                                                      paste=self.on_paste)
                     # Polygon on single slice only
                     if i != idx:
-                        assert self.poly[i].tag == i,\
+                        assert self.poly[i].tag == i, \
                             "Tag index mismatch {}!={}".format(i, self.poly[i].tag)
                         self.poly[i].disconnect_events()
                         self.poly[i].set_visible(False)
@@ -440,10 +443,10 @@ class Viewer(object):
                 old_idx = im['tag'], old_idx
                 new_idx = im['tag'], new_idx
             if old_idx in self.poly:
-                assert self.poly[old_idx].tag == old_idx,\
+                assert self.poly[old_idx].tag == old_idx, \
                     "Tag index mismatch {}!={}".format(old_idx, self.poly[old_idx].tag)
             if new_idx in self.poly:
-                assert self.poly[new_idx].tag == new_idx,\
+                assert self.poly[new_idx].tag == new_idx, \
                     "Tag index mismatch {}!={}".format(new_idx, self.poly[new_idx].tag)
             if im['modified']:
                 self.poly[old_idx].disconnect_events()
@@ -478,22 +481,22 @@ class Viewer(object):
         if self.poly is not None and self.follow and im['modified']:
             new_tag = im['tag']
             idx = im['idx']
-            assert self.poly[old_tag, idx].tag == (old_tag, idx),\
+            assert self.poly[old_tag, idx].tag == (old_tag, idx), \
                 "Tag index mismatch {}!={}".format((old_tag, idx), self.poly[old_tag, idx].tag)
             if (new_tag, idx) not in self.poly and (old_tag, idx) in self.poly and \
-                self.poly[old_tag, idx] is not None:
+                    self.poly[old_tag, idx] is not None:
                 # Copy the polygon to next tag when there is none
                 self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0, 0], self.onselect,
                                                             lineprops={'color': self.poly_color},
                                                             vertices=self.poly[old_tag, idx].verts,
                                                             tag=(new_tag, idx), copy=self.on_copy,
                                                             paste=self.on_paste)
-            assert self.poly[old_tag, idx].tag == (old_tag, idx),\
+            assert self.poly[old_tag, idx].tag == (old_tag, idx), \
                 "Tag index mismatch {}!={}".format((old_tag, idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
             self.poly[old_tag, idx].set_visible(False)
             self.poly[old_tag, idx].update()
-            assert self.poly[new_tag, idx].tag == (new_tag, idx),\
+            assert self.poly[new_tag, idx].tag == (new_tag, idx), \
                 "Tag index mismatch {}!={}".format((new_tag, idx), self.poly[new_tag, idx].tag)
             self.poly[new_tag, idx].connect_default_events()
             self.poly[new_tag, idx].set_visible(True)

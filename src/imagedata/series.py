@@ -1069,11 +1069,11 @@ class Series(np.ndarray):
 
         Examples:
             >>> si = Series(np.eye(128))
-            >>> z,y,x = si.imagePositions[s]
+            >>> z,y,x = si.imagePositions[0]
 
         Examples:
             >>> si = Series(np.eye(128))
-            >>> for s in range(slices):
+            >>> for s in range(si.slices):
             >>>     si.imagePositions = {
             >>>         s: si.getPositionForVoxel(np.array([s, 0, 0]))
             >>>     }

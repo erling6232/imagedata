@@ -3,6 +3,8 @@
 import os
 import sys
 import logging
+from .formats.abstractplugin import AbstractPlugin
+from .formats import get_plugins_list
 
 logger = logging.getLogger()
 handler = logging.StreamHandler()
@@ -18,8 +20,6 @@ logger.setLevel(logging.DEBUG)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 print("sys.path = \n{}".format(sys.path))
 
-from .formats.abstractplugin import AbstractPlugin
-from .formats import get_plugins_list
 
 if __name__ == '__main__':
     print("__main__")

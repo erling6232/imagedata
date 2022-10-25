@@ -4,7 +4,7 @@ import argparse
 import logging
 import imagedata
 from imagedata.cmdline import add_argparse_options
-from evidence2mask import evidence2roi
+# from evidence2mask import evidence2roi  # TODO
 
 
 logger = logging.getLogger()
@@ -28,7 +28,8 @@ if __name__ == '__main__':
         print("Usage:", sys.argv[0], "<options> [-laterality sep] out evidence in...")
         print("\nWhere <options> are:\n", imagedata.options_to_text())
         print(
-            "  [-laterality separate|combined] - Separate left and right ROIs in separate files. Other combine both (default).")
+            "  [-laterality separate|combined] - Separate left and right ROIs "
+            "in separate files. Other combine both (default).")
         sys.exit(1)
 
     try:
@@ -41,7 +42,9 @@ if __name__ == '__main__':
         sys.exit(1)
 
     try:
-        reading = imagedata.read_headers((evidence_name,), imagedata.formats.INPUT_ORDER_NONE, force_order=True)
+        reading = imagedata.read_headers((evidence_name,),
+                                         imagedata.formats.INPUT_ORDER_NONE,
+                                         force_order=True)
     except imagedata.UnknownInputError:
         print("Could not determine input format of %s." % evidence_name)
         import traceback
@@ -75,5 +78,7 @@ if __name__ == '__main__':
         hdr_copy.setDicomAttribute((0x0008, 0x1070), content['creator'])
         # Image Laterality
         hdr_copy.setDicomAttribute((0x0020, 0x0062), laterality)
-        imagedata.write_images(hdr_copy, mask[laterality], os.path.join(out_name, "%s_%%05d" % laterality))
+        imagedata.write_images(hdr_copy,
+                               mask[laterality],
+                               os.path.join(out_name, "%s_%%05d" % laterality))
         serNum += 1

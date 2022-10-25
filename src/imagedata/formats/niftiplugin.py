@@ -1191,6 +1191,7 @@ class NiftiPlugin(AbstractPlugin):
 
         # mat44 s = sFormMat(h);
         s = hdr.get_sform()
+        h = hdr  # TODO
         if isMat44Canonical(s):
             logger.debug("Image in perfect alignment: no need to reorient")
             return img
@@ -1208,7 +1209,7 @@ class NiftiPlugin(AbstractPlugin):
             is24 = True
             h.bitpix = 8
             h.dim[3] = h.dim[3] * 3
-        img = reOrient(img, h,orientVec, orient, minMM)
+        img = reOrient(img, h, orientVec, orient, minMM)
         if is24:
             h.bitpix = 24
             h.dim[3] = h.dim[3] / 3

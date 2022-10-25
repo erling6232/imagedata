@@ -294,7 +294,8 @@ class ITKPlugin(AbstractPlugin):
         #    si.shape = (1,) + si.shape
         # assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
         # if si.shape[0] != 1:
-        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(
+        #        si.shape))
         assert si.ndim == 2 or si.ndim == 3,\
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[1]

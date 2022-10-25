@@ -1459,15 +1459,12 @@ class DICOMPlugin(AbstractPlugin):
     @staticmethod
     def _get_tag(im, input_order, opts):
 
-        # Example: _tag = choose_tag('b', 'csa_header')
-        choose_tag = lambda tag, default: opts[tag] if tag in opts else default
-
         if input_order is None:
             return 0
         if input_order == INPUT_ORDER_NONE:
             return 0
         elif input_order == INPUT_ORDER_TIME:
-            time_tag = choose_tag('time', 'AcquisitionTime')
+            time_tag = self._choose_tag('time', 'AcquisitionTime')
             # if 'TriggerTime' in opts:
             #    return(float(image.TriggerTime))
             # elif 'InstanceNumber' in opts:
@@ -1487,12 +1484,12 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 return float(im.data_element(time_tag).value)
         elif input_order == INPUT_ORDER_B:
-            b_tag = choose_tag('b', 'DiffusionBValue')
+            b_tag = self._choose_tag('b', 'DiffusionBValue')
             try:
                 return float(im.data_element(b_tag).value)
             except (KeyError, TypeError):
                 pass
-            b_tag = choose_tag('b', 'csa_header')
+            b_tag = self._choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=UserWarning)
@@ -1506,10 +1503,10 @@ class DICOMPlugin(AbstractPlugin):
                 value = float(im.data_element(b_tag).value)
             return value
         elif input_order == INPUT_ORDER_FA:
-            fa_tag = choose_tag('fa', 'FlipAngle')
+            fa_tag = self._choose_tag('fa', 'FlipAngle')
             return float(im.data_element(fa_tag).value)
         elif input_order == INPUT_ORDER_TE:
-            te_tag = choose_tag('te', 'EchoTime')
+            te_tag = self._choose_tag('te', 'EchoTime')
             return float(im.data_element(te_tag).value)
         else:
             # User-defined tag
@@ -1518,11 +1515,16 @@ class DICOMPlugin(AbstractPlugin):
                 return float(im.data_element(_tag).value)
         raise (UnknownTag("Unknown input_order {}.".format(input_order)))
 
-    def _set_dicom_tag(self, im, input_order, value):
 
+    def _choose_tag(self, tag, default):
         # Example: _tag = choose_tag('b', 'csa_header')
-        choose_tag = lambda tag, default: self.input_options[tag] \
-            if tag in self.input_options else default
+        if tag in self.input_options:
+            return self.input_options[tag]
+        else:
+            return default
+
+
+    def _set_dicom_tag(self, im, input_order, value):
 
         if input_order is None:
             pass
@@ -1530,7 +1532,7 @@ class DICOMPlugin(AbstractPlugin):
             pass
         elif input_order == INPUT_ORDER_TIME:
             # AcquisitionTime
-            time_tag = choose_tag("time", "AcquisitionTime")
+            time_tag = self._choose_tag("time", "AcquisitionTime")
             if time_tag not in im:
                 VR = pydicom.datadict.dictionary_VR(time_tag)
                 if VR == 'TM':
@@ -1548,7 +1550,7 @@ class DICOMPlugin(AbstractPlugin):
                 im.data_element(time_tag).value = float(value)
         elif input_order == INPUT_ORDER_B:
             # b_tag = opts['b'] if 'b' in opts else b_tag = 'csa_header'
-            b_tag = choose_tag('b', "csa_header")
+            b_tag = self._choose_tag('b', "csa_header")
             if b_tag == "csa_header":
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=UserWarning)
@@ -1563,10 +1565,10 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 im.data_element(b_tag).value = float(value)
         elif input_order == INPUT_ORDER_FA:
-            fa_tag = choose_tag('fa', 'FlipAngle')
+            fa_tag = self._choose_tag('fa', 'FlipAngle')
             im.data_element(fa_tag).value = float(value)
         elif input_order == INPUT_ORDER_TE:
-            te_tag = choose_tag('te', 'EchoTime')
+            te_tag = self._choose_tag('te', 'EchoTime')
             im.data_element(te_tag).value = float(value)
         else:
             # User-defined tag
