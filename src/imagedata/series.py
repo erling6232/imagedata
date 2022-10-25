@@ -1072,7 +1072,7 @@ class Series(np.ndarray):
             >>> z,y,x = si.imagePositions[0]
 
         Examples:
-            >>> si = Series(np.eye(128))
+            >>> si = Series(np.zeros((16, 128, 128)))
             >>> for s in range(si.slices):
             >>>     si.imagePositions = {
             >>>         s: si.getPositionForVoxel(np.array([s, 0, 0]))

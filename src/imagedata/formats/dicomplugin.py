@@ -15,8 +15,8 @@ import pydicom.errors
 import pydicom.uid
 from pydicom.datadict import tag_for_keyword
 
-from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str,\
-    SORT_ON_SLICE,\
+from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str, \
+    SORT_ON_SLICE, \
     INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -396,14 +396,14 @@ class DICOMPlugin(AbstractPlugin):
             if 'RescaleSlope' in im and 'RescaleIntercept' in im:
                 _use_float = abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
             if _use_float:
-                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) +\
+                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + \
                          float(im.RescaleIntercept)
             else:
                 pixels = im.pixel_array.copy()
             if shape != pixels.shape:
                 # This happens only when images in a series have varying shape
                 # Place the pixels in the upper left corner of the matrix
-                assert len(shape) == len(pixels.shape),\
+                assert len(shape) == len(pixels.shape), \
                     "Shape of matrix ({}) differ from pixel shape ({})".format(
                         shape, pixels.shape)
                 # Assume that pixels can be expanded to match si shape
@@ -834,7 +834,7 @@ class DICOMPlugin(AbstractPlugin):
             pass
         logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
             si.shape, si.slices, _ndim))
-        assert _ndim == 2 or _ndim == 3,\
+        assert _ndim == 2 or _ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % _ndim
 
         self._calculate_rescale(si)
@@ -1456,8 +1456,7 @@ class DICOMPlugin(AbstractPlugin):
         tnew = tnow + tadd
         return tnew.strftime("%H%M%S.%f")
 
-    @staticmethod
-    def _get_tag(im, input_order, opts):
+    def _get_tag(self, im, input_order, opts):
 
         if input_order is None:
             return 0
@@ -1515,7 +1514,6 @@ class DICOMPlugin(AbstractPlugin):
                 return float(im.data_element(_tag).value)
         raise (UnknownTag("Unknown input_order {}.".format(input_order)))
 
-
     def _choose_tag(self, tag, default):
         # Example: _tag = choose_tag('b', 'csa_header')
         if tag in self.input_options:
@@ -1523,9 +1521,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             return default
 
-
     def _set_dicom_tag(self, im, input_order, value):
-
         if input_order is None:
             pass
         elif input_order == INPUT_ORDER_NONE:
