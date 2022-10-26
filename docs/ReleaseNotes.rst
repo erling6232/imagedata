@@ -3,6 +3,12 @@
 Release Notes
 =============
 
+1.4.5.4
+-------
+* Fixed importlib_metadata handling for Python before 3.8.
+* Added example using Series and FSL MCFLIRT.
+
+
 1.4.5
 -----
 * Header.__make_DicomHeaderDict_from_template(): Catch IndexError exception when template size does not match data size.
