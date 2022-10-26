@@ -96,3 +96,61 @@ Finally, the color image is display with the segmented area in red.
     T2rgb[segment_indices,1:] = 0
 
     T2rgb.show()
+
+
+Motion correction using FSL MCFLIRT
+-----------------------------------
+
+Motion correction using image registration is a process where different images of a patient
+are transformed to a common reference frame.
+This example uses the FSL MCFLIRT program for this task.
+MCFLIRT takes NIfTI input and output. Hence, this example will write a Series instance
+to a temporary NIfTI file, call MCFLIRT, then read back the resulting NIfTI file using the
+original Series instance as a template for DICOM header information.
+
+.. code-block:: python
+
+    import tempfile
+    from pathlib import Path
+    from imagedata.series import Series
+    import nipype.interfaces.fsl as fsl
+
+    def mcflirt(dce, fx):
+        """Register dynamic series using FSL MCFLIRT
+        Args:
+            dce: dynamic series [t, slice, row, column]
+            fx: index of fixed volume in dce (int)
+        Returns:
+            registered Series
+        """
+
+        assert fx >= 0 and fx < len(dce), "Wrong fixed index {}".format(fx)
+        print('\nPreparing for MCFLIRT ...')
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp)
+            tmp_fixed = p / 'fixed'
+            dce[fx].write(tmp_fixed, formats=['nifti'])
+            fixed = list(tmp_fixed.glob('*'))[0]
+            tmp_moving = p / 'moving'
+            dce.write(tmp_moving, formats=['nifti'])
+            moving = list(tmp_moving.glob('*'))[0]
+
+            print('MCFLIRT running ...')
+            tmp_out = p / 'out.nii.gz'
+
+            mcflt = fsl.MCFLIRT()
+            mcflt.inputs.in_file = str(moving)
+            # mcflt.inputs.ref_file = str(fixed)
+            mcflt.inputs.ref_vol = fx
+            mcflt.inputs.out_file = str(tmp_out)
+            mcflt.inputs.cost = "corratio"
+            # mcflt.inputs.cost     = "normcorr"
+            print('{}'.format(mcflt.cmdline))
+            result = mcflt.run()
+
+            dce2 = Series(tmp_out, input_order=dce.input_order, template=dce, geometry=dce)
+            dce2.tags = dce.tags
+            dce2.axes = dce.axes
+            dce2.seriesDescription = 'MCFLIRT {}'.format(mcflt.inputs.cost)
+        print('MCFLIRT ended.\n')
+        return dce2
