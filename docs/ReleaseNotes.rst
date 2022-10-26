@@ -7,6 +7,7 @@ Release Notes
 -------
 * Fixed importlib_metadata handling for Python before 3.8.
 * Added example using Series and FSL MCFLIRT.
+* Support for Python 3.10.
 
 
 1.4.5
