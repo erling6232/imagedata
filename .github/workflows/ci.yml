@@ -15,6 +15,7 @@ jobs:
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v3
       with:
+        node-version: 16.13.x
         python-version: ${{ matrix.python-version }}
     - name: Check package
       run: |
