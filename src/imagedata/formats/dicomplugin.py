@@ -92,17 +92,18 @@ class DICOMPlugin(AbstractPlugin):
         self.output_dir = None
         self.seriesTime = None
 
-    def getOriginForSlice(self, slice):
+    def getOriginForSlice(self, dictionary, slice):
         """Get origin of given slice.
 
         Args:
             self: DICOMPlugin instance
+            dictionary: image dictionary
             slice: slice number (int)
         Returns:
             z,y,x: coordinate for origin of given slice (np.array)
         """
 
-        origin = self.getDicomAttribute(tag_for_keyword("ImagePositionPatient"), slice)
+        origin = self.getDicomAttribute(dictionary, tag_for_keyword("ImagePositionPatient"), slice)
         if origin is not None:
             x = float(origin[0])
             y = float(origin[1])
@@ -110,11 +111,12 @@ class DICOMPlugin(AbstractPlugin):
             return np.array([z, y, x])
         return None
 
-    def extractDicomAttributes(self, hdr):
+    def extractDicomAttributes(self, dictionary, hdr):
         """Extract DICOM attributes
 
         Args:
             self: DICOMPlugin instance
+            dictionary: image dictionary
             hdr: header
         Returns:
             hdr: header
@@ -127,41 +129,41 @@ class DICOMPlugin(AbstractPlugin):
                 - axes
         """
         hdr.studyInstanceUID = \
-            self.getDicomAttribute(tag_for_keyword('StudyInstanceUID'))
+            self.getDicomAttribute(dictionary, tag_for_keyword('StudyInstanceUID'))
         hdr.studyID = \
-            self.getDicomAttribute(tag_for_keyword('StudyID'))
+            self.getDicomAttribute(dictionary, tag_for_keyword('StudyID'))
         hdr.seriesInstanceUID = \
-            self.getDicomAttribute(tag_for_keyword('SeriesInstanceUID'))
-        frame_uid = self.getDicomAttribute(tag_for_keyword('FrameOfReferenceUID'))
+            self.getDicomAttribute(dictionary, tag_for_keyword('SeriesInstanceUID'))
+        frame_uid = self.getDicomAttribute(dictionary, tag_for_keyword('FrameOfReferenceUID'))
         if frame_uid:
             hdr.frameOfReferenceUID = frame_uid
-        hdr.SOPClassUID = self.getDicomAttribute(tag_for_keyword('SOPClassUID'))
-        hdr.seriesNumber = self.getDicomAttribute(tag_for_keyword('SeriesNumber'))
-        hdr.seriesDescription = self.getDicomAttribute(tag_for_keyword('SeriesDescription'))
-        hdr.imageType = self.getDicomAttribute(tag_for_keyword('ImageType'))
+        hdr.SOPClassUID = self.getDicomAttribute(dictionary, tag_for_keyword('SOPClassUID'))
+        hdr.seriesNumber = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesNumber'))
+        hdr.seriesDescription = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesDescription'))
+        hdr.imageType = self.getDicomAttribute(dictionary, tag_for_keyword('ImageType'))
 
-        hdr.accessionNumber = self.getDicomAttribute(tag_for_keyword('AccessionNumber'))
-        hdr.patientName = self.getDicomAttribute(tag_for_keyword('PatientName'))
-        hdr.patientID = self.getDicomAttribute(tag_for_keyword('PatientID'))
-        hdr.patientBirthDate = self.getDicomAttribute(tag_for_keyword('PatientBirthDate'))
+        hdr.accessionNumber = self.getDicomAttribute(dictionary, tag_for_keyword('AccessionNumber'))
+        hdr.patientName = self.getDicomAttribute(dictionary, tag_for_keyword('PatientName'))
+        hdr.patientID = self.getDicomAttribute(dictionary, tag_for_keyword('PatientID'))
+        hdr.patientBirthDate = self.getDicomAttribute(dictionary, tag_for_keyword('PatientBirthDate'))
 
-        hdr.spacing = self.__get_voxel_spacing()
+        hdr.spacing = self.__get_voxel_spacing(dictionary)
 
         # Image position (patient)
         # Reverse orientation vectors from (x,y,z) to (z,y,x)
-        iop = self.getDicomAttribute(tag_for_keyword("ImageOrientationPatient"))
+        iop = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
         if iop is not None:
             hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                         iop[5], iop[4], iop[3]))
 
         # Extract imagePositions
         hdr.imagePositions = {}
-        for _slice in hdr.DicomHeaderDict:
-            hdr.imagePositions[_slice] = self.getOriginForSlice(_slice)
+        for _slice in dictionary:
+            hdr.imagePositions[_slice] = self.getOriginForSlice(dictionary, _slice)
 
-    def __get_voxel_spacing(self):
+    def __get_voxel_spacing(self, dictionary):
         # Spacing
-        pixel_spacing = self.getDicomAttribute(tag_for_keyword("PixelSpacing"))
+        pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
         dy = 1.0
         dx = 1.0
         if pixel_spacing is not None:
@@ -169,55 +171,64 @@ class DICOMPlugin(AbstractPlugin):
             dy = float(pixel_spacing[0])
             dx = float(pixel_spacing[1])
         try:
-            dz = float(self.getDicomAttribute(tag_for_keyword("SpacingBetweenSlices")))
+            dz = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
         except TypeError:
             try:
-                dz = float(self.getDicomAttribute(tag_for_keyword("SliceThickness")))
+                dz = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceThickness")))
             except TypeError:
                 dz = 1.0
         return np.array([dz, dy, dx])
 
     # noinspection PyPep8Naming
-    def setDicomAttribute(self, tag, value):
+    def setDicomAttribute(self, dictionary, tag, value):
         """Set a given DICOM attribute to the provided value.
 
         Ignore if no real dicom header exists.
 
         Args:
+            self: DICOMPlugin instance
+            dictionary: image dictionary
             tag: DICOM tag of addressed attribute.
             value: Set attribute to this value.
         """
-        if self.DicomHeaderDict is not None:
-            for _slice in self.DicomHeaderDict:
-                for tg, fname, im in self.DicomHeaderDict[_slice]:
+        if dictionary is not None:
+            for _slice in dictionary:
+                for tg, fname, im in dictionary[_slice]:
                     if tag not in im:
                         VR = pydicom.datadict.dictionary_VR(tag)
                         im.add_new(tag, VR, value)
                     else:
                         im[tag].value = value
 
-    def getDicomAttribute(self, tag, slice=0):
+    def getDicomAttribute(self, dictionary, tag, slice=0):
         """Get DICOM attribute from first image for given slice.
 
         Args:
+            self: DICOMPlugin instance
+            dictionary: image dictionary
             tag: DICOM tag of requested attribute.
             slice: which slice to access. Default: slice=0
         """
         # logger.debug("getDicomAttribute: tag", tag, ", slice", slice)
-        tg, fname, im = self.DicomHeaderDict[slice][0]
+        assert dictionary is not None, "dicomplugin.getDicomAttribute: dictionary is None"
+        tg, fname, im = dictionary[slice][0]
         if tag in im:
             return im[tag].value
         else:
             return None
 
-    def removePrivateTags(self):
+    def removePrivateTags(self, dictionary):
         """Remove private DICOM attributes.
 
         Ignore if no real dicom header exists.
+
+        Args:
+            self: DICOMPlugin instance
+            dictionary: image dictionary
         """
-        if self.DicomHeaderDict is not None:
-            for _slice in self.DicomHeaderDict:
-                for tg, fname, im in self.DicomHeaderDict[_slice]:
+        if dictionary is not None:
+            for _slice in dictionary:
+                for tg, fname, im in dictionary[_slice]:
                     im.remove_private_tags()
 
     def read(self, sources, pre_hdr, input_order, opts):
@@ -249,11 +260,15 @@ class DICOMPlugin(AbstractPlugin):
 
         self.input_order = input_order
 
+        skip_pixels = False
+        if 'headers_only' in opts and opts['headers_only']:
+            skip_pixels = True
+
         # Read DICOM headers
         logger.debug('DICOMPlugin.read: sources %s' % sources)
         # pydicom.config.debug(True)
         try:
-            hdr, shape = self.read_files(sources, input_order, opts, skip_pixels=False)
+            hdr, si = self.read_files(sources, input_order, opts, skip_pixels=skip_pixels)
         except CannotSort:
             raise
         except Exception as e:
@@ -261,104 +276,10 @@ class DICOMPlugin(AbstractPlugin):
             raise NotImageError('{}'.format(e))
         # pydicom.config.debug(False)
 
-        # Look-up first image to determine pixel type
-        _color = 0
-        tag, member_name, im = hdr.DicomHeaderDict[0][0]
-        hdr.photometricInterpretation = 'MONOCHROME2'
-        hdr.color = False
-        if 'PhotometricInterpretation' in im:
-            hdr.photometricInterpretation = im.PhotometricInterpretation
-        matrix_dtype = np.uint16
-        if 'PixelRepresentation' in im:
-            if im.PixelRepresentation == 1:
-                matrix_dtype = np.int16
-        if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
-                (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
-            matrix_dtype = float
-        elif im.BitsAllocated == 8:
-            matrix_dtype = np.uint8
-        logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
-        if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
-            _color = 1
-            hdr.color = True
-            shape = shape + (im.SamplesPerPixel,)
-            hdr.axes.append(
-                VariableAxis(
-                    'rgb',
-                    ['r', 'g', 'b']
-                )
-            )
-            # ds.SamplesPerPixel = 1
-            # ds.PixelRepresentation = 0
-            # try:
-            #    ds.PhotometricInterpretation = arr.photometricInterpretation
-            #    if arr.photometricInterpretation == 'RGB':
-            #        ds.SamplesPerPixel = 3
-            #        ds.PlanarConfiguration = 0
-            # except ValueError:
-            #    ds.PhotometricInterpretation = 'MONOCHROME2'
-
         logger.debug("SOPClassUID: {}".format(
-            self.getDicomAttribute(tag_for_keyword("SOPClassUID"))))
+            self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("SOPClassUID"))))
         logger.debug("TransferSyntaxUID: {}".format(
-            self.getDicomAttribute(tag_for_keyword("TransferSyntaxUID"))))
-        if 'headers_only' in opts and opts['headers_only']:
-            return hdr, None
-
-        # Load DICOM image data
-        logger.debug('DICOMPlugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, matrix_dtype)
-        # process = psutil.Process()
-        # print(process.memory_info())
-        for _slice in hdr.DicomHeaderDict:
-            # noinspection PyUnusedLocal
-            _done = [False for x in range(len(hdr.DicomHeaderDict[_slice]))]
-            for tag, member_name, im in hdr.DicomHeaderDict[_slice]:
-                archive, fname = member_name
-                member = archive.getmembers([fname, ])
-                if len(member) != 1:
-                    raise IndexError('Should not be multiple files for a filename')
-                member = member[0]
-                tgs = np.array(hdr.tags[_slice])
-                # idx = np.where(hdr.tags[_slice] == tag)[0][0] # tags is not numpy array
-                idx = np.where(tgs == tag)[0][0]
-                if _done[idx] and \
-                        'AcceptDuplicateTag' in opts and \
-                        opts['AcceptDuplicateTag'] == 'True':
-                    while _done[idx]:
-                        idx += 1
-                _done[idx] = True
-                if 'NumberOfFrames' in im:
-                    if im.NumberOfFrames == 1:
-                        idx = (idx, _slice)
-                else:
-                    idx = (idx, _slice)
-                # Simplify index when image is 3D, remove tag index
-                if si.ndim == 3 + _color:
-                    idx = idx[1:]
-                # Do not read file again
-                with archive.open(member, mode='rb') as f:
-                    if issubclass(type(f), pydicom.dataset.Dataset):
-                        im = f
-                    else:
-                        im = pydicom.filereader.dcmread(f)
-                try:
-                    im.decompress()
-                except NotImplementedError as e:
-                    logger.error("Cannot decompress pixel data: {}".format(e))
-                    raise
-                try:
-                    si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
-                except Exception as e:
-                    logger.warning("Cannot read pixel data: {}".format(e))
-                    raise
-
-        # Simplify shape
-        self._reduce_shape(si, hdr.axes)
-        logger.debug('DICOMPlugin.read: si {}'.format(si.shape))
-
-        # nz = len(hdr.DicomHeaderDict)
-        # hdr.slices = nz
+            self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("TransferSyntaxUID"))))
 
         if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr, si)
@@ -367,13 +288,6 @@ class DICOMPlugin(AbstractPlugin):
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        # try:
-        #    self.simulateAffine()
-        # except ValueErrorWrapperPrecisionError:
-        #    pass
-        # self.create_affine(hdr)
-        # process = psutil.Process()
-        # print(process.memory_info())
         return hdr, si
 
     @staticmethod
@@ -474,43 +388,110 @@ class DICOMPlugin(AbstractPlugin):
 
         pass
 
-    def read_headers(self, sources, input_order, opts, skip_pixels=True):
-        """Read DICOM headers only
+    def read_files(self, sources, input_order, opts, skip_pixels=False):
+        """Read DICOM objects
 
         Args:
             self: DICOMPlugin instance
             sources: list of sources to image data
             input_order: sort order
             opts: input options (dict)
-            skip_pixels: Do not read pixel data (default: True)
+            skip_pixels: Do not read pixel data (default: False)
         Returns:
             Tuple of
                 - hdr: header
-                - shape: required shape of image data
+                - si: numpy pixel matrix
         """
 
-        logger.debug('DICOMPlugin.read_headers: sources %s' % sources)
-        # try:
-        hdr, shape = self.get_dicom_headers(sources, input_order, opts, skip_pixels=skip_pixels)
-        # except UnevenSlicesError:
-        #    raise
-        # except FileNotFoundError:
-        #    raise
-        # except ValueError:
-        #    #import traceback
-        #    #traceback.print_exc()
-        #    #logger.info("process_member: Could not read {}".format(member_name))
-        #    raise NotImageError(
-        #        'Does not look like a DICOM file: {}'.format(sources))
-        # except Exception as e:
-        #    logger.debug('DICOMPlugin.read_headers: Exception {}'.format(e))
-        #    raise
+        logger.debug('DICOMPlugin.read_files: sources %s' % sources)
+        image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts, skip_pixels=skip_pixels)
+        # image_dict: full dataset with headers and full pixel data
+        # hdr: most of dataset, excluding pixel data
+        # shape: expected shape of pixel matrix
 
-        self.extractDicomAttributes(hdr)
+        if skip_pixels:
+            si = None
+        else:
+            # Extract pixel data
+            si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
 
-        return hdr, shape
+        self.extractDicomAttributes(image_dict, hdr)
 
-    def get_dicom_headers(self, sources, input_order, opts=None, skip_pixels=True):
+        return hdr, si
+
+    def construct_pixel_array(self, image_dict, hdr, shape, opts={}):
+        # Look-up first image to determine pixel type
+        # tag, member_name, im = hdr.DicomHeaderDict[0][0]
+        tag, member_name, im = image_dict[0][0]
+        # print('read: im 0: refcount {}'.format(sys.getrefcount(im)))
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        if 'PhotometricInterpretation' in im:
+            hdr.photometricInterpretation = im.PhotometricInterpretation
+        matrix_dtype = np.uint16
+        if 'PixelRepresentation' in im:
+            if im.PixelRepresentation == 1:
+                matrix_dtype = np.int16
+        if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
+                (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
+            matrix_dtype = float
+        elif im.BitsAllocated == 8:
+            matrix_dtype = np.uint8
+        logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
+        _color = 1 if hdr.color else 0
+
+        # Load DICOM image data
+        logger.debug('DICOMPlugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, matrix_dtype)
+
+        for _slice in image_dict:
+            # noinspection PyUnusedLocal
+            # _done = [False for x in range(len(hdr.DicomHeaderDict[_slice]))]
+            _done = [False for x in range(len(image_dict[_slice]))]
+            # for tag, member_name, im in hdr.DicomHeaderDict[_slice]:
+            for tag, member_name, im in image_dict[_slice]:
+                # print('read: im 1: refcount {}'.format(sys.getrefcount(im)))
+                tgs = np.array(hdr.tags[_slice])
+                idx = np.where(tgs == tag)[0][0]
+                if _done[idx] and \
+                        'AcceptDuplicateTag' in opts and \
+                        opts['AcceptDuplicateTag'] == 'True':
+                    while _done[idx]:
+                        idx += 1
+                _done[idx] = True
+                if 'NumberOfFrames' in im:
+                    if im.NumberOfFrames == 1:
+                        idx = (idx, _slice)
+                else:
+                    idx = (idx, _slice)
+                # Simplify index when image is 3D, remove tag index
+                if si.ndim == 3 + _color:
+                    idx = idx[1:]
+                # Do not read file again
+                # with archive.open(member, mode='rb') as f:
+                #     if issubclass(type(f), pydicom.dataset.Dataset):
+                #         im = f
+                #     else:
+                #         im = pydicom.filereader.dcmread(f)
+                try:
+                    im.decompress()
+                except NotImplementedError as e:
+                    logger.error("Cannot decompress pixel data: {}".format(e))
+                    raise
+                try:
+                    si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
+                except Exception as e:
+                    logger.warning("Cannot read pixel data: {}".format(e))
+                    raise
+                del im
+        del image_dict
+
+        # Simplify shape
+        self._reduce_shape(si, hdr.axes)
+        logger.debug('DICOMPlugin_read_files.construct_pixel_array: si {}'.format(si.shape))
+
+        return si
+
+    def get_dicom_files(self, sources, input_order, opts=None, skip_pixels=False):
         """Get DICOM headers.
 
         Args:
@@ -518,44 +499,45 @@ class DICOMPlugin(AbstractPlugin):
             sources: list of sources to image data
             input_order: Determine how to sort the input images
             opts: options (dict)
-            skip_pixels: Do not read pixel data (default: True)
+            skip_pixels: Do not read pixel data (default: False)
         Returns:
             Tuple of
+                - sorted_headers: dict where sliceLocations are keys
                 - hdr: Header
                 - shape: tuple
         """
-        logger.debug("DICOMPlugin.get_dicom_headers: sources: {} {}".format(
+        logger.debug("DICOMPlugin.get_dicom_files: sources: {} {}".format(
             type(sources), sources))
 
         image_dict = {}
         for source in sources:
             archive = source['archive']
             scan_files = source['files']
-            logger.debug("DICOMPlugin.get_dicom_headers: archive: {}".format(archive))
+            logger.debug("DICOMPlugin.get_dicom_files: archive: {}".format(archive))
             # if scan_files is None or len(scan_files) == 0:
             #     scan_files = ['*']
-            logger.debug("get_dicom_headers: source: {} {}".format(type(source), source))
-            logger.debug("get_dicom_headers: scan_files: {}".format(scan_files))
+            logger.debug("get_dicom_files: source: {} {}".format(type(source), source))
+            logger.debug("get_dicom_files: scan_files: {}".format(scan_files))
             for path in archive.getnames(scan_files):
-                logger.debug("get_dicom_headers: member: {}".format(path))
+                logger.debug("get_dicom_files: member: {}".format(path))
                 if os.path.basename(path) == "DICOMDIR":
                     continue
-                # logger.debug("get_dicom_headers: calling archive.getmembers: {}".format(
+                # logger.debug("get_dicom_files: calling archive.getmembers: {}".format(
                 #     len(path)))
                 member = archive.getmembers([path, ])
-                # logger.debug("get_dicom_headers: returned from archive.getmembers: {}".format(
+                # logger.debug("get_dicom_files: returned from archive.getmembers: {}".format(
                 #     len(member)))
                 if len(member) != 1:
                     raise IndexError('Should not be multiple files for a filename')
                 member = member[0]
                 try:
                     with archive.open(member, mode='rb') as f:
-                        logger.debug('DICOMPlugin.get_dicom_headers: process_member {}'.format(
+                        logger.debug('DICOMPlugin.get_dicom_files: process_member {}'.format(
                             member))
                         self.process_member(image_dict, archive, path, f, opts,
                                             skip_pixels=skip_pixels)
                 except Exception as e:
-                    logger.debug('DICOMPlugin.get_dicom_headers: Exception {}'.format(e))
+                    logger.debug('DICOMPlugin.get_dicom_files: Exception {}'.format(e))
                     raise
         return self.sort_images(image_dict, input_order, opts)
 
@@ -579,8 +561,24 @@ class DICOMPlugin(AbstractPlugin):
                 - shape
         """
 
+        def _copy_headers(sorted_headers):
+            def all_except_pixeldata_callback(dataset, data_element):
+                if data_element.tag.group == 0x7fe0:
+                    pass
+                else:
+                    ds[data_element.tag] = dataset[data_element.tag]
+
+            headers = {}
+            for s in sorted(sorted_headers):
+                headers[s] = []
+                for tg, member_name, im in sorted_headers[s]:
+                    ds = self.construct_basic_dicom()
+                    im.walk(all_except_pixeldata_callback)
+                    headers[s].append((tg, member_name, ds))
+            return headers
+
         hdr = Header()
-        hdr.input_format = self.name
+        hdr.input_format = 'dicom'
         hdr.input_order = input_order
         sliceLocations = sorted(header_dict)
         # hdr.slices = len(sliceLocations)
@@ -664,8 +662,7 @@ class DICOMPlugin(AbstractPlugin):
                     frames = im.NumberOfFrames
                 i += 1
             islice += 1
-        self.DicomHeaderDict = sorted_headers
-        hdr.DicomHeaderDict = sorted_headers
+        hdr.DicomHeaderDict = _copy_headers(sorted_headers)
         hdr.tags = tag_list
         nz = len(header_dict)
         if frames is not None and frames > 1:
@@ -674,8 +671,8 @@ class DICOMPlugin(AbstractPlugin):
             shape = (len(tag_list[0]), nz, rows, columns)
         else:
             shape = (nz, rows, columns)
-        spacing = self.__get_voxel_spacing()
-        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
+        spacing = self.__get_voxel_spacing(sorted_headers)
+        ipp = self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
         if ipp is not None:
             ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
         else:
@@ -702,22 +699,26 @@ class DICOMPlugin(AbstractPlugin):
             ipp[2],
             columns,
             spacing[2]))
+        hdr.color = False
+        if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
+            hdr.color = True
+            shape = shape + (im.SamplesPerPixel,)
+            hdr.axes.append(
+                VariableAxis(
+                    'rgb',
+                    ['r', 'g', 'b']
+                )
+            )
         hdr.axes = axes
-        return hdr, shape
+        return sorted_headers, hdr, shape
 
-    def process_member(self, image_dict, archive, member_name, member, opts, skip_pixels=True):
-        # import traceback
+    def process_member(self, image_dict, archive, member_name, member, opts, skip_pixels=False):
         if issubclass(type(member), pydicom.dataset.Dataset):
             im = member
         else:
             try:
-                # defer_size: Do not load large attributes until requested
-                # image=pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels,
-                #     defer_size=200)
                 im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
             except pydicom.errors.InvalidDicomError:
-                # traceback.print_exc()
-                # logger.info("process_member: Could not read {}".format(member_name))
                 return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
@@ -730,14 +731,13 @@ class DICOMPlugin(AbstractPlugin):
         try:
             sloc = float(im.SliceLocation)
         except AttributeError:
-            # traceback.print_exc()
-            # logger.debug("process_member: no SliceLocation in {}".format(member_name))
             logger.debug('DICOMPlugin.process_member: Calculate SliceLocation')
             try:
                 sloc = self._calculate_slice_location(im)
             except ValueError:
                 sloc = 0
         logger.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
+
         if sloc not in image_dict:
             image_dict[sloc] = []
         image_dict[sloc].append((archive, member_name, im))
@@ -1235,6 +1235,26 @@ class DICOMPlugin(AbstractPlugin):
             # Store dicom set ds as file
             with archive.open(fn, 'wb') as f:
                 ds.save_as(f, write_like_original=False)
+
+    def construct_basic_dicom(self, template=None, filename='NA', sop_ins_uid=None):
+
+        # Populate required values for file meta information
+        file_meta = pydicom.dataset.FileMetaDataset()
+        if template is not None:
+            file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        if sop_ins_uid is not None:
+            file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+        file_meta.ImplementationClassUID = "%s.1" % self.root
+        file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+
+        # Create the FileDataset instance
+        # (initially no data elements, but file_meta supplied)
+        ds = pydicom.dataset.FileDataset(
+            filename,
+            {},
+            file_meta=file_meta,
+            preamble=b"\0" * 128)
+        return ds
 
     def construct_dicom(self, filename, template, si):
 

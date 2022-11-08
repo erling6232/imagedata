@@ -87,7 +87,7 @@ def read(urls, order=None, opts=None):
         logger.debug("readdata.read template {}".format(in_opts['template']))
         template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
-        pre_hdr, _ = reader.read_headers(template_source, input_order, in_opts)
+        pre_hdr, _ = reader.read_files(template_source, input_order, in_opts)
 
     # Pre-fetch DICOM geometry
     geom_hdr = None
@@ -95,7 +95,7 @@ def read(urls, order=None, opts=None):
         logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
         geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
-        geom_hdr, _ = reader.read_headers(geometry_source, input_order, in_opts)
+        geom_hdr, _ = reader.read_files(geometry_source, input_order, in_opts)
         # if pre_hdr is None:
         #    pre_hdr = {}
         # _add_dicom_geometry(pre_hdr, geom_hdr)
