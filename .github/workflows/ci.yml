@@ -1,11 +1,14 @@
-name: build
+name: Python package
+
 on: [push]
+
 jobs:
   build:
+  
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9, '3.10']
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10"]
         
     steps:
     - name: Checkout
@@ -13,13 +16,13 @@ jobs:
       with:
         ref: ${{ github.ref }}
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
-        node-version: 16.13.x
         python-version: ${{ matrix.python-version }}
+        cache: "pip"
     - name: Check package
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
         pip install check-manifest flake8
         check-manifest
         flake8 .
