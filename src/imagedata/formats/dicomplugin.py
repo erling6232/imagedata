@@ -247,16 +247,13 @@ class DICOMPlugin(AbstractPlugin):
                 - si[tag,slice,rows,columns]: multi-dimensional numpy array
         """
 
-        # import psutil
-        # process = psutil.Process()
-        # print(process.memory_info())
         self.input_order = input_order
 
         # Read DICOM headers
         logger.debug('DICOMPlugin.read: sources %s' % sources)
         # pydicom.config.debug(True)
         try:
-            hdr, shape = self.read_headers(sources, input_order, opts, skip_pixels=True)
+            hdr, shape = self.read_files(sources, input_order, opts, skip_pixels=False)
         except CannotSort:
             raise
         except Exception as e:
