@@ -139,13 +139,16 @@ class DICOMPlugin(AbstractPlugin):
             hdr.frameOfReferenceUID = frame_uid
         hdr.SOPClassUID = self.getDicomAttribute(dictionary, tag_for_keyword('SOPClassUID'))
         hdr.seriesNumber = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesNumber'))
-        hdr.seriesDescription = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesDescription'))
+        hdr.seriesDescription = self.getDicomAttribute(dictionary,
+                                                       tag_for_keyword('SeriesDescription'))
         hdr.imageType = self.getDicomAttribute(dictionary, tag_for_keyword('ImageType'))
 
-        hdr.accessionNumber = self.getDicomAttribute(dictionary, tag_for_keyword('AccessionNumber'))
+        hdr.accessionNumber = self.getDicomAttribute(dictionary,
+                                                     tag_for_keyword('AccessionNumber'))
         hdr.patientName = self.getDicomAttribute(dictionary, tag_for_keyword('PatientName'))
         hdr.patientID = self.getDicomAttribute(dictionary, tag_for_keyword('PatientID'))
-        hdr.patientBirthDate = self.getDicomAttribute(dictionary, tag_for_keyword('PatientBirthDate'))
+        hdr.patientBirthDate = self.getDicomAttribute(dictionary,
+                                                      tag_for_keyword('PatientBirthDate'))
 
         hdr.spacing = self.__get_voxel_spacing(dictionary)
 
@@ -404,7 +407,8 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         logger.debug('DICOMPlugin.read_files: sources %s' % sources)
-        image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts, skip_pixels=skip_pixels)
+        image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts,
+                                                      skip_pixels=skip_pixels)
         # image_dict: full dataset with headers and full pixel data
         # hdr: most of dataset, excluding pixel data
         # shape: expected shape of pixel matrix
