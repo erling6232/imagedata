@@ -3,6 +3,10 @@
 Release Notes
 =============
 
+1.5.0
+-----
+* Improved reading of DICOM files. Each file is read once only.
+
 1.4.5.4
 -------
 * Fixed importlib_metadata handling for Python before 3.8.
