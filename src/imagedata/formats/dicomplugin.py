@@ -313,7 +313,7 @@ class DICOMPlugin(AbstractPlugin):
                 pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + \
                          float(im.RescaleIntercept)
             else:
-                pixels = im.pixel_array.copy()
+                pixels = im.pixel_array
             if shape != pixels.shape:
                 # This happens only when images in a series have varying shape
                 # Place the pixels in the upper left corner of the matrix
@@ -420,6 +420,7 @@ class DICOMPlugin(AbstractPlugin):
             si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
 
         self.extractDicomAttributes(image_dict, hdr)
+        del image_dict
 
         return hdr, si
 
@@ -487,7 +488,6 @@ class DICOMPlugin(AbstractPlugin):
                     logger.warning("Cannot read pixel data: {}".format(e))
                     raise
                 del im
-        del image_dict
 
         # Simplify shape
         self._reduce_shape(si, hdr.axes)
@@ -747,6 +747,7 @@ class DICOMPlugin(AbstractPlugin):
         image_dict[sloc].append((archive, member_name, im))
         # logger.debug("process_member: added sloc {} {}".format(sloc, member_name))
         # logger.debug("process_member: image_dict len: {}".format(len(image_dict)))
+        del im
 
     def correct_acqtimes_for_dynamic_series(self, hdr, si):
         # si[t,slice,rows,columns]
