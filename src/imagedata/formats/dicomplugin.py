@@ -496,7 +496,7 @@ class DICOMPlugin(AbstractPlugin):
         return si
 
     def get_dicom_files(self, sources, input_order, opts=None, skip_pixels=False):
-        """Get DICOM headers.
+        """Get DICOM objects.
 
         Args:
             self: DICOMPlugin instance
