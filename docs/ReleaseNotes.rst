@@ -3,6 +3,12 @@
 Release Notes
 =============
 
+1.5.1
+-----
+Bug fix release:
+* MyPolygonSelector.__init__(): define self._polygon_complete.
+* Viewer.grid_from_roi(): Set input_order='none' when follow is False.
+
 1.5.0
 -----
 * Improved reading of DICOM files. Each file is read once only.
