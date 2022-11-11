@@ -646,6 +646,7 @@ class MyPolygonSelector(PolygonSelector):
         self.tag = tag
         self.copy_handle = copy
         self.paste_handle = paste
+        self._polygon_completed = False
 
         if lineprops is None:
             self.lineprops = dict(color='k', linestyle='-', linewidth=2, alpha=0.5)
@@ -768,10 +769,11 @@ def grid_from_roi(im, vertices, single=False):
         return False
 
     keys = list(vertices.keys())[0]
-    # print('grid_from_roi: keys: {}'.format(keys))
-    # print('grid_from_roi: vertices: {}'.format(vertices))
+    # print('Viewer.grid_from_roi: keys: {}'.format(keys))
+    # print('Viewer.grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
     nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
+    input_order = im.input_order
     if follow and not single:
         grid = np.zeros_like(im, dtype=np.ubyte)
         skipped = []
@@ -842,7 +844,8 @@ def grid_from_roi(im, vertices, single=False):
             x, y = x.flatten(), y.flatten()
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
-    return Series(grid, input_order=im.input_order, template=im, geometry=im)
+        input_order = 'none'
+    return Series(grid, input_order=input_order, template=im, geometry=im)
 
 
 def get_slice_axis(im):
