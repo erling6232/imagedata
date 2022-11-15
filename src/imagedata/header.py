@@ -21,7 +21,8 @@ header_tags = ['input_format',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
                'input_sort']
-geometry_tags = ['sliceLocations', 'tags', 'spacing',
+geometry_tags = [ #  'sliceLocations',
+                 'tags', 'spacing',
                  'imagePositions', 'orientation', 'transformationMatrix',
                  'color', 'photometricInterpretation', 'axes']
 
@@ -47,7 +48,7 @@ class Header(object):
         patientID
         patientBirthDate
         input_sort
-        sliceLocations
+        # sliceLocations
         tags
         spacing
         imagePositions
@@ -240,6 +241,7 @@ class Header(object):
 
     def __set_tags_from_template(self, template, geometry):
         self.tags = {}
+        _last_tags = None
         tags, slices = self.__get_tags_and_slices()
         for _slice in range(slices):
             self.tags[_slice] = []
@@ -249,16 +251,22 @@ class Header(object):
                 geometry_tag_list = list(geometry[_slice])
             template_tag_list = []
             if template is not None:
-                if issubclass(type(template[_slice]), dict):
-                    template_tag_list = list(template[_slice].values())
-                else:
-                    template_tag_list = list(template[_slice])
+                try:
+                    if issubclass(type(template[_slice]), dict):
+                        template_tag_list = list(template[_slice].values())
+                    else:
+                        template_tag_list = list(template[_slice])
+                except KeyError as e:
+                    # Re-use last template_tag_list for this _slice
+                    pass
             if len(geometry_tag_list) >= tags:
                 self.tags[_slice] = geometry_tag_list[:tags]
             elif len(template_tag_list) >= tags:
                 self.tags[_slice] = template_tag_list[:tags]
             else:
-                raise IndexError('Cannot get tag list with length {}'.format(tags))
+                self.tags[_slice] = _last_tags
+                # raise IndexError('Cannot get tag list with length {}'.format(tags))
+            _last_tags = self.tags[_slice]
 
     def __set_axes_from_template(self, template_axes, geometry_axes):
         if self.axes is None:
