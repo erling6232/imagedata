@@ -214,5 +214,63 @@ class TestDicomTemplate(unittest.TestCase):
         compare_headers(self, si1_0, si2)
 
 
+class TestDicomGeometryTemplate(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args(['--of', 'dicom'])
+        self.opts_template = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--template', 'data/dicom/time/time00/'])
+        self.opts_geometry = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--geometry', 'data/dicom/time/time00/'])
+        self.opts_tempgeom = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--template', 'data/dicom/time/time00/',
+                                                '--geometry', 'data/dicom/time/time00/'])
+
+        plugins = imagedata.formats.get_plugins_list()
+        self.dicom_plugin = None
+        for pname, ptype, pclass in plugins:
+            if ptype == 'dicom':
+                self.dicom_plugin = pclass
+        self.assertIsNotNone(self.dicom_plugin)
+
+        # Create a DICOM series with empty header
+        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'), input_order='time')
+        self.emptydir = tempfile.TemporaryDirectory()
+        si00 = Series(si0[0], input_order='none')
+        si01 = Series(si0[:2], input_order='time')
+        si00.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
+
+        # Provide sensible time tags
+        for s in range(3):
+            for t in range(2):
+                time_str = datetime.utcfromtimestamp(float(t)).strftime("%H%M%S.%f")
+                si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)
+        si01.write(os.path.join(self.emptydir.name, 'empty_header_time'), formats=['dicom'])
+
+    def tearDown(self):
+        self.emptydir.cleanup()
+        self.emptydir = None
+
+    def test_dicom_too_many_template_slices(self):
+        # Read the DICOM empty header series,
+        # adding DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        self.assertEqual((3,192,152), template.shape)
+        si1 = Series(
+            # os.path.join(self.emptydir.name, 'empty_header'),
+            np.zeros((2, 192, 152)),
+            geometry=template)
+        # si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        # Compare constructed series si1 to original series template
+        print(si1.sliceLocations)
+        np.testing.assert_array_equal(template.sliceLocations[:2], si1.sliceLocations)
+        # compare_template_headers(self, si1, si2)
+
+
 if __name__ == '__main__':
     unittest.main()
