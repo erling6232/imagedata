@@ -245,7 +245,6 @@ class TestSeries(unittest.TestCase):
             s.imagePositions = {
                 slice: np.array([slice, 0, 0])
             }
-        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
 
         a_slice = a[0:2,...]
         s_slice = s[0:2,...]
