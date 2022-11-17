@@ -455,7 +455,7 @@ class DICOMPlugin(AbstractPlugin):
             # for tag, member_name, im in hdr.DicomHeaderDict[_slice]:
             for tag, member_name, im in image_dict[_slice]:
                 # print('read: im 1: refcount {}'.format(sys.getrefcount(im)))
-                tgs = np.array(hdr.tags[_slice])
+                tgs = hdr.tags[_slice]
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
                         'AcceptDuplicateTag' in opts and \
@@ -667,7 +667,9 @@ class DICOMPlugin(AbstractPlugin):
                 i += 1
             islice += 1
         hdr.DicomHeaderDict = _copy_headers(sorted_headers)
-        hdr.tags = tag_list
+        hdr.tags = {}
+        for _slice in range(len(tag_list)):
+            hdr.tags[_slice] = np.array(tag_list[_slice])
         nz = len(header_dict)
         if frames is not None and frames > 1:
             nz = frames
@@ -784,12 +786,11 @@ class DICOMPlugin(AbstractPlugin):
                 t += 1
 
         # Update taglist in hdr
-        new_tag_list = {}
+        hdr.tags = {}
         for _slice in hdr.DicomHeaderDict:
-            new_tag_list[_slice] = []
+            hdr.tags[_slice] = np.empty((acq.shape[1],))
             for t in range(acq.shape[1]):
-                new_tag_list[_slice].append(acq[0, t])
-        hdr.tags = new_tag_list
+                hdr.tags[_slice][t] = acq[0, t]
         return newsi
 
     # noinspection PyArgumentList
