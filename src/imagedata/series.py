@@ -411,9 +411,6 @@ class Series(np.ndarray):
                 new_axes.append(axis[start:stop:step])
 
                 if axis.name == 'slice':
-                    # Select slice of sliceLocations
-                    sloc = self.__get_sliceLocations(spec[i])
-                    todo.append(('sliceLocations', sloc))
                     # Select slice of imagePositions
                     ipp = self.__get_imagePositions(spec[i])
                     todo.append(('imagePositions', None))  # Wipe existing positions
@@ -794,8 +791,13 @@ class Series(np.ndarray):
             ValueError: When no slice locations are defined.
         """
         try:
-            if self.header.sliceLocations is not None:
-                return self.header.sliceLocations
+            slice_axis = self.find_axis('slice')
+            if isinstance(slice_axis, VariableAxis):
+                return slice_axis.values
+            else:
+                return np.arange(slice_axis.start, slice_axis.stop, slice_axis.step)
+            # if self.header.sliceLocations is not None:
+            #     return self.header.sliceLocations
             # Some image formats do not provide slice locations.
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
@@ -815,10 +817,36 @@ class Series(np.ndarray):
 
     @sliceLocations.setter
     def sliceLocations(self, loc):
-        if loc is not None:
-            self.header.sliceLocations = np.sort(loc)
+
+        def _is_uniform_spacing(loc):
+            # sort slice locations
+            _locations = {}
+            _location0 = loc[0]
+            for _location in loc[1:]:
+                _locations[_location-_location0] = True
+                _location0 = _location
+            return len(_locations) == 1
+
+        if loc is None or len(loc) < 1:
+            raise ValueError('Cannot set slice locations to empty list')
+        if len(loc) != self.slices:
+            raise ValueError('Cannot set {} slice locations for {} slices'.format(
+                len(loc), self.slices
+            ))
+        if _is_uniform_spacing(loc):
+            if len(loc) > 1:
+                ds = loc[1] - loc[0]
+            else:
+                ds = self.spacing[0]
+            _axis = UniformLengthAxis('slice', loc[0], len(loc), ds)
         else:
-            self.header.sliceLocations = None
+            _axis = VariableAxis('slice', loc)
+        for i, axis in enumerate(self.axes):
+            if axis.name == 'slice':
+                # Replace axis
+                self.axes[i] = _axis
+                return
+        raise ValueError("No slice axis object exist")
 
     @property
     def DicomHeaderDict(self):
@@ -982,10 +1010,11 @@ class Series(np.ndarray):
             >>> si = Series(np.array([3, 3, 3]))
             >>> axis = si.find_axis('slice')
         """
-        for axis in self.axes:
-            if axis.name == name:
-                return axis
-        raise ValueError("No axis object with name %s exist" % name)
+        return self.header.find_axis(name)
+        # for axis in self.axes:
+        #     if axis.name == name:
+        #         return axis
+        # raise ValueError("No axis object with name %s exist" % name)
 
     @property
     def spacing(self):

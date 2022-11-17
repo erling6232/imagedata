@@ -214,5 +214,86 @@ class TestDicomTemplate(unittest.TestCase):
         compare_headers(self, si1_0, si2)
 
 
+class TestDicomGeometryTemplate(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        imagedata.cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args(['--of', 'dicom'])
+        self.opts_template = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--template', 'data/dicom/time/time00/'])
+        self.opts_geometry = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--geometry', 'data/dicom/time/time00/'])
+        self.opts_tempgeom = parser.parse_args(['--of', 'dicom',
+                                                '--input_options', 'AcceptDuplicateTag=True',
+                                                '--template', 'data/dicom/time/time00/',
+                                                '--geometry', 'data/dicom/time/time00/'])
+
+        plugins = imagedata.formats.get_plugins_list()
+        self.dicom_plugin = None
+        for pname, ptype, pclass in plugins:
+            if ptype == 'dicom':
+                self.dicom_plugin = pclass
+        self.assertIsNotNone(self.dicom_plugin)
+
+    def test_dicom_too_many_template_slices(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si1 = Series(
+            np.zeros((2, 192, 152)),
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        np.testing.assert_array_equal(template.sliceLocations[:2], si1.sliceLocations)
+
+    def test_dicom_too_few_template_slices(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si1 = Series(
+            np.zeros((4, 192, 152)),
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        # Append one slice location to template
+        ds = template.sliceLocations[1] - template.sliceLocations[0]
+        ns = template.sliceLocations[-1] + ds
+        template_list = template.sliceLocations.tolist()
+        template_list.append(ns)
+        template_locations = np.array(template_list)
+        np.testing.assert_array_equal(template_locations, si1.sliceLocations)
+
+    def test_dicom_too_many_template_tags(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time'), 'time')
+        si1 = Series(
+            np.zeros((2, 3, 192, 152)),
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        for _slice in range(3):
+            np.testing.assert_array_equal(template.tags[_slice][:2], si1.tags[_slice])
+
+    def test_dicom_too_few_template_tags(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time'), 'time')
+        si1 = Series(
+            np.zeros((template.shape[0]+1, template.shape[1],
+                      template.shape[2], template.shape[3])),
+            'time',
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        for _slice in range(si1.slices):
+            # Append one slice location to template
+            ds = template.tags[_slice][1] - template.tags[_slice][0]
+            ns = template.tags[_slice][-1] + ds
+            template_list = template.tags[_slice].tolist()
+            template_list.append(ns)
+            template_tags = np.array(template_list)
+            np.testing.assert_array_almost_equal(template_tags, si1.tags[_slice], decimal=4)
+
+
 if __name__ == '__main__':
     unittest.main()
