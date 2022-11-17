@@ -111,31 +111,40 @@ class Header(object):
         self.color = False
         if self.DicomHeaderDict is not None:
             return
-        self.axes = copy.copy(axes)
+        # self.axes = copy.copy(axes)
+        self.axes = []
 
         self.spacing = np.array([1, 1, 1])
         self.orientation = np.array([0, 0, 1, 0, 1, 0], dtype=np.float32)
-        slices = tags = 1
-        if axes is not None:
-            for axis in axes:
-                if axis.name == 'slice':
-                    slices = len(axis)
-                elif axis.name not in {'row', 'column', 'rgb'}:
-                    tags = len(axis)
+        self.DicomHeaderDict = {}
+        self.imagePositions = {}
 
-            self.DicomHeaderDict = {}
-            self.imagePositions = {}
+        if axes is None:
+            return
+
+        slices = tags = 1
+        # Construct new axes, copy to avoid crosstalk to template axes
+        for _axis in axes:
+            axis = copy.copy(_axis)
+            if axis.name == 'slice':
+                slices = len(axis)
+            elif axis.name not in {'row', 'column', 'rgb'}:
+                tags = len(axis)
+                if axis.name == 'unknown':
+                    axis.name = self.input_order
+            self.axes.append(axis)
+
+        for _slice in range(slices):
+            self.imagePositions[_slice] = np.array([_slice, 0, 0])
+            self.DicomHeaderDict[_slice] = []
+            for tag in range(tags):
+                self.DicomHeaderDict[_slice].append(
+                    (tag, None, self.empty_ds())
+                )
+        if self.tags is None:
+            self.tags = {}
             for _slice in range(slices):
-                self.imagePositions[_slice] = np.array([_slice, 0, 0])
-                self.DicomHeaderDict[_slice] = []
-                for tag in range(tags):
-                    self.DicomHeaderDict[_slice].append(
-                        (tag, None, self.empty_ds())
-                    )
-            if self.tags is None:
-                self.tags = {}
-                for _slice in range(slices):
-                    self.tags[_slice] = [i for i in range(tags)]
+                self.tags[_slice] = np.arange(tags)
 
     # noinspection PyPep8Naming
     def empty_ds(self):
@@ -243,12 +252,9 @@ class Header(object):
         self.tags = {}
         _last_tags = None
         tags, slices = self.__get_tags_and_slices()
+        geometry_tag_list = self.__construct_geometry_tag_list(geometry)
         for _slice in range(slices):
-            self.tags[_slice] = []
-            if issubclass(type(geometry[_slice]), dict):
-                geometry_tag_list = list(geometry[_slice].values())
-            else:
-                geometry_tag_list = list(geometry[_slice])
+            _tags = []
             template_tag_list = []
             if template is not None:
                 try:
@@ -259,15 +265,86 @@ class Header(object):
                 except KeyError as e:
                     # Re-use last template_tag_list for this _slice
                     pass
-            if len(geometry_tag_list) >= tags:
-                self.tags[_slice] = geometry_tag_list[:tags]
+            if len(geometry_tag_list[_slice]) >= tags:
+                _tags = geometry_tag_list[_slice][:tags]
+                assert isinstance(_tags, np.ndarray),\
+                    "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
             elif len(template_tag_list) >= tags:
-                self.tags[_slice] = template_tag_list[:tags]
+                _tags = template_tag_list[:tags]
+                assert isinstance(_tags, np.ndarray), \
+                    "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
             else:
-                self.tags[_slice] = _last_tags
+                _tags = _last_tags
                 # raise IndexError('Cannot get tag list with length {}'.format(tags))
-            _last_tags = self.tags[_slice]
+            self.tags[_slice] = np.array(_tags)
+            _last_tags = self.tags[_slice].copy()
 
+    def __construct_geometry_tag_list(self, geometry):
+        """Construct tag_list from self and geometry.
+        Extend tag_list when geometry has to few tags.
+
+        Args:
+            self.input_order
+            geometry[slice]: dict of np.ndarray
+        Returns:
+            tag_list[slice]: dict of np.ndarray
+        Raises:
+            ValueError: when no tag axis is found
+        """
+        def tag_increment(tag_list):
+            if len(tag_list) < 2:
+                return 1.0
+            else:
+                return tag_list[-1] - tag_list[-2]  # Difference of last to tags
+
+        tags, slices = self.__get_tags_and_slices()
+        tag_list = {}
+
+        if self.input_order == 'none':
+            # There will be one tag only per slice
+            for _slice in range(slices):
+                try:
+                    if issubclass(type(geometry[_slice]), np.ndarray):
+                        tag_list[_slice] = geometry[_slice].copy()
+                    else:
+                        tag_list[_slice] = np.array(geometry[_slice])
+                    assert isinstance(tag_list[_slice], np.ndarray),\
+                        "__construct_geometry_tag_list not np.ndarray (is {})".format(type(
+                            tag_list[_slice]
+                        ))
+                except KeyError:
+                    tag_list[_slice] = np.zeros((1,))
+            return tag_list
+
+        # Possibly multiple tags per slice
+        for input_order in [self.input_order, 'none']:
+            try:
+                tag_axis = self.find_axis(input_order)
+                for _slice in range(slices):
+                    try:
+                        _list = list(geometry[_slice])
+                        assert issubclass(type(geometry[_slice]), np.ndarray),\
+                            "geometry[] should be np.ndarray (is: {})".format(type(_list))
+                    except KeyError:
+                        _list = [0.0]
+                    except AssertionError as e:
+                        raise
+                    while len(_list) < tags:
+                        _list.append(_list[-1] + tag_increment(_list))  # Append increasing tag
+                    tag_list[_slice] = np.array(_list)
+                return tag_list
+            except ValueError:
+                # We don't know what to add when tags are not yet defined
+                pass
+
+        # for _slice in geometry:
+        #     if issubclass(type(geometry[_slice]), dict):
+        #         tag_list[_slice] = list(geometry[_slice].values())
+        #     else:
+        #         tag_list[_slice] = list(geometry[_slice])
+        #     if len(tag_list[_slice]) <
+        # return tag_list
+        raise ValueError('Cannot set tag list. No tag axis found.')
     def __set_axes_from_template(self, template_axes, geometry_axes):
         if self.axes is None:
             ndim = 1
@@ -334,6 +411,27 @@ class Header(object):
             getattr(template, 'axes', None),
             getattr(geometry, 'axes', None)
         )
+
+    def find_axis(self, name):
+        """Find axis with given name
+
+        Args:
+            name: Axis name to search for
+
+        Returns:
+            axis object with given name
+
+        Raises:
+            ValueError: when no axis object has given name
+
+        Usage:
+            >>> si = Series(np.array([3, 3, 3]))
+            >>> axis = si.find_axis('slice')
+        """
+        for axis in self.axes:
+            if axis.name == name:
+                return axis
+        raise ValueError("No axis object with name %s exist" % name)
 
 
 def deepcopy_DicomHeaderDict(source, filename=None):
