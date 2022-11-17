@@ -118,6 +118,19 @@ class TestSeries(unittest.TestCase):
         with self.assertRaises(IndexError):
             s.shape = (1,1,128,128)
 
+    #@unittest.skip("skipping test_set_variable_slice_locations")
+    def test_set_variable_slice_locations(self):
+        s = Series(np.zeros((3,12,12)))
+        new_loc = np.array([1, 3, 6])
+        s.sliceLocations = new_loc
+        np.testing.assert_array_equal(new_loc, s.sliceLocations)
+
+    #@unittest.skip("skipping test_set_incorrect_slice_locations")
+    def test_set_incorrect_slice_locations(self):
+        s = Series(np.zeros((3,12,12)))
+        with self.assertRaises(ValueError):
+            s.sliceLocations = [3, 6]
+
     #@unittest.skip("skipping test_slicing_dim")
     def test_slicing_dim(self):
         a1 = np.eye(128)
@@ -322,7 +335,7 @@ class TestSeries(unittest.TestCase):
     def test_slicing_t_drop(self):
         from numpy.random import default_rng
         rng = default_rng()
-        s = Series(rng.standard_normal(192).reshape((3,4,4,4)))
+        s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
         s.spacing = (1, 1, 1)
         s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
         s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
