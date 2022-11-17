@@ -238,38 +238,61 @@ class TestDicomGeometryTemplate(unittest.TestCase):
                 self.dicom_plugin = pclass
         self.assertIsNotNone(self.dicom_plugin)
 
-        # Create a DICOM series with empty header
-        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'), input_order='time')
-        self.emptydir = tempfile.TemporaryDirectory()
-        si00 = Series(si0[0], input_order='none')
-        si01 = Series(si0[:2], input_order='time')
-        si00.write(os.path.join(self.emptydir.name, 'empty_header'), formats=['dicom'])
-
-        # Provide sensible time tags
-        for s in range(3):
-            for t in range(2):
-                time_str = datetime.utcfromtimestamp(float(t)).strftime("%H%M%S.%f")
-                si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)
-        si01.write(os.path.join(self.emptydir.name, 'empty_header_time'), formats=['dicom'])
-
-    def tearDown(self):
-        self.emptydir.cleanup()
-        self.emptydir = None
-
     def test_dicom_too_many_template_slices(self):
-        # Read the DICOM empty header series,
-        # adding DICOM template in Series constructor
+        # Construct simple series,
+        # add DICOM template in Series constructor
         template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
-        self.assertEqual((3,192,152), template.shape)
         si1 = Series(
-            # os.path.join(self.emptydir.name, 'empty_header'),
             np.zeros((2, 192, 152)),
             geometry=template)
-        # si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         # Compare constructed series si1 to original series template
-        print(si1.sliceLocations)
         np.testing.assert_array_equal(template.sliceLocations[:2], si1.sliceLocations)
-        # compare_template_headers(self, si1, si2)
+
+    def test_dicom_too_few_template_slices(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si1 = Series(
+            np.zeros((4, 192, 152)),
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        # Append one slice location to template
+        ds = template.sliceLocations[1] - template.sliceLocations[0]
+        ns = template.sliceLocations[-1] + ds
+        template_list = template.sliceLocations.tolist()
+        template_list.append(ns)
+        template_locations = np.array(template_list)
+        np.testing.assert_array_equal(template_locations, si1.sliceLocations)
+
+    def test_dicom_too_many_template_tags(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time'), 'time')
+        si1 = Series(
+            np.zeros((2, 3, 192, 152)),
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        for _slice in range(3):
+            np.testing.assert_array_equal(template.tags[_slice][:2], si1.tags[_slice])
+
+    def test_dicom_too_few_template_tags(self):
+        # Construct simple series,
+        # add DICOM template in Series constructor
+        template = Series(os.path.join('data', 'dicom', 'time'), 'time')
+        si1 = Series(
+            np.zeros((template.shape[0]+1, template.shape[1],
+                      template.shape[2], template.shape[3])),
+            'time',
+            geometry=template)
+        # Compare constructed series si1 to original series template
+        for _slice in range(si1.slices):
+            # Append one slice location to template
+            ds = template.tags[_slice][1] - template.tags[_slice][0]
+            ns = template.tags[_slice][-1] + ds
+            template_list = template.tags[_slice].tolist()
+            template_list.append(ns)
+            template_tags = np.array(template_list)
+            np.testing.assert_array_almost_equal(template_tags, si1.tags[_slice], decimal=4)
 
 
 if __name__ == '__main__':
