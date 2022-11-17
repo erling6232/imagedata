@@ -317,34 +317,20 @@ class Header(object):
             return tag_list
 
         # Possibly multiple tags per slice
-        for input_order in [self.input_order, 'none']:
+        for _slice in range(slices):
             try:
-                tag_axis = self.find_axis(input_order)
-                for _slice in range(slices):
-                    try:
-                        _list = list(geometry[_slice])
-                        assert issubclass(type(geometry[_slice]), np.ndarray),\
-                            "geometry[] should be np.ndarray (is: {})".format(type(_list))
-                    except KeyError:
-                        _list = [0.0]
-                    except AssertionError as e:
-                        raise
-                    while len(_list) < tags:
-                        _list.append(_list[-1] + tag_increment(_list))  # Append increasing tag
-                    tag_list[_slice] = np.array(_list)
-                return tag_list
-            except ValueError:
-                # We don't know what to add when tags are not yet defined
-                pass
+                _list = list(geometry[_slice])
+                assert issubclass(type(geometry[_slice]), np.ndarray),\
+                    "geometry[] should be np.ndarray (is: {})".format(type(_list))
+            except KeyError:
+                _list = [0.0]
+            except AssertionError:
+                raise
+            while len(_list) < tags:
+                _list.append(_list[-1] + tag_increment(_list))  # Append increasing tag
+            tag_list[_slice] = np.array(_list)
+        return tag_list
 
-        # for _slice in geometry:
-        #     if issubclass(type(geometry[_slice]), dict):
-        #         tag_list[_slice] = list(geometry[_slice].values())
-        #     else:
-        #         tag_list[_slice] = list(geometry[_slice])
-        #     if len(tag_list[_slice]) <
-        # return tag_list
-        raise ValueError('Cannot set tag list. No tag axis found.')
     def __set_axes_from_template(self, template_axes, geometry_axes):
         if self.axes is None:
             ndim = 1
@@ -425,6 +411,7 @@ class Header(object):
             ValueError: when no axis object has given name
 
         Usage:
+            >>> from imagedata.series import Series
             >>> si = Series(np.array([3, 3, 3]))
             >>> axis = si.find_axis('slice')
         """
