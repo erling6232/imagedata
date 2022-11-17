@@ -21,8 +21,7 @@ header_tags = ['input_format',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
                'input_sort']
-geometry_tags = [ #  'sliceLocations',
-                 'tags', 'spacing',
+geometry_tags = ['tags', 'spacing',
                  'imagePositions', 'orientation', 'transformationMatrix',
                  'color', 'photometricInterpretation', 'axes']
 
@@ -262,7 +261,7 @@ class Header(object):
                         template_tag_list = list(template[_slice].values())
                     else:
                         template_tag_list = list(template[_slice])
-                except KeyError as e:
+                except KeyError:
                     # Re-use last template_tag_list for this _slice
                     pass
             if len(geometry_tag_list[_slice]) >= tags:
