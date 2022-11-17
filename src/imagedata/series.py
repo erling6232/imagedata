@@ -1010,10 +1010,11 @@ class Series(np.ndarray):
             >>> si = Series(np.array([3, 3, 3]))
             >>> axis = si.find_axis('slice')
         """
-        for axis in self.axes:
-            if axis.name == name:
-                return axis
-        raise ValueError("No axis object with name %s exist" % name)
+        return self.header.find_axis(name)
+        # for axis in self.axes:
+        #     if axis.name == name:
+        #         return axis
+        # raise ValueError("No axis object with name %s exist" % name)
 
     @property
     def spacing(self):
