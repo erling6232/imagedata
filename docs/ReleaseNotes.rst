@@ -8,7 +8,7 @@ Release Notes
 Bug fix release:
 
 * MyPolygonSelector.__init__(): define self._polygon_complete.
-* Viewer.grid_from_roi(): Set input_order='none' when follow is False.
+* Viewer.grid_from_roi(): Set input_order='none' for resulting mask when follow is False.
 * Series.tags: Ensure that tag lists are always Numpy arrays.
 * Series: Handle properly the situation where a template has wrong number of slices or tags.
 
