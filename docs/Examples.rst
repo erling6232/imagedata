@@ -115,42 +115,60 @@ original Series instance as a template for DICOM header information.
     from imagedata.series import Series
     import nipype.interfaces.fsl as fsl
 
-    def mcflirt(dce, fx):
+
+    def mcflirt(moving, fixed):
         """Register dynamic series using FSL MCFLIRT
         Args:
-            dce: dynamic series [t, slice, row, column]
-            fx: index of fixed volume in dce (int)
+            moving: moving (Series)
+            fixed:  reference volume, either
+                index into moving (Series), or
+                separate volume (int)
         Returns:
             registered Series
         """
 
-        assert fx >= 0 and fx < len(dce), "Wrong fixed index {}".format(fx)
+        if issubclass(type(fixed), Series):
+            if fixed.ndim == 3:
+                ref = fixed
+                ref_volume = fixed
+            else:
+                raise ValueError('Fixed volume should be 3D (is {})'.format(fixed.ndim))
+        else:
+            assert fixed >= 0 and fixed < len(moving), "Wrong fixed index {}".format(fixed)
+            ref = fixed
+            ref_volume = moving[ref]
         print('\nPreparing for MCFLIRT ...')
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp)
             tmp_fixed = p / 'fixed'
-            dce[fx].write(tmp_fixed, formats=['nifti'])
-            fixed = list(tmp_fixed.glob('*'))[0]
             tmp_moving = p / 'moving'
-            dce.write(tmp_moving, formats=['nifti'])
-            moving = list(tmp_moving.glob('*'))[0]
+            tmp_out = p / 'out.nii.gz'
+            moving.write(tmp_moving, formats=['nifti'])
+            moving_file = list(tmp_moving.glob('*'))[0]
 
             print('MCFLIRT running ...')
-            tmp_out = p / 'out.nii.gz'
 
             mcflt = fsl.MCFLIRT()
-            mcflt.inputs.in_file = str(moving)
-            # mcflt.inputs.ref_file = str(fixed)
-            mcflt.inputs.ref_vol = fx
+            mcflt.inputs.in_file = str(moving_file)
+            if issubclass(type(ref), Series):
+                ref.write(tmp_fixed, formats=['nifti'])
+                fixed_file = list(tmp_fixed.glob('*'))[0]
+                mcflt.inputs.ref_file = str(fixed_file)
+            else:
+                mcflt.inputs.ref_vol = ref
             mcflt.inputs.out_file = str(tmp_out)
-            mcflt.inputs.cost = "corratio"
+            mcflt.inputs.cost = "corratio"  # "normcorr"
             # mcflt.inputs.cost     = "normcorr"
             print('{}'.format(mcflt.cmdline))
             result = mcflt.run()
+            print('Result code: {}'.format(result.runtime.returncode))
 
-            dce2 = Series(tmp_out, input_order=dce.input_order, template=dce, geometry=dce)
-            dce2.tags = dce.tags
-            dce2.axes = dce.axes
-            dce2.seriesDescription = 'MCFLIRT {}'.format(mcflt.inputs.cost)
+            try:
+                out = Series(tmp_out, input_order=moving.input_order, template=moving, geometry=ref_volume)
+            except Exception as e:
+                print(e)
+            out.tags = moving.tags
+            out.axes = moving.axes
+            out.seriesDescription = 'MCFLIRT {}'.format(mcflt.inputs.cost)
         print('MCFLIRT ended.\n')
-        return dce2
+        return out
