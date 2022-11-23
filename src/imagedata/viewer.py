@@ -942,7 +942,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'lower_right_text': None,  # AnchoredText object
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
-        'taggable': tag_axis is not None,  # Can we slide through tags
+        'taggable': tag_axis is not None,  # Can we slide through tags?
         'tags': len(im.tags[0]),  # Number of tags
         'slices': im.slices,  # Number of slices
         'rows': im.rows,  # Number of rows
