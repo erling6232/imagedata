@@ -1998,8 +1998,8 @@ class Series(np.ndarray):
         axes = default_layout(fig, len(images))
         try:
             self.viewer = Viewer(images, fig=fig, ax=axes,
-                            colormap=colormap, norm=norm, colorbar=colorbar,
-                            window=window, level=level, link=link)
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
         self.viewer.connect()
@@ -2069,8 +2069,8 @@ class Series(np.ndarray):
         axes = default_layout(fig, len(images))
         try:
             self.viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
-                            colormap=colormap, norm=norm, colorbar=colorbar,
-                            window=window, level=level, link=link)
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
         self.viewer.connect_draw(roi=roi, color=color)
