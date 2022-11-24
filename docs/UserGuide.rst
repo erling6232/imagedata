@@ -8,6 +8,7 @@ User Guide
 
   Installation
   Tutorial
+  Jupyter Notebook
   Introduction
   Input_output
   Sorting
