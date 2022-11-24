@@ -2034,11 +2034,13 @@ class Series(np.ndarray):
             single (bool): draw ROI in single slice per tag. Default: False.
 
         Returns:
-            If vertices, tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
                 - grid mask: Series object with voxel=1 inside ROI.
                   Series object with shape (nz,ny,nx) from original image,
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
+            If running from a notebook (nbagg driver), no ROI is returned. Call get_roi_mask()
+            afterwards to get the mask.
 
         Raises:
             ValueError: when image is not a subclass of Series, or too many viewports are
@@ -2087,6 +2089,18 @@ class Series(np.ndarray):
         return self.get_roi_mask()
 
     def get_roi_mask(self):
+        """Get mask drawn by user in get_roi().
+
+        Returns:
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+                - grid mask: Series object with voxel=1 inside ROI.
+                  Series object with shape (nz,ny,nx) from original image,
+                  dtype ubyte. Voxel inside ROI is 1, 0 outside.
+                - vertices_dict: if vertices: Dictionary of vertices.
+
+        Raises:
+            ValueError: when get_roi() has not produced a mask up front.
+        """
         from .viewer import grid_from_roi
 
         if self.latest_roi_parameters is None:
