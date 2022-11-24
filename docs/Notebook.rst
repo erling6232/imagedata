@@ -1,4 +1,4 @@
-.. _Jupyter Notebook:
+.. _Jupyter_Notebook:
 
 Jupyter Notebook
 ================
