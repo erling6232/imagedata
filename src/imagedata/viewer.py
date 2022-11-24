@@ -222,8 +222,9 @@ class Viewer(object):
         #    self.linkclicked = self.linkbutton.on_clicked(self.toggle_button)
         return h
 
-    def connect_draw(self, roi=None, color='w'):
+    def connect_draw(self, roi=None, color='w', callback_quit=None):
         self.poly_color = color
+        self.callback_quit = callback_quit
         idx = self.im[0]['idx']
         if roi is None:
             self.poly = {}
@@ -400,6 +401,9 @@ class Viewer(object):
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
+        elif event.key == 'Q' or event.key == 'q':
+            if self.callback_quit is not None:
+                self.callback_quit()
         # else:
         #    print('key_press: {}'.format(event.key))
 
@@ -942,7 +946,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'lower_right_text': None,  # AnchoredText object
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
-        'taggable': tag_axis is not None,  # Can we slide through tags
+        'taggable': tag_axis is not None,  # Can we slide through tags?
         'tags': len(im.tags[0]),  # Number of tags
         'slices': im.slices,  # Number of slices
         'rows': im.rows,  # Number of rows

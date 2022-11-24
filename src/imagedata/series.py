@@ -10,15 +10,11 @@ methods and attributes.
 """
 
 import copy
-
-import matplotlib.colors
 import numpy as np
-# from numpy.compat import basestring
 import logging
 from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
-# import numpy.core._multiarray_umath
 
 from .axis import UniformAxis, UniformLengthAxis, VariableAxis
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
@@ -82,6 +78,9 @@ class Series(np.ndarray):
     authors = "Erling Andersen"
     version = "1.1.1"
     url = "www.helse-bergen.no"
+
+    viewer = None
+    latest_roi_parameters = None
 
     def __new__(cls, data, input_order='none',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
@@ -1907,8 +1906,8 @@ class Series(np.ndarray):
         if self.color:
             return self
 
-        # import matplotlib as mpl
         import matplotlib.pyplot as plt
+        import matplotlib.colors
         from .viewer import get_window_level
 
         if lut is None:
@@ -1979,6 +1978,9 @@ class Series(np.ndarray):
         """
         from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
+        import matplotlib as mpl
+
+        notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
         images = list()
@@ -1995,15 +1997,16 @@ class Series(np.ndarray):
 
         axes = default_layout(fig, len(images))
         try:
-            viewer = Viewer(images, fig=fig, ax=axes,
-                            colormap=colormap, norm=norm, colorbar=colorbar,
-                            window=window, level=level, link=link)
+            self.viewer = Viewer(images, fig=fig, ax=axes,
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
-        _ = viewer.connect()
+        self.viewer.connect()
         plt.tight_layout()
         plt.show()
-        viewer.disconnect()
+        if not notebook:
+            self.viewer.disconnect()
 
     def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None,
                 colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
@@ -2031,19 +2034,24 @@ class Series(np.ndarray):
             single (bool): draw ROI in single slice per tag. Default: False.
 
         Returns:
-            If vertices, tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
                 - grid mask: Series object with voxel=1 inside ROI.
                   Series object with shape (nz,ny,nx) from original image,
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
+            If running from a notebook (nbagg driver), no ROI is returned. Call get_roi_mask()
+            afterwards to get the mask.
 
         Raises:
             ValueError: when image is not a subclass of Series, or too many viewports are
                         requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from .viewer import Viewer, default_layout, grid_from_roi
+        from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
+        import matplotlib as mpl
+
+        notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
         images = list()
@@ -2060,16 +2068,45 @@ class Series(np.ndarray):
 
         axes = default_layout(fig, len(images))
         try:
-            viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
-                            colormap=colormap, norm=norm, colorbar=colorbar,
-                            window=window, level=level, link=link)
+            self.viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
-        _ = viewer.connect_draw(roi=roi, color=color)
+        self.viewer.connect_draw(roi=roi, color=color)
         plt.tight_layout()
         plt.show()
         # vertices = viewer.get_roi()
-        viewer.disconnect_draw()
+        self.latest_roi_parameters = (follow, vertices, single)
+        if notebook:
+            # Leave early without waiting for drawn mask
+            if vertices:
+                return None, None
+            else:
+                return None
+
+        self.viewer.disconnect_draw()
+        return self.get_roi_mask()
+
+    def get_roi_mask(self):
+        """Get mask drawn by user in get_roi().
+
+        Returns:
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+                - grid mask: Series object with voxel=1 inside ROI.
+                  Series object with shape (nz,ny,nx) from original image,
+                  dtype ubyte. Voxel inside ROI is 1, 0 outside.
+                - vertices_dict: if vertices: Dictionary of vertices.
+
+        Raises:
+            ValueError: when get_roi() has not produced a mask up front.
+        """
+        from .viewer import grid_from_roi
+
+        if self.latest_roi_parameters is None:
+            raise ValueError('Cannot get ROI mask until a successful call to get_roi().')
+
+        follow, vertices, single = self.latest_roi_parameters
         if follow:
             input_order = self.input_order
         else:
@@ -2077,7 +2114,7 @@ class Series(np.ndarray):
         try:
             # new_roi = Series(grid_from_roi(self, viewer.get_roi()),
             #                  input_order=input_order, template=self, geometry=self)
-            new_grid = grid_from_roi(self, viewer.get_roi(), single=single)
+            new_grid = grid_from_roi(self, self.viewer.get_roi(), single=single)
         except IndexError:
             if follow:
                 new_grid = np.zeros_like(self, dtype=np.ubyte)
@@ -2088,6 +2125,6 @@ class Series(np.ndarray):
         new_roi.setDicomAttribute('WindowCenter', .5)
         new_roi.setDicomAttribute('WindowWidth', 1)
         if vertices:
-            return new_roi, viewer.get_roi()  # Return grid and vertices
+            return new_roi, self.viewer.get_roi()  # Return grid and vertices
         else:
             return new_roi  # Return grid only

@@ -72,6 +72,13 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.dtype, np.float64)
         self.assertEqual(si.shape, (128, 128))
 
+    @unittest.skip("skipping test_create_time_series")
+    def test_create_time_series(self):
+        from imagedata.series import Series
+        s = Series(np.zeros((4,3,128,128)), 'time')
+        self.assertEqual('time', s.axes[0].name)
+
+
     #@unittest.skip("skipping test_print_header")
     def test_print_header(self):
         a = np.eye(128)

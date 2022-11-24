@@ -3,6 +3,11 @@
 Release Notes
 =============
 
+1.6.0
+-----
+* show() and get_roi() works in Jupyter notebook, too.
+* In notebook: Series.get_roi_mask() must be called after get_roi() to get the actual mask.
+
 1.5.1
 -----
 Bug fix release:
