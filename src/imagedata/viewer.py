@@ -222,8 +222,9 @@ class Viewer(object):
         #    self.linkclicked = self.linkbutton.on_clicked(self.toggle_button)
         return h
 
-    def connect_draw(self, roi=None, color='w'):
+    def connect_draw(self, roi=None, color='w', callback_quit=None):
         self.poly_color = color
+        self.callback_quit = callback_quit
         idx = self.im[0]['idx']
         if roi is None:
             self.poly = {}
@@ -400,6 +401,9 @@ class Viewer(object):
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
+        elif event.key == 'Q' or event.key == 'q':
+            if self.callback_quit is not None:
+                self.callback_quit()
         # else:
         #    print('key_press: {}'.format(event.key))
 
