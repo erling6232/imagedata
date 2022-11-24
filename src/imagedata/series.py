@@ -80,6 +80,7 @@ class Series(np.ndarray):
     url = "www.helse-bergen.no"
 
     viewer = None
+    latest_roi_parameters = None
 
     def __new__(cls, data, input_order='none',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
@@ -2044,7 +2045,7 @@ class Series(np.ndarray):
                         requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from .viewer import Viewer, default_layout, grid_from_roi
+        from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
         import matplotlib as mpl
 
@@ -2074,8 +2075,24 @@ class Series(np.ndarray):
         plt.tight_layout()
         plt.show()
         # vertices = viewer.get_roi()
-        if not notebook:
-            self.viewer.disconnect_draw()
+        self.latest_roi_parameters = (follow, vertices, single)
+        if notebook:
+            # Leave early without waiting for drawn mask
+            if vertices:
+                return None, None
+            else:
+                return None
+
+        self.viewer.disconnect_draw()
+        return self.get_roi_mask()
+
+    def get_roi_mask(self):
+        from .viewer import grid_from_roi
+
+        if self.latest_roi_parameters is None:
+            raise ValueError('Cannot get ROI mask until a successful call to get_roi().')
+
+        follow, vertices, single = self.latest_roi_parameters
         if follow:
             input_order = self.input_order
         else:
