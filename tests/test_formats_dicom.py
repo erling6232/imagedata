@@ -63,6 +63,14 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
+    def test_read_single_directory_headers_only(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'none',
+            opts={'headers_only': True})
+        self.assertEqual(tuple(), si1.shape)
+        self.assertEqual(3, len(si1.axes))
+
     # @unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
         d = Series(
