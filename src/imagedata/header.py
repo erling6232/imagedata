@@ -23,7 +23,7 @@ header_tags = ['input_format',
                'input_sort']
 geometry_tags = ['tags', 'spacing',
                  'imagePositions', 'orientation', 'transformationMatrix',
-                 'color', 'photometricInterpretation', 'axes']
+                 'photometricInterpretation', 'axes']
 
 
 class Header(object):
@@ -53,7 +53,6 @@ class Header(object):
         imagePositions
         orientation
         transformationMatrix
-        color
         photometricInterpretation
         axes
         __uid_generator
@@ -85,7 +84,6 @@ class Header(object):
         # pydicom.datadict.DicomDictionary
         # from pydicom.uid import UID
         # UID.
-        self.color = False
         self.DicomHeaderDict = None
         self.tags = None
         self.axes = None
@@ -107,7 +105,6 @@ class Header(object):
     def set_default_values(self, axes):
         """Set default values.
         """
-        self.color = False
         if self.DicomHeaderDict is not None:
             return
         # self.axes = copy.copy(axes)
