@@ -519,6 +519,15 @@ class TestSeries(unittest.TestCase):
         for i in range(len(si.axes)):
             self.assertEqual(len(si.axes[i]), si.shape[i])
 
+    def test_get_rgb_voxel(self):
+        si1 = Series('data/dicom/time/time00')
+
+        rgb = si1.to_rgb()
+        _slice = rgb[1]
+        voxel = _slice[1, 1]
+        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual('rgb', voxel.axes[0].name)
+
 
 if __name__ == '__main__':
     unittest.main()

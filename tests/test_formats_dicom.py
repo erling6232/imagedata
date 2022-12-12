@@ -70,6 +70,7 @@ class TestDicomPlugin(unittest.TestCase):
             opts={'headers_only': True})
         self.assertEqual(tuple(), si1.shape)
         self.assertEqual(3, len(si1.axes))
+        self.assertEqual(14, si1.seriesNumber)
 
     # @unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
