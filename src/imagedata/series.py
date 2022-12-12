@@ -947,22 +947,31 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        if shape[-1] == 3 and self.dtype == np.uint8:
+        _color = shape[-1] == 3 and self.dtype == np.uint8
+        if _color:
             _mono_shape = shape[:-1]
+            self.header.photometricInterpretation = 'RGB'
         else:
             _mono_shape = shape
         _max_known_shape = min(3, len(_mono_shape))
         _labels = ['slice', 'row', 'column'][-_max_known_shape:]
+        if _color:
+            _labels.append('rgb')
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
         i = 0
         for d in super(Series, self).shape:
-            self.header.axes.append(
-                UniformLengthAxis(
-                    _labels[i], 0, d, 1
+            if _labels[i] == 'rgb':
+                self.header.axes.append(
+                    VariableAxis('rgb', ['r', 'g', 'b'])
                 )
-            )
+            else:
+                self.header.axes.append(
+                    UniformLengthAxis(
+                        _labels[i], 0, d, 1
+                    )
+                )
             i += 1
         return self.header.axes
 
@@ -1535,21 +1544,15 @@ class Series(np.ndarray):
             TypeError: When color is not bool
         """
         try:
-            if self.header.color is not None:
-                return self.header.color
+            if self.header.axes is not None and len(self.header.axes):
+                return self.header.axes[-1].name == 'rgb'
         except AttributeError:
             pass
         raise ValueError("No Color Interpretation is set.")
 
     @color.setter
     def color(self, color):
-        if color is None:
-            self.header.color = False
-            return
-        try:
-            self.header.color = bool(color)
-        except AttributeError:
-            raise TypeError("Given color is not a boolean.")
+        raise ValueError("Do not set color. Set RGB axis.")
 
     @property
     def photometricInterpretation(self):
@@ -1947,7 +1950,6 @@ class Series(np.ndarray):
             )
 
         rgb.header.photometricInterpretation = 'RGB'
-        rgb.header.color = True
         rgb.header.add_template(self.header)
         return rgb
 
