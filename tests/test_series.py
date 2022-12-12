@@ -528,6 +528,15 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(1, len(voxel.axes))
         self.assertEqual('rgb', voxel.axes[0].name)
 
+    def test_get_rgb_voxel_np(self):
+        si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
+
+        rgb = si1.to_rgb()
+        _slice = rgb[1]
+        voxel = _slice[1, 1]
+        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual('rgb', voxel.axes[0].name)
+
 
 if __name__ == '__main__':
     unittest.main()
