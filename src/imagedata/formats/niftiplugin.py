@@ -102,6 +102,7 @@ class NiftiPlugin(AbstractPlugin):
         except Exception:
             raise
         info = img
+        hdr.color = False
         si = self._reorder_to_dicom(
             np.asanyarray(img.dataobj),
             flip=False,

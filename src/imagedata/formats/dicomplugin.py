@@ -442,7 +442,7 @@ class DICOMPlugin(AbstractPlugin):
         elif im.BitsAllocated == 8:
             matrix_dtype = np.uint8
         logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
-        _color = 1 if hdr.color else 0
+        _color = 1 if self.color else 0
 
         # Load DICOM image data
         logger.debug('DICOMPlugin.read: shape {}'.format(shape))
@@ -705,9 +705,9 @@ class DICOMPlugin(AbstractPlugin):
             ipp[2],
             columns,
             spacing[2]))
-        hdr.color = False
+        self.color = False
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
-            hdr.color = True
+            self.color = True
             shape = shape + (im.SamplesPerPixel,)
             hdr.axes.append(
                 VariableAxis(

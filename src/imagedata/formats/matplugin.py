@@ -78,6 +78,7 @@ class MatPlugin(AbstractPlugin):
         """
 
         info = {}
+        hdr.color = False
         try:
             logger.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
             mdictlist = scipy.io.whosmat(f)
