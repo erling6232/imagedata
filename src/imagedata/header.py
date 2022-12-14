@@ -86,7 +86,6 @@ class Header(object):
         # UID.
         self.DicomHeaderDict = None
         self.tags = None
-        self.axes = None
 
     def __repr__(self):
         return object.__repr__(self)
