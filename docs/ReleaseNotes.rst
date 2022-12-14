@@ -3,6 +3,22 @@
 Release Notes
 =============
 
+1.6.1
+-----
+Bug fix release:
+
+* Viewer: self.callback_quit was uninitialized when show() was used.
+* Series.__array_finalize__(): Copy Header object from any array object which has a Header object.
+* Series.__getitem__(): Finalize ret object for all Series instances, independent on slicing status.
+* Header.__init__(): No need to set self.axes explicitly.
+* Series.axes(): Define RGB axis when last dimension is size 3 or 4 and uint8.
+* Series.color: Color property is determined by the presence of an RGB axis. Do not set color property.
+* Series.photometricInterpretation: Do not set color property.
+* Remove all references to header.color. Color status is determined by the presence of an RGB axis.
+* DICOMPlugin: Keep color status in self.color, not hdr.color.
+* MatPlugin._read_image(): Set hdr.color to False. Required by AbstractPlugin.read().
+* NiftiPlugin._read_image(): Set hdr.color to False. Required by AbstractPlugin.read().
+
 1.6.0
 -----
 * show() and get_roi() works in Jupyter notebook, too.
