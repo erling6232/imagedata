@@ -64,6 +64,7 @@ class Viewer(object):
         self.cidenter = None
         self.cidleave = None
         self.cidscroll = None
+        self.callback_quit = None
         self.vertices = None  # The polygon vertices, as a dictionary of tags of (x,y)
         self.poly = None
         self.paste_buffer = None
