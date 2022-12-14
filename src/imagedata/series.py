@@ -193,7 +193,8 @@ class Series(np.ndarray):
         # Series.__new__ constructor, but also with arr.view(Series).
         # logger.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
 
-        if issubclass(type(obj), Series):
+        # if issubclass(type(obj), Series):
+        if hasattr(obj, 'header') and issubclass(type(obj.header), Header):
             # Copy attributes from obj to newly created self
             # logger.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             # self.__dict__ = obj.__dict__.copy()  # carry forward attributes
@@ -427,9 +428,11 @@ class Series(np.ndarray):
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
-        if slicing and issubclass(type(ret), Series):
+        # if slicing and issubclass(type(ret), Series):
+        if issubclass(type(ret), Series):
             # noinspection PyUnboundLocalVariable
-            todo.append(('axes', new_axes[-ret.ndim:]))
+            if slicing:
+                todo.append(('axes', new_axes[-ret.ndim:]))
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
@@ -597,8 +600,7 @@ class Series(np.ndarray):
 
         Args:
             self: Series array
-            directory_name: directory name
-            filename_template: template including %d for image number
+            url: Output URL
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         """
@@ -947,22 +949,31 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        if shape[-1] == 3 and self.dtype == np.uint8:
+        _color = shape[-1] in [3, 4] and self.dtype == np.uint8
+        if _color:
             _mono_shape = shape[:-1]
+            self.header.photometricInterpretation = 'RGB'
         else:
             _mono_shape = shape
         _max_known_shape = min(3, len(_mono_shape))
         _labels = ['slice', 'row', 'column'][-_max_known_shape:]
+        if _color:
+            _labels.append('rgb')
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
         i = 0
         for d in super(Series, self).shape:
-            self.header.axes.append(
-                UniformLengthAxis(
-                    _labels[i], 0, d, 1
+            if _labels[i] == 'rgb':
+                self.header.axes.append(
+                    VariableAxis('rgb', ['r', 'g', 'b'])
                 )
-            )
+            else:
+                self.header.axes.append(
+                    UniformLengthAxis(
+                        _labels[i], 0, d, 1
+                    )
+                )
             i += 1
         return self.header.axes
 
@@ -1535,21 +1546,15 @@ class Series(np.ndarray):
             TypeError: When color is not bool
         """
         try:
-            if self.header.color is not None:
-                return self.header.color
+            if self.header.axes is not None and len(self.header.axes):
+                return self.header.axes[-1].name == 'rgb'
         except AttributeError:
             pass
         raise ValueError("No Color Interpretation is set.")
 
     @color.setter
     def color(self, color):
-        if color is None:
-            self.header.color = False
-            return
-        try:
-            self.header.color = bool(color)
-        except AttributeError:
-            raise TypeError("Given color is not a boolean.")
+        raise ValueError("Do not set color. Set RGB axis.")
 
     @property
     def photometricInterpretation(self):
@@ -1947,7 +1952,6 @@ class Series(np.ndarray):
             )
 
         rgb.header.photometricInterpretation = 'RGB'
-        rgb.header.color = True
         rgb.header.add_template(self.header)
         return rgb
 
