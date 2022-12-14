@@ -193,7 +193,8 @@ class Series(np.ndarray):
         # Series.__new__ constructor, but also with arr.view(Series).
         # logger.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
 
-        if issubclass(type(obj), Series):
+        # if issubclass(type(obj), Series):
+        if hasattr(obj, 'header') and issubclass(type(obj.header), Header):
             # Copy attributes from obj to newly created self
             # logger.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             # self.__dict__ = obj.__dict__.copy()  # carry forward attributes
@@ -427,9 +428,11 @@ class Series(np.ndarray):
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
-        if slicing and issubclass(type(ret), Series):
+        # if slicing and issubclass(type(ret), Series):
+        if issubclass(type(ret), Series):
             # noinspection PyUnboundLocalVariable
-            todo.append(('axes', new_axes[-ret.ndim:]))
+            if slicing:
+                todo.append(('axes', new_axes[-ret.ndim:]))
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
@@ -597,8 +600,7 @@ class Series(np.ndarray):
 
         Args:
             self: Series array
-            directory_name: directory name
-            filename_template: template including %d for image number
+            url: Output URL
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         """
@@ -947,7 +949,7 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        _color = shape[-1] == 3 and self.dtype == np.uint8
+        _color = shape[-1] in [3, 4] and self.dtype == np.uint8
         if _color:
             _mono_shape = shape[:-1]
             self.header.photometricInterpretation = 'RGB'
