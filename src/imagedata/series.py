@@ -55,7 +55,8 @@ class Series(np.ndarray):
             Input data, either explicit as np.ndarray, np.uint16, np.float32,
                 or by URL to input data.
         input_order (str): How to sort the input data. Typical values are:
-                * 'none' : 3D volume or 2D slice (default).
+                * 'auto' : auto-detect sort criteria (default).
+                * 'none' : 3D volume or 2D slice.
                 * 'time' : Time-resolved data.
                 * 'b' : Diffusion data with variable b values.
                 * 'te' : Varying echo times.
@@ -76,13 +77,13 @@ class Series(np.ndarray):
     name = "Series"
     description = "Image series"
     authors = "Erling Andersen"
-    version = "1.1.1"
+    version = "1.2.0"
     url = "www.helse-bergen.no"
 
     viewer = None
     latest_roi_parameters = None
 
-    def __new__(cls, data, input_order='none',
+    def __new__(cls, data, input_order='auto',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None, axes=None):
@@ -99,7 +100,10 @@ class Series(np.ndarray):
             # obj.header = Header() # Already set in __array_finalize__
 
             # set the new 'input_order' attribute to the value passed
-            obj.header.input_order = input_order
+            if input_order == 'auto':
+                obj.header.input_order = 'none'
+            else:
+                obj.header.input_order = input_order
 
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
@@ -130,7 +134,10 @@ class Series(np.ndarray):
                 obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
-            obj.header.input_order = input_order
+            if input_order == 'auto':
+                obj.header.input_order = 'none'
+            else:
+                obj.header.input_order = input_order
             obj.header.input_format = type(data)
             if np.ndim(data) == 0:
                 obj.header.axes = [UniformAxis('number', 0, 1)]
@@ -146,7 +153,7 @@ class Series(np.ndarray):
         assert obj.header, "No Header found in obj.header"
 
         # set the new 'input_order' attribute to the value passed
-        obj.header.input_order = input_order
+        obj.header.input_order = hdr.input_order
         obj.header.input_format = hdr.input_format
         # Copy attributes from hdr dict to newly created obj
         logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
@@ -824,7 +831,7 @@ class Series(np.ndarray):
             _locations = {}
             _location0 = loc[0]
             for _location in loc[1:]:
-                _locations[_location-_location0] = True
+                _locations[_location - _location0] = True
                 _location0 = _location
             return len(_locations) == 1
 
