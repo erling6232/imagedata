@@ -112,8 +112,11 @@ def read(urls, order=None, opts=None):
             for source in sources:
                 logger.debug("readdata.read: close archive {}".format(source['archive']))
                 source['archive'].close()
-            hdr.add_template(pre_hdr)
-            hdr.add_geometry(pre_hdr, geom_hdr)
+            if 'headers_only' in in_opts and in_opts['headers_only']:
+                pass
+            elif 'separate_series' not in in_opts or not in_opts['separate_series']:
+                hdr.add_template(pre_hdr)
+                hdr.add_geometry(pre_hdr, geom_hdr)
             return hdr, si
         except (FileNotFoundError, CannotSort):
             raise
