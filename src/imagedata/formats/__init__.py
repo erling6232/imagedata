@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
  SORT_ON_TAG) = range(2)
 sort_on_set = {SORT_ON_SLICE, SORT_ON_TAG}
 
+INPUT_ORDER_AUTO = 'auto'
 INPUT_ORDER_NONE = 'none'
 INPUT_ORDER_TIME = 'time'
 INPUT_ORDER_B = 'b'
