@@ -87,6 +87,10 @@ class ITKPlugin(AbstractPlugin):
         logger.debug("itkplugin._read_image filehandle {}".format(f))
         if f.endswith('.raw'):
             return None, None
+
+        if hdr.input_order == 'auto':
+            hdr.input_order = 'none'
+
         try:
             # https://blog.kitware.com/itk-python-image-pixel-types/
             reader = itk.imread(f)
@@ -226,7 +230,7 @@ class ITKPlugin(AbstractPlugin):
                 hdr.imagePositions[0][0],
                 nz,
                 hdr.spacing[0])
-                        )
+            )
         if _actual_ndim > 3:
             nt = _actual_shape[-4]
             axes.insert(0, UniformLengthAxis(
@@ -234,7 +238,7 @@ class ITKPlugin(AbstractPlugin):
                 0,
                 nt,
                 dt)
-                        )
+            )
         times = np.arange(0, nt * dt, dt)
         tags = {}
         for _slice in range(nz):
