@@ -17,7 +17,8 @@ from pydicom.datadict import tag_for_keyword
 
 from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str, \
     SORT_ON_SLICE, \
-    INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE
+    INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, \
+    INPUT_ORDER_AUTO
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..header import Header
@@ -72,7 +73,7 @@ class DICOMPlugin(AbstractPlugin):
     name = "dicom"
     description = "Read and write DICOM files."
     authors = "Erling Andersen"
-    version = "1.2.0"
+    version = "1.3.0"
     url = "www.helse-bergen.no"
 
     root = "2.16.578.1.37.1.1.4"
@@ -279,10 +280,10 @@ class DICOMPlugin(AbstractPlugin):
             raise NotImageError('{}'.format(e))
         # pydicom.config.debug(False)
 
-        logger.debug("SOPClassUID: {}".format(
-            self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("SOPClassUID"))))
-        logger.debug("TransferSyntaxUID: {}".format(
-            self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("TransferSyntaxUID"))))
+        # logger.debug("SOPClassUID: {}".format(
+        #     self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("SOPClassUID"))))
+        # logger.debug("TransferSyntaxUID: {}".format(
+        #     self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("TransferSyntaxUID"))))
 
         if 'correct_acq' in opts and opts['correct_acq']:
             si = self.correct_acqtimes_for_dynamic_series(hdr, si)
@@ -310,7 +311,7 @@ class DICOMPlugin(AbstractPlugin):
             if 'RescaleSlope' in im and 'RescaleIntercept' in im:
                 _use_float = abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
             if _use_float:
-                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + \
+                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) +\
                          float(im.RescaleIntercept)
             else:
                 pixels = im.pixel_array
@@ -413,14 +414,29 @@ class DICOMPlugin(AbstractPlugin):
         # hdr: most of dataset, excluding pixel data
         # shape: expected shape of pixel matrix
 
-        if skip_pixels:
-            si = None
-        else:
-            # Extract pixel data
-            si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
+        if 'separate_series' in opts and opts['separate_series']:
+            hdr = {}
+            si = {}
+            for imdict, h, shape in image_dict:
+                self.extractDicomAttributes(imdict, h)
+                hdr[h.seriesInstanceUID] = h
+                if skip_pixels:
+                    si[h.seriesInstanceUID] = None
+                else:
+                    # Extract pixel data
+                    si[h.seriesInstanceUID] = self.construct_pixel_array(
+                        imdict, h, shape, opts=opts)
 
-        self.extractDicomAttributes(image_dict, hdr)
-        del image_dict
+                del imdict
+        else:
+            if skip_pixels:
+                si = None
+            else:
+                # Extract pixel data
+                si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
+
+            self.extractDicomAttributes(image_dict, hdr)
+            del image_dict
 
         return hdr, si
 
@@ -442,7 +458,7 @@ class DICOMPlugin(AbstractPlugin):
         elif im.BitsAllocated == 8:
             matrix_dtype = np.uint8
         logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
-        _color = 1 if self.color else 0
+        _color = 1 if hdr.color else 0
 
         # Load DICOM image data
         logger.debug('DICOMPlugin.read: shape {}'.format(shape))
@@ -543,7 +559,13 @@ class DICOMPlugin(AbstractPlugin):
                 except Exception as e:
                     logger.debug('DICOMPlugin.get_dicom_files: Exception {}'.format(e))
                     raise
-        return self.sort_images(image_dict, input_order, opts)
+        if 'separate_series' in opts and opts['separate_series']:
+            sorted_list = []
+            for uid in image_dict:
+                sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+            return sorted_list, None, None
+        else:
+            return self.sort_images(image_dict, input_order, opts)
 
     def sort_images(self, header_dict, input_order, opts):
         """Sort DICOM images.
@@ -583,7 +605,7 @@ class DICOMPlugin(AbstractPlugin):
 
         hdr = Header()
         hdr.input_format = 'dicom'
-        hdr.input_order = input_order
+        # hdr.input_order = input_order
         sliceLocations = sorted(header_dict)
         # hdr.slices = len(sliceLocations)
         hdr.sliceLocations = sliceLocations
@@ -607,6 +629,42 @@ class DICOMPlugin(AbstractPlugin):
         if min(count) != max(count) and accept_uneven_slices:
             logger.error("sort_images: tags per slice: {}".format(count))
             raise UnevenSlicesError("Different number of images in each slice.")
+
+        if input_order == INPUT_ORDER_AUTO:
+            # Extract all tags
+            found_tags = {}
+            for sloc in sorted(header_dict):
+                for archive, filename, im in sorted(header_dict[sloc]):
+                    for order in ['time', 'b', 'fa', 'te']:
+                        try:
+                            tag = self._get_tag(im, order, opts)
+                            if tag is None:
+                                continue
+                            if order not in found_tags:
+                                found_tags[order] = []
+                            if tag not in found_tags[order]:
+                                found_tags[order].append(tag)
+                        except (KeyError, TypeError, CannotSort):
+                            pass
+                        # except Exception:
+                        #     raise
+            # Determine how to sort
+            actual_order = None
+            for order in found_tags:
+                try:
+                    if len(found_tags[order]) > 1:
+                        if actual_order is None:
+                            actual_order = order
+                        else:
+                            raise CannotSort('Cannot auto-sort: {}'.format(found_tags))
+                except Exception as e:
+                    print(e)
+                    raise
+            if actual_order is None:
+                actual_order = 'none'
+            input_order = actual_order
+
+        hdr.input_order = input_order
 
         # Extract all tags and sort them per slice
         tag_list = {}
@@ -705,11 +763,11 @@ class DICOMPlugin(AbstractPlugin):
             ipp[2],
             columns,
             spacing[2]))
-        self.color = False
+        hdr.color = False
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
-            self.color = True
+            hdr.color = True
             shape = shape + (im.SamplesPerPixel,)
-            hdr.axes.append(
+            axes.append(
                 VariableAxis(
                     'rgb',
                     ['r', 'g', 'b']
@@ -744,9 +802,15 @@ class DICOMPlugin(AbstractPlugin):
                 sloc = 0
         logger.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
 
-        if sloc not in image_dict:
-            image_dict[sloc] = []
-        image_dict[sloc].append((archive, member_name, im))
+        if 'separate_series' in opts and opts['separate_series']:
+            if im.SeriesInstanceUID not in image_dict:
+                image_dict[im.SeriesInstanceUID] = {}
+            my_dict = image_dict[im.SeriesInstanceUID]
+        else:
+            my_dict = image_dict
+        if sloc not in my_dict:
+            my_dict[sloc] = []
+        my_dict[sloc].append((archive, member_name, im))
         # logger.debug("process_member: added sloc {} {}".format(sloc, member_name))
         # logger.debug("process_member: image_dict len: {}".format(len(image_dict)))
         del im
@@ -1530,6 +1594,8 @@ class DICOMPlugin(AbstractPlugin):
         elif input_order == INPUT_ORDER_TE:
             te_tag = self._choose_tag('te', 'EchoTime')
             return float(im.data_element(te_tag).value)
+        elif input_order == INPUT_ORDER_AUTO:
+            pass
         else:
             # User-defined tag
             if input_order in opts:
