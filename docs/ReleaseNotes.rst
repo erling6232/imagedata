@@ -3,6 +3,11 @@
 Release Notes
 =============
 
+1.7.0.dev1
+----------
+
+* DWI images will typically have varying time. Let `b' values override the time stamps.
+
 1.7.0.dev0
 ----------
 
