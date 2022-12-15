@@ -68,7 +68,7 @@ The addressing of a source or destination follows a url specification, *e.g.*:
 
 The plugin architecture is depicted in the Figure here.
 
-.. image:: Figure_Architecture.png
+.. image:: Plugin_Architecture.png
 
 Series Class
 =============
