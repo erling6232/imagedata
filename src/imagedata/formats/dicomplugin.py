@@ -656,7 +656,8 @@ class DICOMPlugin(AbstractPlugin):
                         if actual_order is None:
                             actual_order = order
                         elif actual_order == 'time' and order == 'b':
-                            # DWI images will typically have varying time. Let b values override time stamps.
+                            # DWI images will typically have varying time.
+                            # Let b values override time stamps.
                             actual_order = order
                         else:
                             raise CannotSort('Cannot auto-sort: {}'.format(found_tags))
