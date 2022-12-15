@@ -13,7 +13,7 @@ Using python:
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     dwi = Series('10_ep2d_diff_b50_400_800/', 'b')
 
@@ -29,7 +29,7 @@ More elaborate example in python:
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     dwi = Series('10_ep2d_diff_b50_400_800/', 'b')
 
@@ -83,7 +83,7 @@ Finally, the color image is display with the segmented area in red.
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     T2 = Series('801_Obl T2 TSE HR SENSE/')
     segment = T2.get_roi()
@@ -112,7 +112,7 @@ original Series instance as a template for DICOM header information.
 
     import tempfile
     from pathlib import Path
-    from imagedata.series import Series
+    from imagedata import Series
     import nipype.interfaces.fsl as fsl
 
 

@@ -3,6 +3,24 @@
 Release Notes
 =============
 
+1.7.0.dev1
+----------
+
+* DWI images will typically have varying time. Let `b' values override the time stamps.
+
+1.7.0.dev0
+----------
+
+New features:
+
+* Study class: a collection of Series instances.
+  Sort images into separate Series depending on SeriesInstanceUID.
+* input_order=`auto': Auto-detect the sorting of Series,
+  depending on which DICOM attribute varies.
+  The input_orders time/b/fa/te are attempted in order.
+* `auto' is now the default input_order.
+* Simpler import statements in user code: from imagedata import Series, Study
+
 1.6.1
 -----
 Bug fix release:

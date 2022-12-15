@@ -78,6 +78,10 @@ class MatPlugin(AbstractPlugin):
         """
 
         info = {}
+
+        if hdr.input_order == 'auto':
+            hdr.input_order = 'none'
+
         hdr.color = False
         try:
             logger.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
@@ -136,14 +140,14 @@ class MatPlugin(AbstractPlugin):
                 'slice',
                 0,
                 nz)
-                        )
+            )
         if si.ndim > 3:
             nt = si.shape[-4]
             axes.insert(0, UniformLengthAxis(
                 input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt)
-                        )
+            )
         hdr.axes = axes
         logger.debug('matplugin._set_tags nt {}, nz {}'.format(
             nt, nz))

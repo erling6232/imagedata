@@ -68,7 +68,7 @@ The addressing of a source or destination follows a url specification, *e.g.*:
 
 The plugin architecture is depicted in the Figure here.
 
-.. image:: Figure_Architecture.png
+.. image:: Plugin_Architecture.png
 
 Series Class
 =============
@@ -79,7 +79,7 @@ series :
 
 .. code-block:: console
 
-   >>> from imagedata.series import Series
+   >>> from imagedata import Series
    >>> si = Series(’dicom/volume/’)
    >>> print(si.shape, si.dtype)
    (16, 160, 160) uint16

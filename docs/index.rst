@@ -26,7 +26,7 @@ A simple example reading a time series from in_dir, displaying it, and writing i
 
 .. code-block:: python
 
-  from imagedata.series import Series
+  from imagedata import Series
   a = Series('in_dir', 'time')
   a.show()
   a.write('out_dir')

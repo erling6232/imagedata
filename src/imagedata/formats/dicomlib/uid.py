@@ -54,6 +54,6 @@ def get_uid_for_storage_class(name) -> str:
     for uid in pydicom._uid_dict.UID_dictionary.keys():
         if name == uid:
             return uid
-        if name == uid[4] or name+"Storage" == uid[4] or name+"ImageStorage" == uid[4]:
+        if name == uid[4] or name + "Storage" == uid[4] or name + "ImageStorage" == uid[4]:
             return uid
     raise ValueError("Storage class {} is unknown.".format(name))

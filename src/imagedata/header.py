@@ -358,7 +358,7 @@ class Header(object):
         elif isinstance(template, UniformAxis):
             return UniformAxis(axis.name,
                                template.start,
-                               template.start + (len(axis)+1)*template.step,  # stop
+                               template.start + (len(axis)+1) * template.step,  # stop
                                template.step)
         elif isinstance(template, VariableAxis):
             return VariableAxis(axis.name,

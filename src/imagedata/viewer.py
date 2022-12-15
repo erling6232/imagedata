@@ -55,7 +55,7 @@ class Viewer(object):
             else:
                 raise ValueError('Unknown normalization function: {}'.format(norm))
         if colorbar is None:
-            colorbar = colormap != 'Greys_r' or \
+            colorbar = colormap != 'Greys_r' or\
                        (norm is not None and norm != matplotlib.colors.Normalize)
         for i, im in enumerate(images):
             self.im[i] = build_info(im, colormap, norm, colorbar, window, level)

@@ -102,6 +102,10 @@ class NiftiPlugin(AbstractPlugin):
         except Exception:
             raise
         info = img
+
+        if hdr.input_order == 'auto':
+            hdr.input_order = 'none'
+
         hdr.color = False
         si = self._reorder_to_dicom(
             np.asanyarray(img.dataobj),
@@ -998,7 +1002,7 @@ class NiftiPlugin(AbstractPlugin):
         def xyz2mm(R, v):
             ret = np.zeros(3)
             for i in range(3):
-                ret[i] = R[i, 0]*v[0] + R[i, 1]*v[1] + R[i, 2]*v[2] + R[i, 3]
+                ret[i] = R[i, 0] * v[0] + R[i, 1] * v[1] + R[i, 2] * v[2] + R[i, 3]
             return ret
 
         def getDistance(v, _min):
@@ -1025,11 +1029,11 @@ class NiftiPlugin(AbstractPlugin):
                 flipVecs[i][2] = -1 if (i & 4) == 1 else 1
                 corner[i] = np.array([0., 0., 0.])  # assume no reflections
                 if (flipVecs[i][0]) < 1:
-                    corner[i][0] = h.dim[1]-1  # reflect X
+                    corner[i][0] = h.dim[1] - 1  # reflect X
                 if (flipVecs[i][1]) < 1:
-                    corner[i][1] = h.dim[2]-1  # reflect Y
+                    corner[i][1] = h.dim[2] - 1  # reflect Y
                 if (flipVecs[i][2]) < 1:
-                    corner[i][2] = h.dim[3]-1  # reflect Z
+                    corner[i][2] = h.dim[3] - 1  # reflect Z
                 corner[i] = xyz2mm(s, corner[i])
             # find extreme edge from ALL corners....
             _min = corner[0]
@@ -1094,7 +1098,7 @@ class NiftiPlugin(AbstractPlugin):
             for i in range(3):
                 for j in range(3):
                     if m[i, j] > 0:
-                        ret[j] = i+1
+                        ret[j] = i + 1
                     elif m[i, j] < 0:
                         ret[j] = - (i + 1)
             return ret
@@ -1110,15 +1114,15 @@ class NiftiPlugin(AbstractPlugin):
                 lut[0] = -stepBytesPerVox * (dim - 1)
             if dim > 1:
                 for i in range(1, dim):
-                    lut[i] = lut[i-1] + stepBytesPerVox
+                    lut[i] = lut[i - 1] + stepBytesPerVox
             return lut
 
         def reOrientImg(img, outDim, outInc, bytePerVox, nvol):
             # Reslice data to new orientation
             # Generate look up tables
-            xLUT = orthoOffsetArray(outDim[0], bytePerVox*outInc[0])
-            yLUT = orthoOffsetArray(outDim[1], bytePerVox*outInc[1])
-            zLUT = orthoOffsetArray(outDim[2], bytePerVox*outInc[2])
+            xLUT = orthoOffsetArray(outDim[0], bytePerVox * outInc[0])
+            yLUT = orthoOffsetArray(outDim[1], bytePerVox * outInc[1])
+            zLUT = orthoOffsetArray(outDim[2], bytePerVox * outInc[2])
             # Convert data
             # number of voxels in spatial dimensions [1,2,3]
             # bytePerVol = bytePerVox*outDim[0]*outDim[1]*outDim[2]
@@ -1151,7 +1155,7 @@ class NiftiPlugin(AbstractPlugin):
                 elif abs(orientVec[i]) == 2:
                     outInc[i] = h.dim[1]
                 elif abs(orientVec[i]) == 3:
-                    outInc[i] = h.dim[1]*h.dim[2]
+                    outInc[i] = h.dim[1] * h.dim[2]
                 if orientVec[i] < 0:
                     outInc[i] = -outInc[i]  # flip
             nvol = 1  # convert all non-spatial volumes from source to destination
@@ -1164,8 +1168,8 @@ class NiftiPlugin(AbstractPlugin):
                                h.pixdim[abs(orientVec[1])],
                                h.pixdim[abs(orientVec[2])]])
             for i in range(3):
-                h.dim[i+1] = outDim[i]
-                h.pixdim[i+1] = outPix[i]
+                h.dim[i + 1] = outDim[i]
+                h.pixdim[i + 1] = outPix[i]
             # mat44 s = sFormMat(h);
             s = h.get_sform()
             # mat33 mat; //computer transform
@@ -1239,13 +1243,13 @@ class NiftiPlugin(AbstractPlugin):
         if abs(normal[2]) >= abs(normal[0]) and abs(normal[2]) >= abs(normal[1]):
             slice_direction = 3
         # pos = si.patientPosition(slice_direction)
-        pos = si.imagePositions[0][::-1][slice_direction-1]
+        pos = si.imagePositions[0][::-1][slice_direction - 1]
         x = np.array([0, 0, si.ndim - 1, 1], dtype=float).reshape((1, 4))
         # pos1v = nifti_vect44mat44_mul(x, affine)
         pos1v = x @ affine
         pos1 = pos1v[0, slice_direction - 1]
         # Same direction? Note Python indices from 0
-        flip = (pos > affine[slice_direction-1, 3]) != (pos1 > affine[slice_direction-1, 3])
+        flip = (pos > affine[slice_direction - 1, 3]) != (pos1 > affine[slice_direction - 1, 3])
         if flip:
             slice_direction = - slice_direction
         return slice_direction

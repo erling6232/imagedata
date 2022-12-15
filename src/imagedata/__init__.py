@@ -2,6 +2,8 @@
 
 import logging
 # from imagedata.formats.abstractplugin import AbstractPlugin
+from .series import Series
+from .study import Study
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 

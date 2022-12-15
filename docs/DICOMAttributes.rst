@@ -13,7 +13,7 @@ These attributes can be set and interrogated directly from the Series object:
 
 .. code-block:: python
 
-  from imagedata.series import Series
+  from imagedata import Series
   a = Series('in_dir')
   patientName = a.patientName
   a.seriesDescription = 'DWI MASK'

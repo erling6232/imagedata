@@ -227,9 +227,9 @@ class EllipseROI(ROI):
             self.points[0, :] = self.centre_cm[0, :]
             i = 1
             for angle in np.arange(0.0, 2 * math.pi, math.pi / 12):
-                self.points[i, :] = self.centre_cm +\
-                                    self.radius_cm *\
-                                    np.array((math.sin(angle), 0, math.cos(angle)))
+                self.points[i, :] =\
+                    self.centre_cm +\
+                    self.radius_cm * np.array((math.sin(angle), 0, math.cos(angle)))
                 i += 1
         return self.points
 

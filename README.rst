@@ -41,7 +41,7 @@ A simple example reading two time series from dirA and dirB, and writing their m
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
     a = Series('dirA', 'time')
     b = Series('dirB', 'time')
     assert a.shape == b.shape, "Shape of a and b differ"
@@ -113,7 +113,7 @@ The same example using python code:
 
 .. code-block:: python
 
-  from imagedata.series import Series
+  from imagedata import Series
   a = Series('dicomDir')
   a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
 
