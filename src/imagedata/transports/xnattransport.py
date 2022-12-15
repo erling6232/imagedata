@@ -38,7 +38,7 @@ class XnatTransport(AbstractTransport):
         # Does netloc include username and password?
         if '@' in netloc:
             # Add fake scheme to satisfy urlsplit()
-            url_tuple = urllib.parse.urlsplit('xnat://'+netloc)
+            url_tuple = urllib.parse.urlsplit('xnat://' + netloc)
             self.netloc = url_tuple.hostname
             try:
                 opts['username'] = url_tuple.username
@@ -69,7 +69,7 @@ class XnatTransport(AbstractTransport):
             kwargs['user'] = opts['username']
         if 'password' in opts:
             kwargs['password'] = opts['password']
-        self.__session = xnat.connect('https://'+self.netloc, **kwargs)
+        self.__session = xnat.connect('https://' + self.netloc, **kwargs)
         logger.debug("XnatTransport __init__ session: {}".format(self.__session))
         self.__project = self.__session.projects[project] if project is not None else None
         self.root = '/' + project
