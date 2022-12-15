@@ -196,7 +196,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             wanted_files = [files]
         else:
             wanted_files = files
-        if wanted_files is None or \
+        if wanted_files is None or\
                 (issubclass(type(wanted_files), list) and (
                         len(wanted_files) == 0 or
                         len(wanted_files) > 0 and wanted_files[0] == '*')):
@@ -264,7 +264,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             wanted_files = [files]
         else:
             wanted_files = files
-        if wanted_files is None or \
+        if wanted_files is None or\
                 (issubclass(type(wanted_files), list) and (
                         len(wanted_files) == 0 or
                         len(wanted_files) > 0 and wanted_files[0] == '*')):
