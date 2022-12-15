@@ -192,7 +192,7 @@ See Figure for an example:
 
    import argparse
    import imagedata.cmdline
-   from imagedata.series import Series
+   from imagedata import Series
 
    if __name__ == '__main__':
        parser = argparse.ArgumentParser()

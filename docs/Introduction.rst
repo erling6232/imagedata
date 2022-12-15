@@ -79,7 +79,7 @@ series :
 
 .. code-block:: console
 
-   >>> from imagedata.series import Series
+   >>> from imagedata import Series
    >>> si = Series(’dicom/volume/’)
    >>> print(si.shape, si.dtype)
    (16, 160, 160) uint16
