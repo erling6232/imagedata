@@ -32,7 +32,6 @@ class Study(collections.OrderedDict):
     version = "1.0.0"
     url = "www.helse-bergen.no"
 
-
     _attributes = [
         'studyDate', 'studyTime', 'studyDescription', 'studyID', 'studyInstanceUID',
         'referringPhysiciansName'
@@ -42,7 +41,6 @@ class Study(collections.OrderedDict):
         super(Study, self).__init__()
         for _attr in self._attributes:
             setattr(self, _attr, None)
-
 
         if opts is None:
             _in_opts = {}

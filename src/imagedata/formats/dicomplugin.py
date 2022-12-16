@@ -128,7 +128,8 @@ class DICOMPlugin(AbstractPlugin):
                 - orientation
                 - imagePositions
                 - axes
-                - Modality, laterality, protocolName, bodyPartExamined, seriesDate, seriesTime, patientPosition
+                - modality, laterality, protocolName, bodyPartExamined
+                - seriesDate, seriesTime, patientPosition
         """
         attributes = [
             'patientName', 'patientID', 'patientBirthDate',
@@ -144,34 +145,6 @@ class DICOMPlugin(AbstractPlugin):
             dicom_attribute = attribute[0].upper() + attribute[1:]
             setattr(hdr, attribute,
                     self.getDicomAttribute(dictionary, tag_for_keyword(dicom_attribute)))
-        # hdr.studyInstanceUID = \
-        #     self.getDicomAttribute(dictionary, tag_for_keyword('StudyInstanceUID'))
-        # hdr.studyID = \
-        #     self.getDicomAttribute(dictionary, tag_for_keyword('StudyID'))
-        # hdr.seriesInstanceUID = \
-        #     self.getDicomAttribute(dictionary, tag_for_keyword('SeriesInstanceUID'))
-        # frame_uid = self.getDicomAttribute(dictionary, tag_for_keyword('FrameOfReferenceUID'))
-        # if frame_uid:
-        #     hdr.frameOfReferenceUID = frame_uid
-        # hdr.SOPClassUID = self.getDicomAttribute(dictionary, tag_for_keyword('SOPClassUID'))
-        # hdr.seriesDate = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesDate'))
-        # hdr.seriesTime = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesTime'))
-        # hdr.seriesNumber = self.getDicomAttribute(dictionary, tag_for_keyword('SeriesNumber'))
-        # hdr.seriesDescription = self.getDicomAttribute(dictionary,
-        #                                                tag_for_keyword('SeriesDescription'))
-        # hdr.imageType = self.getDicomAttribute(dictionary, tag_for_keyword('ImageType'))
-        #
-        # hdr.accessionNumber = self.getDicomAttribute(dictionary,
-        #                                              tag_for_keyword('AccessionNumber'))
-        # hdr.patientName = self.getDicomAttribute(dictionary, tag_for_keyword('PatientName'))
-        # hdr.patientID = self.getDicomAttribute(dictionary, tag_for_keyword('PatientID'))
-        # hdr.patientBirthDate = self.getDicomAttribute(dictionary,
-        #                                               tag_for_keyword('PatientBirthDate'))
-        # hdr.modality = self.getDicomAttribute(dictionary, tag_for_keyword('Modality'))
-        # hdr.laterality = self.getDicomAttribute(dictionary, tag_for_keyword('Laterality'))
-        # hdr.protocolName = self.getDicomAttribute(dictionary, tag_for_keyword('ProtocolName'))
-        # hdr.bodyPartExamined = self.getDicomAttribute(dictionary, tag_for_keyword('BodyPartExamined'))
-        # hdr.patientPosition = self.getDicomAttribute(dictionary, tag_for_keyword('PatientPosition'))
 
         hdr.spacing = self.__get_voxel_spacing(dictionary)
 
