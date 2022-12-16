@@ -544,6 +544,10 @@ class Series(np.ndarray):
         except ValueError:
             patientName = ''
         try:
+            modality = self.getDicomAttribute('Modality')
+        except ValueError:
+            modality = ''
+        try:
             seriesDescription = self.seriesDescription
         except ValueError:
             seriesDescription = ''
@@ -560,7 +564,7 @@ class Series(np.ndarray):
                 self.getDicomAttribute('SeriesDate'),
                 self.getDicomAttribute('SeriesTime')
         ) + \
-            "Series #{}: {}\n".format(seriesNumber, seriesDescription) + \
+            "Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
             "Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
                 input_order_to_dirname_str(self.input_order)
@@ -1216,6 +1220,195 @@ class Series(np.ndarray):
         # Invalidate existing transformation matrix
         # self.header.transformationMatrix = None
         self.header.orientation = np.array(orient)
+
+    @property
+    def modality(self):
+        """str: Modality
+
+        Imaging modality.
+
+        Raises:
+            ValueError: when modality is not set.
+            ValueError: when modality cannot be converted to str.
+        """
+        try:
+            if self.header.modality is not None:
+                return self.header.modality
+        except AttributeError:
+            pass
+        raise ValueError("No modality set.")
+
+    @modality.setter
+    def modality(self, mod):
+        if mod is None:
+            self.header.modality = None
+            return
+        try:
+            self.header.modality = str(mod)
+        except AttributeError:
+            raise ValueError("Cannot convert modality to string")
+
+    @property
+    def laterality(self):
+        """str: Laterality
+
+        Imaging laterality.
+
+        Raises:
+            ValueError: when laterality is not set.
+            ValueError: when laterality cannot be converted to str.
+        """
+        try:
+            if self.header.laterality is not None:
+                return self.header.laterality
+        except AttributeError:
+            pass
+        raise ValueError("No laterality set.")
+
+    @laterality.setter
+    def laterality(self, lat):
+        if lat is None:
+            self.header.laterality = None
+            return
+        try:
+            self.header.laterality = str(lat)
+        except AttributeError:
+            raise ValueError("Cannot convert laterality to string")
+
+    @property
+    def bodyPartExamined(self):
+        """str: bodyPartExamined
+
+        Body Part Examined.
+
+        Raises:
+            ValueError: when Body Part Examined is not set.
+            ValueError: when Body Part Examined cannot be converted to str.
+        """
+        try:
+            if self.header.bodyPartExamined is not None:
+                return self.header.bodyPartExamined
+        except AttributeError:
+            pass
+        raise ValueError("No Body Part Examined set.")
+
+    @bodyPartExamined.setter
+    def bodyPartExamined(self, part):
+        if part is None:
+            self.header.bodyPartExamined = None
+            return
+        try:
+            self.header.bodyPartExamined = str(part)
+        except AttributeError:
+            raise ValueError("Cannot convert Body Part Examined to string")
+
+    @property
+    def patientPosition(self):
+        """str: patientPosition
+
+        Patient Position
+
+        Raises:
+            ValueError: when Patient Position is not set.
+            ValueError: when Patient Position cannot be converted to str.
+        """
+        try:
+            if self.header.patientPosition is not None:
+                return self.header.patientPosition
+        except AttributeError:
+            pass
+        raise ValueError("No Patient Position set.")
+
+    @bodyPartExamined.setter
+    def bodyPartExamined(self, pos):
+        if pos is None:
+            self.header.patientPosition = None
+            return
+        try:
+            self.header.patientPosition = str(pos)
+        except AttributeError:
+            raise ValueError("Cannot convert Patient Position to string")
+
+    @property
+    def protocolName(self):
+        """str: protocolName
+
+        Imaging protocolName.
+
+        Raises:
+            ValueError: when protocolName is not set.
+            ValueError: when protocolName cannot be converted to str.
+        """
+        try:
+            if self.header.protocolName is not None:
+                return self.header.protocolName
+        except AttributeError:
+            pass
+        raise ValueError("No protocolName set.")
+
+    @protocolName.setter
+    def protocolName(self, protocol):
+        if protocol is None:
+            self.header.protocolName = None
+            return
+        try:
+            self.header.protocolName = str(protocol)
+        except AttributeError:
+            raise ValueError("Cannot convert Protocol Name to string")
+
+    @property
+    def seriesDate(self):
+        """str: seriesDate
+
+        Imaging Series Date.
+
+        Raises:
+            ValueError: when seriesDate is not set.
+            ValueError: when seriesDate cannot be converted to str.
+        """
+        try:
+            if self.header.seriesDate is not None:
+                return self.header.seriesDate
+        except AttributeError:
+            pass
+        raise ValueError("No Series Date set.")
+
+    @seriesDate.setter
+    def seriesDate(self, date):
+        if date is None:
+            self.header.seriesDate = None
+            return
+        try:
+            self.header.seriesDate = str(date)
+        except AttributeError:
+            raise ValueError("Cannot convert Series Date to string")
+
+    @property
+    def seriesTime(self):
+        """str: seriesTime
+
+        Imaging Series Time.
+
+        Raises:
+            ValueError: when seriesTime is not set.
+            ValueError: when seriesTime cannot be converted to str.
+        """
+        try:
+            if self.header.seriesTime is not None:
+                return self.header.seriesTime
+        except AttributeError:
+            pass
+        raise ValueError("No Series Time set.")
+
+    @seriesTime.setter
+    def seriesTime(self, time):
+        if time is None:
+            self.header.seriesTime = None
+            return
+        try:
+            self.header.seriesTime = str(time)
+        except AttributeError:
+            raise ValueError("Cannot convert Series Time to string")
 
     @property
     def seriesNumber(self):
