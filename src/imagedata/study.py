@@ -32,26 +32,43 @@ class Study(collections.OrderedDict):
     version = "1.0.0"
     url = "www.helse-bergen.no"
 
+
+    _attributes = [
+        'studyDate', 'studyTime', 'studyDescription', 'studyID', 'studyInstanceUID',
+        'referringPhysiciansName'
+    ]
+
     def __init__(self, url, opts=None):
         super(Study, self).__init__()
+        for _attr in self._attributes:
+            setattr(self, _attr, None)
+
 
         if opts is None:
-            in_opts = {}
+            _in_opts = {}
         elif issubclass(type(opts), dict):
-            in_opts = opts
+            _in_opts = opts
         elif issubclass(type(opts), argparse.Namespace):
-            in_opts = vars(opts)
+            _in_opts = vars(opts)
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
 
         # Read input, hdr is dict of attributes
-        in_opts['separate_series'] = True
-        hdr, si = r_read(url, order='auto', opts=in_opts)
+        _in_opts['separate_series'] = True
+        _hdr, _si = r_read(url, order='auto', opts=_in_opts)
 
-        for uid in hdr:
-            self[uid] = Series(si[uid])
-            self[uid].header = hdr[uid]
+        for _uid in _hdr:
+            self[_uid] = Series(_si[_uid])
+            self[_uid].header = _hdr[_uid]
+
+            for _attr in self._attributes:
+                _dicom_attribute = _attr[0].upper() + _attr[1:]
+                # TODO: Consider what to do when study attributes differ in series.
+                # Update self property if None from series
+                if getattr(self, _attr, None) is None:
+                    setattr(self, _attr,
+                            self[_uid].getDicomAttribute(_dicom_attribute))
 
         # dicomplugin:
         #   read_files
