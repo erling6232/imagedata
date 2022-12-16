@@ -14,7 +14,8 @@ from .axis import UniformAxis, UniformLengthAxis, VariableAxis
 logger = logging.getLogger(__name__)
 
 header_tags = ['input_format',
-               'seriesNumber',
+               'modality', 'laterality', 'protocolName', 'bodyPartExamined',
+               'seriesDate', 'seriesTime', 'seriesNumber',
                'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
                'SOPClassUID',
@@ -23,6 +24,7 @@ header_tags = ['input_format',
                'input_sort']
 geometry_tags = ['tags', 'spacing',
                  'imagePositions', 'orientation', 'transformationMatrix',
+                 'patientPosition',
                  'photometricInterpretation', 'axes']
 
 
