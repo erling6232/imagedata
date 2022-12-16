@@ -19,6 +19,7 @@ class TestStudy(unittest.TestCase):
             self.assertIsNotNone(serdescr)
             self.assertIsNotNone(series.seriesNumber)
             self.assertIsNotNone(series.input_order)
+        self.assertIsNotNone(study.studyInstanceUID)
 
 if __name__ == '__main__':
     unittest.main()
