@@ -8,7 +8,7 @@ The Study class is a collection of Series objects.
 
 """
 
-import collections
+from sortedcontainers import SortedDict
 import logging
 import argparse
 
@@ -22,7 +22,7 @@ class UnknownOptionType(Exception):
     pass
 
 
-class Study(collections.OrderedDict):
+class Study(SortedDict):
     """Study -- A collection of Series objects.
     """
 
