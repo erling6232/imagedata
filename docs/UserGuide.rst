@@ -16,5 +16,4 @@ User Guide
   CommandLine
   Examples
   Plugins
-  ReleaseNotes
   APIReference
