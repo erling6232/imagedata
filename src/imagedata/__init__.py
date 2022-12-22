@@ -3,7 +3,7 @@
 import logging
 # from imagedata.formats.abstractplugin import AbstractPlugin
 from .series import Series
-from .study import Study
+from .collections import Study, Patient, Cohort
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
