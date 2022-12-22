@@ -36,8 +36,8 @@ class Series(np.ndarray):
     The Series class is a subclassed Numpy.ndarray enhancing the ndarray
     with relevant medical image methods and attributes.
 
-    Series(data, input_order='none', opts=None, shape=(0,), dtype=float, order=None,
-           template=None, geometry=None)
+    Series(data, input_order='auto', opts=None, shape=(0,), dtype=float, order=None,
+           template=None, geometry=None, axes=None)
 
     Examples:
 
