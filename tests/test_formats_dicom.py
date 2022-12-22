@@ -72,6 +72,26 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(3, len(si1.axes))
         self.assertEqual(14, si1.seriesNumber)
 
+    def test_read_auto_volume(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'auto',
+            self.opts)
+        self.assertEqual(imagedata.formats.INPUT_ORDER_NONE, si1.input_order)
+        self.assertEqual((3, 192, 152), si1.shape)
+        self.assertEqual(3, len(si1.axes))
+        self.assertEqual(14, si1.seriesNumber)
+
+    def test_read_auto_time(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time'),
+            'auto',
+            self.opts)
+        self.assertEqual(imagedata.formats.INPUT_ORDER_TIME, si1.input_order)
+        self.assertEqual((3, 3, 192, 152), si1.shape)
+        self.assertEqual(4, len(si1.axes))
+        self.assertEqual(14, si1.seriesNumber)
+
     # @unittest.skip("skipping test_read_dicom_3D_no_opt")
     def test_read_dicom_3D_no_opt(self):
         d = Series(
