@@ -626,42 +626,7 @@ class DICOMPlugin(AbstractPlugin):
             raise UnevenSlicesError("Different number of images in each slice.")
 
         if input_order == INPUT_ORDER_AUTO:
-            # Extract all tags
-            found_tags = {}
-            for sloc in sorted(header_dict):
-                for archive, filename, im in sorted(header_dict[sloc]):
-                    for order in ['time', 'b', 'fa', 'te']:
-                        try:
-                            tag = self._get_tag(im, order, opts)
-                            if tag is None:
-                                continue
-                            if order not in found_tags:
-                                found_tags[order] = []
-                            if tag not in found_tags[order]:
-                                found_tags[order].append(tag)
-                        except (KeyError, TypeError, CannotSort):
-                            pass
-                        # except Exception:
-                        #     raise
-            # Determine how to sort
-            actual_order = None
-            for order in found_tags:
-                try:
-                    if len(found_tags[order]) > 1:
-                        if actual_order is None:
-                            actual_order = order
-                        elif actual_order == 'time' and order == 'b':
-                            # DWI images will typically have varying time.
-                            # Let b values override time stamps.
-                            actual_order = order
-                        else:
-                            raise CannotSort('Cannot auto-sort: {}'.format(found_tags))
-                except Exception as e:
-                    print(e)
-                    raise
-            if actual_order is None:
-                actual_order = 'none'
-            input_order = actual_order
+            input_order = self.auto_sort(header_dict, opts)
 
         hdr.input_order = input_order
 
@@ -775,6 +740,59 @@ class DICOMPlugin(AbstractPlugin):
         hdr.axes = axes
         return sorted_headers, hdr, shape
 
+    def auto_sort(self, header_dict, opts):
+        def _single_slice_over_time(tags):
+            """If time and slice both varies, the time stamps address slices of a single volume
+            """
+            count_time = {}
+            count_sloc = {}
+            for time, sloc in tags:
+                if time not in count_time:
+                    count_time[time] = 0
+                if sloc not in count_sloc:
+                    count_sloc[sloc] = 0
+                count_time[time] += 1
+                count_sloc[sloc] += 1
+            max_time = max(count_time.values())
+            max_sloc = max(count_sloc.values())
+            return max_time == 1 and max_sloc == 1
+
+        extended_tags = {}
+        found_tags = {}
+        for sloc in sorted(header_dict):
+            for archive, filename, im in sorted(header_dict[sloc]):
+                for order in ['time', 'b', 'fa', 'te']:
+                    try:
+                        tag = self._get_tag(im, order, opts)
+                        if tag is None:
+                            continue
+                        if order not in found_tags:
+                            found_tags[order] = []
+                            extended_tags[order] = []
+                        if tag not in found_tags[order]:
+                            found_tags[order].append(tag)
+                            extended_tags[order].append((tag, sloc))
+                    except (KeyError, TypeError, CannotSort):
+                        pass
+
+        # Determine how to sort
+        actual_order = None
+        for order in found_tags:
+            if len(found_tags[order]) > 1:
+                if actual_order == 'time' and order in ['b', 'te']:
+                    # DWI images will typically have varying time.
+                    # Let b values override time stamps.
+                    actual_order = order
+                elif actual_order is None:
+                    actual_order = order
+                else:
+                    raise CannotSort('Cannot auto-sort: {}'.format(extended_tags))
+        if actual_order is None:
+            actual_order = INPUT_ORDER_NONE
+        elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
+            actual_order = INPUT_ORDER_NONE
+        return actual_order
+
     def process_member(self, image_dict, archive, member_name, member, opts, skip_pixels=False):
         if issubclass(type(member), pydicom.dataset.Dataset):
             im = member
@@ -802,9 +820,11 @@ class DICOMPlugin(AbstractPlugin):
         logger.debug('DICOMPlugin.process_member: {} SliceLocation {}'.format(member, sloc))
 
         if 'separate_series' in opts and opts['separate_series']:
-            if im.SeriesInstanceUID not in image_dict:
-                image_dict[im.SeriesInstanceUID] = {}
-            my_dict = image_dict[im.SeriesInstanceUID]
+            # Catalog images with uids as key
+            uids = (im.PatientName, im.PatientID, im.StudyInstanceUID, im.SeriesInstanceUID)
+            if uids not in image_dict:
+                image_dict[uids] = {}
+            my_dict = image_dict[uids]
         else:
             my_dict = image_dict
         if sloc not in my_dict:
