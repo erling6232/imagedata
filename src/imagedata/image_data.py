@@ -11,10 +11,11 @@ import urllib
 import logging
 import numpy as np
 from .cmdline import add_argparse_options
-from .formats import find_plugin, NotImageError
+from .formats import find_plugin, NotImageError, input_order_to_dirname_str, shape_to_str
 from .readdata import _get_sources
 from .transports import Transport
 from .series import Series
+from .collections import Cohort
 
 logger = logging.getLogger()
 
@@ -196,20 +197,26 @@ def calculator():
     return 0
 
 
-def statistics():
+def statistics(cmdline=None):
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
     parser.add_argument('--mask',
                         help='Image mask', default=None)
     parser.add_argument('--bash', action='store_true',
                         help='Print bash commands')
-    parser.add_argument("in_dirs", nargs='+',
+    parser.add_argument("in_dirs",  # nargs='+',
                         help="Input directories and files")
-    args = parser.parse_args()
+    if cmdline is None:
+        args = parser.parse_args()
+    else:
+        if not issubclass(type(cmdline), list):
+            cmdline = [cmdline]
+        args = parser.parse_args(cmdline)
     logger.setLevel(args.loglevel)
 
     try:
-        si = Series(args.in_dirs, args.input_order, args)
+        cohort = Cohort(args.in_dirs, opts=args)
+        # si = Series(args.in_dirs, args.input_order, args)
     except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
@@ -224,6 +231,25 @@ def statistics():
             print("Could not determine input format of %s." % args.mask)
             return 1
 
+    print("{}".format(cohort))
+    for patientID in cohort:
+        patient = cohort[patientID]
+        print("  {}".format(patient))
+        for studyInstanceUID in patient:
+            study = patient[studyInstanceUID]
+            print("    {}".format(study))
+            for seriesInstanceUID in study:
+                series = study[seriesInstanceUID]
+                print("      Series #{} {}: {}, shape: {}, dtype: {}, input order: {}".format(
+                    series.seriesNumber, series.modality,
+                    series.seriesDescription,
+                    shape_to_str(series.shape), series.dtype,
+                    input_order_to_dirname_str(series.input_order)
+                ))
+                print_statistics(series, mask, bash=args.bash)
+
+
+def print_statistics(si, mask=None, bash=False):
     if mask is None:
         selection = si
     else:
@@ -233,17 +259,14 @@ def statistics():
     _mean = np.mean(selection)
     _std = np.std(selection)
     _median = np.median(np.array(selection))
-    _size = selection.size
-    _dtype = selection.dtype
 
-    if args.bash:
+    if bash:
         print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(
             _min, _max, _mean, _std, _median))
         print('export min max mean std median')
     else:
-        print('Min: {}, max: {}'.format(_min, _max))
-        print('Mean: {} +- {}, median: {}'.format(_mean, _std, _median))
-        print('Points: {}, shape: {}, dtype: {}'.format(_size, si.shape, _dtype))
+        print('        Min: {}, max: {}, mean: {} +/- {}, median: {}'.format(
+            _min, _max, _mean, _std, _median))
     return 0
 
 
@@ -296,7 +319,8 @@ def conversion():
     add_argparse_options(parser)
     parser.add_argument("out_name",
                         help="Output directory")
-    parser.add_argument("in_dirs", nargs='+',
+    # parser.add_argument("in_dirs", nargs='+',
+    parser.add_argument("in_dirs",
                         help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
@@ -306,7 +330,8 @@ def conversion():
     #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
-        si = Series(args.in_dirs, args.input_order, args)
+        si = Cohort(args.in_dirs, opts=args)
+        # si = Series(args.in_dirs, args.input_order, args)
     except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
