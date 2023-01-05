@@ -226,7 +226,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] = \
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write('{}?Image%05d.dcm'.format(d),
                       formats=['dicom'],
@@ -246,7 +246,7 @@ class TestDicomPlugin(unittest.TestCase):
                     si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
                 )
                 # si2 SOPInstanceUIDs should also be identical to original si1
-                self.assertNotEqual(
+                self.assertEqual(
                     si1_sopinsuid[_slice][_tag],
                     si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
                 )
@@ -259,7 +259,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] =\
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write('{}?Image%05d.dcm'.format(d),
                       formats=['dicom'],
