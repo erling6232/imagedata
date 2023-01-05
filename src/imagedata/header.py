@@ -5,6 +5,7 @@
 import copy
 import logging
 import numpy as np
+import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
 from .formats import INPUT_ORDER_NONE
@@ -180,7 +181,12 @@ class Header(object):
             if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
                 value = getattr(template, attr, None)
                 if value is not None:
-                    setattr(self, attr, getattr(template, attr, None))
+                    setattr(self, attr, value)
+        if 'keep_uid' in template.__dict__:
+            value = getattr(template, 'seriesInstanceUID', None)
+            if value is not None:
+                setattr(self, 'seriesInstanceUID', value)
+
         # Make sure DicomHeaderDict is set last
         if template.DicomHeaderDict is not None:
             self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
