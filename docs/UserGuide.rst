@@ -8,6 +8,7 @@ User Guide
 
   Installation
   Tutorial
+  Collections
   Notebook
   Introduction
   Input_output
