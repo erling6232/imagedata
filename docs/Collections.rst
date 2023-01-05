@@ -47,3 +47,15 @@ Reading a patient with multiple Study instances
         study = patient[uid]
         print(study.studyDate, study.studyTime)
 
+Reading a cohort of multiple Patient instances
+-----------------------------------------------
+
+.. code-block:: python
+
+    from imagedata import Cohort
+
+    cohort = Cohort('data/dicom')
+    for id in cohort:
+        patient = cohort[id]
+        print(patient.patientName, patient.patientID)
+
