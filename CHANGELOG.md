@@ -11,7 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Patient and Cohort classes: Patient is a collection of Study instances, while
 Cohort is a collection of Patient instances.
-* 'keep_uid'=True option to the Series.write() method will leave DICOM UIDs untouched while writing.
+* The dicom read has been modified to keep the UIDs of the input files.
+This way SOPInstanceUIDs are correct when you later want to look up SOPInstanceUID from a DICOM PR.
+* The series write() method now has an option to keep the UID when writing. The UIDs used to be modified at output to indicate that the data might have been modified. Do something like:
+
+	a.write(destination, opts={'keep_uid': True})
+
 
 ## [v2.0.0-dev0] - 2022-12-19
 ### Added
