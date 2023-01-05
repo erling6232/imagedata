@@ -108,6 +108,7 @@ def read(urls, order=None, opts=None):
         reader = pclass()
         try:
             hdr, si = reader.read(sources, None, input_order, in_opts)
+            del reader
 
             for source in sources:
                 logger.debug("readdata.read: close archive {}".format(source['archive']))
@@ -275,6 +276,7 @@ def write(si, url, opts=None, formats=None):
                     raise ValueError("Don't know how to write image of shape {}".format(
                         write_si.shape))
                 written = True
+                del writer
             except WriteNotImplemented:
                 raise
             except Exception as e:
