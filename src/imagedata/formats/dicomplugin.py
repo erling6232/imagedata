@@ -290,7 +290,6 @@ class DICOMPlugin(AbstractPlugin):
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        hdr.keep_uid = True
         return hdr, si
 
     @staticmethod
@@ -418,6 +417,7 @@ class DICOMPlugin(AbstractPlugin):
             si = {}
             for imdict, h, shape in image_dict:
                 self.extractDicomAttributes(imdict, h)
+                setattr(h, 'keep_uid', True)
                 hdr[h.seriesInstanceUID] = h
                 if skip_pixels:
                     si[h.seriesInstanceUID] = None
@@ -435,6 +435,7 @@ class DICOMPlugin(AbstractPlugin):
                 si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
 
             self.extractDicomAttributes(image_dict, hdr)
+            setattr(hdr, 'keep_uid', True)
             del image_dict
 
         return hdr, si
