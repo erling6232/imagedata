@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-dev1] - 2023-01-05
+### Added
+* Patient and Cohort classes: Patient is a collection of Study instances, while
+Cohort is a collection of Patient instances.
+* 'keep_uid'=True option to the Series.write() method will leave DICOM UIDs untouched while writing.
+
 ## [v2.0.0-dev0] - 2022-12-19
 ### Added
 * Study class: a collection of Series instances.
