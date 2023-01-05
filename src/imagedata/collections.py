@@ -39,7 +39,7 @@ def _sort_in_series(_data, _opts):
         _data: url (str) or dict of Series instances
         _opts
     Returns:
-        dict of Series
+        dict of Series instances, key is SeriesInstanceUID
 
     """
     _series_dict = {}
@@ -65,7 +65,7 @@ def _sort_in_series(_data, _opts):
                         type(list(_data.values())[0])))
     elif issubclass(type(_data), Study):
         raise ValueError('Why here')
-        return {_data.seriesInstanceUID: _data}
+        # return {_data.seriesInstanceUID: _data}
     elif issubclass(type(_data), str) or issubclass(type(_data), Path):
         # _data is URL
         # Read input, hdr is dict of attributes
@@ -81,35 +81,38 @@ def _sort_in_series(_data, _opts):
     return _series_dict
 
 
-def _sort_in_studies(_data, _opts):
+def _sort_in_studies(_series_dict, _opts):
     """Sort series in studies
     Called by Cohort for series dict
 
     Args:
-        _data: dict of series
+        _series_dict: dict of Series instances
         _opts:
 
     Returns:
-        dict of dict of Series instances, [StudyInstanceUID][SeriesInstanceUID]
+        dict of Study instances, key is StudyInstanceUID
     """
     _studies = {}
-    if issubclass(type(_data), dict):
-        # _data is list of Study
-        for _seriesInstanceUID in _data:
-            _series = _data[_seriesInstanceUID]
-            if _series.studyInstanceUID not in _studies:
-                _studies[_series.studyInstanceUID] = {}
-            _studies[_series.studyInstanceUID][_seriesInstanceUID] = _series
-        return _studies
-    raise ValueError('Why here?')
-    # _data is dict of Series
-    for _seriesInstanceUID in _data:
-        _studyInstanceUID = _data[_seriesInstanceUID].studyInstanceUID
+    for _seriesInstanceUID in _series_dict:
+        _series = _series_dict[_seriesInstanceUID]
+        _studyInstanceUID = _series.studyInstanceUID
         if _studyInstanceUID not in _studies:
             _studies[_studyInstanceUID] = {}
-        _series = Series(_data[_seriesInstanceUID])
         _studies[_studyInstanceUID][_seriesInstanceUID] = _series
-    return _studies
+    # Make found _studies into Study instances
+    _study_dict = {}
+    for _studyInstanceUID in _studies:
+        _study_dict[_studyInstanceUID] = Study(_studies[_studyInstanceUID], opts=_opts)
+    return _study_dict
+    # if issubclass(type(_data), dict):
+    #     # _data is list of Study
+    #     for _seriesInstanceUID in _data:
+    #         _series = _data[_seriesInstanceUID]
+    #         if _series.studyInstanceUID not in _studies:
+    #             _studies[_series.studyInstanceUID] = {}
+    #         _studies[_series.studyInstanceUID][_seriesInstanceUID] = _series
+    #     return _studies
+    # raise ValueError('Why here?')
 
 
 def _sort_in_patients(_study_dict, _opts):
@@ -353,9 +356,9 @@ class Patient(SortedDict):
 
         if issubclass(type(data), list) and len(data) and issubclass(type(data[0]), Study):
             # Add each study to self patient
-            self._add_studies(data, _in_opts)
+            self._add_studies(data)
         elif issubclass(type(data), dict) and issubclass(type(list(data.values())[0]), Study):
-            self._add_studies(data, _in_opts)
+            self._add_studies(data)
             # _study_dict = data
             # for _studyInstanceUID in data:
             #     self[_studyInstanceUID] = _study_dict[_studyInstanceUID]
@@ -365,8 +368,7 @@ class Patient(SortedDict):
             # Add each study to self patient
             for _studyInstanceUID in _study_dict:
                 # self[_studyInstanceUID] = Study(_study_dict[_studyInstanceUID])
-                _study = Study(_study_dict[_studyInstanceUID])
-                self[_studyInstanceUID] = _study
+                self[_studyInstanceUID] = _study_dict[_studyInstanceUID]
 
         for _studyInstanceUID in self.keys():
             for _attr in self._attributes:
@@ -386,12 +388,11 @@ class Patient(SortedDict):
                     ))
             setattr(self, 'clinicalTrialSubject', ClinicalTrialSubject(self[_studyInstanceUID]))
 
-    def _add_studies(self, data, opts=None):
+    def _add_studies(self, data):
         """Add each study to self patient
 
         Args:
             data: dict of Study instances
-            opts:
 
         Returns:
             self: added Study instances to self

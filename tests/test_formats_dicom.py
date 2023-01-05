@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import unittest
+import copy
 import os.path
 import tempfile
 import numpy as np
@@ -216,6 +217,72 @@ class TestDicomPlugin(unittest.TestCase):
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
+
+    def test_write_keep_uid(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
+        si1_sopinsuid = {}
+        for _slice in range(si1.slices):
+            si1_sopinsuid[_slice] = {}
+            for _tag in si1.tags[0]:
+                si1_sopinsuid[_slice][_tag] = \
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+        with tempfile.TemporaryDirectory() as d:
+            si1.write('{}?Image%05d.dcm'.format(d),
+                      formats=['dicom'],
+                      opts={'keep_uid': True})
+            si2 = Series(d)
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+        self.assertEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', si2.SOPClassUID)
+        self.assertEqual(si1.slices, si2.slices)
+        self.assertEqual(len(si1.tags[0]), len(si2.tags[0]))
+        for _slice in range(si1.slices):
+            for _tag in si1.tags[0]:
+                # si1 SOPInstanceUIDs should be identical to si2
+                self.assertEqual(
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                )
+                # si2 SOPInstanceUIDs should also be identical to original si1
+                self.assertNotEqual(
+                    si1_sopinsuid[_slice][_tag],
+                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                )
+
+    def test_write_no_keep_uid(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        # Make a copy of SOPInstanceUIDs before they are modified in write()
+        si1_sopinsuid = {}
+        for _slice in range(si1.slices):
+            si1_sopinsuid[_slice] = {}
+            for _tag in si1.tags[0]:
+                si1_sopinsuid[_slice][_tag] =\
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+        with tempfile.TemporaryDirectory() as d:
+            si1.write('{}?Image%05d.dcm'.format(d),
+                      formats=['dicom'],
+                      opts={'keep_uid': False})
+            si2 = Series(d)
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+        self.assertNotEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
+        self.assertEqual('1.2.840.10008.5.1.4.1.1.4', si2.SOPClassUID)
+        self.assertEqual(si1.slices, si2.slices)
+        self.assertEqual(len(si1.tags[0]), len(si2.tags[0]))
+        for _slice in range(si1.slices):
+            for _tag in si1.tags[0]:
+                # si1 SOPInstanceUIDs where modified at write() and will be identical to si2
+                self.assertEqual(
+                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
+                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                )
+                # si2 SOPInstanceUIDs should differ from original si1
+                self.assertNotEqual(
+                    si1_sopinsuid[_slice][_tag],
+                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                )
 
 
 class TestDicomZipPlugin(unittest.TestCase):

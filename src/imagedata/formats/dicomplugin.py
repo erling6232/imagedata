@@ -78,6 +78,7 @@ class DICOMPlugin(AbstractPlugin):
 
     root = "2.16.578.1.37.1.1.4"
     smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8', 'int16')
+    keep_uid = False
 
     def __init__(self):
         super(DICOMPlugin, self).__init__(self.name, self.description,
@@ -144,7 +145,8 @@ class DICOMPlugin(AbstractPlugin):
         for attribute in attributes:
             dicom_attribute = attribute[0].upper() + attribute[1:]
             setattr(hdr, attribute,
-                    self.getDicomAttribute(dictionary, tag_for_keyword(dicom_attribute)))
+                    self.getDicomAttribute(dictionary, tag_for_keyword(dicom_attribute))
+                    )
 
         hdr.spacing = self.__get_voxel_spacing(dictionary)
 
@@ -247,6 +249,7 @@ class DICOMPlugin(AbstractPlugin):
                     - slices
                     - sliceLocations
                     - DicomHeaderDict
+                    - keep_uid
                     - tags
                     - seriesNumber
                     - seriesDescription
@@ -414,6 +417,7 @@ class DICOMPlugin(AbstractPlugin):
             si = {}
             for imdict, h, shape in image_dict:
                 self.extractDicomAttributes(imdict, h)
+                setattr(h, 'keep_uid', True)
                 hdr[h.seriesInstanceUID] = h
                 if skip_pixels:
                     si[h.seriesInstanceUID] = None
@@ -431,11 +435,13 @@ class DICOMPlugin(AbstractPlugin):
                 si = self.construct_pixel_array(image_dict, hdr, shape, opts=opts)
 
             self.extractDicomAttributes(image_dict, hdr)
+            setattr(hdr, 'keep_uid', True)
             del image_dict
 
         return hdr, si
 
-    def construct_pixel_array(self, image_dict, hdr, shape, opts={}):
+    def construct_pixel_array(self, image_dict, hdr, shape, opts=None):
+        opts = {} if opts is None else opts
         # Look-up first image to determine pixel type
         # tag, member_name, im = hdr.DicomHeaderDict[0][0]
         tag, member_name, im = image_dict[0][0]
@@ -689,6 +695,8 @@ class DICOMPlugin(AbstractPlugin):
                 i += 1
             islice += 1
         hdr.DicomHeaderDict = _copy_headers(sorted_headers)
+        # hdr.seriesInstanceUID = self.getDicomAttribute(hdr.DicomHeaderDict, 'SeriesInstanceUID')
+        # hdr.SOPClassUID = self.getDicomAttribute(hdr.DicomHeaderDict, 'SOPClassUID')
         hdr.tags = {}
         for _slice in range(len(tag_list)):
             hdr.tags[_slice] = np.array(tag_list[_slice])
@@ -909,6 +917,7 @@ class DICOMPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
         logger.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
+        self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
 
         self.instanceNumber = 0
 
@@ -928,9 +937,8 @@ class DICOMPlugin(AbstractPlugin):
         logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
-        # self.serInsUid = si.header.seriesInstanceUID
-        # Set new series instance UID when writing
-        self.serInsUid = si.header.new_uid()
+        # Set series instance UID when writing
+        self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
         logger.debug("write_3d_series {}".format(self.serInsUid))
         self.input_options = opts
 
@@ -984,6 +992,7 @@ class DICOMPlugin(AbstractPlugin):
         filename_template = 'Image_%05d.dcm'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
+        self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
 
         self.DicomHeaderDict = si.DicomHeaderDict
 
@@ -1015,9 +1024,8 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Not used # self.seriesTime = obj.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
-        # self.serInsUid = si.header.seriesInstanceUID
-        # Set new series instance UID when writing
-        self.serInsUid = si.header.seriesInstanceUID
+        # Set series instance UID when writing
+        self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
         self.input_options = opts
 
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
@@ -1061,7 +1069,7 @@ class DICOMPlugin(AbstractPlugin):
                         self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
                         ifile += 1
 
-    def write_enhanced(self, si, archive, filename_template):
+    def write_enhanced(self, si, archive, filename_template, opts):
         """Write enhanced CT/MR object to DICOM file
 
         Args:
@@ -1069,6 +1077,7 @@ class DICOMPlugin(AbstractPlugin):
             si: Series instance, including these attributes:
             archive: archive object
             filename_template: file name template, possible without '.dcm' extension
+            opts: Output options (dict)
         Raises:
 
         """
@@ -1088,6 +1097,7 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         logger.debug("write_enhanced member_name {}".format(member_name))
+        self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
         ds = self.construct_enhanced_dicom(filename_template, im, safe_si)
 
         # Add header information
@@ -1348,7 +1358,10 @@ class DICOMPlugin(AbstractPlugin):
     def construct_dicom(self, filename, template, si):
 
         self.instanceNumber += 1
-        sop_ins_uid = si.header.new_uid()
+        if self.keep_uid:
+            sop_ins_uid = si.getDicomAttribute('SOPInstanceUID')
+        else:
+            sop_ins_uid = si.header.new_uid()
 
         # Populate required values for file meta information
         file_meta = pydicom.dataset.FileMetaDataset()
