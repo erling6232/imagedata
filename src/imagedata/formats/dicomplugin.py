@@ -938,7 +938,9 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Set series instance UID when writing
-        self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
+        if not self.keep_uid:
+            si.header.seriesInstanceUID = si.header.new_uid()
+        self.serInsUid = si.header.seriesInstanceUID
         logger.debug("write_3d_series {}".format(self.serInsUid))
         self.input_options = opts
 
@@ -1025,7 +1027,9 @@ class DICOMPlugin(AbstractPlugin):
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Not used # self.seriesTime = obj.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
         # Set series instance UID when writing
-        self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
+        if not self.keep_uid:
+            si.header.seriesInstanceUID = si.header.new_uid()
+        self.serInsUid = si.header.seriesInstanceUID
         self.input_options = opts
 
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
@@ -1098,6 +1102,10 @@ class DICOMPlugin(AbstractPlugin):
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         logger.debug("write_enhanced member_name {}".format(member_name))
         self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
+        if not self.keep_uid:
+            si.header.seriesInstanceUID = si.header.new_uid()
+        self.serInsUid = si.header.seriesInstanceUID
+
         ds = self.construct_enhanced_dicom(filename_template, im, safe_si)
 
         # Add header information
@@ -1358,10 +1366,9 @@ class DICOMPlugin(AbstractPlugin):
     def construct_dicom(self, filename, template, si):
 
         self.instanceNumber += 1
-        if self.keep_uid:
-            sop_ins_uid = si.getDicomAttribute('SOPInstanceUID')
-        else:
-            sop_ins_uid = si.header.new_uid()
+        if not self.keep_uid:
+            si.setDicomAttribute('SOPInstanceUID',si.header.new_uid())
+        sop_ins_uid = si.getDicomAttribute('SOPInstanceUID')
 
         # Populate required values for file meta information
         file_meta = pydicom.dataset.FileMetaDataset()
