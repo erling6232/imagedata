@@ -35,6 +35,9 @@ The input order of each Series is auto-detected.
     If not (vibe and dce):
         raise ValueError('Some series not found in study.')
 
+Study Attributes
+----------------
+
 Reading a patient with multiple Study instances
 -----------------------------------------------
 
