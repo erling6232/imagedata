@@ -15,7 +15,7 @@ be auto-detected. There is no way to set input order explicitly.
 
 Note: At present, this works for DICOM data only.
 
-Reading a study of multiple Series
+Reading a Study of multiple Series
 ----------------------------------
 
 The Study class can be used to sort DICOM files according to SeriesInstanceUID.
@@ -36,9 +36,45 @@ The input order of each Series is auto-detected.
         raise ValueError('Some series not found in study.')
 
 Study Attributes
-----------------
+~~~~~~~~~~~~~~~~
 
-Reading a patient with multiple Study instances
++-------------------------+-----------------------------+
+| Study property name     | DICOM Attribute Name        |
++=========================+=============================+
+| studyDate               | StudyDate                   |
++-------------------------+-----------------------------+
+| studyTime               | StudyTime                   |
++-------------------------+-----------------------------+
+| studyDescription        | StudyDescription            |
++-------------------------+-----------------------------+
+| studyID                 | StudyID                     |
++-------------------------+-----------------------------+
+| studyInstanceUID        | StudyInstanceUID            |
++-------------------------+-----------------------------+
+| referringPhysiciansName | ReferringPhysiciansName     |
++-------------------------+-----------------------------+
+| generalEquipment        | Instance of                 |
+|                         | GeneralEquipment class      |
++-------------------------+-----------------------------+
+
+GeneralEquipment Attributes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
++-------------------------+-----------------------------+
+| Study property name     | DICOM Attribute Name        |
++=========================+=============================+
+| manufacturer            | Manufacturer                |
++-------------------------+-----------------------------+
+| manufacturersModelName  | ManufacturerModelName       |
++-------------------------+-----------------------------+
+| stationName             | StationName                 |
++-------------------------+-----------------------------+
+| deviceSerialNumber      | DeviceSerialNumber          |
++-------------------------+-----------------------------+
+| softwareVersions        | SoftwareVersions            |
++-------------------------+-----------------------------+
+
+Reading a Patient with multiple Study instances
 -----------------------------------------------
 
 .. code-block:: python
@@ -49,6 +85,38 @@ Reading a patient with multiple Study instances
     for uid in patient:
         study = patient[uid]
         print(study.studyDate, study.studyTime)
+
+Patient Attributes
+~~~~~~~~~~~~~~~~~~
+
++-------------------------+-------------------------+-------+
+| Patient property name   | DICOM Attribute Name    | Usage |
++=========================+=========================+=======+
+| patientName             | PatientName             | str   |
++-------------------------+-------------------------+-------+
+| patientID               | PatientID               |       |
++-------------------------+-------------------------+-------+
+| patientBirthDate        | PatientBirthDate        |       |
++-------------------------+-------------------------+-------+
+| patientSex              | PatientSex              |       |
++-------------------------+-------------------------+-------+
+| patientAge              | PatientAge              |       |
++-------------------------+-------------------------+-------+
+| patientSize             | PatientSize             |       |
++-------------------------+-------------------------+-------+
+| patientWeight           | PatientWeight           |       |
++-------------------------+-------------------------+-------+
+| qualityControlSubject   |                         |       |
++-------------------------+-------------------------+-------+
+| patientIdentityRemoved  | PatientIdentityRemoved  |       |
++-------------------------+-------------------------+-------+
+| deidentificationMethod  | DeidentificationMethod  |       |
++-------------------------+-------------------------+-------+
+
+QualityControlSubject Attributes
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+TODO
 
 Reading a cohort of multiple Patient instances
 -----------------------------------------------
@@ -62,3 +130,11 @@ Reading a cohort of multiple Patient instances
         patient = cohort[id]
         print(patient.patientName, patient.patientID)
 
+Cohort Attributes
+~~~~~~~~~~~~~~~~~
+
++-------------------------+-------------------------+----------+
+| Cohort property name    | DICOM Attribute Name    | Usage    |
++=========================+=========================+==========+
+| N/A                     | N/A                     | Not used |
++-------------------------+-------------------------+----------+
