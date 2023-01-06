@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-dev2] - 2023-01-06
+### Fixed
+* Re-examined the case of changing UIDs during dicom write. Corrected.
+
 ## [v2.0.0-dev1] - 2023-01-05
 ### Added
 * Patient and Cohort classes: Patient is a collection of Study instances, while
