@@ -218,9 +218,18 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
+    def test_changed_uid(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        with tempfile.TemporaryDirectory() as d:
+            eye.write(d, formats=['dicom'])
+            eye_read = Series(d)
+        self.assertNotEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
+
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
+        si1_seriesInstanceUID = si1.seriesInstanceUID
         si1_sopinsuid = {}
         for _slice in range(si1.slices):
             si1_sopinsuid[_slice] = {}
@@ -234,6 +243,7 @@ class TestDicomPlugin(unittest.TestCase):
             si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
+        self.assertEqual(si1_seriesInstanceUID, si1.seriesInstanceUID)
         self.assertEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', si2.SOPClassUID)
         self.assertEqual(si1.slices, si2.slices)
@@ -254,6 +264,7 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_no_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         # Make a copy of SOPInstanceUIDs before they are modified in write()
+        si1_seriesInstanceUID = si1.seriesInstanceUID
         si1_sopinsuid = {}
         for _slice in range(si1.slices):
             si1_sopinsuid[_slice] = {}
@@ -267,7 +278,8 @@ class TestDicomPlugin(unittest.TestCase):
             si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
-        self.assertNotEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
+        self.assertNotEqual(si1_seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', si2.SOPClassUID)
         self.assertEqual(si1.slices, si2.slices)
         self.assertEqual(len(si1.tags[0]), len(si2.tags[0]))
