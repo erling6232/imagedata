@@ -1367,7 +1367,7 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber += 1
         if not self.keep_uid:
-            si.setDicomAttribute('SOPInstanceUID',si.header.new_uid())
+            si.setDicomAttribute('SOPInstanceUID', si.header.new_uid())
         sop_ins_uid = si.getDicomAttribute('SOPInstanceUID')
 
         # Populate required values for file meta information
