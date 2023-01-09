@@ -6,7 +6,7 @@ Collections
 Introduction
 ------------
 
-In addition to the Series level, there are collection classes Cohort, Patient and Study
+In addition to the Series level, there are collection classes Study, Patient and Cohort
 for the case when multiple Series will be handled.
 
 Each of the collection classes will take a source, and sort the images into
@@ -15,7 +15,7 @@ be auto-detected. There is no way to set input order explicitly.
 
 Note: At present, this works for DICOM data only.
 
-Reading a Study of multiple Series
+Reading a Study of Multiple Series
 ----------------------------------
 
 The Study class can be used to sort DICOM files according to SeriesInstanceUID.
@@ -38,43 +38,43 @@ The input order of each Series is auto-detected.
 Study Attributes
 ~~~~~~~~~~~~~~~~
 
-+-------------------------+-----------------------------+
-| Study property name     | DICOM Attribute Name        |
-+=========================+=============================+
-| studyDate               | StudyDate                   |
-+-------------------------+-----------------------------+
-| studyTime               | StudyTime                   |
-+-------------------------+-----------------------------+
-| studyDescription        | StudyDescription            |
-+-------------------------+-----------------------------+
-| studyID                 | StudyID                     |
-+-------------------------+-----------------------------+
-| studyInstanceUID        | StudyInstanceUID            |
-+-------------------------+-----------------------------+
-| referringPhysiciansName | ReferringPhysiciansName     |
-+-------------------------+-----------------------------+
-| generalEquipment        | Instance of                 |
-|                         | GeneralEquipment class      |
-+-------------------------+-----------------------------+
++-------------------------+-----------------------------+-------------------|
+| Study property name     | DICOM Attribute Name        | Usage             |
++=========================+=============================+===================|
+| studyDate               | StudyDate                   | datetime.datetime |
++-------------------------+-----------------------------+-------------------|
+| studyTime               | StudyTime                   | datetime.datetime |
++-------------------------+-----------------------------+-------------------|
+| studyDescription        | StudyDescription            | str               |
++-------------------------+-----------------------------+-------------------|
+| studyID                 | StudyID                     | str               |
++-------------------------+-----------------------------+-------------------|
+| studyInstanceUID        | StudyInstanceUID            | str               |
++-------------------------+-----------------------------+-------------------|
+| referringPhysiciansName | ReferringPhysiciansName     | str               |
++-------------------------+-----------------------------+-------------------|
+| generalEquipment        | Instance of                 | instance of       |
+|                         | GeneralEquipment class      | GeneralEquipment  |
++-------------------------+-----------------------------+-------------------|
 
 GeneralEquipment Attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-+-------------------------+-----------------------------+
-| Study property name     | DICOM Attribute Name        |
-+=========================+=============================+
-| manufacturer            | Manufacturer                |
-+-------------------------+-----------------------------+
-| manufacturersModelName  | ManufacturerModelName       |
-+-------------------------+-----------------------------+
-| stationName             | StationName                 |
-+-------------------------+-----------------------------+
-| deviceSerialNumber      | DeviceSerialNumber          |
-+-------------------------+-----------------------------+
-| softwareVersions        | SoftwareVersions            |
-+-------------------------+-----------------------------+
++-------------------------+-----------------------------+-------+
+| Study property name     | DICOM Attribute Name        | Usage |
++=========================+=============================+=======+
+| manufacturer            | Manufacturer                | str   |
++-------------------------+-----------------------------+-------+
+| manufacturersModelName  | ManufacturerModelName       | str   |
++-------------------------+-----------------------------+-------+
+| stationName             | StationName                 | str   |
++-------------------------+-----------------------------+-------+
+| deviceSerialNumber      | DeviceSerialNumber          | str   |
++-------------------------+-----------------------------+-------+
+| softwareVersions        | SoftwareVersions            | str   |
++-------------------------+-----------------------------+-------+
 
-Reading a Patient with multiple Study instances
+Reading a Patient with Multiple Study Instances
 -----------------------------------------------
 
 .. code-block:: python
@@ -89,36 +89,60 @@ Reading a Patient with multiple Study instances
 Patient Attributes
 ~~~~~~~~~~~~~~~~~~
 
-+-------------------------+-------------------------+-------+
-| Patient property name   | DICOM Attribute Name    | Usage |
-+=========================+=========================+=======+
-| patientName             | PatientName             | str   |
-+-------------------------+-------------------------+-------+
-| patientID               | PatientID               |       |
-+-------------------------+-------------------------+-------+
-| patientBirthDate        | PatientBirthDate        |       |
-+-------------------------+-------------------------+-------+
-| patientSex              | PatientSex              |       |
-+-------------------------+-------------------------+-------+
-| patientAge              | PatientAge              |       |
-+-------------------------+-------------------------+-------+
-| patientSize             | PatientSize             |       |
-+-------------------------+-------------------------+-------+
-| patientWeight           | PatientWeight           |       |
-+-------------------------+-------------------------+-------+
-| qualityControlSubject   |                         |       |
-+-------------------------+-------------------------+-------+
-| patientIdentityRemoved  | PatientIdentityRemoved  |       |
-+-------------------------+-------------------------+-------+
-| deidentificationMethod  | DeidentificationMethod  |       |
-+-------------------------+-------------------------+-------+
++-------------------------+-------------------------+----------------------+
+| Patient property name   | DICOM Attribute Name    | Usage                |
++=========================+=========================+======================+
+| patientName             | PatientName             | str                  |
++-------------------------+-------------------------+----------------------+
+| patientID               | PatientID               | str                  |
++-------------------------+-------------------------+----------------------+
+| patientBirthDate        | PatientBirthDate        | str                  |
++-------------------------+-------------------------+----------------------+
+| patientSex              | PatientSex              | str                  |
++-------------------------+-------------------------+----------------------+
+| patientAge              | PatientAge              | str                  |
++-------------------------+-------------------------+----------------------+
+| patientSize             | PatientSize             | float                |
++-------------------------+-------------------------+----------------------+
+| patientWeight           | PatientWeight           | float                |
++-------------------------+-------------------------+----------------------+
+| qualityControlSubject   | QualityControlSubject   | str                  |
++-------------------------+-------------------------+----------------------+
+| clinicalTrialSubject    | Instance of             | instance             |
+|                         | ClinicalTrialSubject    | of                   |
+|                         | class                   | ClinicalTrialSubject |
++-------------------------+-------------------------+----------------------+
+| patientIdentityRemoved  | PatientIdentityRemoved  | str                  |
++-------------------------+-------------------------+----------------------+
+| deidentificationMethod  | DeidentificationMethod  | str                  |
++-------------------------+-------------------------+----------------------+
 
-QualityControlSubject Attributes
+ClinicalTrialSubject Attributes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-TODO
++--------------------------------------+---------------------------------------------------+-------+
+| Patient property name                | DICOM Attribute Name                              | Usage |
++======================================+===================================================+=======+
+|sponsorName                           |ClinicalTrialSponsorName                           |       |
++--------------------------------------+---------------------------------------------------+-------+
+|protocolID                            |ClinicalTrialProtocolID                            |       |
++--------------------------------------+---------------------------------------------------+-------+
+|protocolName                          |ClinicalTrialProtocolName                          |       |
++--------------------------------------+---------------------------------------------------+-------+
+|siteID                                |ClinicalTrialSiteID                                |       |
++--------------------------------------+---------------------------------------------------+-------+
+|siteName                              |ClinicalTrialSiteName                              |       |
++--------------------------------------+---------------------------------------------------+-------+
+|subjectID                             |ClinicalTrialSubjectID                             |       |
++--------------------------------------+---------------------------------------------------+-------+
+|subjectReadingID                      |ClinicalTrialSubjectReadingID                      |       |
++--------------------------------------+---------------------------------------------------+-------+
+|protocolEthicsCommitteeName           |ClinicalTrialProtocolEthicsCommitteeName           |       |
++--------------------------------------+---------------------------------------------------+-------+
+|protocolEthicsCommitteeApprovalNumber |ClinicalTrialProtocolEthicsCommitteeApprovalNumber |       |
++--------------------------------------+---------------------------------------------------+-------+
 
-Reading a cohort of multiple Patient instances
+Reading a Cohort of Multiple Patient Instances
 -----------------------------------------------
 
 .. code-block:: python
@@ -132,6 +156,8 @@ Reading a cohort of multiple Patient instances
 
 Cohort Attributes
 ~~~~~~~~~~~~~~~~~
+
+At present no Cohort attributes are implemented.
 
 +-------------------------+-------------------------+----------+
 | Cohort property name    | DICOM Attribute Name    | Usage    |
