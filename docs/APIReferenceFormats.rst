@@ -27,8 +27,3 @@ Module imagedata.formats.niftiplugin
 ----------------------------------------
 .. automodule:: imagedata.formats.niftiplugin
     :members:
-
-Module imagedata.formats.psplugin
-----------------------------------------
-.. automodule:: imagedata.formats.psplugin
-    :members:
