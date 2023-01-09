@@ -43,7 +43,7 @@ More elaborate example in python:
             s.write('b{}'.format(b))
 
 Using command line:
-    Split b values using `--odir multi' parameter. Each b value
+    Split b values using `--odir multi` parameter. Each b value
     will be written to folder tmp/b0, tmp/b1, etc.
     However, all folders will share the Series Instance UID.
 
@@ -75,7 +75,7 @@ method).
 An RGB version of the original image is produced by the get_roi() method,
 where each of the RGB components are set to the original gray scale value.
 
-`segment_indices' address the selected area, and is
+`segment_indices` address the selected area, and is
 used to set the green (1) and blue components (2) to zero.
 Hence, the [1:] slicing of the color components RGB.
 
