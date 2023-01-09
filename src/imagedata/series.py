@@ -1127,13 +1127,17 @@ class Series(np.ndarray):
         Overlapping dict keys will replace exisiting imagePosition for given slice s.
 
         Examples:
+            >>> from imagedata import Series
+            >>> import numpy as np
             >>> si = Series(np.eye(128))
             >>> z,y,x = si.imagePositions[0]
 
         Examples:
-             >>> si = Series(np.zeros((16, 128, 128)))
-             >>> for s in range(si.slices):
-             >>>     si.imagePositions = { s: si.getPositionForVoxel(np.array([s, 0, 0])) }
+            >>> from imagedata import Series
+            >>> import numpy as np
+            >>> si = Series(np.zeros((16, 128, 128)))
+            >>> for s in range(si.slices):
+            ...     si.imagePositions = { s: si.getPositionForVoxel(np.array([s, 0, 0])) }
 
         Raises:
             ValueError: when imagePositions are not set.
