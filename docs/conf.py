@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(root, 'src'))
 # -- Project information -----------------------------------------------------
 
 project = 'imagedata'
-copyright = '2021, Erling Andersen'
+copyright = '2013-2023, Erling Andersen, Haukeland University Hospital, Bergen, Norway'
 author = 'Erling Andersen'
 
 
