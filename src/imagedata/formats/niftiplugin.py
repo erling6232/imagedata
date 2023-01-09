@@ -36,7 +36,8 @@ class FilesGivenForMultipleURLs(Exception):
 
 
 class NiftiPlugin(AbstractPlugin):
-    """Read/write Nifti-1 files."""
+    """Read/write Nifti-1 files.
+    """
 
     name = "nifti"
     description = "Read and write Nifti-1 files."
@@ -700,12 +701,12 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: NiftiPlugin instance
             si: Series array (3D or 4D), including these attributes:
-            -   slices,
-            -   spacing,
-            -   imagePositions,
-            -   transformationMatrix,
-            -   orientation,
-            -   tags
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)
@@ -763,12 +764,12 @@ class NiftiPlugin(AbstractPlugin):
         Args:
             self: NiftiPlugin instance
             si[tag,slice,rows,columns]: Series array, including these attributes:
-            -   slices,
-            -   spacing,
-            -   imagePositions,
-            -   transformationMatrix,
-            -   orientation,
-            -   tags
+                slices,
+                spacing,
+                imagePositions,
+                transformationMatrix,
+                orientation,
+                tags
 
             destination: dict of archive and filenames
             opts: Output options (dict)
