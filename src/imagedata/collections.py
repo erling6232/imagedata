@@ -8,6 +8,7 @@ The Cohort class is a collection of Patient objects.
 
 """
 
+from datetime import datetime
 from sortedcontainers import SortedDict
 import logging
 import argparse
@@ -164,21 +165,21 @@ class GeneralEquipment(object):
 
 class ClinicalTrialSubject(object):
     _clinical_trial_attributes = [
-        'ClinicalTrialSponsorName',
-        'ClinicalTrialProtocolID',
-        'ClinicalTrialProtocolName',
-        'ClinicalTrialSiteID',
-        'ClinicalTrialSiteName',
-        'ClinicalTrialSubjectID',
-        'ClinicalTrialSubjectReadingID',
-        'ClinicalTrialProtocolEthicsCommitteeName',
-        'ClinicalTrialProtocolEthicsCommitteeApprovalNumber'
+        'sponsorName',
+        'protocolID',
+        'protocolName',
+        'siteID',
+        'siteName',
+        'subjectID',
+        'subjectReadingID',
+        'protocolEthicsCommitteeName',
+        'protocolEthicsCommitteeApprovalNumber'
     ]
 
     def __init__(self, obj):
         super(ClinicalTrialSubject, self).__init__()
         for _attr in self._clinical_trial_attributes:
-            _dicom_attribute = _attr[0].upper() + _attr[1:]
+            _dicom_attribute = 'ClinicalTrial' + _attr[0].upper() + _attr[1:]
             setattr(self, _attr, _get_attribute(obj, _dicom_attribute))
 
 
@@ -252,19 +253,31 @@ class Study(SortedDict):
             self[_series.seriesInstanceUID] = _series
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
+                _value = self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
+                if _attr == 'studyDate':
+                    try:
+                        _value = datetime.strptime(_value, "%Y%m%d")
+                    except ValueError:
+                        _value = None
+                elif _attr == 'studyTime':
+                    try:
+                        if '.' in _value:
+                            _value = datetime.strptime(_value, "%H%M%S.%f")
+                        else:
+                            _value = datetime.strptime(_value, "%H%M%S")
+                    except ValueError:
+                        _value = None
                 # Update self property if None from series
                 if getattr(self, _attr, None) is None:
                     # _series = self[_seriesInstanceUID]
-                    setattr(self, _attr,
-                            self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute))
+                    setattr(self, _attr, _value)
                 elif _strict_values and \
-                        getattr(self, _attr, None) != \
-                        self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute):
+                        getattr(self, _attr, None) != _value:
                     # Study attributes differ, should be considered an exception.
                     raise ValueError('Study attribute "{}" differ ("{}" vs. "{}")'.format(
                         _attr,
                         getattr(self, _attr, None),
-                        self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
+                        _value
                     ))
             setattr(self, 'generalEquipment', GeneralEquipment(self[_seriesInstanceUID]))
 
@@ -373,18 +386,22 @@ class Patient(SortedDict):
         for _studyInstanceUID in self.keys():
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
+                _value = _get_attribute(self[_studyInstanceUID], _dicom_attribute)
+                if _attr == 'patientSize' or _attr == 'patientWeight':
+                    try:
+                        _value = float(_value)
+                    except ValueError:
+                        _value = None
                 # Update self property if None from study
                 if getattr(self, _attr, None) is None:
-                    setattr(self, _attr,
-                            _get_attribute(self[_studyInstanceUID], _dicom_attribute))
+                    setattr(self, _attr, _value)
                 elif _strict_values and \
-                        getattr(self, _attr, None) != \
-                        _get_attribute(self[_studyInstanceUID], _dicom_attribute):
+                        getattr(self, _attr, None) != _value:
                     # Patient attributes differ, should be considered an exception.
                     raise ValueError('Patient attribute "{}" differ ("{}" vs. "{}")'.format(
                         _attr,
                         getattr(self, _attr, None),
-                        _get_attribute(self[_studyInstanceUID], _dicom_attribute)
+                        _value
                     ))
             setattr(self, 'clinicalTrialSubject', ClinicalTrialSubject(self[_studyInstanceUID]))
 
