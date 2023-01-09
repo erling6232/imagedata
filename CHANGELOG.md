@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v2.0.0-dev2] - 2023-01-06
+## [v2.0.0-dev3] - 2023-01-09
+### Added
+* Documentation on Collections classes.
 ### Fixed
 * Re-examined the case of changing UIDs during dicom write. Corrected.
 
-## [v2.0.0-dev2] - 2023-01-09
-### Added
-* Documentation on Collections classes.
+## [v2.0.0-dev2] - 2023-01-06
 ### Changed
 * Study class: studyDate/studyTime are now datetime.datetime instances.
 * Patient class: patientSize/patientWeight are now float numbers.
