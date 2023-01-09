@@ -53,7 +53,7 @@ class Series(np.ndarray):
     Args:
         data: (array_like or URL)
             Input data, either explicit as np.ndarray, np.uint16, np.float32,
-                or by URL to input data.
+            or by URL to input data.
         input_order (str): How to sort the input data. Typical values are:
                 * 'auto' : auto-detect sort criteria (default).
                 * 'none' : 3D volume or 2D slice.
@@ -64,10 +64,13 @@ class Series(np.ndarray):
 
         opts: Dict of input options, mostly for format specific plugins
             (argparse.Namespace or dict)
+
         shape: Tuple of ints, specifying shape of input data.
         dtype: Numpy data type. Default: float
         template: Input data to use as template for DICOM header (Series, array_like or URL)
+
         geometry: Input data to use as template for geometry (Series, array_like or URL)
+
         order: Row-major (C-style) or column-major (Fortran-style) order, {'C', 'F'}, optional
 
     Returns:
@@ -1128,11 +1131,9 @@ class Series(np.ndarray):
             >>> z,y,x = si.imagePositions[0]
 
         Examples:
-             si = Series(np.zeros((16, 128, 128)))
-             for s in range(si.slices):
-                 si.imagePositions = {
-                     s: si.getPositionForVoxel(np.array([s, 0, 0]))
-                 }
+             >>> si = Series(np.zeros((16, 128, 128)))
+             >>> for s in range(si.slices):
+             >>>     si.imagePositions = { s: si.getPositionForVoxel(np.array([s, 0, 0])) }
 
         Raises:
             ValueError: when imagePositions are not set.
@@ -2243,6 +2244,7 @@ class Series(np.ndarray):
                   Series object with shape (nz,ny,nx) from original image,
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
+
             If running from a notebook (nbagg driver), no ROI is returned. Call get_roi_mask()
             afterwards to get the mask.
 
