@@ -1834,7 +1834,8 @@ class DICOMPlugin(AbstractPlugin):
             return normal
 
         try:
-            ipp = np.array(get_attribute(image, tag_for_keyword('ImagePositionPatient')), dtype=float)
+            ipp = np.array(get_attribute(image, tag_for_keyword('ImagePositionPatient')),
+                           dtype=float)
             _normal = get_normal(image)
             return np.inner(_normal, ipp)
         except ValueError as e:
