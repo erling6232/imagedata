@@ -10,6 +10,7 @@ import math
 from datetime import date, datetime, timedelta
 import numpy as np
 import pydicom
+import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
@@ -27,10 +28,12 @@ logger = logging.getLogger(__name__)
 try:
     # pydicom >= 2.3
     pydicom.config.settings.reading_validation_mode = pydicom.config.IGNORE
-    pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+    # pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+    # pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
+    pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
 except AttributeError:
     # pydicom < 2.3
-    pydicom.config.enforce_valid_values = False
+    pydicom.config.enforce_valid_values = True
 
 
 class FilesGivenForMultipleURLs(Exception):
@@ -1264,11 +1267,12 @@ class DICOMPlugin(AbstractPlugin):
 
         # Add header information
         try:
-            ds.SliceLocation = si.sliceLocations[0]
+            ds.SliceLocation = pydicom.valuerep.format_number_as_ds(float(si.sliceLocations[0]))
         except (AttributeError, ValueError):
             # Dont know the SliceLocation, attempt to calculate from image geometry
             try:
-                ds.SliceLocation = self._calculate_slice_location(im)
+                ds.SliceLocation =\
+                    pydicom.valuerep.format_number_as_ds(self._calculate_slice_location(im))
             except ValueError:
                 # Dont know the SliceLocation, so will set this to be the slice index
                 ds.SliceLocation = slice
@@ -1276,8 +1280,9 @@ class DICOMPlugin(AbstractPlugin):
             dz, dy, dx = si.spacing
         except ValueError:
             dz, dy, dx = 1, 1, 1
-        ds.PixelSpacing = [str(dy), str(dx)]
-        ds.SliceThickness = str(dz)
+        ds.PixelSpacing = [pydicom.valuerep.format_number_as_ds(float(dy)),
+                           pydicom.valuerep.format_number_as_ds(float(dx))]
+        ds.SliceThickness = pydicom.valuerep.format_number_as_ds(float(dz))
         try:
             ipp = si.imagePositions
             if len(ipp) > 0:
@@ -1289,12 +1294,18 @@ class DICOMPlugin(AbstractPlugin):
         if ipp.shape == (3, 1):
             ipp.shape = (3,)
         z, y, x = ipp[:]
-        ds.ImagePositionPatient = [str(x), str(y), str(z)]
+        ds.ImagePositionPatient = [pydicom.valuerep.format_number_as_ds(float(x)),
+                                   pydicom.valuerep.format_number_as_ds(float(y)),
+                                   pydicom.valuerep.format_number_as_ds(float(z))]
         # Reverse orientation vectors from zyx to xyz
         try:
             ds.ImageOrientationPatient = [
-                si.orientation[2], si.orientation[1], si.orientation[0],
-                si.orientation[5], si.orientation[4], si.orientation[3]]
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[2])),
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[1])),
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[0])),
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[5])),
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[4])),
+                pydicom.valuerep.format_number_as_ds(float(si.orientation[3]))]
         except ValueError:
             ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
         try:
@@ -1487,7 +1498,7 @@ class DICOMPlugin(AbstractPlugin):
             self.width: Window width
             self.smallestPixelValueInSeries: arr.min()
             self.largestPixelValueInSeries: arr.max()
-            self.range_VR: The VR to use for DICOM elements
+            self.range_VR: The VR to use for DICOM elements (SS or US)
         """
         self.range_VR = 'SS' if np.issubdtype(arr.dtype, np.signedinteger) else 'US'
         self.range_VR = 'US' if arr.color else self.range_VR
@@ -1530,12 +1541,12 @@ class DICOMPlugin(AbstractPlugin):
             self.width: Window width
             self.smallestPixelValueInSeries: arr.min()
             self.largestPixelValueInSeries: arr.max()
-            self.range_VR: The VR to use for DICOM elements
+            self.range_VR: The VR to use for DICOM elements (SS or US)
             ds: DICOM dataset
             arr: pixel series
         """
-        ds.WindowCenter = self.center
-        ds.WindowWidth = self.width
+        ds.WindowCenter = pydicom.valuerep.format_number_as_ds(float(self.center))
+        ds.WindowWidth = pydicom.valuerep.format_number_as_ds(float(self.width))
         # Remove existing elements
         for element in ['SmallestImagePixelValue', 'LargestImagePixelValue',
                         'SmallestPixelValueInSeries', 'LargestPixelValueInSeries',
@@ -1550,10 +1561,10 @@ class DICOMPlugin(AbstractPlugin):
             _series_max = 255 if arr.color else self.largestPixelValueInSeries
         else:
             try:
-                ds.RescaleSlope = "%f" % self.a
+                ds.RescaleSlope = pydicom.valuerep.format_number_as_ds(self.a)
             except OverflowError:
                 ds.RescaleSlope = "%d" % int(self.a)
-            ds.RescaleIntercept = "%f" % self.b
+            ds.RescaleIntercept = pydicom.valuerep.format_number_as_ds(self.b)
             _min = np.array((arr.min() - self.b) / self.a).astype('uint16')
             _max = np.array((arr.max() - self.b) / self.a).astype('uint16')
             _series_min = np.array(
@@ -1823,7 +1834,7 @@ class DICOMPlugin(AbstractPlugin):
             return normal
 
         try:
-            ipp = np.array(get_attribute(image, tag_for_keyword('ImagePositionPatient')))
+            ipp = np.array(get_attribute(image, tag_for_keyword('ImagePositionPatient')), dtype=float)
             _normal = get_normal(image)
             return np.inner(_normal, ipp)
         except ValueError as e:
