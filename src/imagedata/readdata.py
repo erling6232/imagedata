@@ -133,9 +133,9 @@ def read(urls, order=None, opts=None):
         source['archive'].close()
 
     if issubclass(type(urls), list):
-        raise UnknownInputError("Could not determine input format of %s." % urls[0])
+        raise UnknownInputError('Could not determine input format of "%s"' % urls[0])
     else:
-        raise UnknownInputError("Could not determine input format of %s." % urls)
+        raise UnknownInputError('Could not determine input format of "%s"' % urls)
 
 
 # def _add_template(hdr, pre_hdr):
