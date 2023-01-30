@@ -29,8 +29,8 @@ try:
     # pydicom >= 2.3
     pydicom.config.settings.reading_validation_mode = pydicom.config.IGNORE
     # pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
-    # pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
-    pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
+    pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
+    # pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
 except AttributeError:
     # pydicom < 2.3
     pydicom.config.enforce_valid_values = True
@@ -409,8 +409,16 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         logger.debug('DICOMPlugin.read_files: sources %s' % sources)
-        image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts,
-                                                      skip_pixels=skip_pixels)
+        try:
+            image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts,
+                                                          skip_pixels=skip_pixels)
+        except Exception as e:
+            logger.debug(
+                'DICOMPlugin.read_files: exception get_dicom_files: {} {}'.format(
+                    type(e), e))
+            # import traceback
+            # traceback.print_exc()
+            raise
         # image_dict: full dataset with headers and full pixel data
         # hdr: most of dataset, excluding pixel data
         # shape: expected shape of pixel matrix
@@ -562,11 +570,15 @@ class DICOMPlugin(AbstractPlugin):
                                             skip_pixels=skip_pixels)
                 except Exception as e:
                     logger.debug('DICOMPlugin.get_dicom_files: Exception {}'.format(e))
-                    raise
+                    # raise
         if 'separate_series' in opts and opts['separate_series']:
             sorted_list = []
             for uid in image_dict:
-                sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+                try:
+                    sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+                except Exception as e:
+                    print('WARNING: Skipping {}: {}'.format(uid, e))
+                    pass
             return sorted_list, None, None
         else:
             return self.sort_images(image_dict, input_order, opts)
@@ -653,6 +665,8 @@ class DICOMPlugin(AbstractPlugin):
                         tag = i
                     else:
                         raise CannotSort('Tag not found in dataset')
+                except CannotSort:
+                    raise
                 except Exception:
                     raise
                 if tag is None:
@@ -679,7 +693,10 @@ class DICOMPlugin(AbstractPlugin):
                 if input_order == INPUT_ORDER_FAULTY:
                     tag = i
                 else:
-                    tag = self._get_tag(im, input_order, opts)
+                    try:
+                        tag = self._get_tag(im, input_order, opts)
+                    except CannotSort:
+                        raise
                 idx = tag_list[islice].index(tag)
                 if sorted_headers[islice][idx]:
                     # Duplicate tag
@@ -1608,17 +1625,23 @@ class DICOMPlugin(AbstractPlugin):
             # else:
             if im.data_element(time_tag).VR == 'TM':
                 time_str = im.data_element(time_tag).value
-                if '.' in time_str:
-                    tm = datetime.strptime(time_str, "%H%M%S.%f")
-                else:
-                    tm = datetime.strptime(time_str, "%H%M%S")
+                try:
+                    if '.' in time_str:
+                        tm = datetime.strptime(time_str, "%H%M%S.%f")
+                    else:
+                        tm = datetime.strptime(time_str, "%H%M%S")
+                except ValueError:
+                    raise CannotSort("Unable to extract time value from header.")
                 td = timedelta(hours=tm.hour,
                                minutes=tm.minute,
                                seconds=tm.second,
                                microseconds=tm.microsecond)
                 return td.total_seconds()
             else:
-                return float(im.data_element(time_tag).value)
+                try:
+                    return float(im.data_element(time_tag).value)
+                except ValueError:
+                    raise CannotSort("Unable to extract time value from header.")
         elif input_order == INPUT_ORDER_B:
             b_tag = self._choose_tag('b', 'DiffusionBValue')
             try:
@@ -1636,21 +1659,33 @@ class DICOMPlugin(AbstractPlugin):
                 except TypeError:
                     raise CannotSort("Unable to extract b value from header.")
             else:
-                value = float(im.data_element(b_tag).value)
+                try:
+                    value = float(im.data_element(b_tag).value)
+                except ValueError:
+                    raise CannotSort("Unable to extract b value from header.")
             return value
         elif input_order == INPUT_ORDER_FA:
             fa_tag = self._choose_tag('fa', 'FlipAngle')
-            return float(im.data_element(fa_tag).value)
+            try:
+                return float(im.data_element(fa_tag).value)
+            except ValueError:
+                raise CannotSort("Unable to extract FA value from header.")
         elif input_order == INPUT_ORDER_TE:
             te_tag = self._choose_tag('te', 'EchoTime')
-            return float(im.data_element(te_tag).value)
+            try:
+                return float(im.data_element(te_tag).value)
+            except ValueError:
+                raise CannotSort("Unable to extract TE value from header.")
         elif input_order == INPUT_ORDER_AUTO:
             pass
         else:
             # User-defined tag
             if input_order in opts:
                 _tag = opts[input_order]
-                return float(im.data_element(_tag).value)
+                try:
+                    return float(im.data_element(_tag).value)
+                except ValueError:
+                    raise CannotSort("Unable to extract {} value from header.".format(input_order))
         raise (UnknownTag("Unknown input_order {}.".format(input_order)))
 
     def _choose_tag(self, tag, default):
