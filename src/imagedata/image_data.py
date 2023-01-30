@@ -218,7 +218,7 @@ def statistics(cmdline=None):
         cohort = Cohort(args.in_dirs, opts=args)
         # si = Series(args.in_dirs, args.input_order, args)
     except NotImageError:
-        print("Could not determine input format of %s." % args.in_dirs[0])
+        print('Could not determine input format of "%s"' % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
         return 1
@@ -228,7 +228,7 @@ def statistics(cmdline=None):
         try:
             mask = Series(args.mask) > 0
         except NotImageError:
-            print("Could not determine input format of %s." % args.mask)
+            print('Could not determine input format of "%s"' % args.mask)
             return 1
 
     print("{}".format(cohort))
