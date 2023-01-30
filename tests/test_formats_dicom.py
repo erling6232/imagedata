@@ -7,7 +7,7 @@ import tempfile
 import numpy as np
 import logging
 import argparse
-import glob
+# import glob
 import pydicom.filereader
 
 from .context import imagedata
@@ -166,7 +166,8 @@ class TestDicomPlugin(unittest.TestCase):
                 os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
             )
             temp = pydicom.filereader.dcmread(
-                glob.glob(os.path.join(d, '*'))[0]
+                # glob.glob(os.path.join(d, '*'))[0]
+                os.path.join(d, 'Image_00000.dcm')
             )
             compare_pydicom(self, orig, temp)
 
@@ -185,7 +186,8 @@ class TestDicomPlugin(unittest.TestCase):
                     os.path.join('data', 'dicom', 'time', 'time00', f)
                 )
                 temp = pydicom.filereader.dcmread(
-                    glob.glob(os.path.join(d, '*'))[i]
+                    # glob.glob(os.path.join(d, '*'))[i]
+                    os.path.join(d, 'Image_{:05d}.dcm'.format(i))
                 )
                 compare_pydicom(self, orig, temp)
 
@@ -209,7 +211,8 @@ class TestDicomPlugin(unittest.TestCase):
                     os.path.join('data', 'dicom', 'time', 'time00', f)
                 )
                 temp = pydicom.filereader.dcmread(
-                    glob.glob(os.path.join(d, '*'))[i]
+                    # glob.glob(os.path.join(d, '*'))[i]
+                    os.path.join(d, 'Image_{:05d}.dcm'.format(i))
                 )
                 compare_pydicom(self, orig, temp)
 
