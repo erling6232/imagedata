@@ -32,6 +32,7 @@ class TestDicomColor(unittest.TestCase):
     def test_read_dicom_color(self):
         si1 = Series(os.path.join('data', 'lena_color.jpg'))
         si2 = Series(os.path.join('data', 'dicom', 'lena_color.dcm'))
+        self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         self.assertEqual(si1.color, si2.color)
@@ -43,11 +44,13 @@ class TestDicomColor(unittest.TestCase):
             os.path.join('data', 'lena_color.jpg'),
             'none',
             self.opts)
+        self.assertEqual('itk', si1.input_format)
         self.assertEqual(si1.dtype, np.uint8)
         self.assertEqual(si1.shape, (512, 512, 3))
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si2 = Series(d)
+            self.assertEqual('dicom', si2.input_format)
         np.testing.assert_array_equal(si1, si2)
 
 
