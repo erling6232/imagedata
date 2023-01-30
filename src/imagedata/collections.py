@@ -387,7 +387,7 @@ class Patient(SortedDict):
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = _get_attribute(self[_studyInstanceUID], _dicom_attribute)
-                if _attr == 'patientSize' or _attr == 'patientWeight':
+                if _value is not None and (_attr == 'patientSize' or _attr == 'patientWeight'):
                     try:
                         _value = float(_value)
                     except ValueError:
