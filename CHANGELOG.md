@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-dev5] - 2023-01-30
+### Fixed
+* DICOMPlugin: Catch errors when converting DICOM attributes to numbers.
+
 ## [v2.0.0-dev4] - 2023-01-16
 ### Fixed
 * Use pydicom.valuerep.format_number_for_ds when writing float numbers with VR=DS.
