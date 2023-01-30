@@ -9,6 +9,7 @@ import os.path
 import argparse
 import urllib
 import logging
+from datetime import datetime, date, time
 import numpy as np
 from .cmdline import add_argparse_options
 from .formats import find_plugin, NotImageError, input_order_to_dirname_str, shape_to_str
@@ -198,6 +199,12 @@ def calculator():
 
 
 def statistics(cmdline=None):
+
+    def _key_study_time(study):
+        _date = study.studyDate if study.studyDate is not None else date.min
+        _time = study.studyTime if study.studyTime is not None else time.min
+        return datetime.combine(_date, _time)
+
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
     parser.add_argument('--mask',
@@ -232,17 +239,31 @@ def statistics(cmdline=None):
             return 1
 
     print("{}".format(cohort))
+    patient_list = []
     for patientID in cohort:
-        patient = cohort[patientID]
+        patient_list.append(cohort[patientID])
+    patient_list.sort(key=lambda patient: str.lower(patient.patientName.family_comma_given()))
+    for patient in patient_list:
         print("  {}".format(patient))
         for studyInstanceUID in patient:
-            study = patient[studyInstanceUID]
+            study_list = []
+            study_list.append(patient[studyInstanceUID])
+        # study_list.sort(key=lambda study: datetime.combine(study.studyDate, study.studyTime))
+        study_list.sort(key=_key_study_time)
+        for study in study_list:
             print("    {}".format(study))
+            series_list = []
             for seriesInstanceUID in study:
-                series = study[seriesInstanceUID]
-                print("      Series #{} {}: {}, shape: {}, dtype: {}, input order: {}".format(
+                series_list.append(study[seriesInstanceUID])
+            series_list.sort(key=lambda series: series.seriesNumber)
+            for series in series_list:
+                try:
+                    _seriesDescription = series.seriesDescription
+                except ValueError:
+                    _seriesDescription = ''
+                print("      Series [{}] {}: {}, shape: {}, dtype: {}, input order: {}".format(
                     series.seriesNumber, series.modality,
-                    series.seriesDescription,
+                    _seriesDescription,
                     shape_to_str(series.shape), series.dtype,
                     input_order_to_dirname_str(series.input_order)
                 ))
