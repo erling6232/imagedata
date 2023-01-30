@@ -8,7 +8,7 @@ The Cohort class is a collection of Patient objects.
 
 """
 
-from datetime import datetime
+from datetime import datetime, date, time
 from sortedcontainers import SortedDict
 import logging
 import argparse
@@ -254,19 +254,19 @@ class Study(SortedDict):
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
-                if _attr == 'studyDate':
+                if _value is not None and _attr == 'studyDate':
                     try:
                         _value = datetime.strptime(_value, "%Y%m%d")
                     except ValueError:
                         _value = None
-                elif _attr == 'studyTime':
+                elif _value is not None and _attr == 'studyTime':
                     try:
                         if '.' in _value:
-                            _value = datetime.strptime(_value, "%H%M%S.%f")
+                            _value = datetime.strptime(_value, "%H%M%S.%f").time()
                         else:
-                            _value = datetime.strptime(_value, "%H%M%S")
+                            _value = datetime.strptime(_value, "%H%M%S").time()
                     except ValueError:
-                        _value = None
+                        _value = datetime.time(_value)
                 # Update self property if None from series
                 if getattr(self, _attr, None) is None:
                     # _series = self[_seriesInstanceUID]
@@ -282,8 +282,11 @@ class Study(SortedDict):
             setattr(self, 'generalEquipment', GeneralEquipment(self[_seriesInstanceUID]))
 
     def __str__(self):
+        _date = self.studyDate if self.studyDate is not None else date.min
+        _time = self.studyTime if self.studyTime is not None else time.min
+        _descr = self.studyDescription if self.studyDescription is not None else ''
         return \
-            "Study: {} {} {}".format(self.studyDate, self.studyTime, self.studyDescription)
+            "Study: {} {}".format(datetime.combine(_date, _time), _descr)
 
     def write(self, url, opts=None, formats=None):
         """Write image data, calling appropriate format plugins
@@ -437,8 +440,16 @@ class Patient(SortedDict):
             raise ValueError('Unexpected data type {} (expected: dict or list)'.format(type(data)))
 
     def __str__(self):
+        try:
+            _id = self.patientID
+        except ValueError:
+            _id = ''
+        try:
+            _patientName = self.patientName
+        except ValueError:
+            _patientName = ''
         return \
-            "Patient: {} {}".format(self.patientID, self.patientName)
+            "Patient: [{}] {}".format(_id, _patientName)
 
     def write(self, url, opts=None, formats=None):
         """Write image data, calling appropriate format plugins
