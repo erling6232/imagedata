@@ -1,8 +1,7 @@
 import copy
 
 import matplotlib.colors
-from matplotlib import cm
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.widgets import PolygonSelector, ToolHandles
 from matplotlib.lines import Line2D
@@ -926,7 +925,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         colormap = 'Greys_r'
     lut = 256 if np.issubdtype(im.dtype, np.floating) else (im.max().item()) + 1
     if not issubclass(type(colormap), matplotlib.colors.Colormap):
-        colormap = cm.get_cmap(colormap, lut)
+        colormap = plt.get_cmap(colormap, lut)
     colormap.set_bad(color='k')  # Important for log display of non-positive values
     colormap.set_under(color='k')
     colormap.set_over(color='w')
