@@ -87,3 +87,31 @@ def compare_axes(self, axes, new_axes):
             self.assertEqual(axis.start, new_axis.start)
             self.assertEqual(axis.stop, new_axis.stop)
             self.assertEqual(axis.step, new_axis.step)
+
+
+def compare_pydicom(self, orig, temp):
+    dont_verify = ['Content Date', 'Content Time', 'Instance Number',
+                   'Largest Pixel Value in Series', 'Window Center',
+                   'Window Width']
+    for data_element in orig:
+        if data_element.VR == "SQ":
+            pass
+        elif data_element.name in dont_verify:
+            pass
+        elif data_element.VR == "DS":
+            tag = data_element.tag
+            np.testing.assert_allclose(
+                data_element.value, temp[tag].value,
+                err_msg='Name="{}", VR={}'.format(
+                    data_element.name, data_element.VR)
+            )
+        else:
+            tag = data_element.tag
+            self.assertEqual(data_element.value, temp[tag].value,
+                             msg='Name="{}", VR={}'.format(
+                                 data_element.name, data_element.VR)
+                             )
+    np.testing.assert_array_almost_equal(orig.SliceLocation, temp.SliceLocation)
+    np.testing.assert_array_almost_equal(
+        orig.ImagePositionPatient, temp.ImagePositionPatient)
+
