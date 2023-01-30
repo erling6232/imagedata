@@ -14,6 +14,7 @@ class TestCollections(unittest.TestCase):
 
         for uid in study:
             series = study[uid]
+            self.assertEqual('dicom', series.input_format)
             try:
                 seriesDescription = series.seriesDescription
             except ValueError:
