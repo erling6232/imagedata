@@ -619,7 +619,8 @@ class Cohort(SortedDict):
                     _url = "{}/{}/{}/{}-{}".format(
                         url,
                         _patientID,
-                        datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                        datetime.combine(_study.studyDate, _study.studyTime).strftime(
+                            '%Y%m%d-%H%M%S'),
                         _series.seriesNumber, _series.seriesDescription
                     )
                     while _url in _used_urls:
