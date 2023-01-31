@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-rc0] - 2023-01-31
+### Added
+* Series.to_rgb(): Added clip parameter whether clipping to DICOM window or
+to histogram probabilities.
+* Series.fuse_mask(): Color fusion of mask.
+
 ## [v2.0.0-dev6] - 2023-01-30
 ### Changed
 * Collections.Study: studyTime attribute is datetime.time object.
 * image_data.statistics: print patient, study and series properly.
 * image_data.conversion: improved conversion of date/time for directory names.
 ### Fixed
-* Collections.Study: Handle missing date and/or time
+* Collections.Study: Handle missing study date and/or time.
 
 ## [v2.0.0-dev5] - 2023-01-30
 ### Fixed

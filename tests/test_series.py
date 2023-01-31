@@ -560,6 +560,43 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(1, len(voxel.axes))
         self.assertEqual('rgb', voxel.axes[0].name)
 
+    def test_fuse_mask_3d_bw_uint8(self):
+        si1 = Series(np.zeros((4,10,10), dtype=float))
+        mask = np.zeros_like(si1, dtype=np.uint8)
+        mask[2, 2:7, 2:7] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((58, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_bw_float(self):
+        si1 = Series(np.zeros((4,10,10), dtype=float))
+        mask = np.zeros_like(si1, dtype=np.uint8)
+        mask[2, 2:7, 2:7] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((58, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_rgb_uint8(self):
+        si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
+        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask[2, 3, 4] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_rgb_float(self):
+        si = Series(np.zeros((4,10,10), dtype=float))
+        si1 = si.to_rgb()
+        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask[2, 3, 4] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
 
 if __name__ == '__main__':
     unittest.main()

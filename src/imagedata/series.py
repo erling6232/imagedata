@@ -2098,7 +2098,8 @@ class Series(np.ndarray):
         a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
         return a
 
-    def to_rgb(self, colormap='Greys_r', lut=None, norm='linear'):
+    def to_rgb(self, colormap='Greys_r', lut=None, norm='linear',
+               clip='window', probs=(0.01, 0.999)):
         """Create an RGB color image of self.
 
         Args:
@@ -2108,10 +2109,28 @@ class Series(np.ndarray):
             norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log,
                 or the `.Normalize` instance used to scale scalar data to the [0, 1] range before
                 mapping to colors using colormap.
+            clip (str): How to clip the data values.
+                Default: 'window', clip data to window center and width.
+                'hist': clip data at histogram probabilities.
+            probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
 
         Returns:
             Series: RGB Series object
         """
+
+        def _calculate_clip_range(probs, bins):
+            assert len(probs) == 2, "Wrong format of histogram probabilities"
+
+            # Calculate cumulative counts and bin edges of the image
+            bins = 1024 if self.dtype.kind == 'f' else (self.max().item()) + 1
+            cumcounts, bin_edges = np.histogram(self, bins=bins)
+            # Normalize cumulative counts
+            cumcounts = cumcounts.cumsum() / cumcounts.sum()
+
+            # Find the indices of the bins that correspond to the given probabilities
+            min_bin, max_bin = np.searchsorted(cumcounts, probs)
+            # Get the intensity values at the min and max bins
+            return bin_edges[min_bin], bin_edges[max_bin]
 
         if self.color:
             return self
@@ -2137,10 +2156,14 @@ class Series(np.ndarray):
         colormap.set_under(color='k')
         colormap.set_over(color='w')
         if type(norm) == type:
-            window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
-            norm = norm(vmin=vmin, vmax=vmax)
+            if clip == 'window':
+                window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+            elif clip == 'hist':
+                vmin, vmax = _calculate_clip_range(probs, lut)
+            else:
+                raise ValueError('Unknow clip method: {}'.format(clip))
+            norm = norm(vmin=vmin, vmax=vmax, clip=True)
         data = norm(self)
-        # if np.issubdtype(self.dtype, np.floating):
         if self.dtype.kind == 'f':
             rgb = Series(
                 colormap(data, bytes=True)[..., :3],  # Strip off alpha color
@@ -2155,6 +2178,96 @@ class Series(np.ndarray):
                 geometry=self,
                 axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
             )
+
+        rgb.header.photometricInterpretation = 'RGB'
+        rgb.header.add_template(self.header)
+        return rgb
+
+    def fuse_mask(self, mask, alpha=0.7,
+                  colormap='Greys_r', lut=None, norm='linear',
+                  clip='window', probs=(0.01, 0.999)):
+
+        """Color fusion of mask
+
+        Create an RGB image of self, enhancing the mask area in red.
+
+        With ideas from Hauke Bartsch and Sathiesh Kaliyugarasan (2023).
+
+        Args:
+            mask (Series or np.ndarray): Mask image
+            alpha (float): Alpha blending for each channel. Default: 0.7
+            colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
+            lut (int): Number of rgb quantization levels.
+                Default: None, lut is calculated from the voxel values.
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log,
+                or the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+                mapping to colors using colormap.
+            clip (str): How to clip the data values.
+                Default: 'window', clip data to window center and width.
+                'hist': clip data at histogram probabilities.
+            probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
+        Returns:
+            Series: RGB Series object
+        Raises:
+            IndexError: When the mask does not match the image
+        """
+
+        from scipy.ndimage import gaussian_filter
+
+        if self.color:
+            background = self / 255.  # [0, 1]
+        else:
+            background = self.to_rgb(colormap=colormap, lut=lut, norm=norm,
+                                     clip=clip, probs=probs) / 255.
+        if issubclass(type(mask), Series):
+            if mask.color:
+                raise ValueError('Mask cannot be a color image')
+        if background.ndim == 3 and mask.ndim != 2:  # 2D case
+            raise IndexError('Mask should be 2D')
+        elif background.ndim > 3 and mask.ndim != 3:  # >= 3D case
+            raise IndexError('Mask should be 3D')
+        if mask.ndim == 2:
+            if mask.shape != background.shape[-3:-1]:
+                raise IndexError('Shape of mask does not match image')
+        elif mask.ndim == 3:
+            if mask.shape != background.shape[-4:-1]:
+                raise IndexError('Shape of mask does not match image')
+
+        # Now smooth the colors channel
+        if mask.ndim == 2:
+            mask_filter = np.zeros_like(mask, dtype=np.float32)
+            if mask.max() > 0:
+                mask_filter = mask.astype(np.float32) / mask.max()  # [0, 1]
+            mask_filter = gaussian_filter(mask_filter, sigma=1.5)
+        else:
+            # Smooth for each slice independently
+            mask_filter = np.zeros_like(mask, dtype=np.float32)
+            for _slice in range(mask.shape[0]):
+                if mask[_slice].max() > 0:
+                    mask_filter[_slice] = mask[_slice].astype(np.float32) / mask[_slice].max()  # [0, 1]
+                mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
+
+        overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
+        overlay[..., 0] = mask_filter
+
+        # Do alpha blending for each channel
+        fused = alpha * background + (1.0 - alpha) * overlay
+        fused = np.clip(fused, 0, 1)
+
+        background = fused * 255
+        background = background.astype(np.uint8)
+
+        if self.color:
+            new_axes = self.axes
+        else:
+            new_axes = self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+
+        rgb = Series(
+            background,
+            input_order=self.input_order,
+            geometry=self,
+            axes=new_axes
+        )
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.add_template(self.header)
