@@ -2244,7 +2244,8 @@ class Series(np.ndarray):
             mask_filter = np.zeros_like(mask, dtype=np.float32)
             for _slice in range(mask.shape[0]):
                 if mask[_slice].max() > 0:
-                    mask_filter[_slice] = mask[_slice].astype(np.float32) / mask[_slice].max()  # [0, 1]
+                    mask_filter[_slice] =\
+                        mask[_slice].astype(np.float32) / mask[_slice].max()  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
         overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
