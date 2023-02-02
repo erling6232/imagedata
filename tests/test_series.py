@@ -599,15 +599,16 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
 
     def test_align_3d(self):
-        si = Series(
+        reference = Series(
             os.path.join('data', 'dicom', 'time', 'time00')
         )
         moving = Series(
             os.path.join('data', 'dicom', 'time', 'time01')
         )
+        moved = moving.align(reference)
 
     def test_align_2d(self):
-        si = Series(
+        reference = Series(
             os.path.join('data', 'dicom', 'time', 'time00')
         )
         moving = Series(
@@ -617,25 +618,25 @@ class TestSeries(unittest.TestCase):
             opts={'ti': 'InversionTime'}
         )
         with self.assertRaises(ValueError):
-            moved = si.align(moving)
+            moved = moving.align(reference)
 
     def test_align_3d_on_4d(self):
-        si4d = Series(
+        reference = Series(
             os.path.join('data', 'dicom', 'time')
         )
         moving = Series(
             os.path.join('data', 'dicom', 'time', 'time01')
         )
-        moved = si4d.align(moving)
+        moved = moving.align(reference)
 
     def test_align_4d_on_3d(self):
-        si4d = Series(
+        moving = Series(
             os.path.join('data', 'dicom', 'time')
         )
-        ref = Series(
+        reference = Series(
             os.path.join('data', 'dicom', 'time', 'time01')
         )
-        moved = ref.align(si4d)
+        moved = moving.align(reference)
 
 
 if __name__ == '__main__':
