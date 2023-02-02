@@ -2103,6 +2103,7 @@ class Series(np.ndarray):
     def align(moving, reference):
         """Align moving Series to reference.
         The moving series is resampled on the grid of the reference series.
+        In effect the moving series is reformatted to the slices of the reference series.
 
         Examples:
 
