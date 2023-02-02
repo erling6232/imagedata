@@ -71,6 +71,8 @@ class Series(np.ndarray):
 
         geometry: Input data to use as template for geometry (Series, array_like or URL)
 
+        axes (list of Axis): Set axes for new instance.
+
         order: Row-major (C-style) or column-major (Fortran-style) order, {'C', 'F'}, optional
 
     Returns:
@@ -2097,6 +2099,110 @@ class Series(np.ndarray):
         a = Series(np.copy(self), template=self, geometry=self)
         a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
         return a
+
+    def align(moving, reference):
+        """Align moving Series to reference.
+        The moving series is resampled on the grid of the reference series.
+
+        Examples:
+
+            Align vibe series (moving) with reference dce series
+
+            >>> img = vibe.align(dce)
+
+        Args:
+            moving (Series)
+            reference (Series)
+        Returns:
+            Aligned series (Series)
+        """
+
+        from scipy.interpolate import RegularGridInterpolator
+
+        if moving.color or reference.color:
+            raise ValueError('Aligning color images not implemented.')
+
+        # Final axes for aligned series are the reference axes
+        slice_axis = moving.find_axis('slice')
+        row_axis = moving.find_axis('row')
+        column_axis = moving.find_axis('column')
+
+        # Make reference grid in voxel coordinates
+        cs, cr, cc = np.meshgrid(
+            np.arange(0, moving.slices),
+            np.arange(0, moving.rows),
+            np.arange(0, moving.columns), indexing='ij'
+        )
+        nc = np.ones(np.prod([moving.slices, moving.rows, moving.columns]))
+        cref = np.asanyarray([cs.flatten(), cr.flatten(), cc.flatten(), nc], dtype='int')
+
+        # Convert reference voxel coordinates to real coordinates
+        xref = np.dot(moving.transformationMatrix, cref)
+
+        # Generate voxel coordinated of reference image (moving in the space of the moving image
+        qinv = np.linalg.pinv(reference.transformationMatrix)
+        cref2mov = np.dot(qinv, xref)
+
+        # Only use the first three coordinates, the last is just ones.
+        # Interpolation method requires transpose()
+        cref2mov = cref2mov[:3, :].transpose()
+
+        if reference.ndim > 3:
+            tags = len(reference.tags[0])
+            tag_axis = reference.axes[0]
+            imreg = Series(
+                np.zeros([tags, moving.slices, moving.rows, moving.columns], dtype=float),
+                input_order=reference.input_order,
+                template=moving, geometry=moving,
+                axes=[tag_axis, slice_axis, row_axis, column_axis]
+            )
+
+            # Must convert to ndarray to slice the data
+            # immovnp = np.array(reference, dtype=float)
+            for i in range(tags):
+                fnc = RegularGridInterpolator(
+                    (np.arange(0, reference.slices),
+                     np.arange(0, reference.rows),
+                     np.arange(0, reference.columns)
+                     ),
+                    # immovnp[i],
+                    reference[i],
+                    method='linear',
+                    bounds_error=False,
+                    fill_value=0
+                )
+
+                # Apply interpolator
+                imh = fnc(cref2mov)
+                imreg[i] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
+        elif reference.ndim == 3:
+            imreg = Series(
+                np.zeros([moving.slices, moving.rows, moving.columns], dtype=float),
+                template=moving, geometry=moving,
+                axes=[slice_axis, row_axis, column_axis]
+            )
+
+            # Must convert to ndarray to slice the data
+            # immovnp = np.array(reference, dtype=float)
+            fnc = RegularGridInterpolator(
+                (np.arange(0, reference.slices),
+                 np.arange(0, reference.rows),
+                 np.arange(0, reference.columns)
+                 ),
+                # immovnp,
+                reference,
+                method='linear',
+                bounds_error=False,
+                fill_value=0
+            )
+
+            # Apply interpolator
+            imh = fnc(cref2mov)
+            imreg[:] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
+        else:
+            raise ValueError('Input has 2D, not implemented')
+
+        return imreg
 
     def to_rgb(self, colormap='Greys_r', lut=None, norm='linear',
                clip='window', probs=(0.01, 0.999)):

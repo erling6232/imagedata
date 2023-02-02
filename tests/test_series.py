@@ -2,6 +2,7 @@
 
 # import nose.tools
 import unittest
+import os.path
 import numpy as np
 import copy
 # import logging
@@ -596,6 +597,45 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(4, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
         np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
+    def test_align_3d(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+
+    def test_align_2d(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'TI',
+                         'TI_1.MR.0021.0001.2021.06.08.10.04.29.806302.203193459.IMA'),
+            input_order='ti',
+            opts={'ti': 'InversionTime'}
+        )
+        with self.assertRaises(ValueError):
+            moved = si.align(moving)
+
+    def test_align_3d_on_4d(self):
+        si4d = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = si4d.align(moving)
+
+    def test_align_4d_on_3d(self):
+        si4d = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        ref = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = ref.align(si4d)
 
 
 if __name__ == '__main__':
