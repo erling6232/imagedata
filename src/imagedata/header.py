@@ -220,7 +220,7 @@ class Header(object):
                     template_tag = tag
                 try:
                     templateHeader = copy.copy(template[_slice][tag][2])
-                except KeyError:
+                except (KeyError, IndexError):
                     templateHeader = copy.copy(default_header)
                 DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
         return DicomHeaderDict
