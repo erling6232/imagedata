@@ -2119,7 +2119,7 @@ class Series(np.ndarray):
             interpolation (str): Method of interpolation.
                 See scipy.interpolate.RegularGridInterpolator for possible value. Default: 'linear'.
 
-            force (bool): Override check on FrameOfReferenceUID when True.
+            force (bool): Override check on FrameOfReferenceUID when True. Default: False.
         Returns:
             Aligned series (Series)
         Raises:
