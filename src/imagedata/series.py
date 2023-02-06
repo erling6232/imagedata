@@ -2100,7 +2100,7 @@ class Series(np.ndarray):
         a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
         return a
 
-    def align(moving, reference):
+    def align(moving, reference, interpolation='linear', force=False):
         """Align moving Series to reference.
         The moving series is resampled on the grid of the reference series.
         In effect the moving series is reformatted to the slices of the reference series.
@@ -2116,14 +2116,24 @@ class Series(np.ndarray):
         Args:
             moving (Series)
             reference (Series)
+            interpolation (str): Method of interpolation.
+                See scipy.interpolate.RegularGridInterpolator for possible value. Default: 'linear'.
+            
+            force (bool): Override check on FrameOfReferenceUID when True.
         Returns:
             Aligned series (Series)
+        Raises:
+            ValueError: When FrameOfReference or TransformationMatrix is missing for either series.
         """
 
         from scipy.interpolate import RegularGridInterpolator
 
         if moving.color or reference.color:
             raise ValueError('Aligning color images not implemented.')
+
+        if not force:
+            if moving.frameOfReferenceUID != reference.frameOfReferenceUID:
+                raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
 
         # Final axes for aligned series are the reference axes
         slice_axis = moving.find_axis('slice')
@@ -2170,7 +2180,7 @@ class Series(np.ndarray):
                      ),
                     # immovnp[i],
                     reference[i],
-                    method='linear',
+                    method=interpolation,
                     bounds_error=False,
                     fill_value=0
                 )
@@ -2194,7 +2204,7 @@ class Series(np.ndarray):
                  ),
                 # immovnp,
                 reference,
-                method='linear',
+                method=interpolation,
                 bounds_error=False,
                 fill_value=0
             )
