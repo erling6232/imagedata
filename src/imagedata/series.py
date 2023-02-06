@@ -2065,7 +2065,8 @@ class Series(np.ndarray):
             moving (Series): The moving series which will be aligned to the reference series.
             reference (Series): Reference series.
             interpolation (str): Method of interpolation.
-                See scipy.interpolate.RegularGridInterpolator for possible value. Default: 'linear'.
+                See scipy.interpolate.RegularGridInterpolator for possible value.
+                Default: 'linear'.
 
             force (bool): Override check on FrameOfReferenceUID when True. Default: False.
         Returns:
@@ -2267,8 +2268,9 @@ class Series(np.ndarray):
 
         Examples:
 
-            >>> img = Series(STUDY_DIR)
-            >>> overlayed_img = img.fuse_mask(mask_obj, clip=’hist’)
+            >>> img = Series(...)
+            >>> mask = Series(...)
+            >>> overlayed_img = img.fuse_mask(mask, clip='hist')
             >>> overlayed_img.show()
 
         Args:
@@ -2512,7 +2514,7 @@ class Series(np.ndarray):
 
             >>> img = Series(...)
             >>> img.get_roi()
-            >>> mask = get_roi_mask()
+            >>> mask = img.get_roi_mask()
 
         Returns:
             If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
