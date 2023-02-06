@@ -2109,9 +2109,9 @@ class Series(np.ndarray):
 
             Align vibe series (moving) with reference dce series
 
-            >>> vibe = Series('vibe')
-            >>> dce = Series('dce', 'time')
-            >>> img = vibe.align(dce)
+            >>> moving = Series('vibe')
+            >>> reference = Series('dce', 'time')
+            >>> img = moving.align(reference)
 
         Args:
             moving (Series)
