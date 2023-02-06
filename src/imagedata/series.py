@@ -2101,7 +2101,7 @@ class Series(np.ndarray):
         return a
 
     def align(moving, reference, interpolation='linear', force=False):
-        """Align moving Series to reference.
+        """Align moving Series (self) to reference.
         The moving series is resampled on the grid of the reference series.
         In effect the moving series is reformatted to the slices of the reference series.
 
@@ -2114,11 +2114,11 @@ class Series(np.ndarray):
             >>> img = moving.align(reference)
 
         Args:
-            moving (Series)
-            reference (Series)
+            moving (Series): The moving series which will be aligned to the reference series.
+            reference (Series): Reference series.
             interpolation (str): Method of interpolation.
                 See scipy.interpolate.RegularGridInterpolator for possible value. Default: 'linear'.
-            
+
             force (bool): Override check on FrameOfReferenceUID when True.
         Returns:
             Aligned series (Series)
