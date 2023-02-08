@@ -22,8 +22,10 @@ header_tags = ['input_format',
                'SOPClassUID',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
+               'tags',
                'input_sort']
-geometry_tags = ['tags', 'spacing',
+geometry_tags = [  # 'tags',
+                 'spacing',
                  'imagePositions', 'orientation', 'transformationMatrix',
                  'patientPosition',
                  'photometricInterpretation', 'axes']
@@ -59,11 +61,6 @@ class Header(object):
         photometricInterpretation
         axes
         __uid_generator
-        studyInstanceUID
-        seriesInstanceUID
-        frameOfReferenceUID
-        DicomHeaderDict
-        tags
     """
 
     def __init__(self):
@@ -187,6 +184,11 @@ class Header(object):
             if value is not None:
                 setattr(self, 'seriesInstanceUID', value)
 
+        # Make sure tags and axes are set last. Template and/or geometry may be None
+        self.__set_tags_from_template(
+            getattr(template, 'tags', None),
+            None  # geometry
+        )
         # Make sure DicomHeaderDict is set last
         if template.DicomHeaderDict is not None:
             self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
@@ -207,17 +209,25 @@ class Header(object):
         When modifying attributes with Series.setDicomAttribute,
         new attribute will be set to there avoid cross-talk.
         """
+        def tag_increment(tuple_list):
+            if len(tuple_list) < 2:
+                return 1.0
+            else:
+                return tuple_list[-1][0] - tuple_list[-2][0]  # Difference of last to tags
 
         DicomHeaderDict = {}
         default_header = template[0][0][2]
         tags, slices = self.__get_tags_and_slices()
         for _slice in range(slices):
             DicomHeaderDict[_slice] = []
+            last_tag = 0
             for tag in range(tags):
                 try:
                     template_tag = template[_slice][tag][0]
                 except (KeyError, IndexError):
-                    template_tag = tag
+                    # template_tag = tag
+                    template_tag = last_tag + tag_increment(DicomHeaderDict[_slice])
+                last_tag = template_tag
                 try:
                     templateHeader = copy.copy(template[_slice][tag][2])
                 except (KeyError, IndexError):
@@ -255,7 +265,8 @@ class Header(object):
         self.tags = {}
         _last_tags = None
         tags, slices = self.__get_tags_and_slices()
-        geometry_tag_list = self.__construct_geometry_tag_list(geometry)
+        # geometry_tag_list = self.__construct_geometry_tag_list(geometry)
+        geometry_tag_list = self.__construct_geometry_tag_list(template)
         for _slice in range(slices):
             _tags = []
             template_tag_list = []
@@ -274,8 +285,8 @@ class Header(object):
                     "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
             elif len(template_tag_list) >= tags:
                 _tags = template_tag_list[:tags]
-                assert isinstance(_tags, np.ndarray), \
-                    "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
+                # assert isinstance(_tags, np.ndarray), \
+                #     "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
             else:
                 _tags = _last_tags
                 # raise IndexError('Cannot get tag list with length {}'.format(tags))
@@ -392,10 +403,10 @@ class Header(object):
                 if value is not None:
                     setattr(self, attr, value)
         # Make sure tags and axes are set last. Template and/or geometry may be None
-        self.__set_tags_from_template(
-            getattr(template, 'tags', None),
-            getattr(geometry, 'tags', None)
-        )
+        # self.__set_tags_from_template(
+        #     getattr(template, 'tags', None),
+        #     getattr(geometry, 'tags', None)
+        # )
         self.__set_axes_from_template(
             getattr(template, 'axes', None),
             getattr(geometry, 'axes', None)
