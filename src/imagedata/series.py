@@ -1965,15 +1965,13 @@ class Series(np.ndarray):
             tags = [tag]
         for s in slices:
             for t in tags:
-                tg, fname, im = self.DicomHeaderDict[s][t]
-                # if _tag in im:
-                #     im[_tag].value = value
-                # else:
-                #     VR = pydicom.datadict.dictionary_VR(_tag)
-                #     im.add_new(_tag, VR, value)
-                # Always make a new attribute to avoid cross-talk after copying Series instances.
-                VR = pydicom.datadict.dictionary_VR(_tag)
-                im.add_new(_tag, VR, value)
+                try:
+                    tg, fname, im = self.DicomHeaderDict[s][t]
+                    # Always make a new attribute to avoid cross-talk after copying Series instances.
+                    VR = pydicom.datadict.dictionary_VR(_tag)
+                    im.add_new(_tag, VR, value)
+                except IndexError:
+                    pass
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r.
@@ -2085,50 +2083,55 @@ class Series(np.ndarray):
                 raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
 
         # Final axes for aligned series are the reference axes
-        slice_axis = moving.find_axis('slice')
-        row_axis = moving.find_axis('row')
-        column_axis = moving.find_axis('column')
+        slice_axis = reference.find_axis('slice')
+        row_axis = reference.find_axis('row')
+        column_axis = reference.find_axis('column')
 
         # Make reference grid in voxel coordinates
         cs, cr, cc = np.meshgrid(
-            np.arange(0, moving.slices),
-            np.arange(0, moving.rows),
-            np.arange(0, moving.columns), indexing='ij'
+            np.arange(0, reference.slices),
+            np.arange(0, reference.rows),
+            np.arange(0, reference.columns), indexing='ij'
         )
-        nc = np.ones(np.prod([moving.slices, moving.rows, moving.columns]))
+        nc = np.ones(np.prod([reference.slices, reference.rows, reference.columns]))
         cref = np.asanyarray([cs.flatten(), cr.flatten(), cc.flatten(), nc], dtype='int')
 
         # Convert reference voxel coordinates to real coordinates
-        xref = np.dot(moving.transformationMatrix, cref)
+        xref = np.dot(reference.transformationMatrix, cref)
 
         # Generate voxel coordinated of reference image (moving in the space of the moving image
-        qinv = np.linalg.pinv(reference.transformationMatrix)
+        qinv = np.linalg.pinv(moving.transformationMatrix)
         cref2mov = np.dot(qinv, xref)
 
         # Only use the first three coordinates, the last is just ones.
         # Interpolation method requires transpose()
         cref2mov = cref2mov[:3, :].transpose()
 
-        if reference.ndim > 3:
-            tags = len(reference.tags[0])
-            tag_axis = reference.axes[0]
+        if moving.ndim > 3:
+            tags = len(moving.tags[0])
+            tag_axis = moving.axes[0]
             imreg = Series(
-                np.zeros([tags, moving.slices, moving.rows, moving.columns], dtype=float),
-                input_order=reference.input_order,
-                template=moving, geometry=moving,
+                np.zeros([tags, reference.slices, reference.rows, reference.columns], dtype=float),
+                input_order=moving.input_order,
+                template=moving, geometry=reference,
                 axes=[tag_axis, slice_axis, row_axis, column_axis]
             )
+            print('imreg: DHD: {}'.format(len(imreg.DicomHeaderDict)))
+            for s in range(imreg.slices):
+                print('imreg: slice {}: DHD {}'.format(s, len(imreg.DicomHeaderDict[s])))
+                print('imreg: tag: {}'.format(imreg.tags[s]))
+                print('imreg: DHD {}'.format(type(imreg.DicomHeaderDict[s][0])))
 
             # Must convert to ndarray to slice the data
             # immovnp = np.array(reference, dtype=float)
             for i in range(tags):
                 fnc = RegularGridInterpolator(
-                    (np.arange(0, reference.slices),
-                     np.arange(0, reference.rows),
-                     np.arange(0, reference.columns)
+                    (np.arange(0, moving.slices),
+                     np.arange(0, moving.rows),
+                     np.arange(0, moving.columns)
                      ),
                     # immovnp[i],
-                    reference[i],
+                    moving[i],
                     method=interpolation,
                     bounds_error=False,
                     fill_value=0
@@ -2136,23 +2139,29 @@ class Series(np.ndarray):
 
                 # Apply interpolator
                 imh = fnc(cref2mov)
-                imreg[i] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
-        elif reference.ndim == 3:
+                #print('imh: {} {}'.format(imh.shape, type(imh)))
+                #print('ref: {} {} {}'.format(reference.slices, reference.rows, reference.columns))
+                #print('imreg: {} {} i {}'.format(type(imreg), imreg.shape, i))
+                #tt = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
+                #print('tt: {}'.format(tt.shape))
+                imreg[i, ...] = np.reshape(imh,
+                                           (reference.slices, reference.rows, reference.columns))
+        elif moving.ndim == 3:
             imreg = Series(
-                np.zeros([moving.slices, moving.rows, moving.columns], dtype=float),
-                template=moving, geometry=moving,
+                np.zeros([reference.slices, reference.rows, reference.columns], dtype=float),
+                template=moving, geometry=reference,
                 axes=[slice_axis, row_axis, column_axis]
             )
 
             # Must convert to ndarray to slice the data
             # immovnp = np.array(reference, dtype=float)
             fnc = RegularGridInterpolator(
-                (np.arange(0, reference.slices),
-                 np.arange(0, reference.rows),
-                 np.arange(0, reference.columns)
+                (np.arange(0, moving.slices),
+                 np.arange(0, moving.rows),
+                 np.arange(0, moving.columns)
                  ),
                 # immovnp,
-                reference,
+                moving,
                 method=interpolation,
                 bounds_error=False,
                 fill_value=0
@@ -2160,7 +2169,7 @@ class Series(np.ndarray):
 
             # Apply interpolator
             imh = fnc(cref2mov)
-            imreg[:] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
+            imreg[:] = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
         else:
             raise ValueError('Input has 2D, not implemented')
 
