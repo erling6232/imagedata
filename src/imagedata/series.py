@@ -1967,7 +1967,8 @@ class Series(np.ndarray):
             for t in tags:
                 try:
                     tg, fname, im = self.DicomHeaderDict[s][t]
-                    # Always make a new attribute to avoid cross-talk after copying Series instances.
+                    # Always make a new attribute to avoid cross-talk after
+                    # copying Series instances.
                     VR = pydicom.datadict.dictionary_VR(_tag)
                     im.add_new(_tag, VR, value)
                 except IndexError:
@@ -2139,11 +2140,6 @@ class Series(np.ndarray):
 
                 # Apply interpolator
                 imh = fnc(cref2mov)
-                #print('imh: {} {}'.format(imh.shape, type(imh)))
-                #print('ref: {} {} {}'.format(reference.slices, reference.rows, reference.columns))
-                #print('imreg: {} {} i {}'.format(type(imreg), imreg.shape, i))
-                #tt = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
-                #print('tt: {}'.format(tt.shape))
                 imreg[i, ...] = np.reshape(imh,
                                            (reference.slices, reference.rows, reference.columns))
         elif moving.ndim == 3:
