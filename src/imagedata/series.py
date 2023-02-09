@@ -1931,7 +1931,10 @@ class Series(np.ndarray):
             _tag = keyword
         if _tag is None:
             return None
-        tg, fname, im = self.DicomHeaderDict[slice][tag]
+        try:
+            tg, fname, im = self.DicomHeaderDict[slice][tag]
+        except TypeError:
+            raise TypeError('No DicomHeaderDict[{}][{}], shape {}'.format(slice, tag, self.shape))
         if _tag in im:
             return im[_tag].value
         else:
@@ -1971,7 +1974,7 @@ class Series(np.ndarray):
                     # copying Series instances.
                     VR = pydicom.datadict.dictionary_VR(_tag)
                     im.add_new(_tag, VR, value)
-                except IndexError:
+                except (IndexError, TypeError):
                     pass
 
     def getPositionForVoxel(self, r, transformation=None):
@@ -2112,7 +2115,8 @@ class Series(np.ndarray):
             tags = len(moving.tags[0])
             tag_axis = moving.axes[0]
             imreg = Series(
-                np.zeros([tags, reference.slices, reference.rows, reference.columns], dtype=float),
+                np.zeros([tags, reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
                 input_order=moving.input_order,
                 template=moving, geometry=reference,
                 axes=[tag_axis, slice_axis, row_axis, column_axis]
@@ -2144,7 +2148,8 @@ class Series(np.ndarray):
                                            (reference.slices, reference.rows, reference.columns))
         elif moving.ndim == 3:
             imreg = Series(
-                np.zeros([reference.slices, reference.rows, reference.columns], dtype=float),
+                np.zeros([reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
                 template=moving, geometry=reference,
                 axes=[slice_axis, row_axis, column_axis]
             )
