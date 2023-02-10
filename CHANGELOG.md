@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v2.0.0-rc1] - 2023-02-01
+## [v2.0.0-rc1] - 2023-02-10
 ### Added
-* Series.align():
+* Added Series.align() method.
+### Fixed
+* Header.add_geometry() takes one template only.
+* Axis: Enhanced class with __getitem__ and __next__ to enable iteration over axis values.
 
 ## [v2.0.0-rc0] - 2023-01-31
 ### Added
