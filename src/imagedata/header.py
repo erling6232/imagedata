@@ -213,14 +213,14 @@ class Header(object):
         tags, slices = self.__get_tags_and_slices()
         for _slice in range(slices):
             DicomHeaderDict[_slice] = []
-            last_tag = 0
+            next_tag = 0
             for tag in range(tags):
                 try:
                     template_tag = template[_slice][tag][0]
                 except (KeyError, IndexError):
                     # template_tag = tag
-                    template_tag = last_tag + tag_increment(DicomHeaderDict[_slice])
-                last_tag = template_tag
+                    template_tag = next_tag
+                next_tag = template_tag + tag_increment(DicomHeaderDict[_slice])
                 try:
                     templateHeader = copy.copy(template[_slice][tag][2])
                 except (KeyError, IndexError):
