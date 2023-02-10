@@ -110,7 +110,7 @@ class Series(np.ndarray):
                 obj.header = copy.copy(data.header)  # carry forward attributes
                 obj.input_order = data.input_order
                 obj.header.add_template(data.header)  # Includes DicomHeaderDict
-                obj.header.add_geometry(data.header, data.header)
+                obj.header.add_geometry(data.header)
             else:
                 obj.header.set_default_values(obj.axes if axes is None else axes)
 
@@ -118,7 +118,7 @@ class Series(np.ndarray):
             if axes is not None:
                 obj.header.axes = copy.copy(axes)
             obj.header.add_template(template)
-            obj.header.add_geometry(template, geometry)
+            obj.header.add_geometry(geometry)
             return obj
         logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -143,7 +143,7 @@ class Series(np.ndarray):
                 obj.header.axes = [UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
             obj.header.add_template(template)
-            obj.header.add_geometry(template, geometry)
+            obj.header.add_geometry(geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -163,13 +163,13 @@ class Series(np.ndarray):
             obj.axes = hdr.axes
         obj.header.set_default_values(obj.axes)
         obj.header.add_template(hdr)
-        obj.header.add_geometry(hdr, hdr)
+        obj.header.add_geometry(hdr)
         # for attr in __attributes(hdr):
         #     __set_attribute(obj.header, attr, __get_attribute(template, attr))
         #     setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
         obj.header.add_template(template)
-        obj.header.add_geometry(template, geometry)
+        obj.header.add_geometry(geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -304,7 +304,7 @@ class Series(np.ndarray):
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
                     header.add_template(input_.header)  # Includes DicomHeaderDict
-                    header.add_geometry(input_.header, input_.header)
+                    header.add_geometry(input_.header)
 
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
@@ -1931,7 +1931,10 @@ class Series(np.ndarray):
             _tag = keyword
         if _tag is None:
             return None
-        tg, fname, im = self.DicomHeaderDict[slice][tag]
+        try:
+            tg, fname, im = self.DicomHeaderDict[slice][tag]
+        except TypeError:
+            raise TypeError('No DicomHeaderDict[{}][{}], shape {}'.format(slice, tag, self.shape))
         if _tag in im:
             return im[_tag].value
         else:
@@ -1965,15 +1968,14 @@ class Series(np.ndarray):
             tags = [tag]
         for s in slices:
             for t in tags:
-                tg, fname, im = self.DicomHeaderDict[s][t]
-                # if _tag in im:
-                #     im[_tag].value = value
-                # else:
-                #     VR = pydicom.datadict.dictionary_VR(_tag)
-                #     im.add_new(_tag, VR, value)
-                # Always make a new attribute to avoid cross-talk after copying Series instances.
-                VR = pydicom.datadict.dictionary_VR(_tag)
-                im.add_new(_tag, VR, value)
+                try:
+                    tg, fname, im = self.DicomHeaderDict[s][t]
+                    # Always make a new attribute to avoid cross-talk after
+                    # copying Series instances.
+                    VR = pydicom.datadict.dictionary_VR(_tag)
+                    im.add_new(_tag, VR, value)
+                except (IndexError, TypeError):
+                    pass
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r.
@@ -2085,37 +2087,38 @@ class Series(np.ndarray):
                 raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
 
         # Final axes for aligned series are the reference axes
-        slice_axis = moving.find_axis('slice')
-        row_axis = moving.find_axis('row')
-        column_axis = moving.find_axis('column')
+        slice_axis = reference.find_axis('slice')
+        row_axis = reference.find_axis('row')
+        column_axis = reference.find_axis('column')
 
         # Make reference grid in voxel coordinates
         cs, cr, cc = np.meshgrid(
-            np.arange(0, moving.slices),
-            np.arange(0, moving.rows),
-            np.arange(0, moving.columns), indexing='ij'
+            np.arange(0, reference.slices),
+            np.arange(0, reference.rows),
+            np.arange(0, reference.columns), indexing='ij'
         )
-        nc = np.ones(np.prod([moving.slices, moving.rows, moving.columns]))
+        nc = np.ones(np.prod([reference.slices, reference.rows, reference.columns]))
         cref = np.asanyarray([cs.flatten(), cr.flatten(), cc.flatten(), nc], dtype='int')
 
         # Convert reference voxel coordinates to real coordinates
-        xref = np.dot(moving.transformationMatrix, cref)
+        xref = np.dot(reference.transformationMatrix, cref)
 
         # Generate voxel coordinated of reference image (moving in the space of the moving image
-        qinv = np.linalg.pinv(reference.transformationMatrix)
+        qinv = np.linalg.pinv(moving.transformationMatrix)
         cref2mov = np.dot(qinv, xref)
 
         # Only use the first three coordinates, the last is just ones.
         # Interpolation method requires transpose()
         cref2mov = cref2mov[:3, :].transpose()
 
-        if reference.ndim > 3:
-            tags = len(reference.tags[0])
-            tag_axis = reference.axes[0]
+        if moving.ndim > 3:
+            tags = len(moving.tags[0])
+            tag_axis = moving.axes[0]
             imreg = Series(
-                np.zeros([tags, moving.slices, moving.rows, moving.columns], dtype=float),
-                input_order=reference.input_order,
-                template=moving, geometry=moving,
+                np.zeros([tags, reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
+                input_order=moving.input_order,
+                template=moving, geometry=reference,
                 axes=[tag_axis, slice_axis, row_axis, column_axis]
             )
 
@@ -2123,12 +2126,12 @@ class Series(np.ndarray):
             # immovnp = np.array(reference, dtype=float)
             for i in range(tags):
                 fnc = RegularGridInterpolator(
-                    (np.arange(0, reference.slices),
-                     np.arange(0, reference.rows),
-                     np.arange(0, reference.columns)
+                    (np.arange(0, moving.slices),
+                     np.arange(0, moving.rows),
+                     np.arange(0, moving.columns)
                      ),
                     # immovnp[i],
-                    reference[i],
+                    moving[i],
                     method=interpolation,
                     bounds_error=False,
                     fill_value=0
@@ -2136,23 +2139,25 @@ class Series(np.ndarray):
 
                 # Apply interpolator
                 imh = fnc(cref2mov)
-                imreg[i] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
-        elif reference.ndim == 3:
+                imreg[i, ...] = np.reshape(imh,
+                                           (reference.slices, reference.rows, reference.columns))
+        elif moving.ndim == 3:
             imreg = Series(
-                np.zeros([moving.slices, moving.rows, moving.columns], dtype=float),
-                template=moving, geometry=moving,
+                np.zeros([reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
+                template=moving, geometry=reference,
                 axes=[slice_axis, row_axis, column_axis]
             )
 
             # Must convert to ndarray to slice the data
             # immovnp = np.array(reference, dtype=float)
             fnc = RegularGridInterpolator(
-                (np.arange(0, reference.slices),
-                 np.arange(0, reference.rows),
-                 np.arange(0, reference.columns)
+                (np.arange(0, moving.slices),
+                 np.arange(0, moving.rows),
+                 np.arange(0, moving.columns)
                  ),
                 # immovnp,
-                reference,
+                moving,
                 method=interpolation,
                 bounds_error=False,
                 fill_value=0
@@ -2160,7 +2165,7 @@ class Series(np.ndarray):
 
             # Apply interpolator
             imh = fnc(cref2mov)
-            imreg[:] = np.reshape(imh, (moving.slices, moving.rows, moving.columns))
+            imreg[:] = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
         else:
             raise ValueError('Input has 2D, not implemented')
 

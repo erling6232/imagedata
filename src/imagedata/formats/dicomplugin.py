@@ -4,7 +4,9 @@
 # Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
+import sys
 import logging
+import traceback
 import warnings
 import math
 from datetime import date, datetime, timedelta
@@ -982,10 +984,16 @@ class DICOMPlugin(AbstractPlugin):
                 logger.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
                 for _slice in range(si.slices):
                     try:
+                        # Interpret parameter substitution in filename_template
                         filename = filename_template % _slice
                     except TypeError:
                         filename = filename_template + "_{}".format(_slice)
-                    self.write_slice(0, _slice, si[_slice], archive, filename, ifile)
+                    try:
+                        self.write_slice(0, _slice, si[_slice], archive, filename, ifile)
+                    except Exception as e:
+                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
+                        traceback.print_exc(file=sys.stdout)
+                        raise
                     ifile += 1
 
     def write_4d_numpy(self, si, destination, opts):
@@ -1064,6 +1072,7 @@ class DICOMPlugin(AbstractPlugin):
                 for tag in range(steps):
                     for _slice in range(si.slices):
                         if self.output_dir == 'single':
+                            # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
                         else:  # self.output_dir == 'multi'
                             dirn = "{0}{1:0{2}}".format(
@@ -1074,7 +1083,13 @@ class DICOMPlugin(AbstractPlugin):
                                 ifile = 0
                             filename = os.path.join(dirn,
                                                     filename_template % ifile)
-                        self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
+                        try:
+                            self.write_slice(tag, _slice, si[tag, _slice],
+                                             archive, filename, ifile)
+                        except Exception as e:
+                            print('DICOMPlugin.write_slice Exception: {}'.format(e))
+                            traceback.print_exc(file=sys.stdout)
+                            raise
                         ifile += 1
             else:  # self.output_sort == SORT_ON_TAG:
                 ifile = 0
@@ -1082,6 +1097,7 @@ class DICOMPlugin(AbstractPlugin):
                 for _slice in range(si.slices):
                     for tag in range(steps):
                         if self.output_dir == 'single':
+                            # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
                         else:  # self.output_dir == 'multi'
                             dirn = "slice{0:0{1}}".format(_slice, digits)
@@ -1090,7 +1106,13 @@ class DICOMPlugin(AbstractPlugin):
                                 ifile = 0
                             filename = os.path.join(dirn,
                                                     filename_template % ifile)
-                        self.write_slice(tag, _slice, si[tag, _slice], archive, filename, ifile)
+                        try:
+                            self.write_slice(tag, _slice, si[tag, _slice],
+                                             archive, filename, ifile)
+                        except Exception as e:
+                            print('DICOMPlugin.write_slice Exception: {}'.format(e))
+                            traceback.print_exc(file=sys.stdout)
+                            raise
                         ifile += 1
 
     def write_enhanced(self, si, archive, filename_template, opts):
@@ -1271,7 +1293,8 @@ class DICOMPlugin(AbstractPlugin):
             # logger.debug("write_slice {}".format(si.DicomHeaderDict))
             tg, member_name, im = si.DicomHeaderDict[0][0]
             # tg,member_name,image = si.DicomHeaderDict[slice][tag]
-        except (KeyError, IndexError):
+        except (KeyError, IndexError, TypeError):
+            print('DICOMPlugin.write_slice: DicomHeaderDict: {}'.format(si.DicomHeaderDict))
             raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]"
                              % (slice, tag))
         # except AttributeError:

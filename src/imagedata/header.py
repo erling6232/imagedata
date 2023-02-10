@@ -22,9 +22,9 @@ header_tags = ['input_format',
                'SOPClassUID',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
+               'tags',
                'input_sort']
-geometry_tags = ['tags', 'spacing',
-                 'imagePositions', 'orientation', 'transformationMatrix',
+geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
                  'patientPosition',
                  'photometricInterpretation', 'axes']
 
@@ -59,11 +59,6 @@ class Header(object):
         photometricInterpretation
         axes
         __uid_generator
-        studyInstanceUID
-        seriesInstanceUID
-        frameOfReferenceUID
-        DicomHeaderDict
-        tags
     """
 
     def __init__(self):
@@ -88,12 +83,11 @@ class Header(object):
         # from pydicom.uid import UID
         # UID.
         self.DicomHeaderDict = None
-        self.tags = None
 
     def __repr__(self):
         return object.__repr__(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         items = []
         for attr in header_tags + geometry_tags:
             items.append("{0!r}: {1!r}".format(attr, getattr(self, attr, "")))
@@ -104,7 +98,7 @@ class Header(object):
         """
         return self.__uid_generator.__next__()
 
-    def set_default_values(self, axes):
+    def set_default_values(self, axes) -> None:
         """Set default values.
         """
         if self.DicomHeaderDict is not None:
@@ -145,7 +139,7 @@ class Header(object):
                 self.tags[_slice] = np.arange(tags)
 
     # noinspection PyPep8Naming
-    def empty_ds(self):
+    def empty_ds(self) -> pydicom.dataset.Dataset:
         SOPInsUID = self.new_uid()
 
         ds = pydicom.dataset.Dataset()
@@ -166,7 +160,7 @@ class Header(object):
 
         return ds
 
-    def add_template(self, template):
+    def add_template(self, template) -> None:
         """Add template data to this header.
         Does not add geometry data.
 
@@ -176,9 +170,8 @@ class Header(object):
 
         if template is None:
             return
-        # for attr in attributes(template):
         for attr in template.__dict__:
-            if attr in header_tags and attr not in ['seriesInstanceUID', 'input_format']:
+            if attr in header_tags and attr not in ['seriesInstanceUID', 'tags', 'input_format']:
                 value = getattr(template, attr, None)
                 if value is not None:
                     setattr(self, attr, value)
@@ -187,12 +180,14 @@ class Header(object):
             if value is not None:
                 setattr(self, 'seriesInstanceUID', value)
 
+        # Make sure tags are set last. Template may be None
+        self.__set_tags_from_template(template)
         # Make sure DicomHeaderDict is set last
         if template.DicomHeaderDict is not None:
             self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
                 template.DicomHeaderDict)
 
-    def __get_tags_and_slices(self):
+    def __get_tags_and_slices(self):  # -> tuple[int, int]:
         slices = tags = 1
         if self.axes is not None:
             for axis in self.axes:
@@ -205,19 +200,27 @@ class Header(object):
     def __make_DicomHeaderDict_from_template(self, template):
         """Shallow copy of template Dataset.
         When modifying attributes with Series.setDicomAttribute,
-        new attribute will be set to there avoid cross-talk.
+        new attribute will be set to avoid cross-talk.
         """
+        def tag_increment(tuple_list):
+            if len(tuple_list) < 2:
+                return 1.0
+            else:
+                return tuple_list[-1][0] - tuple_list[-2][0]  # Difference of last to tags
 
         DicomHeaderDict = {}
         default_header = template[0][0][2]
         tags, slices = self.__get_tags_and_slices()
         for _slice in range(slices):
             DicomHeaderDict[_slice] = []
+            next_tag = 0
             for tag in range(tags):
                 try:
                     template_tag = template[_slice][tag][0]
                 except (KeyError, IndexError):
-                    template_tag = tag
+                    # template_tag = tag
+                    template_tag = next_tag
+                next_tag = template_tag + tag_increment(DicomHeaderDict[_slice])
                 try:
                     templateHeader = copy.copy(template[_slice][tag][2])
                 except (KeyError, IndexError):
@@ -251,46 +254,46 @@ class Header(object):
     #
     #     return ds
 
-    def __set_tags_from_template(self, template, geometry):
+    def __set_tags_from_template(self, template) -> None:
+        """Set tags from template tags, alternatively from template axes.
+
+        Args:
+            template (Header): template header
+        Returns:
+            self.tags
+        Raises:
+            ValueError: when no tag axis is found
+        """
         self.tags = {}
-        _last_tags = None
+        _last_tags = []
         tags, slices = self.__get_tags_and_slices()
-        geometry_tag_list = self.__construct_geometry_tag_list(geometry)
+        new_tag_list = self.__construct_tags_from_axis(template)
         for _slice in range(slices):
             _tags = []
-            template_tag_list = []
-            if template is not None:
-                try:
-                    if issubclass(type(template[_slice]), dict):
-                        template_tag_list = list(template[_slice].values())
-                    else:
-                        template_tag_list = list(template[_slice])
-                except KeyError:
-                    # Re-use last template_tag_list for this _slice
-                    pass
-            if len(geometry_tag_list[_slice]) >= tags:
-                _tags = geometry_tag_list[_slice][:tags]
-                assert isinstance(_tags, np.ndarray),\
-                    "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
-            elif len(template_tag_list) >= tags:
+            try:
+                if issubclass(type(template.tags[_slice]), dict):
+                    template_tag_list = list(template.tags[_slice].values())
+                else:
+                    template_tag_list = list(template.tags[_slice])
+            except (TypeError, KeyError):
+                template_tag_list = _last_tags
+            # Use original template tags when possible, otherwise calculated tags
+            if len(template_tag_list) >= tags:
                 _tags = template_tag_list[:tags]
-                assert isinstance(_tags, np.ndarray), \
-                    "__set_tags_from_template not np.ndarray ({})".format(type(_tags))
             else:
-                _tags = _last_tags
-                # raise IndexError('Cannot get tag list with length {}'.format(tags))
+                _tags = new_tag_list
             self.tags[_slice] = np.array(_tags)
             _last_tags = self.tags[_slice].copy()
 
-    def __construct_geometry_tag_list(self, geometry):
-        """Construct tag_list from self and geometry.
-        Extend tag_list when geometry has to few tags.
+    def __construct_tags_from_axis(self, template) -> np.ndarray:
+        """Construct tag_list from self and template.
+        Extend tag_list when template has to few tags.
 
         Args:
             self.input_order
-            geometry[slice]: dict of np.ndarray
+            template (Header): template header
         Returns:
-            tag_list[slice]: dict of np.ndarray
+            tag_list (np.ndarray): calculated tags
         Raises:
             ValueError: when no tag axis is found
         """
@@ -305,42 +308,51 @@ class Header(object):
 
         if self.input_order == 'none':
             # There will be one tag only per slice
-            for _slice in range(slices):
-                try:
-                    if issubclass(type(geometry[_slice]), np.ndarray):
-                        tag_list[_slice] = geometry[_slice].copy()
-                    else:
-                        tag_list[_slice] = np.array(geometry[_slice])
-                    assert isinstance(tag_list[_slice], np.ndarray),\
-                        "__construct_geometry_tag_list not np.ndarray (is {})".format(type(
-                            tag_list[_slice]
-                        ))
-                except KeyError:
-                    tag_list[_slice] = np.zeros((1,))
+            try:
+                if issubclass(type(template.tags[0]), np.ndarray):
+                    tag_list = template.tags[0].copy()
+                else:
+                    tag_list = np.array(template.tags[0])
+                assert isinstance(tag_list, np.ndarray),\
+                    "__construct_tags_from_axis not np.ndarray (is {})".format(type(
+                        tag_list
+                    ))
+            except KeyError:
+                tag_list = np.zeros((1,))
             return tag_list
 
-        # Possibly multiple tags per slice
-        for _slice in range(slices):
-            try:
-                _list = list(geometry[_slice])
-                assert issubclass(type(geometry[_slice]), np.ndarray),\
-                    "geometry[] should be np.ndarray (is: {})".format(type(_list))
-            except KeyError:
-                _list = [0.0]
-            except AssertionError:
-                raise
-            while len(_list) < tags:
-                _list.append(_list[-1] + tag_increment(_list))  # Append increasing tag
-            tag_list[_slice] = np.array(_list)
-        return tag_list
+        # Multiple tags
+        # new_tags = [template.axes[0][_].values[0] for _ in range(len(template.axes[0]))]
+        new_tags = [_ for _ in template.axes[0]]
+        while len(new_tags) < tags:
+            new_tags.append(new_tags[-1] + tag_increment(new_tags))
+        return np.array(new_tags)
 
-    def __set_axes_from_template(self, template_axes, geometry_axes):
+    def add_geometry(self, geometry):
+        """Add geometry data to obj header.
+
+        Args:
+            self: header or dict
+            geometry: geometry template header or dict. Can be None.
+        """
+
+        if geometry is None:
+            return
+        for attr in geometry.__dict__:
+            if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
+                value = getattr(geometry, attr, None)
+                if value is not None:
+                    setattr(self, attr, value)
+        # Make sure axes are set last. Geometry may be None
+        self.__set_axes_from_template(
+            getattr(geometry, 'axes', None)
+        )
+
+    def __set_axes_from_template(self, geometry_axes):
         if self.axes is None:
             ndim = 1
             if geometry_axes is not None:
                 ndim = len(geometry_axes)
-            elif template_axes is not None:
-                ndim = len(template_axes)
             self.axes = [False for _ in range(ndim)]
         for i, axis in enumerate(self.axes):
             if geometry_axes is not None:
@@ -348,11 +360,6 @@ class Header(object):
                     if geometry_axis.name == axis.name:
                         # Ensure geometry_axis length agree with matrix size
                         self.axes[i] = self.__adjust_axis_from_template(axis, geometry_axis)
-            elif template_axes is not None:
-                for template_axis in template_axes:
-                    if template_axis.name == axis.name:
-                        # Ensure template_axis length agree with matrix size
-                        self.axes[i] = self.__adjust_axis_from_template(axis, template_axis)
 
     def __adjust_axis_from_template(self, axis, template):
         """Construct new axis from template, retaining axis length.
@@ -374,32 +381,6 @@ class Header(object):
         else:
             raise ValueError('Unknown template axis class: {}'.format(
                 type(template)))
-
-    def add_geometry(self, template, geometry):
-        """Add geometry data to obj header.
-
-        Args:
-            self: header or dict
-            template: template header or dict. Can be None.
-            geometry: geometry template header or dict. Can be None.
-        """
-
-        if geometry is None:
-            return
-        for attr in geometry.__dict__:
-            if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
-                value = getattr(geometry, attr, None)
-                if value is not None:
-                    setattr(self, attr, value)
-        # Make sure tags and axes are set last. Template and/or geometry may be None
-        self.__set_tags_from_template(
-            getattr(template, 'tags', None),
-            getattr(geometry, 'tags', None)
-        )
-        self.__set_axes_from_template(
-            getattr(template, 'axes', None),
-            getattr(geometry, 'axes', None)
-        )
 
     def find_axis(self, name):
         """Find axis with given name

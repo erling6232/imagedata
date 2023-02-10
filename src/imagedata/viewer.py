@@ -871,7 +871,7 @@ def get_level(si, level):
         # First, attempt to get DICOM attribute
         try:
             level = si.getDicomAttribute('WindowCenter')
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
             pass
         try:
             if len(level) > 1:
@@ -892,7 +892,7 @@ def get_window_level(si, norm, window, level):
         # First, attempt to get DICOM attribute
         try:
             window = si.getDicomAttribute('WindowWidth')
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
             pass
         try:
             if len(window) > 1:
