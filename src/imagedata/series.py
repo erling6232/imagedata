@@ -110,7 +110,7 @@ class Series(np.ndarray):
                 obj.header = copy.copy(data.header)  # carry forward attributes
                 obj.input_order = data.input_order
                 obj.header.add_template(data.header)  # Includes DicomHeaderDict
-                obj.header.add_geometry(data.header, data.header)
+                obj.header.add_geometry(data.header)
             else:
                 obj.header.set_default_values(obj.axes if axes is None else axes)
 
@@ -118,7 +118,7 @@ class Series(np.ndarray):
             if axes is not None:
                 obj.header.axes = copy.copy(axes)
             obj.header.add_template(template)
-            obj.header.add_geometry(template, geometry)
+            obj.header.add_geometry(geometry)
             return obj
         logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
 
@@ -143,7 +143,7 @@ class Series(np.ndarray):
                 obj.header.axes = [UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
             obj.header.add_template(template)
-            obj.header.add_geometry(template, geometry)
+            obj.header.add_geometry(geometry)
             return obj
 
         # Read input, hdr is dict of attributes
@@ -163,13 +163,13 @@ class Series(np.ndarray):
             obj.axes = hdr.axes
         obj.header.set_default_values(obj.axes)
         obj.header.add_template(hdr)
-        obj.header.add_geometry(hdr, hdr)
+        obj.header.add_geometry(hdr)
         # for attr in __attributes(hdr):
         #     __set_attribute(obj.header, attr, __get_attribute(template, attr))
         #     setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
         obj.header.add_template(template)
-        obj.header.add_geometry(template, geometry)
+        obj.header.add_geometry(geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -304,7 +304,7 @@ class Series(np.ndarray):
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
                     header.add_template(input_.header)  # Includes DicomHeaderDict
-                    header.add_geometry(input_.header, input_.header)
+                    header.add_geometry(input_.header)
 
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
