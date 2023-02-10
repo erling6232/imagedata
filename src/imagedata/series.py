@@ -2121,11 +2121,6 @@ class Series(np.ndarray):
                 template=moving, geometry=reference,
                 axes=[tag_axis, slice_axis, row_axis, column_axis]
             )
-            print('imreg: DHD: {}'.format(len(imreg.DicomHeaderDict)))
-            for s in range(imreg.slices):
-                print('imreg: slice {}: DHD {}'.format(s, len(imreg.DicomHeaderDict[s])))
-                print('imreg: tag: {}'.format(imreg.tags[s]))
-                print('imreg: DHD {}'.format(type(imreg.DicomHeaderDict[s][0])))
 
             # Must convert to ndarray to slice the data
             # immovnp = np.array(reference, dtype=float)
