@@ -117,7 +117,7 @@ def read(urls, order=None, opts=None):
                 pass
             elif 'separate_series' not in in_opts or not in_opts['separate_series']:
                 hdr.add_template(pre_hdr)
-                hdr.add_geometry(pre_hdr, geom_hdr)
+                hdr.add_geometry(geom_hdr)
             return hdr, si
         except (FileNotFoundError, CannotSort):
             raise

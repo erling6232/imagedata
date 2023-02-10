@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-rc1] - 2023-02-01
+### Added
+* Series.align():
+
 ## [v2.0.0-rc0] - 2023-01-31
 ### Added
 * Series.to_rgb(): Added clip parameter whether clipping to DICOM window or

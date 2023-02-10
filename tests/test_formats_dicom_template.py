@@ -296,7 +296,7 @@ class TestDicomGeometryTemplate(unittest.TestCase):
         self.assertEqual('dicom', template.input_format)
         si1 = Series(
             np.zeros((2, 3, 192, 152)),
-            geometry=template)
+            template=template, geometry=template)
         # Compare constructed series si1 to original series template
         for _slice in range(3):
             np.testing.assert_array_equal(template.tags[_slice][:2], si1.tags[_slice])
@@ -310,7 +310,7 @@ class TestDicomGeometryTemplate(unittest.TestCase):
             np.zeros((template.shape[0]+1, template.shape[1],
                       template.shape[2], template.shape[3])),
             'time',
-            geometry=template)
+            template=template, geometry=template)
         # Compare constructed series si1 to original series template
         for _slice in range(si1.slices):
             # Append one slice location to template

@@ -2,7 +2,10 @@
 
 # import nose.tools
 import unittest
+import os.path
+import tempfile
 import numpy as np
+from numpy.random import default_rng
 import copy
 # import logging
 import pydicom.datadict
@@ -170,7 +173,6 @@ class TestSeries(unittest.TestCase):
 
     #@unittest.skip("skipping test_slicing_y_neg")
     def test_slicing_y_neg(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
@@ -596,6 +598,64 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(4, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
         np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
+    def test_align_3d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_3d_few_slices_on_many(self):
+        rng = default_rng()
+        reference = Series(rng.standard_normal(80).reshape((5,4,4)))
+        reference.spacing = (1, 1, 1)
+        reference.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, reference.shape[0])
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference, force=True)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_2d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'TI',
+                         'TI_1.MR.0021.0001.2021.06.08.10.04.29.806302.203193459.IMA'),
+            input_order='ti',
+            opts={'ti': 'InversionTime'}
+        )
+        with self.assertRaises(ValueError):
+            moved = moving.align(reference)
+
+    def test_align_3d_on_4d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_4d_on_3d(self):
+        moving = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
 
 
 if __name__ == '__main__':

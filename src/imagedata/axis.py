@@ -49,6 +49,13 @@ class UniformAxis(Axis):
                 stop = self.start + (item.stop * self.step)
             stop = min(self.stop, stop)
             step = (item.step or 1) * self.step
+        elif isinstance(item, int):
+            _value = self.start + item * self.step
+            if _value < self.stop:
+                return _value
+            raise StopIteration
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         # logger.debug('UniformAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformAxis(self.name, start, stop, step)
 
@@ -59,6 +66,12 @@ class UniformAxis(Axis):
             return sys.maxsize
         except Exception:
             raise
+
+    def __next__(self):
+        _value = self.start
+        while _value < self.stop:
+            yield _value
+            _value += self.step
 
     @property
     def slice(self):
@@ -103,11 +116,23 @@ class UniformLengthAxis(UniformAxis):
             except Exception:
                 raise
             n = min(self.n, n)
+        elif isinstance(item, int):
+            if item < n:
+                return self.start + item * self.step
+            raise StopIteration
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         # logger.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformLengthAxis(self.name, start, n, step)
 
     def __len__(self):
         return self.n
+
+    def __next__(self):
+        _value = self.start
+        for _ in range(self.n):
+            yield _value
+            _value += self.step
 
     def __repr__(self):
         return "{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
@@ -145,11 +170,18 @@ class VariableAxis(Axis):
             stop = item.stop or len(self.values)
             stop = min(len(self.values), stop)
             step = item.step or 1
-        # logger.debug('VariableAxis: slice %d,%d,%d' % (start,stop,step))
+        elif isinstance(item, int):
+            return self.values[item]
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         return VariableAxis(self.name, self.values[start:stop:step])
 
     def __len__(self):
         return len(self.values)
+
+    def __next__(self):
+        for _ in self.values:
+            yield _
 
     def __repr__(self):
         return "{0}({1.name!s},{1.values!r})".format(
