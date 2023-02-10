@@ -984,6 +984,7 @@ class DICOMPlugin(AbstractPlugin):
                 logger.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
                 for _slice in range(si.slices):
                     try:
+                        # Interpret parameter substitution in filename_template
                         filename = filename_template % _slice
                     except TypeError:
                         filename = filename_template + "_{}".format(_slice)
@@ -1071,6 +1072,7 @@ class DICOMPlugin(AbstractPlugin):
                 for tag in range(steps):
                     for _slice in range(si.slices):
                         if self.output_dir == 'single':
+                            # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
                         else:  # self.output_dir == 'multi'
                             dirn = "{0}{1:0{2}}".format(
@@ -1095,6 +1097,7 @@ class DICOMPlugin(AbstractPlugin):
                 for _slice in range(si.slices):
                     for tag in range(steps):
                         if self.output_dir == 'single':
+                            # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
                         else:  # self.output_dir == 'multi'
                             dirn = "slice{0:0{1}}".format(_slice, digits)
