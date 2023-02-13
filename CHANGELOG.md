@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.0.0-rc2] - 2023-02-15
+### Changed
+* cmdline: Changed default input order to `auto`.
+
 ## [v2.0.0-rc1] - 2023-02-10
 ### Added
 * Added Series.align() method.

@@ -2,7 +2,7 @@
 
 """Read/write image data to file(s). Handles DICOM, Nifti, VTI and mhd."""
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import os.path

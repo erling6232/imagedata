@@ -95,7 +95,8 @@ An existing DICOM object can be used as template to set DICOM attributes:
 image_data
 -----------------
 
-Convert input to output data, possible modifying the image format.
+Convert input to output data, possible modifying the image format. The input data can be a cohort of series,
+study and patients. The output will be sorted in folders with appropriate names.
 
 Usage:
     image_data [<options>] <output> <input list...>
@@ -174,7 +175,9 @@ The following controls can be used to manipulate the viewer:
 image_statistics
 ---------------------
 
-Describe series shape, dtype, min, max and mean
+Describe series shape, dtype, min, max and mean.
+The input data can be a cohort of series, study and patients.
+The output will report on series parameters for each patient, study and series.
 
 timeline
 -------------
