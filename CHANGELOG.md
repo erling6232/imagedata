@@ -7,7 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v2.0.0-rc2] - 2023-02-15
+## [v2.0.0] - 2023-02-13
+### Added
+* Study class: a collection of Series instances.
+  Sort images into separate Series depending on SeriesInstanceUID.
+  (https://github.com/erling6232/imagedata/issues/22)
+* Patient and Cohort classes: Patient is a collection of Study instances,
+  while Cohort is a collection of Patient instances.
+* Simpler import statements in user code: `from imagedata import Series, Study`
+* Add support Python 3.11 (https://github.com/erling6232/imagedata/issues/21)
+* Series.to_rgb(): Added clip parameter whether clipping to DICOM window or
+  to histogram probabilities.
+* Series.fuse_mask(): Color fusion of mask.
+* Added Series.align() method.
+### Changed
+* `input_order='auto'`: Auto-detect the sorting of Series,
+  depending on which DICOM attribute varies.
+  The input_orders time/b/fa/te are attempted in order.
+* `auto` is now the default input_order.
+* DWI images will typically have varying time. Let `b` values override the time stamps
+  during auto-detect sorting of Series.
+* The dicom read has been modified to keep the UIDs of the input files.
+  This way SOPInstanceUIDs are correct when you later want to look up SOPInstanceUID from a DICOM PR.
+* image_data.statistics: print patient, study and series properly.
+* image_data.conversion: improved conversion of date/time for directory names.
+* The series write() method now has an option to keep the UID when writing.
+  The UIDs used to be modified at output to indicate that the data might have been modified.
+  Do something like:
+
+  a.write(destination, opts={'keep_uid': True})
+
+### Fixed
+* DICOMPlugin: Catch errors when converting DICOM attributes to numbers.
+* Header.add_geometry() takes one template only.
+* Axis: Enhanced class with __getitem__ and __next__ to enable iteration over axis values.
+
+## [v2.0.0-rc2] - 2023-02-13
 ### Changed
 * cmdline: Changed default input order to `auto`.
 
