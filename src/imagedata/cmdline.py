@@ -9,7 +9,7 @@ import logging
 from . import __version__
 from .formats import str_to_sort_on, str_to_input_order, str_to_dtype
 from .formats import SORT_ON_SLICE
-from .formats import INPUT_ORDER_NONE
+from .formats import INPUT_ORDER_AUTO
 
 
 class DictAction(argparse.Action):
@@ -104,8 +104,8 @@ def add_argparse_options(parser):
     parser.add_argument('--order', dest="input_order",
                         action=InputOrderAction,
                         help="How to sort input file (time, b-value, fa, te) (default: none)",
-                        choices=['none', 'time', 'b', 'fa', 'te', 'faulty'],
-                        default=INPUT_ORDER_NONE)
+                        choices=['auto', 'none', 'time', 'b', 'fa', 'te', 'faulty'],
+                        default=INPUT_ORDER_AUTO)
     # readdata.str_to_dtype() will convert choice to numpy dtype
     parser.add_argument('--dtype', action=DtypeAction,
                         help="Specify output datatype. Otherwise keep input datatype",
