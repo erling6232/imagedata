@@ -126,7 +126,7 @@ class TestDicomPlugin(unittest.TestCase):
         with self.assertRaises(imagedata.formats.CannotSort) as context:
             si1 = Series(
                 os.path.join('data', 'dicom', 'time'),
-                'none',
+                'b',
                 self.opts)
 
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
