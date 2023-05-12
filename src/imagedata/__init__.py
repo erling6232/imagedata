@@ -9,10 +9,16 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 try:
     from importlib.metadata import version, entry_points
-    __version__ = version('imagedata')
+    try:
+        __version__ = version('imagedata')
+    except:
+        __version__ = None
 except ModuleNotFoundError:
     from importlib_metadata import version, entry_points
-    __version__ = version('imagedata')
+    try:
+        __version__ = version('imagedata')
+    except:
+        __version__ = None
 except Exception:
     # import imagedata as _
     from . import __path__ as _path
