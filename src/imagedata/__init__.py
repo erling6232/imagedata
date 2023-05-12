@@ -32,7 +32,12 @@ __email__ = 'Erling.Andersen@Helse-Bergen.NO'
 
 plugins = {}
 try:
-    _plugins = entry_points(group='imagedata_plugins')
+    _plugins = entry_points().select(group='imagedata_plugins')
+except AttributeError:
+    try:
+        _plugins = entry_points(group='imagedata_plugins')
+    except TypeError:
+        _plugins = entry_points()['imagedata_plugins']
 except TypeError:
     _plugins = entry_points()['imagedata_plugins']
 for _plugin in _plugins:
