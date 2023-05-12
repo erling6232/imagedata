@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.1.0] - 2023-02-13
+### Added
+* imagedata.apps.diffusion module to extract diffusion MRI parameters.
+
 ## [v2.0.0] - 2023-02-13
 ### Added
 * Study class: a collection of Series instances.
