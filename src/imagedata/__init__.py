@@ -11,13 +11,13 @@ try:
     from importlib.metadata import version, entry_points
     try:
         __version__ = version('imagedata')
-    except:
+    except Exception:
         __version__ = None
 except ModuleNotFoundError:
     from importlib_metadata import version, entry_points
     try:
         __version__ = version('imagedata')
-    except:
+    except Exception:
         __version__ = None
 except Exception:
     # import imagedata as _
