@@ -31,7 +31,7 @@ def get_g_vectors(img):
     _slice = 0
     for tag in range(img.shape[0]):
         G = [0, 0, 0]
-        ds=img.DicomHeaderDict[_slice][tag][2]
+        ds = img.DicomHeaderDict[_slice][tag][2]
 
         # Attempt to address standard DICOM attributes
         if 'DiffusionGradientOrientation' in ds:
@@ -48,6 +48,7 @@ def get_g_vectors(img):
 
         v.append({'b': get_b_value(img, tag), 'z': G[2], 'y': G[1], 'x': G[0]})
     return pd.DataFrame(v)
+
 
 def get_b_value(img, tag=0):
     """Get diffusion b value
@@ -70,7 +71,7 @@ def get_b_value(img, tag=0):
 
     # Extract pydicom dataset for given slice and tag
     _slice = 0
-    ds=img.DicomHeaderDict[_slice][tag][2]
+    ds = img.DicomHeaderDict[_slice][tag][2]
 
     # Attempt to address standard DICOM attribute
     if 'DiffusionBValue' in ds:
