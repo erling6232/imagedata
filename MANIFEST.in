@@ -22,7 +22,6 @@ recursive-include data *.nii.gz
 prune .idea
 prune devtests
 include docs
-prune docs/source
 prune docs/_build
 recursive-include docs *
 recursive-include src *.py
