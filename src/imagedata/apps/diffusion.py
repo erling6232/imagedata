@@ -9,12 +9,36 @@ import pandas as pd
 def get_g_vectors(img):
     """Get diffusion gradient vectors
 
+    Extracting diffusion gradient vectors has been tested on MRI data from some major vendors.
+
     Args:
         img (Series): Series object.
     Returns:
         pd.DataFrame: Diffusion gradient vectors, columns b, z, y, x.
     Raises:
         IndexError: when no gradient vector is present in dataset.
+    Examples:
+        >>> from imagedata import Series
+        >>> from imagedata.apps.diffusion import get_g_vectors
+        >>> img = Series('data', 'b', opts={'accept_duplicate_tag': 'True'})
+        >>> g = get_g_vectors(img)
+        >>> print(g)
+                   b         z         y         x
+            0      0       NaN       NaN       NaN
+            1    500 -0.706399  0.000000  0.707814
+            2    500 -0.706399  0.000000 -0.707814
+            3    500 -0.706399 -0.707814  0.000000
+            4    500  0.707814 -0.706399  0.000000
+            5    500  0.000000 -0.707107  0.707107
+            6    500  0.000000 -0.707107 -0.707107
+            7   1000 -0.706752  0.000000  0.707461
+            8   1000 -0.706752  0.000000 -0.707461
+            9   1000 -0.706753 -0.707460  0.000000
+            10  1000  0.707460 -0.706754  0.000000
+            11  1000  0.001414 -0.707106  0.707106
+            12  1000  0.001414 -0.707106 -0.707106
+            13  2500 -0.706824  0.000000  0.707390
+
     """
 
     def get_DICOM_g_vector(ds):
@@ -56,8 +80,11 @@ def get_g_vectors(img):
 def get_b_value(img, tag=0):
     """Get diffusion b value
 
+    Extracting diffusion b value has been tested on MRI data from some major vendors.
+
     Args:
-        img: Series object.
+        img (Series): Series object.
+        tag (int): Optional tag in Series object. Default: 0.
     Returns:
         float: b value. Returns NaN when no b value is present in dataset.
     """

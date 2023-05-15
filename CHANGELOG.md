@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v2.1.2] - 2023-05-15
+### Changed
+* imagedata.apps.diffusion: Improved documentation.
+
 ## [v2.1.1] - 2023-05-15
 ### Changed
 * Modified fetching package metadata and entry_points.

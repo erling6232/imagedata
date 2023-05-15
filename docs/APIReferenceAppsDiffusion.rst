@@ -1,7 +1,7 @@
 .. _APIReferenceAppsDiffusion:
 
 Apps Diffusion API Reference
-========================
+============================
 
 Module imagedata.apps.diffusion
 ----------------------------------------
