@@ -31,6 +31,7 @@ __author__ = 'Erling Andersen, Haukeland University Hospital, Bergen, Norway'
 __email__ = 'Erling.Andersen@Helse-Bergen.NO'
 
 plugins = {}
+_plugins = {}
 try:
     _plugins = entry_points().select(group='imagedata_plugins')
 except AttributeError:
@@ -40,12 +41,12 @@ except AttributeError:
         try:
             _plugins = entry_points()['imagedata_plugins']
         except KeyError:
-            plugins = {}
+            pass
 except TypeError:
     try:
         _plugins = entry_points()['imagedata_plugins']
     except KeyError:
-        plugins = {}
+        pass
 for _plugin in _plugins:
     _class = _plugin.load()
     if _class.plugin_type not in plugins:
