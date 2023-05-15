@@ -12,3 +12,4 @@ API Reference
   APIReferenceFormats
   APIReferenceArchives
   APIReferenceTransports
+  APIReferenceApps
