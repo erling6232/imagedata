@@ -1,7 +1,7 @@
 .. _APIReferenceApps:
 
-API Reference
-===============
+Apps API Reference
+==================
 
 .. toctree::
   :maxdepth: 4

@@ -11,5 +11,5 @@ Most ndarray methods are inheritied, and are available with the Series class.
 
 See: https://numpy.org/doc/stable/ for documentation on NumPy.
 
-.. autoclass:: imagedata.series.Series
+.. autoclass:: imagedata.Series
     :members:
