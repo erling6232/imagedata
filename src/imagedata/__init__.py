@@ -40,12 +40,12 @@ except AttributeError:
         try:
             _plugins = entry_points()['imagedata_plugins']
         except KeyError:
-            pass
+            plugins = {}
 except TypeError:
     try:
         _plugins = entry_points()['imagedata_plugins']
     except KeyError:
-        pass
+        plugins = {}
 for _plugin in _plugins:
     _class = _plugin.load()
     if _class.plugin_type not in plugins:
