@@ -1,7 +1,7 @@
 """Read/Write image files, calling appropriate transport, archive and format plugins
 """
 
-# Copyright (c) 2013-2019 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import logging
@@ -10,11 +10,10 @@ import argparse
 import fnmatch
 import pathlib
 import urllib.parse
-from imagedata.header import add_template, add_geometry
-import imagedata.formats
-import imagedata
-import imagedata.transports
-import imagedata.archives
+from .formats import INPUT_ORDER_NONE, input_order_to_str, find_plugin, get_plugins_list
+from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
+from .transports import RootIsNotDirectory
+from .archives import find_mimetype_plugin, ArchivePluginNotFound
 
 
 class NoTransportError(Exception):
@@ -49,8 +48,8 @@ def read(urls, order=None, opts=None):
         ValueError: When no sources are given.
         UnknownOptionType: When opts cannot be made into a dict.
         FileNotFoundError: When specified URL cannot be opened.
-        imagedata.formats.UnknownInputError: When the input format could not be determined.
-        imagedata.formats.CannotSort: When input data cannot be sorted.
+        UnknownInputError: When the input format could not be determined.
+        CannotSort: When input data cannot be sorted.
     """
 
     logger.debug("reader.read: urls {}".format(urls))
@@ -58,7 +57,7 @@ def read(urls, order=None, opts=None):
     #    if len(my_urls) < 1:
     #        raise ValueError("No URL(s) where given")
     #    logger.debug("reader.read: transport {} my_urls {}".format(transport,my_urls))
-    sources = _get_sources(urls, mode='r')
+    sources = _get_sources(urls, mode='r', opts=opts)
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
     logger.debug("reader.read: sources {}".format(sources))
@@ -75,50 +74,54 @@ def read(urls, order=None, opts=None):
                                                                     opts))
 
     # Let the calling party override a default input order
-    input_order = imagedata.formats.INPUT_ORDER_NONE
+    input_order = INPUT_ORDER_NONE
     if 'input_order' in in_opts:
         input_order = in_opts['input_order']
     if order != 'none':
         input_order = order
-    logger.info("Input order: {}.".format(imagedata.formats.input_order_to_str(input_order)))
+    logger.info("Input order: {}.".format(input_order_to_str(input_order)))
 
     # Pre-fetch DICOM template
     pre_hdr = None
     if 'template' in in_opts and in_opts['template']:
         logger.debug("readdata.read template {}".format(in_opts['template']))
-        template_source = _get_sources(in_opts['template'], mode='r')
-        reader = imagedata.formats.find_plugin('dicom')
-        pre_hdr, _ = reader.read_headers(template_source, input_order, in_opts)
+        template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
+        reader = find_plugin('dicom')
+        pre_hdr, _ = reader.read_files(template_source, input_order, in_opts)
 
     # Pre-fetch DICOM geometry
     geom_hdr = None
     if 'geometry' in in_opts and in_opts['geometry']:
         logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
-        geometry_source = _get_sources(in_opts['geometry'], mode='r')
-        reader = imagedata.formats.find_plugin('dicom')
-        geom_hdr, _ = reader.read_headers(geometry_source, input_order, in_opts)
+        geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
+        reader = find_plugin('dicom')
+        geom_hdr, _ = reader.read_files(geometry_source, input_order, in_opts)
         # if pre_hdr is None:
         #    pre_hdr = {}
         # _add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
-    plugins = sorted_plugins_dicom_first(imagedata.formats.get_plugins_list())
+    plugins = sorted_plugins_dicom_first(get_plugins_list())
     logger.debug("readdata.read plugins length {}".format(len(plugins)))
     for pname, ptype, pclass in plugins:
         logger.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
         try:
             hdr, si = reader.read(sources, None, input_order, in_opts)
+            del reader
 
             for source in sources:
                 logger.debug("readdata.read: close archive {}".format(source['archive']))
                 source['archive'].close()
-            add_template(hdr, pre_hdr)
-            add_geometry(hdr, pre_hdr, geom_hdr)
+            if 'headers_only' in in_opts and in_opts['headers_only']:
+                pass
+            elif 'separate_series' not in in_opts or not in_opts['separate_series']:
+                hdr.add_template(pre_hdr)
+                hdr.add_geometry(geom_hdr)
             return hdr, si
-        except (FileNotFoundError, imagedata.formats.CannotSort):
+        except (FileNotFoundError, CannotSort):
             raise
-        except imagedata.formats.NotImageError as e:
+        except NotImageError as e:
             logger.info("Giving up {}: {}".format(ptype, e))
             pass
         except Exception as e:
@@ -130,9 +133,9 @@ def read(urls, order=None, opts=None):
         source['archive'].close()
 
     if issubclass(type(urls), list):
-        raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls[0])
+        raise UnknownInputError('Could not determine input format of "%s"' % urls[0])
     else:
-        raise imagedata.formats.UnknownInputError("Could not determine input format of %s." % urls)
+        raise UnknownInputError('Could not determine input format of "%s"' % urls)
 
 
 # def _add_template(hdr, pre_hdr):
@@ -152,7 +155,8 @@ def read(urls, order=None, opts=None):
 #        pre_hdr['orientation']    = geometry['orientation'].copy()
 #        pre_hdr['imagePositions'] = {}
 #        logger.debug("_add_dicom_geometry:")
-#        logger.debug("_add_dicom_geometry: geometry.imagePositions {}".format(geometry['imagePositions'].keys()))
+#        logger.debug("_add_dicom_geometry: geometry.imagePositions {}".format(
+#            geometry['imagePositions'].keys()))
 #        for k in geometry['imagePositions'].keys():
 #            pre_hdr['imagePositions'][k] = geometry['imagePositions'][k].copy()
 #        pre_hdr['axes'] = geometry['axes'].copy()
@@ -244,10 +248,10 @@ def write(si, url, opts=None, formats=None):
     #        len(destinations))
 
     # Call plugin writers in turn to store the data
-    logger.debug("Available plugins {}".format(len(imagedata.formats.get_plugins_list())))
+    logger.debug("Available plugins {}".format(len(get_plugins_list())))
     written = False
     msg = ''
-    for pname, ptype, pclass in imagedata.formats.get_plugins_list():
+    for pname, ptype, pclass in get_plugins_list():
         if ptype in output_formats:
             logger.debug("Attempt plugin {}".format(ptype))
             # Create plugin to write data in specified format
@@ -269,9 +273,11 @@ def write(si, url, opts=None, formats=None):
                     # 2D-3D data
                     writer.write_3d_numpy(write_si, destination, out_opts)
                 else:
-                    raise ValueError("Don't know how to write image of shape {}".format(write_si.shape))
+                    raise ValueError("Don't know how to write image of shape {}".format(
+                        write_si.shape))
                 written = True
-            except imagedata.formats.WriteNotImplemented:
+                del writer
+            except WriteNotImplemented:
                 raise
             except Exception as e:
                 logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
@@ -353,7 +359,7 @@ def _get_archive(url, mode='r', opts=None):
         _path = url_tuple.path
     # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(_path)[0]
-    archive = imagedata.archives.find_mimetype_plugin(
+    archive = find_mimetype_plugin(
         mimetype,
         url,
         mode,
@@ -425,7 +431,7 @@ def _simplify_locations(locations):
 
 def _get_sources(urls, mode, opts=None):
     """Determine transport, archive and file from each url.
-    
+
     Handle both single url, a url tuple, and a url list
 
     Args:
@@ -480,8 +486,8 @@ def _get_sources(urls, mode, opts=None):
         source = {'files': []}
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
-        except (imagedata.transports.RootIsNotDirectory,
-                imagedata.archives.ArchivePluginNotFound):
+        except (RootIsNotDirectory,
+                ArchivePluginNotFound):
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
             logger.debug('readdata._get_sources: retry location %s' % source_location)

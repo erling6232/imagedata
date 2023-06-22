@@ -1,15 +1,15 @@
 """Transfer DICOM images to and from DICOM Storage SCP
 """
 
-# Copyright (c) 2019-2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2019-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import platform
 import urllib
 import logging
 import pydicom
 import pynetdicom
-from imagedata.transports.abstracttransport import AbstractTransport
-from imagedata.transports import FunctionNotSupported
+from .abstracttransport import AbstractTransport
+from . import FunctionNotSupported
 
 logger = logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class DicomTransport(AbstractTransport):
         Input:
         - top: starting point for walk (str)
         Return:
-        - tuples of (root, dirs, files) 
+        - tuples of (root, dirs, files)
         """
         if self.__mode[0] == 'w':
             # Do not search the DICOM archive on write
@@ -182,9 +182,10 @@ class DicomTransport(AbstractTransport):
             for series_instance_uid in series:
                 # catalog[study_instance_uid][series_instance_uid] = {}
                 # Walk the instance list
-                instances = self._cfind_instances(study_instance_uid, series_instance_uid, instance_search)
-                yield '/{}/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid, series_instance_uid
-                                            ), [], instances
+                instances = self._cfind_instances(study_instance_uid, series_instance_uid,
+                                                  instance_search)
+                yield '/{}/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid,
+                                            series_instance_uid), [], instances
 
     def isfile(self, path):
         """Return True if path is an existing regular file.
@@ -209,7 +210,8 @@ class DicomTransport(AbstractTransport):
         logger.debug('DicomTransport.store: send dataset')
         status = self.__assoc.send_c_store(ds)
         if status:
-            logger.debug('DicomTransport.store: C-STORE request status: 0x{0:04x}'.format(status.Status))
+            logger.debug('DicomTransport.store: C-STORE request status: '
+                         '0x{0:04x}'.format(status.Status))
         else:
             raise AssociationFailed('C-STORE request status: 0x{0:04x}'.format(status.Status))
 
@@ -242,11 +244,14 @@ class DicomTransport(AbstractTransport):
                 study = self.__catalog[study_instance_uid]
                 study_date = study.StudyDate
                 if len(study_date) == 8:
-                    study_date = '{}.{}.{}'.format(study_date[:4], study_date[4:6], study_date[6:8])
+                    study_date = '{}.{}.{}'.format(
+                        study_date[:4], study_date[4:6], study_date[6:8])
                 study_time = study.StudyTime
                 if len(study_time) == 6:
-                    study_time = '{}:{}:{}'.format(study_time[:2], study_time[2:4], study_time[4:6])
-                return '{} {} {} {}'.format(study_date, study_time, study.AccessionNumber, study.StudyDescription)
+                    study_time = '{}:{}:{}'.format(
+                        study_time[:2], study_time[2:4], study_time[4:6])
+                return '{} {} {} {}'.format(
+                    study_date, study_time, study.AccessionNumber, study.StudyDescription)
             return ''
         elif len(url) == 5:
             # Describe series
@@ -262,7 +267,8 @@ class DicomTransport(AbstractTransport):
                 except AttributeError:
                     series_description = ''
                 return '#{}: {} {} {}'.format(
-                    series_number, series.NumberOfSeriesRelatedInstances, series.Modality, series_description)
+                    series_number, series.NumberOfSeriesRelatedInstances,
+                    series.Modality, series_description)
             return ''
         elif len(url) == 6:
             # Describe instance
@@ -271,7 +277,8 @@ class DicomTransport(AbstractTransport):
                 instance = self.__catalog[sop_instance_uid]
                 try:
                     return '{} {}x{}x{}'.format(
-                        instance.InstanceNumber, instance.NumberOfFrames, instance.Rows, instance.Columns)
+                        instance.InstanceNumber, instance.NumberOfFrames,
+                        instance.Rows, instance.Columns)
                 except AttributeError:
                     return ''
             return ''
@@ -318,12 +325,14 @@ class DicomTransport(AbstractTransport):
 
         if assoc.is_established:
             # Use the C-GET service to send the identifier
-            responses = assoc.send_c_get(ds, pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelGet)
+            responses = assoc.send_c_get(
+                ds, pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelGet)
             for (status, identifier) in responses:
                 if status:
                     pass
                 else:
-                    raise ConnectionError('Connection timed out, was aborted or received invalid response')
+                    raise ConnectionError(
+                        'Connection timed out, was aborted or received invalid response')
 
             # Release the association
             assoc.release()
@@ -360,9 +369,10 @@ class DicomTransport(AbstractTransport):
             ds.NumberOfStudyRelatedInstances = ''
             ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
 
-            instances2 = self._cfind(ds,
-                                     pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
-                                     'StudyInstanceUID')
+            instances2 =\
+                self._cfind(ds,
+                            pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
+                            'StudyInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
@@ -385,15 +395,18 @@ class DicomTransport(AbstractTransport):
             VR = pydicom.datadict.dictionary_VR(tag)
             if VR == 'IS':
                 try:
-                    ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), int(search))
+                    ds[tag] = pydicom.dataset.DataElement(
+                        tag, pydicom.datadict.dictionary_VR(tag), int(search))
                 except (ValueError, TypeError):
                     continue
             else:
-                ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
+                ds[tag] = pydicom.dataset.DataElement(
+                    tag, pydicom.datadict.dictionary_VR(tag), search)
 
-            instances2 = self._cfind(ds,
-                                     pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
-                                     'SeriesInstanceUID')
+            instances2 =\
+                self._cfind(ds,
+                            pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
+                            'SeriesInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
@@ -416,14 +429,17 @@ class DicomTransport(AbstractTransport):
             VR = pydicom.datadict.dictionary_VR(tag)
             if VR == 'IS':
                 try:
-                    ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), int(search))
+                    ds[tag] = pydicom.dataset.DataElement(
+                        tag, pydicom.datadict.dictionary_VR(tag), int(search))
                 except (ValueError, TypeError):
                     continue
             else:
-                ds[tag] = pydicom.dataset.DataElement(tag, pydicom.datadict.dictionary_VR(tag), search)
-            instances2 = self._cfind(ds,
-                                     pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
-                                     'SOPInstanceUID')
+                ds[tag] = pydicom.dataset.DataElement(
+                    tag, pydicom.datadict.dictionary_VR(tag), search)
+            instances2 =\
+                self._cfind(ds,
+                            pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
+                            'SOPInstanceUID')
             for instance in instances2:
                 if instance not in instances:
                     instances.append(instance)
@@ -442,7 +458,8 @@ class DicomTransport(AbstractTransport):
                         instances.append(uid)
                         self.__catalog[uid] = identifier
                 else:
-                    raise ConnectionError('Connection timed out, was aborted or received invalid response')
+                    raise ConnectionError(
+                        'Connection timed out, was aborted or received invalid response')
             return instances
         else:
             raise ConnectionError('Association rejected, aborted or never connected')

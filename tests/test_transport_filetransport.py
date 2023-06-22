@@ -29,7 +29,7 @@ class TestFiletransport(unittest.TestCase):
         tree = imagedata.transports.filetransport.FileTransport(
             root='data', mode='r', read_directory_only=False)
         walk_list = tree.walk('tree')
-        # self.assertEqual(len(walk_list), 1)
+        # obj.assertEqual(len(walk_list), 1)
         for root, dirs, files in walk_list:
             logging.debug('test_walk: root {}'.format(root))
             logging.debug('test_walk: dirs {}'.format(dirs))

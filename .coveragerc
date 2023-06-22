@@ -4,10 +4,23 @@ source = src/imagedata
 
 [report]
 exclude_lines =
-    if self.debug:
+    # Have to re-enable the standard pragma
     pragma: no cover
+
+    # Don't complain about missing debug-only code:
+    if self.debug:
+    
+    # Don't complain if tests don't hit defensive assertion code:
     raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run:
+    if 0:
     if __name__ == .__main__.:
+    
+    # Don't complain about abstract methods, they aren't run:
+    @(abc\.)?abstractmethod
+
 ignore_errors = True
+
 omit =
     tests/*

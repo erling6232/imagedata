@@ -117,3 +117,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+/README.html
+/CONTRIBUTING.html

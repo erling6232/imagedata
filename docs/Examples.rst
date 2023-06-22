@@ -13,7 +13,7 @@ Using python:
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     dwi = Series('10_ep2d_diff_b50_400_800/', 'b')
 
@@ -29,7 +29,7 @@ More elaborate example in python:
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     dwi = Series('10_ep2d_diff_b50_400_800/', 'b')
 
@@ -43,7 +43,7 @@ More elaborate example in python:
             s.write('b{}'.format(b))
 
 Using command line:
-    Split b values using `--odir multi' parameter. Each b value
+    Split b values using `--odir multi` parameter. Each b value
     will be written to folder tmp/b0, tmp/b1, etc.
     However, all folders will share the Series Instance UID.
 
@@ -67,32 +67,98 @@ Using command line:
 
    rm -r tmp
 
-Segment an image, display image with segmented ROI in red
----------------------------------------------------------
+Segment an image, display fused image with segmented ROI in red
+---------------------------------------------------------------
 
 The following example will let the user segment an image (using get_roi()
 method).
-An RGB version of the original image is produced by the get_roi() method,
-where each of the RGB components are set to the original gray scale value.
+A fused image where the segmented area is enhanced with red color is produced by fuse_segment().
 
-`segment_indices' address the selected area, and is
-used to set the green (1) and blue components (2) to zero.
-Hence, the [1:] slicing of the color components RGB.
-
-Finally, the color image is display with the segmented area in red.
+Finally, the color image is displayed.
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
 
     T2 = Series('801_Obl T2 TSE HR SENSE/')
     segment = T2.get_roi()
 
-    T2rgb = T2.to_rgb()
-    segment_indices = segment == 1
-
-    # Clear green and blue components inside segmentation,
-    # leaving the red component
-    T2rgb[segment_indices,1:] = 0
+    T2rgb = T2.fuse_mask(segment)
 
     T2rgb.show()
+
+
+Motion correction using FSL MCFLIRT
+-----------------------------------
+
+Motion correction using image registration is a process where different images of a patient
+are transformed to a common reference frame.
+This example uses the FSL MCFLIRT program for this task.
+MCFLIRT takes NIfTI input and output. Hence, this example will write a Series instance
+to a temporary NIfTI file, call MCFLIRT, then read back the resulting NIfTI file using the
+original Series instance as a template for DICOM header information.
+
+.. code-block:: python
+
+    import tempfile
+    from pathlib import Path
+    from imagedata import Series
+    import nipype.interfaces.fsl as fsl
+
+
+    def mcflirt(moving, fixed):
+        """Register dynamic series using FSL MCFLIRT
+        Args:
+            moving: moving (Series)
+            fixed:  reference volume, either
+                index into moving (Series), or
+                separate volume (int)
+        Returns:
+            registered Series
+        """
+
+        if issubclass(type(fixed), Series):
+            if fixed.ndim == 3:
+                ref = fixed
+                ref_volume = fixed
+            else:
+                raise ValueError('Fixed volume should be 3D (is {})'.format(fixed.ndim))
+        else:
+            assert fixed >= 0 and fixed < len(moving), "Wrong fixed index {}".format(fixed)
+            ref = fixed
+            ref_volume = moving[ref]
+        print('\nPreparing for MCFLIRT ...')
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp)
+            tmp_fixed = p / 'fixed'
+            tmp_moving = p / 'moving'
+            tmp_out = p / 'out.nii.gz'
+            moving.write(tmp_moving, formats=['nifti'])
+            moving_file = list(tmp_moving.glob('*'))[0]
+
+            print('MCFLIRT running ...')
+
+            mcflt = fsl.MCFLIRT()
+            mcflt.inputs.in_file = str(moving_file)
+            if issubclass(type(ref), Series):
+                ref.write(tmp_fixed, formats=['nifti'])
+                fixed_file = list(tmp_fixed.glob('*'))[0]
+                mcflt.inputs.ref_file = str(fixed_file)
+            else:
+                mcflt.inputs.ref_vol = ref
+            mcflt.inputs.out_file = str(tmp_out)
+            mcflt.inputs.cost = "corratio"  # "normcorr"
+            # mcflt.inputs.cost     = "normcorr"
+            print('{}'.format(mcflt.cmdline))
+            result = mcflt.run()
+            print('Result code: {}'.format(result.runtime.returncode))
+
+            try:
+                out = Series(tmp_out, input_order=moving.input_order, template=moving, geometry=ref_volume)
+            except Exception as e:
+                print(e)
+            out.tags = moving.tags
+            out.axes = moving.axes
+            out.seriesDescription = 'MCFLIRT {}'.format(mcflt.inputs.cost)
+        print('MCFLIRT ended.\n')
+        return out

@@ -10,7 +10,7 @@ Let's start by reading some data:
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
     a = Series('in_dir')
 
 The basic assumption when reading data from files is that a folder (directory)
@@ -132,13 +132,13 @@ You can specify a different image format, e.g.:
 
 .. code-block:: python
 
-    a.write('my_itk_dir', 'formats=['itk'])
+    a.write('my_itk_dir', formats=['itk'])
 
 or even multiple formats, where '%p' is replaced be the format name:
 
 .. code-block:: python
 
-    a.write('my_dirs/%p', 'formats=['nifti', 'mat'])
+    a.write('my_dirs/%p', formats=['nifti', 'mat'])
 
 This will save the data in Nifti format in 'my_dirs/nifti', and
 in Matlab format in 'my_dirs/mat'.
@@ -182,3 +182,23 @@ existing dataset can be added to the numpy array:
     >>> Series Time: 20190207 143634.267000
     >>> Series #50: eye
     >>> Shape: 128x128, dtype: float64, input order: none
+
+Sorting DICOM files into multiple Series
+----------------------------------------
+
+The Study class can be used to sort DICOM file according to SeriesInstanceUID.
+The input order of each Series is auto-detected.
+
+.. code-block:: python
+
+    from imagedata import Study
+
+    vibe, dce = None
+    study = Study('data/dicom')
+    for uid in study:
+        series = study[uid]
+        if series.seriesDescription == 'vibe':
+            vibe = series
+        ...
+    If not (vibe and dce):
+        raise ValueError('Some series not found in study.')

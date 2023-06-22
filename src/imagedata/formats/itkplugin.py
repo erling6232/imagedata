@@ -1,16 +1,17 @@
 """Read/Write image files using ITK
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import logging
 import tempfile
 import itk
 import numpy as np
-import imagedata.formats
-import imagedata.axis
-from imagedata.formats.abstractplugin import AbstractPlugin
+from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented,\
+    SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
+from ..axis import UniformLengthAxis, VariableAxis
+from .abstractplugin import AbstractPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -86,31 +87,29 @@ class ITKPlugin(AbstractPlugin):
         logger.debug("itkplugin._read_image filehandle {}".format(f))
         if f.endswith('.raw'):
             return None, None
+
+        if hdr.input_order == 'auto':
+            hdr.input_order = 'none'
+
         try:
             # https://blog.kitware.com/itk-python-image-pixel-types/
             reader = itk.imread(f)
-            # imagetype = itk.Image[itk.F, 3]
-            # reader = itk.ImageFileReader[imagetype].New()
-            # reader.SetFileName(f)
-            # reader.Update()
-
-            # img = itk.GetArrayFromImage(reader.GetOutput())
             img = itk.GetArrayFromImage(reader)
             self._reduce_shape(img)
             logger.info("Data shape read ITK: {}".format(img.shape))
 
             o = reader
-        except imagedata.formats.NotImageError as e:
+        except NotImageError as e:
             logger.error('itkplugin._read_image: inner exception {}'.format(e))
-            raise imagedata.formats.NotImageError('{} does not look like a ITK file'.format(f))
+            raise NotImageError('{} does not look like a ITK file'.format(f))
 
         # Color image?
-        hdr['photometricInterpretation'] = 'MONOCHROME2'
-        hdr['color'] = False
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        hdr.color = False
         if o.GetNumberOfComponentsPerPixel() == 3:
             logger.debug('ITKPlugin._read_image: RGB color')
-            hdr['photometricInterpretation'] = 'RGB'
-            hdr['color'] = True
+            hdr.photometricInterpretation = 'RGB'
+            hdr.color = True
 
         return o, img
 
@@ -118,7 +117,8 @@ class ITKPlugin(AbstractPlugin):
         """Do the plugin need access to local files?
 
         Returns:
-            Boolean. True: The plugin need access to local filenames. False: The plugin can access files given by an open file handle
+            Boolean. True: The plugin need access to local filenames.
+                False: The plugin can access files given by an open file handle
         """
 
         return True
@@ -179,7 +179,7 @@ class ITKPlugin(AbstractPlugin):
         v = spacing.GetVnlVector()
         logger.debug('ITKPlugin._set_tags: hdr {}'.format(hdr))
         logger.debug('ITKPlugin._set_tags: spacing {} {} {}'.format(v.get(2), v.get(1), v.get(0)))
-        hdr['spacing'] = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
+        hdr.spacing = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
         if v.size() > 3:
             dt = float(v.get(3))
         else:
@@ -187,73 +187,73 @@ class ITKPlugin(AbstractPlugin):
 
         # Set imagePositions for first slice
         v = origin.GetVnlVector()
-        hdr['imagePositions'] = {}
-        hdr['imagePositions'][0] = np.array([v.get(2), v.get(1), v.get(0)])
+        hdr.imagePositions = {0: np.array([v.get(2), v.get(1), v.get(0)])}
 
         # Do not calculate transformationMatrix here. Will be calculated by Series() when needed.
         # self.transformationMatrix = transformMatrix(direction, hdr['imagePositions'][0])
         # hdr['transformationMatrix'] = self.transformationMatrix
-        # logger.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(self.transformationMatrix))
+        # logger.debug('ITKPlugin._set_tags: transformationMatrix=\n{}'.format(
+        #     self.transformationMatrix))
 
         # Set image orientation
         iop = self._orientation_from_vnl_matrix(direction)
         logger.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
-        hdr['orientation'] = np.array((iop[2], iop[1], iop[0],
-                                       iop[5], iop[4], iop[3]))
+        hdr.orientation = np.array((iop[2], iop[1], iop[0],
+                                    iop[5], iop[4], iop[3]))
 
         # Set tags
         axes = list()
         _actual_shape = si.shape
         _color = False
-        if 'color' in hdr and hdr['color']:
+        if hdr.color:
             _actual_shape = si.shape[:-1]
             _color = True
             logger.debug('ITKPlugin.read: color')
         _actual_ndim = len(_actual_shape)
         nt = nz = 1
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'row',
-            hdr['imagePositions'][0][1],
+            hdr.imagePositions[0][1],
             _actual_shape[-2],
-            hdr['spacing'][1])
+            hdr.spacing[1])
         )
-        axes.append(imagedata.axis.UniformLengthAxis(
+        axes.append(UniformLengthAxis(
             'column',
-            hdr['imagePositions'][0][2],
+            hdr.imagePositions[0][2],
             _actual_shape[-1],
-            hdr['spacing'][2])
+            hdr.spacing[2])
         )
         if _actual_ndim > 2:
             nz = _actual_shape[-3]
-            axes.insert(0, imagedata.axis.UniformLengthAxis(
+            axes.insert(0, UniformLengthAxis(
                 'slice',
-                hdr['imagePositions'][0][0],
+                hdr.imagePositions[0][0],
                 nz,
-                hdr['spacing'][0])
-                        )
+                hdr.spacing[0])
+            )
         if _actual_ndim > 3:
             nt = _actual_shape[-4]
-            axes.insert(0, imagedata.axis.UniformLengthAxis(
-                imagedata.formats.input_order_to_dirname_str(hdr['input_order']),
+            axes.insert(0, UniformLengthAxis(
+                input_order_to_dirname_str(hdr.input_order),
                 0,
                 nt,
                 dt)
-                        )
+            )
         times = np.arange(0, nt * dt, dt)
         tags = {}
-        for slice in range(nz):
-            tags[slice] = np.array(times)
+        for _slice in range(nz):
+            tags[_slice] = np.array(times)
         if _color:
             axes.append(
-                imagedata.axis.VariableAxis(
+                VariableAxis(
                     'rgb',
                     ['r', 'g', 'b']
                 )
             )
-        hdr['axes'] = axes
-        hdr['tags'] = tags
+        hdr.axes = axes
+        hdr.tags = tags
 
-        logger.info("Data shape read DCM: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape read DCM: {}".format(shape_to_str(si.shape)))
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as ITK file
@@ -273,7 +273,7 @@ class ITKPlugin(AbstractPlugin):
         """
 
         if si.color:
-            raise imagedata.formats.WriteNotImplemented(
+            raise WriteNotImplemented(
                 "Writing color ITK images not implemented.")
 
         logger.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
@@ -291,18 +291,21 @@ class ITKPlugin(AbstractPlugin):
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
-        logger.info("Data shape write: {}".format(imagedata.formats.shape_to_str(si.shape)))
+        logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
         # if si.ndim == 2:
         #    si.shape = (1,) + si.shape
         # if si.ndim == 3:
         #    si.shape = (1,) + si.shape
         # assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
         # if si.shape[0] != 1:
-        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(si.shape))
-        assert si.ndim == 2 or si.ndim == 3, "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
+        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(
+        #        si.shape))
+        assert si.ndim == 2 or si.ndim == 3,\
+            "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[1]
         # if slices != si.slices:
-        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices, slices))
+        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ "
+        #        "from input array ({}).".format(si.slices, slices))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)
@@ -318,7 +321,7 @@ class ITKPlugin(AbstractPlugin):
 
         Args:
             self: ITKPlugin instance
-            si[tag,slice,rows,columns]: Series array, including these attributes:
+            si: [tag,slice,rows,columns]: Series array, including these attributes:
             - slices
             - spacing
             - imagePositions
@@ -331,7 +334,7 @@ class ITKPlugin(AbstractPlugin):
         """
 
         if si.color:
-            raise imagedata.formats.WriteNotImplemented(
+            raise WriteNotImplemented(
                 "Writing color ITK images not implemented.")
 
         logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
@@ -350,7 +353,7 @@ class ITKPlugin(AbstractPlugin):
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         # Defaults
-        self.output_sort = imagedata.formats.SORT_ON_SLICE
+        self.output_sort = SORT_ON_SLICE
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
@@ -362,30 +365,30 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
             si.dtype, si.shape,
-            imagedata.formats.sort_on_to_str(self.output_sort)))
+            sort_on_to_str(self.output_sort)))
 
         steps = si.shape[0]
         slices = si.shape[1]
         if steps != len(si.tags[0]):
             raise ValueError(
-                "write_4d_series: tags of dicom template ({}) differ from input array ({}).".format(len(si.tags[0]),
-                                                                                                    steps))
+                "write_4d_series: tags of dicom template ({}) differ "
+                "from input array ({}).".format(len(si.tags[0]), steps))
         if slices != si.slices:
             raise ValueError(
-                "write_4d_series: slices of dicom template ({}) differ from input array ({}).".format(si.slices,
-                                                                                                      slices))
+                "write_4d_series: slices of dicom template ({}) differ "
+                "from input array ({}).".format(si.slices, slices))
 
         # if not os.path.isdir(directory_name):
         #    os.makedirs(directory_name)
 
         logger.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
             si[0, 0, 0, 0]))
-        if self.output_sort == imagedata.formats.SORT_ON_TAG:
-            for slice in range(slices):
-                filename = filename_template % slice
+        if self.output_sort == SORT_ON_TAG:
+            for _slice in range(slices):
+                filename = filename_template % _slice
                 # filename = os.path.join(directory_name, filename)
-                self.write_numpy_itk(si[:, slice, ...], archive, filename)
-        else:  # default: imagedata.formats.SORT_ON_SLICE:
+                self.write_numpy_itk(si[:, _slice, ...], archive, filename)
+        else:  # default: SORT_ON_SLICE:
             for tag in range(steps):
                 filename = filename_template % tag
                 # filename = os.path.join(directory_name, filename)
@@ -504,10 +507,10 @@ class ITKPlugin(AbstractPlugin):
 
         If the image_type is supported, will be automatically transformed to that type,
         otherwise the most suitable is selected.
-        
+
         Note: always use this instead of directly the itk.PyBuffer, as that
                 object transposes the image axes.
-        
+
         Args:
             image an array, type image np.ndarray
 
@@ -524,8 +527,7 @@ class ITKPlugin(AbstractPlugin):
                 m = np.hstack((colr[:2], colc[:2])).reshape((2, 2))
             else:
                 m = np.hstack((colr, colc, coln)).reshape((3, 3))
-            itk_m = itk.GetMatrixFromArray(m)
-            return itk_m
+            return m
 
         image.SetDirection(
             itkMatrix_from_orientation(
@@ -572,4 +574,5 @@ class ITKPlugin(AbstractPlugin):
             return itk.Image[itk.template(image)[1][0],
                              itk.template(image)[1][1]]
         except IndexError:
-            raise (NotImplementedError, 'The python wrappers of ITK define no template class for this data type.')
+            raise (NotImplementedError,
+                   'The python wrappers of ITK define no template class for this data type.')

@@ -1,4 +1,6 @@
 import copy
+
+import matplotlib.colors
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.widgets import PolygonSelector, ToolHandles
@@ -8,10 +10,12 @@ from matplotlib.path import Path as MplPath
 import mpl_toolkits.axes_grid1
 import numpy as np
 
-from imagedata.series import Series
+from .series import Series
+
+POSITIVE_EPS = 1e-3
 
 
-class Viewer:
+class Viewer(object):
     """Viewer -- a graphical tool to display and interact with Series objects.
 
     Args:
@@ -19,27 +23,47 @@ class Viewer:
         fig (Figure): matplotlib.plt.figure if already exist (optional).
         ax (Axes): matplotlib axis if already exist (optional).
         follow (bool): Copy ROI to next tag. Default: False.
-        cmap (str): Colour map for display. Default: Greys.
-        windows (number): Window width of signal intensities. Default: DICOM Window Width.
+        colormap (str): Colour map for display. Default: Greys_r.
+        norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+            the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+            mapping to colors using colormap.
+        colorbar (bool): Display colorbar with image. Default: None: determine colorbar based
+            on colormap and norm.
+            range before mapping to colors using colormap.
+        window (number): Window width of signal intensities. Default: DICOM Window Width.
         level (number): Window level of signal intensities. Default: DICOM Window Center.
         link (bool): Whether scrolling is linked between displayed objects. Default: False.
 
     """
 
     def __init__(self, images, fig=None, ax=None, follow=False,
-                 cmap='Greys', window=None, level=None, link=False):
+                 colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
+                 link=False):
         self.fig = fig
         self.ax = ax
         if self.ax is None:
             self.ax = default_layout(fig, len(images))
         self.im = {}
+        if isinstance(norm, str):
+            if norm == 'linear':
+                norm = matplotlib.colors.Normalize
+            elif norm == 'log':
+                norm = matplotlib.colors.LogNorm
+            # elif norm == 'centered':
+            #     norm = matplotlib.colors.CenteredNorm
+            else:
+                raise ValueError('Unknown normalization function: {}'.format(norm))
+        if colorbar is None:
+            colorbar = colormap != 'Greys_r' or\
+                       (norm is not None and norm != matplotlib.colors.Normalize)
         for i, im in enumerate(images):
-            self.im[i] = build_info(im, cmap, window, level)
+            self.im[i] = build_info(im, colormap, norm, colorbar, window, level)
         self.follow = follow
         self.link = link
         self.cidenter = None
         self.cidleave = None
         self.cidscroll = None
+        self.callback_quit = None
         self.vertices = None  # The polygon vertices, as a dictionary of tags of (x,y)
         self.poly = None
         self.paste_buffer = None
@@ -117,13 +141,23 @@ class Viewer:
                 im['lower_right_text'].txt.set_text(fmt)
                 im['lower_right_data'] = (im['tag'],)
             # Lower left text
-            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-            window = int(im['window'])
-            level = int(im['level'])
-            if im['lower_left_text'] is not None and im['lower_left_data'] != (window, level, im['idx']):
-                im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
-                im['lower_left_data'] = (window, level, im['idx'])
-            vp['ax'].axes.figure.canvas.draw()
+            if im['color']:
+                fmt = 'SL: {0:d}'
+                if im['lower_left_text'] is not None and im['lower_left_data'] != im['idx']:
+                    im['lower_left_text'].txt.set_text(fmt.format(im['idx']))
+                    im['lower_left_data'] = im['idx']
+            else:
+                fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+                window = int(im['window'])
+                level = int(im['level'])
+                if im['lower_left_text'] is not None:
+                    if im['lower_left_data'] != (window, level, im['idx']):
+                        im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
+                        im['lower_left_data'] = (window, level, im['idx'])
+            try:
+                vp['ax'].axes.figure.canvas.draw()
+            except ValueError:
+                pass
             im['modified'] = False
 
     def show(self, ax, im):
@@ -131,41 +165,53 @@ class Viewer:
             return None
         if im['slice_axis'] is None:
             # 2D viewer
-            h = ax.imshow(im['im'], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
+            h = ax.imshow(im['im'], cmap=im['colormap'], norm=im['norm'])
         elif im['tag_axis'] is None:
             # 3D viewer
-            h = ax.imshow(im['im'][im['idx'], ...], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
+            h = ax.imshow(im['im'][im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
         else:
             # 4D viewer
-            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['cmap'], vmin=im['vmin'], vmax=im['vmax'])
-            # EA# h.figure.subplots_adjust(bottom=0.15)
-            # EA# ax_tag = plt.axes([0.23, 0.02, 0.56, 0.04])
-            # EA# im['slider'] = Slider(ax_tag, im['input_order'], 0, im['im'].shape[0] - 1, valinit=im['tag'], valstep=1)
-            # EA# im['slider'].on_changed(self.update_tag)
+            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['colormap'],
+                          norm=im['norm'])
             # Lower right text
             fmt = '{}[{}]: {}'.format(im['input_order'], im['tag'], pretty_tag_value(im))
             im['lower_right_data'] = (im['tag'],)
             im['lower_right_text'] = AnchoredText(fmt,
-                                                  prop=dict(size=6, color='white', backgroundcolor='black'),
+                                                  prop=dict(size=6, color='white',
+                                                            backgroundcolor='black'),
                                                   frameon=False,
                                                   loc='lower right'
                                                   )
             ax.add_artist(im['lower_right_text'])
-        fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-        window = int(im['window'])
-        level = int(im['level'])
-        im['lower_left_data'] = (window, level, im['idx'])
-        im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
-                                             prop=dict(size=6, color='white', backgroundcolor='black'),
-                                             frameon=False,
-                                             loc='lower left'
-                                             )
+
+        # Update lower left text
+        if im['color']:
+            fmt = 'SL: {0:d}'
+            im['lower_left_data'] = (im['idx'])
+            im['lower_left_text'] = AnchoredText(fmt.format(im['idx']),
+                                                 prop=dict(size=6, color='white',
+                                                           backgroundcolor='black'),
+                                                 frameon=False,
+                                                 loc='lower left'
+                                                 )
+        else:
+            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+            window = int(im['window'])
+            level = int(im['level'])
+            im['lower_left_data'] = (window, level, im['idx'])
+            im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
+                                                 prop=dict(size=6, color='white',
+                                                           backgroundcolor='black'),
+                                                 frameon=False,
+                                                 loc='lower left'
+                                                 )
         ax.add_artist(im['lower_left_text'])
         im['modified'] = True
 
-        if im['cmap'] != 'Greys':
+        if im['colorbar']:
             divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
             cax = divider.append_axes('right', size='5%', pad=0.05)
+            h.set_clim(vmin=im['vmin'], vmax=im['vmax'])
             self.fig.colorbar(h, cax=cax)
 
         ax.set_axis_off()
@@ -176,17 +222,21 @@ class Viewer:
         #    self.linkclicked = self.linkbutton.on_clicked(self.toggle_button)
         return h
 
-    def connect_draw(self, roi=None, color='w'):
+    def connect_draw(self, roi=None, color='w', callback_quit=None):
         self.poly_color = color
+        self.callback_quit = callback_quit
         idx = self.im[0]['idx']
         if roi is None:
             self.poly = {}
             self.vertices = {}
             if self.follow:
-                self.poly[0, idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
-                                                      tag=(0,idx), copy=self.on_copy, paste=self.on_paste)
+                self.poly[0, idx] = MyPolygonSelector(self.ax[0, 0], self.onselect,
+                                                      lineprops={'color': self.poly_color},
+                                                      tag=(0, idx), copy=self.on_copy,
+                                                      paste=self.on_paste)
             else:
-                self.poly[idx] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
+                self.poly[idx] = MyPolygonSelector(self.ax[0, 0], self.onselect,
+                                                   lineprops={'color': self.poly_color},
                                                    tag=idx, copy=self.on_copy, paste=self.on_paste)
         else:
             self.poly = {}
@@ -194,29 +244,39 @@ class Viewer:
             if self.follow:
                 for tag in range(self.im[0]['tags']):
                     for i in range(self.im[0]['slices']):
-                        vertices = copy.copy(self.vertices[tag, i]) if (tag, i) in self.vertices else None
-                        self.poly[tag, i] = MyPolygonSelector(self.ax[0,0], self.onselect,
-                                                              lineprops={'color': self.poly_color}, vertices=vertices,
-                                                              tag=(tag,i), copy=self.on_copy, paste=self.on_paste)
+                        vertices = copy.copy(self.vertices[tag, i]) \
+                            if (tag, i) in self.vertices else None
+                        self.poly[tag, i] = MyPolygonSelector(self.ax[0, 0], self.onselect,
+                                                              lineprops={
+                                                                  'color': self.poly_color},
+                                                              vertices=vertices,
+                                                              tag=(tag, i),
+                                                              copy=self.on_copy,
+                                                              paste=self.on_paste)
                         # Polygon on single slice and tag 0, only
                         if i == idx and tag == 0:
-                            assert self.poly[tag, i].tag == (tag,i), "Tag index mismatch {}!={}".format((tag,i), self.poly[tag, i].tag)
+                            assert self.poly[tag, i].tag == (tag, i), \
+                                "Tag index mismatch {}!={}".format((tag, i), self.poly[tag, i].tag)
                             self.poly[tag, i].connect_default_events()
                             self.poly[tag, i].set_visible(True)
                             self.poly[tag, i].update()
                         else:
-                            assert self.poly[tag, i].tag == (tag,i), "Tag index mismatch {}!={}".format((tag,i), self.poly[tag, i].tag)
+                            assert self.poly[tag, i].tag == (tag, i), \
+                                "Tag index mismatch {}!={}".format((tag, i), self.poly[tag, i].tag)
                             self.poly[tag, i].disconnect_events()
                             self.poly[tag, i].set_visible(False)
                             self.poly[tag, i].update()
             else:
                 for i in range(self.im[0]['slices']):
                     vertices = copy.copy(self.vertices[i]) if i in self.vertices else None
-                    self.poly[i] = MyPolygonSelector(self.ax[0,0], self.onselect, lineprops={'color': self.poly_color},
-                                                     vertices=vertices, tag=i, copy=self.on_copy, paste=self.on_paste)
+                    self.poly[i] = MyPolygonSelector(self.ax[0, 0], self.onselect,
+                                                     lineprops={'color': self.poly_color},
+                                                     vertices=vertices, tag=i, copy=self.on_copy,
+                                                     paste=self.on_paste)
                     # Polygon on single slice only
                     if i != idx:
-                        assert self.poly[i].tag == i, "Tag index mismatch {}!={}".format(i, self.poly[i].tag)
+                        assert self.poly[i].tag == i, \
+                            "Tag index mismatch {}!={}".format(i, self.poly[i].tag)
                         self.poly[i].disconnect_events()
                         self.poly[i].set_visible(False)
                         self.poly[i].update()
@@ -267,14 +327,15 @@ class Viewer:
     def on_paste(self):
         return self.paste_buffer
 
-# def grid_from_roi(self):
+    # def grid_from_roi(self):
     #     """Return drawn ROI as grid.
     #
     #     Returns:
     #         Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
     #         Voxels inside ROI is 1, 0 outside.
     #     """
-    #     nt, nz, ny, nx = self.im[0]['tags'], self.im[0]['slices'], self.im[0]['rows'], self.im[0]['columns']
+    #     nt, nz, ny, nx = self.im[0]['tags'], self.im[0]['slices'], self.im[0]['rows'],
+    #         self.im[0]['columns']
     #     if self.follow:
     #         grid = np.zeros((nt, nz, ny, nx), dtype=np.ubyte)
     #         for idx in range(nz):
@@ -340,6 +401,9 @@ class Viewer:
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
+        elif event.key == 'Q' or event.key == 'q':
+            if self.callback_quit is not None:
+                self.callback_quit()
         # else:
         #    print('key_press: {}'.format(event.key))
 
@@ -383,9 +447,11 @@ class Viewer:
                 old_idx = im['tag'], old_idx
                 new_idx = im['tag'], new_idx
             if old_idx in self.poly:
-                assert self.poly[old_idx].tag == old_idx, "Tag index mismatch {}!={}".format(old_idx, self.poly[old_idx].tag)
+                assert self.poly[old_idx].tag == old_idx, \
+                    "Tag index mismatch {}!={}".format(old_idx, self.poly[old_idx].tag)
             if new_idx in self.poly:
-                assert self.poly[new_idx].tag == new_idx, "Tag index mismatch {}!={}".format(new_idx, self.poly[new_idx].tag)
+                assert self.poly[new_idx].tag == new_idx, \
+                    "Tag index mismatch {}!={}".format(new_idx, self.poly[new_idx].tag)
             if im['modified']:
                 self.poly[old_idx].disconnect_events()
                 self.poly[old_idx].set_visible(False)
@@ -395,9 +461,10 @@ class Viewer:
                 self.poly[new_idx].set_visible(True)
                 self.poly[new_idx].update()
             else:
-                self.poly[new_idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
+                self.poly[new_idx] = MyPolygonSelector(self.ax[0, 0], self.onselect,
                                                        lineprops={'color': self.poly_color},
-                                                       tag=new_idx, copy=self.on_copy, paste=self.on_paste)
+                                                       tag=new_idx, copy=self.on_copy,
+                                                       paste=self.on_paste)
         # if self.link and self.im['scrollable'] and self.im2['scrollable']:
         #    self.im['idx'] = min(max(self.im['idx'] + increment, 0), self.im['slices']-1)
         #    self.im2['idx'] = self.im['idx']
@@ -418,18 +485,23 @@ class Viewer:
         if self.poly is not None and self.follow and im['modified']:
             new_tag = im['tag']
             idx = im['idx']
-            assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
-            if (new_tag, idx) not in self.poly and (old_tag, idx) in self.poly and self.poly[old_tag, idx] is not None:
+            assert self.poly[old_tag, idx].tag == (old_tag, idx), \
+                "Tag index mismatch {}!={}".format((old_tag, idx), self.poly[old_tag, idx].tag)
+            if (new_tag, idx) not in self.poly and (old_tag, idx) in self.poly and \
+                    self.poly[old_tag, idx] is not None:
                 # Copy the polygon to next tag when there is none
-                self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0,0], self.onselect,
+                self.poly[new_tag, idx] = MyPolygonSelector(self.ax[0, 0], self.onselect,
                                                             lineprops={'color': self.poly_color},
                                                             vertices=self.poly[old_tag, idx].verts,
-                                                            tag=(new_tag, idx), copy=self.on_copy, paste=self.on_paste)
-            assert self.poly[old_tag, idx].tag == (old_tag,idx), "Tag index mismatch {}!={}".format((old_tag,idx), self.poly[old_tag, idx].tag)
+                                                            tag=(new_tag, idx), copy=self.on_copy,
+                                                            paste=self.on_paste)
+            assert self.poly[old_tag, idx].tag == (old_tag, idx), \
+                "Tag index mismatch {}!={}".format((old_tag, idx), self.poly[old_tag, idx].tag)
             self.poly[old_tag, idx].disconnect_events()
             self.poly[old_tag, idx].set_visible(False)
             self.poly[old_tag, idx].update()
-            assert self.poly[new_tag, idx].tag == (new_tag,idx), "Tag index mismatch {}!={}".format((new_tag,idx), self.poly[new_tag, idx].tag)
+            assert self.poly[new_tag, idx].tag == (new_tag, idx), \
+                "Tag index mismatch {}!={}".format((new_tag, idx), self.poly[new_tag, idx].tag)
             self.poly[new_tag, idx].connect_default_events()
             self.poly[new_tag, idx].set_visible(True)
             self.poly[new_tag, idx].update()
@@ -538,13 +610,16 @@ class Viewer:
         # On motion, modify window and level, and update display
         im = self.find_image_from_event(event.inaxes)
         if im is not None and im['press'] is not None:
-            dx = 10 * (event.xdata - im['press'][0])
-            dy = 10 * (im['press'][1] - event.ydata)
+            delta = (im['vmax'] - im['vmin']) / 100
+            dx = delta * (event.xdata - im['press'][0])
+            dy = delta * (im['press'][1] - event.ydata)
             im['press'] = event.xdata, event.ydata
-            im['window'] = max(1e-3, im['window'] + dx)
+            im['window'] = max(POSITIVE_EPS, im['window'] + dx)
+            assert im['window'] >= 0, "Window must be non-negative."
             im['level'] = im['level'] + dy
             im['vmin'] = im['level'] - im['window'] / 2
             im['vmax'] = im['level'] + im['window'] / 2
+            im['vmin'], im['vmax'] = _check_vmin_vmax(im['vmin'], im['vmax'], im['norm'])
             im['modified'] = True
             self.update()
 
@@ -566,14 +641,16 @@ class MyPolygonSelector(PolygonSelector):
     """
 
     def __init__(self, ax, onselect, useblit=False,
-                 lineprops=None, markerprops=None, vertex_select_radius=15, vertices=None, tag=None,
-                 copy=None, paste=None):
+                 lineprops=None, markerprops=None, vertex_select_radius=15,
+                 vertices=None, tag=None, copy=None, paste=None):
         super().__init__(ax, onselect, useblit=useblit,
-                         lineprops=lineprops, markerprops=markerprops, vertex_select_radius=vertex_select_radius)
+                         lineprops=lineprops, markerprops=markerprops,
+                         vertex_select_radius=vertex_select_radius)
 
         self.tag = tag
         self.copy_handle = copy
         self.paste_handle = paste
+        self._polygon_completed = False
 
         if lineprops is None:
             self.lineprops = dict(color='k', linestyle='-', linewidth=2, alpha=0.5)
@@ -591,8 +668,8 @@ class MyPolygonSelector(PolygonSelector):
 
         if vertices is not None and len(vertices):
             self._add_polygon(
-                [x for x,y in vertices],
-                [y for x,y in vertices]
+                [x for x, y in vertices],
+                [y for x, y in vertices]
             )
 
     def _add_polygon(self, xs, ys):
@@ -696,10 +773,11 @@ def grid_from_roi(im, vertices, single=False):
         return False
 
     keys = list(vertices.keys())[0]
-    # print('grid_from_roi: keys: {}'.format(keys))
-    # print('grid_from_roi: vertices: {}'.format(vertices))
+    # print('Viewer.grid_from_roi: keys: {}'.format(keys))
+    # print('Viewer.grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
     nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
+    input_order = im.input_order
     if follow and not single:
         grid = np.zeros_like(im, dtype=np.ubyte)
         skipped = []
@@ -770,7 +848,8 @@ def grid_from_roi(im, vertices, single=False):
             x, y = x.flatten(), y.flatten()
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
-    return Series(grid, input_order=im.input_order, template=im, geometry=im)
+        input_order = 'none'
+    return Series(grid, input_order=input_order, template=im, geometry=im)
 
 
 def get_slice_axis(im):
@@ -792,42 +871,74 @@ def get_level(si, level):
         # First, attempt to get DICOM attribute
         try:
             level = si.getDicomAttribute('WindowCenter')
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
+            pass
+        try:
+            if len(level) > 1:
+                level = level[0]
+        except TypeError:
             pass
     if level is None:
-        level = (si.max() - si.min()) / 2
+        diff = si.max() - si.min()
+        if abs(diff) < 2:
+            level = (float(si.max()) - si.min()) / 2
+        else:
+            level = (si.max() - si.min()) / 2
     return level
 
 
-def get_window_level(si, window, level):
+def get_window_level(si, norm, window, level):
     if window is None:
         # First, attempt to get DICOM attribute
         try:
             window = si.getDicomAttribute('WindowWidth')
-        except (KeyError, AttributeError):
+        except (KeyError, AttributeError, TypeError):
+            pass
+        try:
+            if len(window) > 1:
+                window = window[0]
+            # print('Viewer.get_window_level: {} len {}'.format(window, len(window)))
+        except TypeError:
             pass
     if window is None:
         window = si.max() - si.min()
     level = get_level(si, level)
-    vmin = level - window / 2
-    vmax = level + window / 2
+    vmin, vmax = _check_vmin_vmax(level - window / 2, level + window / 2, norm)
     return window, level, vmin, vmax
 
 
-def build_info(im, cmap, window, level):
+def _check_vmin_vmax(vmin, vmax, norm):
+    if type(norm) == type:
+        norm = norm(vmin=vmin, vmax=vmax)
+    if type(norm) == matplotlib.colors.LogNorm:
+        vmin = max(POSITIVE_EPS, vmin)
+        vmax = max(POSITIVE_EPS, vmin, vmax)
+    return vmin, vmax
+
+
+def build_info(im, colormap, norm, colorbar, window, level):
     if im is None:
         return None
     if not issubclass(type(im), Series):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
-    if cmap is None:
-        cmap = 'gray'
-    window, level, vmin, vmax = get_window_level(im, window, level)
+    if colormap is None:
+        colormap = 'Greys_r'
+    lut = 256 if np.issubdtype(im.dtype, np.floating) else (im.max().item()) + 1
+    if not issubclass(type(colormap), matplotlib.colors.Colormap):
+        colormap = plt.get_cmap(colormap, lut)
+    colormap.set_bad(color='k')  # Important for log display of non-positive values
+    colormap.set_under(color='k')
+    colormap.set_over(color='w')
+    window, level, vmin, vmax = get_window_level(im, norm, window, level)
+    if type(norm) == type:
+        norm = norm(vmin=vmin, vmax=vmax)
     tag_axis = get_tag_axis(im)
     slice_axis = get_slice_axis(im)
 
     return {
         'im': im,  # Image Series instance
         'input_order': im.input_order,
+        'color': im.color,
         'modified': True,  # update()
         'slider': None,  # 4D slider
         'lower_left_text': None,  # AnchoredText object
@@ -835,7 +946,7 @@ def build_info(im, cmap, window, level):
         'lower_right_text': None,  # AnchoredText object
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
-        'taggable': tag_axis is not None,  # Can we slide through tags
+        'taggable': tag_axis is not None,  # Can we slide through tags?
         'tags': len(im.tags[0]),  # Number of tags
         'slices': im.slices,  # Number of slices
         'rows': im.rows,  # Number of rows
@@ -844,7 +955,9 @@ def build_info(im, cmap, window, level):
         'idx': im.slices // 2,  # Displayed slice index
         'tag_axis': tag_axis,  # Axis instance of im
         'slice_axis': slice_axis,  # Axis instance of im
-        'cmap': cmap,  # Colour map
+        'colormap': colormap,  # Colour map
+        'norm': norm,  # Normalization function
+        'colorbar': colorbar and not im.color,  # Display colorbar unless RGB image
         'window': window,  # Window center
         'level': level,  # Window level
         'vmin': vmin,  # Lower window value

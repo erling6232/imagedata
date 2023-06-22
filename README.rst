@@ -2,7 +2,12 @@
 imagedata
 #########
 
-|Docs Badge| |buildstatus|  |coverage| |pypi|
+|coverage|
+|Docs Badge|
+
+|zenodo| |joss|
+
+|pypi| |pyversions| |downloads| |buildstatus|
 
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
@@ -41,7 +46,7 @@ A simple example reading two time series from dirA and dirB, and writing their m
 
 .. code-block:: python
 
-    from imagedata.series import Series
+    from imagedata import Series
     a = Series('dirA', 'time')
     b = Series('dirB', 'time')
     assert a.shape == b.shape, "Shape of a and b differ"
@@ -71,6 +76,7 @@ Viewing
 A simple viewer. Scroll through the image stack, step through the tags of a 4D dataset.
 These operations are possible:
 
+* Read-out voxel value: Move mouse over.
 * Window/level adjustment: Move mouse with left key pressed.
 * Scroll through slices of an image stack: Mouse scroll wheel, or up/down array keys.
 * Step through tags (time, b-values, etc.): Left/right array keys.
@@ -79,13 +85,13 @@ These operations are possible:
 .. code-block:: python
 
       # View a Series instance
-      a.view()
+      a.show()
 
       # View both a and b Series
-      a.view(b)
+      a.show(b)
 
       # View several Series
-      a.view([b, c, d])
+      a.show([b, c, d])
 
 Converting data from DICOM and back
 -----------------------------------
@@ -112,7 +118,7 @@ The same example using python code:
 
 .. code-block:: python
 
-  from imagedata.series import Series
+  from imagedata import Series
   a = Series('dicomDir')
   a.write('niftiDir', formats=['nifti'])   # Explicitly select nifti as output format
 
@@ -278,3 +284,18 @@ The command line program *image_data* can be used to convert between various ima
 .. |pypi| image:: https://img.shields.io/pypi/v/imagedata.svg
     :target: https://pypi.python.org/pypi/imagedata
     :alt: PyPI Version
+
+.. |joss| image:: https://joss.theoj.org/papers/6a1bc6ea5a200a7a9204cfafcd6e49b8/status.svg
+    :target: https://joss.theoj.org/papers/6a1bc6ea5a200a7a9204cfafcd6e49b8
+    :alt: JOSS Status
+
+.. |zenodo| image:: https://zenodo.org/badge/123263810.svg
+   :target: https://zenodo.org/badge/latestdoi/123263810
+   :alt: Zenodo DOI
+
+.. |pyversions| image:: https://img.shields.io/pypi/pyversions/imagedata.svg
+   :target: https://pypi.python.org/pypi/imagedata/
+   :alt: Supported Python Versions
+
+.. |downloads| image:: https://img.shields.io/pypi/dm/imagedata?color=blue
+   :alt: PyPI Downloads

@@ -22,6 +22,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'nifti', '--serdes', '1'])
 
+    def test_nifti_plugin(self):
         plugins = imagedata.formats.get_plugins_list()
         self.nifti_plugin = None
         for pname, ptype, pclass in plugins:
@@ -70,7 +71,6 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_qform_3D(self):
         dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', dcm.input_format)
-        dcm.write('tt', formats=['nifti'])
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             n = Series(d)
@@ -93,7 +93,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual('nifti', n.input_format)
         nt = n.transformationMatrix
         self.assertEqual(dcm.shape, n.shape)
-        # self.assertEqual(dcm.dtype, n.dtype)
+        # obj.assertEqual(dcm.dtype, n.dtype)
         np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, rtol=1e-3)
 
     # @unittest.skip("skipping test_read_two_files")
@@ -144,6 +144,10 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    def test_write_ndarray(self):
+        with tempfile.TemporaryDirectory() as d:
+            Series(np.eye(128)).write(d, formats=['nifti'])
+
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
@@ -152,11 +156,11 @@ class Test3DNIfTIPlugin(unittest.TestCase):
                 'nifti',
                 'time_all',
                 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
-            'none',
+            'time',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
             si1.write(d + '?Image%1d.nii.gz', formats=['nifti'])
-            si2 = Series(os.path.join(d, 'Image0.nii.gz'))
+            si2 = Series(os.path.join(d, 'Image0.nii.gz'), 'time')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -238,7 +242,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual('nifti', nifti.input_format)
         nt = nifti.transformationMatrix
         self.assertEqual(dcm.shape, nifti.shape)
-        # self.assertEqual(dcm.dtype, nifti.dtype)
+        # obj.assertEqual(dcm.dtype, nifti.dtype)
         np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix, rtol=1e-3)
         np.testing.assert_array_equal(dcm, nifti)
 

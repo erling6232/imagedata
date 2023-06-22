@@ -2,43 +2,65 @@
 
 """Read/write image data to file(s). Handles DICOM, Nifti, VTI and mhd."""
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import os.path
 import argparse
 import urllib
 import logging
+from datetime import datetime, date, time
 import numpy as np
-import imagedata
-import imagedata.cmdline
-import imagedata.formats
-import imagedata.readdata
-import imagedata.transports
-from imagedata.series import Series
+from .cmdline import add_argparse_options
+from .formats import find_plugin, NotImageError, input_order_to_dirname_str, shape_to_str
+from .readdata import _get_sources
+from .transports import Transport
+from .series import Series
+from .collections import Cohort
 
 logger = logging.getLogger()
 
 
-# noinspection PyPep8Naming
 def dump():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
-    # if args.version:
-    #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    print("Output format: %s, %s, in %s directory." % (
-        args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
-    reader = imagedata.formats.find_plugin('dicom')
+    # Let in_opts be a dict from args
+    if args is None:
+        in_opts = {}
+    elif issubclass(type(args), dict):
+        in_opts = args
+    elif issubclass(type(args), argparse.Namespace):
+        in_opts = vars(args)
+    else:
+        raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
+
+    reader = find_plugin('dicom')
     logger.debug("in_dirs {}".format(args.in_dirs))
-    # noinspection PyUnresolvedReferences
-    urls, files = imagedata.readdata.sanitize_urls(args.in_dirs)
+    sources = _get_sources(args.in_dirs, mode='r')
 
-    hdr, shape = reader.read_headers(urls, files, args.input_order, args)
+    image_dict = {}
+    for source in sources:
+        archive = source['archive']
+        scan_files = source['files']
+        if scan_files is None or len(scan_files) == 0:
+            scan_files = ['*']
+        for path in archive.getnames(scan_files):
+            if os.path.basename(path) == 'DICOMDIR':
+                continue
+            member = archive.getmembers([path, ])
+            if len(member) != 1:
+                raise IndexError('Should not be multiple files for a filename')
+            member = member[0]
+            try:
+                with archive.open(member, mode='rb') as f:
+                    reader.process_member(image_dict, archive, path, f, in_opts, skip_pixels=True)
+            except Exception:
+                raise
 
     StuInsUID = {}
     SerInsUID = {}
@@ -47,11 +69,8 @@ def dump():
     AcqNum = {}
     ImaTyp = {}
     Echo = {}
-    f = open('files', 'w')
-    for slice in hdr['DicomHeaderDict']:
-        for tag, member_name, im in hdr['DicomHeaderDict'][slice]:
-            # print('{}'.format(image))
-            f.write('{}\n'.format(member_name[1]))
+    for sloc in image_dict.keys():
+        for archive, member_name, im in image_dict[sloc]:
             if im.StudyInstanceUID not in StuInsUID:
                 StuInsUID[im.StudyInstanceUID] = 0
             StuInsUID[im.StudyInstanceUID] += 1
@@ -62,7 +81,7 @@ def dump():
                 SerTim[im.SeriesTime] = 0
             SerTim[im.SeriesTime] += 1
             if im.SequenceName not in SeqNam:
-                SeqNam[im.SequenceName] = 1
+                SeqNam[im.SequenceName] = 0
             SeqNam[im.SequenceName] += 1
             try:
                 num = im.AcquisitionNumber
@@ -83,8 +102,6 @@ def dump():
                 Echo[num] = 0
             Echo[num] += 1
 
-    f.close()
-
     for uid in StuInsUID:
         print("StuInsUID {}: {} images".format(uid, StuInsUID[uid]))
     for uid in SerInsUID:
@@ -103,21 +120,24 @@ def dump():
 
 
 def calculator():
-    # noinspection PyTypeChecker
+
     parser = argparse.ArgumentParser(description='Image calculator.',
                                      formatter_class=argparse.RawDescriptionHelpFormatter,
                                      epilog="""Expression examples:
         1  : New image, same shape, all ones
         a*2: Multiply first input by 2
         a+b: Add first and second image""")
-    imagedata.cmdline.add_argparse_options(parser)
-    parser.add_argument('--mask',
-                        help='Mask value', default=1)
+    add_argparse_options(parser)
+    # parser.add_argument('--mask',
+    #                    help='Mask value', default=1)
     parser.add_argument("outdir", help="Output directory")
     parser.add_argument("expression", help="Expression")
-    parser.add_argument("indirs", help="Input arguments", nargs="+")
+    parser.add_argument("indirs", help="Input arguments", nargs="*")
     args = parser.parse_args()
+
     logger.setLevel(args.loglevel)
+    if len(args.output_format) == 0:
+        args.output_format.append('dicom')
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -129,15 +149,23 @@ def calculator():
     ch = "abcdefghijklmnopqrstuvwxyz"
     si = {}
     i = 0
+    names = {}
     for indir in args.indirs:
         key = ch[i]
+        names[key] = indir
         try:
-            print("Open {} as {}:".format(indir, key))
             si[key] = Series(indir, args.input_order, args)
-        except imagedata.formats.NotImageError:
+        except NotImageError:
             print("Could not determine input format of {}.".format(indir))
             return 1
         i += 1
+
+    # DICOM templates
+    template = geometry = None
+    if args.template is not None:
+        template = Series(args.template, opts=args)
+    if args.geometry is not None:
+        geometry = Series(args.geometry, opts=args)
 
     # si[key][tag,slice,rows,columns]
     """
@@ -145,42 +173,59 @@ def calculator():
     mask=mask.astype(int)
     """
 
-    # Convert input to float64
-    # output_dtype
+    # Convert input if requested
     if args.dtype:
-        print("Converting input...")
-        for k in si.keys():
-            si[k] = si[k].astype(args.dtype)
-
-    print("before", si['a'].dtype, si['a'].shape, si['a'].min(), si['a'].max())
-    out = si['a'].copy()
-    for tag in range(si['a'].shape[0]):
         for key in si.keys():
-            exec("""{}=si['{}'][tag]""".format(key, key))
-        out[tag] = eval(args.expression)
-    print("after", out.dtype, out.shape, out.min(), out.max())
+            si[key] = si[key].astype(args.dtype)
 
-    # Save masked image
+    # Print input data
+    for key in si.keys():
+        print("{} = {} {} {}".format(key, names[key], si[key].shape, si[key].dtype))
+
+    # Calculate
+    if args.indirs:
+        out = si['a'].copy()
+        for tag in range(si['a'].shape[0]):
+            for key in si.keys():
+                exec("""{}=si['{}'][tag]""".format(key, key))
+            out[tag] = eval(args.expression)
+    else:
+        out = Series(eval(args.expression), template=template, geometry=geometry)
+
+    # Save output series
+    print("{} = {} {} {}".format(args.outdir, args.expression, out.shape, out.dtype))
     out.write(args.outdir, opts=args)
     return 0
 
 
-def statistics():
+def statistics(cmdline=None):
+
+    def _key_study_time(study):
+        _date = study.studyDate if study.studyDate is not None else date.min
+        _time = study.studyTime if study.studyTime is not None else time.min
+        return datetime.combine(_date, _time)
+
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument('--mask',
                         help='Image mask', default=None)
     parser.add_argument('--bash', action='store_true',
                         help='Print bash commands')
-    parser.add_argument("in_dirs", nargs='+',
+    parser.add_argument("in_dirs",  # nargs='+',
                         help="Input directories and files")
-    args = parser.parse_args()
+    if cmdline is None:
+        args = parser.parse_args()
+    else:
+        if not issubclass(type(cmdline), list):
+            cmdline = [cmdline]
+        args = parser.parse_args(cmdline)
     logger.setLevel(args.loglevel)
 
     try:
-        si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
-        print("Could not determine input format of %s." % args.in_dirs[0])
+        cohort = Cohort(args.in_dirs, opts=args)
+        # si = Series(args.in_dirs, args.input_order, args)
+    except NotImageError:
+        print('Could not determine input format of "%s"' % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
         return 1
@@ -189,10 +234,43 @@ def statistics():
     if args.mask is not None:
         try:
             mask = Series(args.mask) > 0
-        except imagedata.formats.NotImageError:
-            print("Could not determine input format of %s." % args.mask)
+        except NotImageError:
+            print('Could not determine input format of "%s"' % args.mask)
             return 1
 
+    print("{}".format(cohort))
+    patient_list = []
+    for patientID in cohort:
+        patient_list.append(cohort[patientID])
+    patient_list.sort(key=lambda patient: str.lower(patient.patientName.family_comma_given()))
+    for patient in patient_list:
+        print("  {}".format(patient))
+        for studyInstanceUID in patient:
+            study_list = []
+            study_list.append(patient[studyInstanceUID])
+        # study_list.sort(key=lambda study: datetime.combine(study.studyDate, study.studyTime))
+        study_list.sort(key=_key_study_time)
+        for study in study_list:
+            print("    {}".format(study))
+            series_list = []
+            for seriesInstanceUID in study:
+                series_list.append(study[seriesInstanceUID])
+            series_list.sort(key=lambda series: series.seriesNumber)
+            for series in series_list:
+                try:
+                    _seriesDescription = series.seriesDescription
+                except ValueError:
+                    _seriesDescription = ''
+                print("      Series [{}] {}: {}, shape: {}, dtype: {}, input order: {}".format(
+                    series.seriesNumber, series.modality,
+                    _seriesDescription,
+                    shape_to_str(series.shape), series.dtype,
+                    input_order_to_dirname_str(series.input_order)
+                ))
+                print_statistics(series, mask, bash=args.bash)
+
+
+def print_statistics(si, mask=None, bash=False):
     if mask is None:
         selection = si
     else:
@@ -202,22 +280,20 @@ def statistics():
     _mean = np.mean(selection)
     _std = np.std(selection)
     _median = np.median(np.array(selection))
-    _size = selection.size
-    _dtype = selection.dtype
 
-    if args.bash:
-        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(_min, _max, _mean, _std, _median))
+    if bash:
+        print('min={}\nmax={}\nmean={}\nstd={}\nmedian={}'.format(
+            _min, _max, _mean, _std, _median))
         print('export min max mean std median')
     else:
-        print('Min: {}, max: {}'.format(_min, _max))
-        print('Mean: {} +- {}, median: {}'.format(_mean, _std, _median))
-        print('Points: {}, shape: {}, dtype: {}'.format(_size, si.shape, _dtype))
+        print('        Min: {}, max: {}, mean: {} +/- {}, median: {}'.format(
+            _min, _max, _mean, _std, _median))
     return 0
 
 
 def timeline():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -227,7 +303,7 @@ def timeline():
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -237,23 +313,47 @@ def timeline():
     return 0
 
 
-def conversion():
+def show():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
-    parser.add_argument("out_name",
-                        help="Output directory")
+    add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
-    #print("Output format: %s, %s, in %s directory." % (
-    #    args.output_format, imagedata.formats.sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
         si = Series(args.in_dirs, args.input_order, args)
-    except imagedata.formats.NotImageError:
+    except NotImageError:
+        print("Could not determine input format of %s." % args.in_dirs[0])
+        import traceback
+        traceback.print_exc(file=sys.stdout)
+        return 1
+
+    si.show()
+    return 0
+
+
+def conversion():
+    parser = argparse.ArgumentParser()
+    add_argparse_options(parser)
+    parser.add_argument("out_name",
+                        help="Output directory")
+    # parser.add_argument("in_dirs", nargs='+',
+    parser.add_argument("in_dirs",
+                        help="Input directories and files")
+    args = parser.parse_args()
+    logger.setLevel(args.loglevel)
+    # if args.version:
+    #    print('This is {} version {}'.format(sys.argv[0], __version__))
+    # print("Output format: %s, %s, in %s directory." % (
+    #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
+
+    try:
+        si = Cohort(args.in_dirs, opts=args)
+        # si = Series(args.in_dirs, args.input_order, args)
+    except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
         import traceback
         traceback.print_exc(file=sys.stdout)
@@ -265,8 +365,9 @@ def conversion():
 
 def image_list():
     parser = argparse.ArgumentParser()
-    imagedata.cmdline.add_argparse_options(parser)
-    parser.add_argument("-r", "--recursive", help="Descend into directory tree", action="store_true")
+    add_argparse_options(parser)
+    parser.add_argument("-r", "--recursive", help="Descend into directory tree",
+                        action="store_true")
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
@@ -274,7 +375,7 @@ def image_list():
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)
     netloc = '{}://{}'.format(url_tuple.scheme, url_tuple.netloc)
-    transport = imagedata.transports.Transport(args.input)
+    transport = Transport(args.input)
     found = False
     for root, dirs, files in transport.walk('*'):
         found = True

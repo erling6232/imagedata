@@ -1,7 +1,7 @@
 """Read/write files in xnat database
 """
 
-# Copyright (c) 2021 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2021-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import os.path
@@ -12,7 +12,7 @@ import shutil
 import tempfile
 import urllib
 import xnat
-from imagedata.transports.abstracttransport import AbstractTransport
+from .abstracttransport import AbstractTransport
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,8 @@ class XnatTransport(AbstractTransport):
         self.opts = opts
         # Does netloc include username and password?
         if '@' in netloc:
-            url_tuple = urllib.parse.urlsplit('xnat://'+netloc)  # Add fake scheme to satisfy urlsplit()
+            # Add fake scheme to satisfy urlsplit()
+            url_tuple = urllib.parse.urlsplit('xnat://' + netloc)
             self.netloc = url_tuple.hostname
             try:
                 opts['username'] = url_tuple.username
@@ -68,7 +69,7 @@ class XnatTransport(AbstractTransport):
             kwargs['user'] = opts['username']
         if 'password' in opts:
             kwargs['password'] = opts['password']
-        self.__session = xnat.connect('https://'+self.netloc, **kwargs)
+        self.__session = xnat.connect('https://' + self.netloc, **kwargs)
         logger.debug("XnatTransport __init__ session: {}".format(self.__session))
         self.__project = self.__session.projects[project] if project is not None else None
         self.root = '/' + project
@@ -78,7 +79,8 @@ class XnatTransport(AbstractTransport):
         if subject is not None:
             self.root += '/' + subject
             logger.debug("Subject: {}".format(self.__subject.label))
-        self.__experiment = self.__subject.experiments[experiment] if experiment is not None else None
+        self.__experiment = self.__subject.experiments[experiment]\
+            if experiment is not None else None
         if experiment is not None:
             self.root += '/' + experiment
             logger.debug("Experiment: {}".format(experiment))
@@ -87,7 +89,8 @@ class XnatTransport(AbstractTransport):
             if scan is not None:
                 scans, labels = self._get_scans(self.__experiment, scan)
                 if len(scans) == len(labels) == 1:
-                    self.__scan = self.__experiment.scans[labels[0]] if labels[0] is not None else None
+                    self.__scan = self.__experiment.scans[labels[0]] \
+                        if labels[0] is not None else None
         else:
             self.__scan = None
         if scan is not None:
@@ -114,7 +117,7 @@ class XnatTransport(AbstractTransport):
         Input:
         - top: starting point for walk (str)
         Return:
-        - tuples of (root, dirs, files) 
+        - tuples of (root, dirs, files)
         """
         if len(top) < 1 or top[0] != '/':
             # Add self.root to relative tree top
@@ -136,11 +139,14 @@ class XnatTransport(AbstractTransport):
             for experiment in experiments:
                 # Walk the scan list
                 scans, labels = self._get_scans(experiment, scan_search)
-                yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id), labels, []
+                yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id),\
+                      labels, []
                 for scan in scans:
                     # Walk the file list
                     files = self._get_files(scan, instance_search)
-                    yield '/{}/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id, scan.id), [], files
+                    yield '/{}/{}/{}/{}'.format(self.__project.id, subject.label,
+                                                experiment.id, scan.id),\
+                          [], files
 
     def _get_subjects(self, search):
         if len(search) < 1:

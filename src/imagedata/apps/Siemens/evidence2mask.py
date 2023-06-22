@@ -6,6 +6,7 @@
 import math
 import numpy as np
 import logging
+from PIL import Image, ImageDraw
 from imagedata.apps.Siemens.ROI import PolygonROI, EllipseROI
 
 logger = logging.getLogger(__name__)
@@ -91,7 +92,8 @@ def evidence2roi(im, uid_table=None, content=None):
                 referenced_syngo_uid.append(u)
             referenced_syngo_uid = referenced_frame_seq[(0x0029, 0x1038)].value
         else:
-            referenced_syngo_uid = referenced_frame_seq[(0x0029, 0x1038)].value.decode().split('\\')
+            referenced_syngo_uid =\
+                referenced_frame_seq[(0x0029, 0x1038)].value.decode().split('\\')
         if uid_table:
             stu_ins_uid = uid_table[referenced_syngo_uid[0]]
             ser_ins_uid = uid_table[referenced_syngo_uid[1]]
@@ -148,7 +150,8 @@ def evidence2roi(im, uid_table=None, content=None):
                 meas_data_points = np.array(output.value)
             thickness = meas_data_points
 
-            rois.append(EllipseROI(centre, angles, thickness, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
+            rois.append(EllipseROI(
+                centre, angles, thickness, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
         elif roi_type_value == 'StandaloneTextApplication3D':
             logger.warning("Standalone Text ROI not implemented.")
             pass
@@ -170,15 +173,16 @@ def make_mask_in_slice(roi_type, si, points, shape):
         # width = ?
         # height = ?
 
-        for p in points:
-            save_x(p)
+        # for p in points:
+        #     save_x(p)
         polygon = transform_data_points_to_voxels(si, points)
-        points_matrix = roi.get_points_matrix(si)
+        roi = None  # TODO
+        points_matrix = roi.get_points_matrix(si)  # TODO
         """
         print("polygon: points cm    {}".format(points))
         print("polygon: points matrix", polygon)
         """
-        slice = verify_all_voxels_in_slice(points_matrix)
+        slice = polygon.verify_all_voxels_in_slice(points_matrix)  # TODO
 
         mask = np.zeros(shape[1:], dtype=np.bool)
 
@@ -196,12 +200,14 @@ def make_mask_in_slice(roi_type, si, points, shape):
         mask = np.zeros(shape[1:], dtype=np.bool)
 
         angle1 = angles[1]
-        radius_cm = math.sqrt(angle1[0] * angle1[0] + angle1[1] * angle1[1] + angle1[2] * angle1[2])
+        radius_cm = math.sqrt(angle1[0] * angle1[0] +
+                              angle1[1] * angle1[1] +
+                              angle1[2] * angle1[2])
         adjacent_cm = centre_cm + np.array((0, 0, radius_cm))
-        save_x((centre_cm + np.array((0, 0, radius_cm)))[0])
-        save_x((centre_cm - np.array((0, 0, radius_cm)))[0])
-        save_x((centre_cm + np.array((radius_cm, 0, 0)))[0])
-        save_x((centre_cm - np.array((radius_cm, 0, 0)))[0])
+        # save_x((centre_cm + np.array((0, 0, radius_cm)))[0])
+        # save_x((centre_cm - np.array((0, 0, radius_cm)))[0])
+        # save_x((centre_cm + np.array((radius_cm, 0, 0)))[0])
+        # save_x((centre_cm - np.array((radius_cm, 0, 0)))[0])
         adjacent = transform_data_points_to_voxels(si, adjacent_cm)[0]
         radius = abs(centre[1] - adjacent[1])
 

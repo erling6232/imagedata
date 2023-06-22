@@ -2,7 +2,10 @@
 
 # import nose.tools
 import unittest
+import os.path
+import tempfile
 import numpy as np
+from numpy.random import default_rng
 import copy
 # import logging
 import pydicom.datadict
@@ -10,6 +13,7 @@ import pydicom.datadict
 from .context import imagedata
 from imagedata.series import Series
 import imagedata.axis
+from .compare_headers import compare_axes
 
 
 class TestSeries(unittest.TestCase):
@@ -26,6 +30,12 @@ class TestSeries(unittest.TestCase):
             'data/dicom/time/time00')
         r = si.__repr__()
 
+    #@unittest.skip("skipping test_str")
+    def test_str(self):
+        si = Series(
+            'data/dicom/time/time00/Image_00020.dcm')
+        r = '{}'.format(si)
+
     #@unittest.skip("skipping test_max")
     def test_max(self):
         si = Series(
@@ -37,6 +47,7 @@ class TestSeries(unittest.TestCase):
     def test_get_keyword(self):
         si1 = Series(
             'data/dicom/time/time00/Image_00020.dcm')
+        self.assertEqual('dicom', si1.input_format)
         pname = si1.getDicomAttribute('PatientName')
         self.assertEqual(
             si1.getDicomAttribute('PatientName'),
@@ -46,12 +57,31 @@ class TestSeries(unittest.TestCase):
                 pydicom.datadict.tag_for_keyword('PatientID')),
             '19.02.07-14:04:17-STD-1.3.12.2.1107.5.2.43.66035')
 
+    #@unittest.skip("skipping test_create_series_1")
+    def test_create_series_1(self):
+        si = Series(np.uint16(1))
+        self.assertEqual(np.uint16, si.dtype)
+        self.assertEqual((1,), si.shape)
+
+    #@unittest.skip("skipping test_create_series_tuple_1D")
+    def test_create_series_tuple_1D(self):
+        si = Series((1, 2, 3))
+        self.assertEqual(np.int64, si.dtype)
+        self.assertEqual((3,), si.shape)
+
     #@unittest.skip("skipping test_create_series")
     def test_create_series(self):
         a = np.eye(128)
         si = Series(a)
         self.assertEqual(si.dtype, np.float64)
         self.assertEqual(si.shape, (128, 128))
+
+    @unittest.skip("skipping test_create_time_series")
+    def test_create_time_series(self):
+        from imagedata.series import Series
+        s = Series(np.zeros((4,3,128,128)), 'time')
+        self.assertEqual('time', s.axes[0].name)
+
 
     #@unittest.skip("skipping test_print_header")
     def test_print_header(self):
@@ -99,6 +129,19 @@ class TestSeries(unittest.TestCase):
         with self.assertRaises(IndexError):
             s.shape = (1,1,128,128)
 
+    #@unittest.skip("skipping test_set_variable_slice_locations")
+    def test_set_variable_slice_locations(self):
+        s = Series(np.zeros((3,12,12)))
+        new_loc = np.array([1, 3, 6])
+        s.sliceLocations = new_loc
+        np.testing.assert_array_equal(new_loc, s.sliceLocations)
+
+    #@unittest.skip("skipping test_set_incorrect_slice_locations")
+    def test_set_incorrect_slice_locations(self):
+        s = Series(np.zeros((3,12,12)))
+        with self.assertRaises(ValueError):
+            s.sliceLocations = [3, 6]
+
     #@unittest.skip("skipping test_slicing_dim")
     def test_slicing_dim(self):
         a1 = np.eye(128)
@@ -130,7 +173,6 @@ class TestSeries(unittest.TestCase):
 
     #@unittest.skip("skipping test_slicing_y_neg")
     def test_slicing_y_neg(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
@@ -208,6 +250,12 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a, s)
         self.assertEqual(s.slices, 4)
 
+    #@unittest.skip("skipping test_assign_slice_input_order")
+    def test_assign_slice_input_order(self):
+        si = Series('data/dicom/time', 'time')
+        sic = Series(si)
+        self.assertEqual(si.input_order, sic.input_order)
+
     #@unittest.skip("skipping test_slicing_z")
     def test_slicing_z(self):
         a1 = np.eye(128)
@@ -220,7 +268,6 @@ class TestSeries(unittest.TestCase):
             s.imagePositions = {
                 slice: np.array([slice, 0, 0])
             }
-        s.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[0])
 
         a_slice = a[0:2,...]
         s_slice = s[0:2,...]
@@ -293,6 +340,23 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2], s[1:-1])
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-1,:,:])
         np.testing.assert_array_equal(s[0:1,:,:], s[0:-2,:,:])
+
+    #@unittest.skip("skipping test_slicing_t_drop")
+    def test_slicing_t_drop(self):
+        from numpy.random import default_rng
+        rng = default_rng()
+        s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
+        s.spacing = (1, 1, 1)
+        s.axes[0] = imagedata.axis.UniformLengthAxis('time', 0, s.shape[0])
+        s.axes[1] = imagedata.axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s_axes = copy.copy(s.axes)
+        self.assertEqual(len(s_axes), 4)
+
+        sum = np.sum(s, axis=0)
+        compare_axes(self, s.axes, s_axes)
+        del sum.axes[0]  # TODO
+        self.assertEqual(len(s_axes), 4)
+        compare_axes(self, s_axes[1:], sum.axes)
 
     #@unittest.skip("skipping test_multiple_ellipses")
     def test_multiple_ellipses(self):
@@ -368,27 +432,72 @@ class TestSeries(unittest.TestCase):
 
     #@unittest.skip("skipping test_cross_talk")
     def test_cross_talk(self):
-        si = Series('data/dicom/time', 'time')
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        # print('si before', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
         si1 = si[0]
         si1.seriesNumber = si.seriesNumber + 10
         self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
+        # print('si after', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
+        # print('si1', si1.getDicomAttribute('SeriesInstanceUID'), si1.seriesInstanceUID)
+        self.assertNotEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
 
-        si2 = Series('data/dicom/time', 'time')
+        si2 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si2.input_format)
         si2.seriesNumber += 10
         self.assertNotEqual(si.seriesNumber, si2.seriesNumber)
 
-    # @nose.tools.raises(AssertionError)
-    @unittest.expectedFailure
+    #@unittest.skip("skipping test_cross_talk_wl_ref")
+    def test_cross_talk_wl_ref(self):
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        si1 = si[0] * 10
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_wl")
+    def test_cross_talk_wl(self):
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        si1 = si.deepcopy()[0] * 10
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_series_ref")
+    def test_cross_talk_series_ref(self):
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        si1 = Series(si, input_order=si.input_order)
+        si1.setDicomAttribute('WindowWidth', 1)
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_series")
+    def test_cross_talk_series(self):
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        si1 = si.deepcopy()
+        si1.setDicomAttribute('WindowWidth', 1)
+        self.assertEqual(1, si1.getDicomAttribute('WindowWidth'))
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
+    #@unittest.skip("skipping test_cross_talk_series_template")
+    def test_cross_talk_series_template(self):
+        si = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si.input_format)
+        si1 = si.deepcopy()
+        si1.setDicomAttribute('WindowWidth', 1)
+        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+
     #@unittest.skip("skipping test_cross_talk_spacing")
     def test_cross_talk_spacing(self):
         si = Series('data/dicom/time', 'time')
+        self.assertEqual('dicom', si.input_format)
         si1 = si[0]
         si1.spacing = (1,1,1)
-        np.testing.assert_array_equal(si.spacing, si1.spacing)
+        self.assertNotEqual(si.spacing.tolist(), si1.spacing.tolist())
 
     #@unittest.skip("skipping test_cross_talk_2")
     def test_cross_talk_2(self):
         si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
         si2 = si1
         si2.seriesNumber += 10
         self.assertEqual(si1.seriesNumber, si2.seriesNumber)
@@ -396,6 +505,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_cross_talk_3")
     def test_cross_talk_3(self):
         si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
         si2 = copy.copy(si1)
         si2.seriesNumber += 10
         self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
@@ -403,6 +513,7 @@ class TestSeries(unittest.TestCase):
     #@unittest.skip("skipping test_set_axes")
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
 
         shape = si1.shape + (3,)
         img = np.zeros(shape, dtype=np.uint8)
@@ -413,6 +524,138 @@ class TestSeries(unittest.TestCase):
         rgb = Series(img, geometry=si1,
                      axes=si1.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
                      )
+
+
+    #@unittest.skip("skipping test_header_axes")
+    def test_header_axes(self):
+        geometry = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', geometry.input_format)
+        si = Series(np.eye(128), geometry=geometry)
+        self.assertEqual(len(si.axes), 2)
+        for i in range(len(si.axes)):
+            self.assertEqual(len(si.axes[i]), si.shape[i])
+
+    def test_get_rgb_voxel(self):
+        si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
+
+        rgb = si1.to_rgb()
+        _slice = rgb[1]
+        voxel = _slice[1, 1]
+        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual('rgb', voxel.axes[0].name)
+
+    def test_get_rgb_voxel_np_rgb(self):
+        si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
+
+        _slice = si1[1]
+        voxel = _slice[1, 1]
+        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual('rgb', voxel.axes[0].name)
+
+    def test_get_rgb_voxel_np(self):
+        si1 = Series(np.zeros((4,10,10), dtype=np.uint8))
+
+        rgb = si1.to_rgb()
+        _slice = rgb[1]
+        voxel = _slice[1, 1]
+        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual('rgb', voxel.axes[0].name)
+
+    def test_fuse_mask_3d_bw_uint8(self):
+        si1 = Series(np.zeros((4,10,10), dtype=float))
+        mask = np.zeros_like(si1, dtype=np.uint8)
+        mask[2, 2:7, 2:7] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((58, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_bw_float(self):
+        si1 = Series(np.zeros((4,10,10), dtype=float))
+        mask = np.zeros_like(si1, dtype=np.uint8)
+        mask[2, 2:7, 2:7] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((58, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_rgb_uint8(self):
+        si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
+        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask[2, 3, 4] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
+    def test_fuse_mask_3d_rgb_float(self):
+        si = Series(np.zeros((4,10,10), dtype=float))
+        si1 = si.to_rgb()
+        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask[2, 3, 4] = 1
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(4, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
+
+    def test_align_3d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_3d_few_slices_on_many(self):
+        rng = default_rng()
+        reference = Series(rng.standard_normal(80).reshape((5,4,4)))
+        reference.spacing = (1, 1, 1)
+        reference.axes[0] = imagedata.axis.UniformLengthAxis('slice', 0, reference.shape[0])
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference, force=True)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_2d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time00')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'TI',
+                         'TI_1.MR.0021.0001.2021.06.08.10.04.29.806302.203193459.IMA'),
+            input_order='ti',
+            opts={'ti': 'InversionTime'}
+        )
+        with self.assertRaises(ValueError):
+            moved = moving.align(reference)
+
+    def test_align_3d_on_4d(self):
+        reference = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        moving = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
+
+    def test_align_4d_on_3d(self):
+        moving = Series(
+            os.path.join('data', 'dicom', 'time')
+        )
+        reference = Series(
+            os.path.join('data', 'dicom', 'time', 'time01')
+        )
+        moved = moving.align(reference)
+        with tempfile.TemporaryDirectory() as d:
+            moved.write(d, formats=['dicom'])
 
 
 if __name__ == '__main__':

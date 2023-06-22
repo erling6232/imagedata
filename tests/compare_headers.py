@@ -1,3 +1,4 @@
+import imagedata.axis
 import numpy as np
 
 
@@ -15,13 +16,13 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
     self.assertEqual(hdr.version, newhdr.version)
     self.assertEqual(hdr.url, newhdr.url)
     self.assertEqual(hdr.input_order, newhdr.input_order)
-    # self.assertEqual(hdr.sort_on, newhdr.sort_on)
+    # obj.assertEqual(hdr.sort_on, newhdr.sort_on)
 
     # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
     try:
         self.assertEqual(hdr.DicomHeaderDict.keys(), newhdr.DicomHeaderDict.keys())
         # for k in hdr.DicomHeaderDict.keys():
-        #    self.assertEqual(hdr.DicomHeaderDict[k], newhdr.DicomHeaderDict[k])
+        #    obj.assertEqual(hdr.DicomHeaderDict[k], newhdr.DicomHeaderDict[k])
     except ValueError:
         pass
     self.assertEqual(hdr.tags.keys(), newhdr.tags.keys())
@@ -29,7 +30,7 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
         np.testing.assert_array_equal(hdr.tags[k], newhdr.tags[k])
     if uid:
         compare_optional(self, hdr, newhdr, 'studyInstanceUID')
-        # compare_optional(self, hdr, newhdr, 'seriesInstanceUID')
+        # compare_optional(obj, hdr, newhdr, 'seriesInstanceUID')
         compare_optional(self, hdr, newhdr, 'frameOfReferenceUID')
     compare_optional(self, hdr, newhdr, 'seriesNumber')
     compare_optional(self, hdr, newhdr, 'seriesDescription')
@@ -68,3 +69,49 @@ def compare_geometry_headers(self, hdr, newhdr):
             newhdr.imagePositions[k],
             decimal=4)
     np.testing.assert_array_almost_equal(hdr.transformationMatrix, newhdr.transformationMatrix, decimal=3)
+
+
+def compare_axes(self, axes, new_axes):
+    self.assertEqual(len(axes), len(new_axes))
+    for axis, new_axis in zip(axes, new_axes):
+        self.assertEqual(type(axis), type(new_axis))
+        self.assertEqual(axis.name, new_axis.name)
+        if isinstance(axis, imagedata.axis.VariableAxis):
+            np.testing.assert_array_equal(axis.values, new_axis.values)
+        elif isinstance(axis, imagedata.axis.UniformLengthAxis):
+            self.assertEqual(axis.n, new_axis.n)
+            self.assertEqual(axis.start, new_axis.start)
+            self.assertEqual(axis.stop, new_axis.stop)
+            self.assertEqual(axis.step, new_axis.step)
+        elif isinstance(axis, imagedata.axis.UniformAxis):
+            self.assertEqual(axis.start, new_axis.start)
+            self.assertEqual(axis.stop, new_axis.stop)
+            self.assertEqual(axis.step, new_axis.step)
+
+
+def compare_pydicom(self, orig, temp):
+    dont_verify = ['Content Date', 'Content Time', 'Instance Number',
+                   'Largest Pixel Value in Series', 'Window Center',
+                   'Window Width']
+    for data_element in orig:
+        if data_element.VR == "SQ":
+            pass
+        elif data_element.name in dont_verify:
+            pass
+        elif data_element.VR == "DS":
+            tag = data_element.tag
+            np.testing.assert_allclose(
+                data_element.value, temp[tag].value,
+                err_msg='Name="{}", VR={}'.format(
+                    data_element.name, data_element.VR)
+            )
+        else:
+            tag = data_element.tag
+            self.assertEqual(data_element.value, temp[tag].value,
+                             msg='Name="{}", VR={}'.format(
+                                 data_element.name, data_element.VR)
+                             )
+    np.testing.assert_array_almost_equal(orig.SliceLocation, temp.SliceLocation)
+    np.testing.assert_array_almost_equal(
+        orig.ImagePositionPatient, temp.ImagePositionPatient)
+

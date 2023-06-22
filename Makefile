@@ -16,6 +16,7 @@ upload:
 	twine upload --skip-existing dist/*
 
 git:
+	git log --oneline --decorate
 	git tag -a `cat VERSION.txt`
 	git push origin master --tags
 

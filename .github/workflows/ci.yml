@@ -1,24 +1,28 @@
-name: build
+name: Python package
+
 on: [push]
+
 jobs:
   build:
-    runs-on: ubuntu-latest
+  
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8, 3.9]
+        python-version: ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11"]
         
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         ref: ${{ github.ref }}
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        cache: "pip"
     - name: Check package
       run: |
-        python -m pip install --upgrade pip
+        python -m pip install --upgrade pip setuptools wheel
         pip install check-manifest flake8
         check-manifest
         flake8 .
@@ -38,19 +42,19 @@ jobs:
         coverage xml
         coverage html
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v3
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
         flags: unittests
         verbose: false
     - name: Archive code coverage html report
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         name: code-coverage-report
         path: htmlcov
     #- name: Archive package
-    #  uses: actions/upload-artifact@v2
+    #  uses: actions/upload-artifact@v3
     #  with:
     #    name: imagedata
     #    path: src/dist    

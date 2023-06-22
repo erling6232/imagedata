@@ -1,5 +1,7 @@
 # Include the README
 include *.rst
+include *.md
+include *.bib
 
 # Include the license file
 include LICENSE.txt
@@ -22,6 +24,7 @@ prune devtests
 include docs
 prune docs/_build
 recursive-include docs *
+recursive-include src *.py
 recursive-include tests *.py
 
 # include *.py

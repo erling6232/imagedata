@@ -3,9 +3,11 @@
 Standard plugins provides support for DICOM and Nifti image file formats.
 """
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
+import sys
+
 import numpy as np
 
 logger = logging.getLogger(__name__)
@@ -14,14 +16,15 @@ logger = logging.getLogger(__name__)
  SORT_ON_TAG) = range(2)
 sort_on_set = {SORT_ON_SLICE, SORT_ON_TAG}
 
+INPUT_ORDER_AUTO = 'auto'
 INPUT_ORDER_NONE = 'none'
 INPUT_ORDER_TIME = 'time'
 INPUT_ORDER_B = 'b'
 INPUT_ORDER_FA = 'fa'
 INPUT_ORDER_TE = 'te'
 INPUT_ORDER_FAULTY = 'faulty'
-input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE,
-                   INPUT_ORDER_FAULTY}
+input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA,
+                   INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
 
 class NotImageError(Exception):
@@ -176,102 +179,42 @@ def shape_to_str(shape):
         return "{}x{}x{}".format(shape[0], shape[1], shape[2])
     elif len(shape) == 2:
         return "{}x{}".format(shape[0], shape[1])
+    elif len(shape) == 1:
+        return "{}".format(shape[0])
     else:
         raise ValueError("Unknown shape")
 
 
-# noinspection PyGlobalUndefined
-def add_plugin_dir(d):
-    from pkgutil import extend_path
-    global __path__, plugins
-    __path__ = extend_path(__path__, d)
-    plugins = load_plugins()
-
-
-# noinspection PyGlobalUndefined
-def load_plugins(plugins_folder_list=None):
-    """Searches the plugins folder and imports all valid plugins,
-    returning a list of the plugins successfully imported as tuples:
-    first element is the plugin name (e.g. MyPlugin),
-    second element is the class of the plugin.
-    """
-    import sys
-    import os
-    import imp
-    import inspect
-    from imagedata.formats.abstractplugin import AbstractPlugin
-
-    global __path__
-    global plugins
-
-    try:
-        if plugins_folder_list is None:
-            plugins_folder_list = __path__
-        if isinstance(plugins_folder_list, str):
-            plugins_folder_list = [plugins_folder_list, ]
-    except NameError:
-        return
-
-    logger.debug("type(plugins_folder_list) {}".format(type(plugins_folder_list)))
-    logger.debug("__name__ {}".format(__name__))
-    logger.debug("__file__ {}".format(__file__))
-    logger.debug("__path__ {}".format(__path__))
-
-    plugins = []
-    for plugins_folder in plugins_folder_list:
-        if plugins_folder not in sys.path:
-            sys.path.append(plugins_folder)
-        for root, dirs, files in os.walk(plugins_folder):
-            logger.debug("root %s dirs %s" % (root, dirs))
-            for module_file in files:
-                module_name, module_extension = os.path.splitext(module_file)
-                if module_extension == os.extsep + "py":
-                    module_hdl = False
-                    try:
-                        # print("Attempt {}".format(module_name))
-                        logger.debug("Attempt {}".format(module_name))
-                        module_hdl, path_name, description = imp.find_module(module_name)
-                        plugin_module = imp.load_module(module_name, module_hdl, path_name,
-                                                        description)
-                        plugin_classes = inspect.getmembers(plugin_module, inspect.isclass)
-                        logger.debug("  Plugins {}".format(plugin_classes))
-                        for plugin_class in plugin_classes:
-                            # print("  Plugin {}".format(plugin_class[1]))
-                            logger.debug("  Plugin {}".format(plugin_class[1]))
-                            if issubclass(plugin_class[1], AbstractPlugin):
-                                # Load only those plugins defined in the current module
-                                # (i.e. don't instantiate any parent plugins)
-                                if plugin_class[1].__module__ == module_name:
-                                    # plugin = plugin_class[1]()
-                                    pname, pclass = plugin_class
-                                    plugins.append((pname, pclass.name, pclass))
-                    # except (ImportError, TypeError, RuntimeError) as e:
-                    except (ImportError, TypeError, RuntimeError):
-                        # print("  ImportError: {}".format(e))
-                        # logger.debug("  ImportError: {}".format(e))
-                        pass
-                    except Exception as e:
-                        # print("  Exception: {}".format(e))
-                        logger.debug("  Exception: {}".format(e))
-                        raise
-                    finally:
-                        if module_hdl:
-                            module_hdl.close()
-    return plugins
+def get_size(obj, seen=None):
+    """Recursively finds size of objects"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        size += sum([get_size(v, seen) for v in obj.values()])
+        size += sum([get_size(k, seen) for k in obj.keys()])
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_size(i, seen) for i in obj])
+    return size
 
 
 def get_plugins_list():
-    global plugins
-    return plugins
+    from imagedata import plugins
+    return plugins['format'] if 'format' in plugins else []
 
 
 def find_plugin(ftype):
     """Return plugin for given format type."""
-    global plugins
+    plugins = get_plugins_list()
     for pname, ptype, pclass in plugins:
         if ptype == ftype:
             return pclass()
     raise FormatPluginNotFound("Plugin for format {} not found.".format(ftype))
-
-
-plugins = load_plugins()

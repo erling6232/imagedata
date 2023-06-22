@@ -132,14 +132,6 @@ tests.test\_formats\_nifti\_zip module
    :undoc-members:
    :show-inheritance:
 
-tests.test\_formats\_ps module
-------------------------------
-
-.. automodule:: tests.test_formats_ps
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 tests.test\_series module
 -------------------------
 

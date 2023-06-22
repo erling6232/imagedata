@@ -36,10 +36,6 @@ class UniformAxis(Axis):
         self.step = step
 
     def __getitem__(self, item):
-        # logger.debug('UniformAxis: item {}'.format(item))
-        # logger.debug('UniformAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, stop, step = 0, None, 1
         # logger.debug('UniformAxis: item %s' % type(item))
         if type(item) == Ellipsis:
@@ -53,25 +49,38 @@ class UniformAxis(Axis):
                 stop = self.start + (item.stop * self.step)
             stop = min(self.stop, stop)
             step = (item.step or 1) * self.step
+        elif isinstance(item, int):
+            _value = self.start + item * self.step
+            if _value < self.stop:
+                return _value
+            raise StopIteration
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         # logger.debug('UniformAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformAxis(self.name, start, stop, step)
 
     def __len__(self):
         try:
             return abs(int((self.stop - self.start) / self.step))
-        except ValueError as e:
+        except ValueError:
             return sys.maxsize
         except Exception:
             raise
+
+    def __next__(self):
+        _value = self.start
+        while _value < self.stop:
+            yield _value
+            _value += self.step
 
     @property
     def slice(self):
         return self.start, self.stop, self.step
 
     def __repr__(self):
-        return("{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
+        return "{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
@@ -90,10 +99,6 @@ class UniformLengthAxis(UniformAxis):
         self.n = n
 
     def __getitem__(self, item):
-        # logger.debug('UniformLengthAxis: item {}'.format(item))
-        # logger.debug('UniformLengthAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, n, step = self.start, self.n, self.step
         # logger.debug('UniformLengthAxis: item %s' % type(item))
         if type(item) == Ellipsis:
@@ -106,21 +111,33 @@ class UniformLengthAxis(UniformAxis):
             step = (item.step or 1) * self.step
             try:
                 n = int(round((stop - start) / step))
-            except ValueError as e:
+            except ValueError:
                 n = sys.maxsize
             except Exception:
                 raise
             n = min(self.n, n)
+        elif isinstance(item, int):
+            if item < n:
+                return self.start + item * self.step
+            raise StopIteration
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         # logger.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
         return UniformLengthAxis(self.name, start, n, step)
 
     def __len__(self):
         return self.n
 
+    def __next__(self):
+        _value = self.start
+        for _ in range(self.n):
+            yield _value
+            _value += self.step
+
     def __repr__(self):
-        return("{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
+        return "{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
@@ -142,10 +159,6 @@ class VariableAxis(Axis):
         """Slice the axis
         - item: tuple of slice indices
         """
-        # logger.debug('VariableAxis: item {}'.format(item))
-        # logger.debug('VariableAxis: isinstance(self, Axis): %s' % isinstance(self, Axis))
-        assert isinstance(self, Axis), "self instance is not Axis"
-
         start, stop, step = 0, None, 1
         # logger.debug('VariableAxis: item %s' % type(item))
         if type(item) == Ellipsis:
@@ -157,16 +170,23 @@ class VariableAxis(Axis):
             stop = item.stop or len(self.values)
             stop = min(len(self.values), stop)
             step = item.step or 1
-        # logger.debug('VariableAxis: slice %d,%d,%d' % (start,stop,step))
+        elif isinstance(item, int):
+            return self.values[item]
+        else:
+            raise ValueError('Cannot slice axis with {}'.format(type(item)))
         return VariableAxis(self.name, self.values[start:stop:step])
 
     def __len__(self):
         return len(self.values)
 
+    def __next__(self):
+        for _ in self.values:
+            yield _
+
     def __repr__(self):
-        return("{0}({1.name!s},{1.values!r})".format(
+        return "{0}({1.name!s},{1.values!r})".format(
             self.__class__.__name__, self
-        ))
+        )
 
     def __str__(self):
         return "{0.name!s}: {0.values!s}".format(self)

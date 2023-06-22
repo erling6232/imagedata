@@ -1,13 +1,15 @@
 """Add standard command line options."""
 
-# Copyright (c) 2013-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import argparse
 import copy
 import logging
-import imagedata
-import imagedata.formats
+from . import __version__
+from .formats import str_to_sort_on, str_to_input_order, str_to_dtype
+from .formats import SORT_ON_SLICE
+from .formats import INPUT_ORDER_AUTO
 
 
 class DictAction(argparse.Action):
@@ -24,7 +26,6 @@ class DictAction(argparse.Action):
 
         # noinspection PyProtectedMember
         items = copy.copy(getattr(namespace, self.dest, {}))  # Default mutables, use copy!
-        # items = copy.copy(argparse._ensure_value(namespace, self.dest, {}))  # Default mutables, use copy!
         items[k] = v
         setattr(namespace, self.dest, items)
 
@@ -63,7 +64,7 @@ class SortOnAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        sort = imagedata.formats.str_to_sort_on(values)
+        sort = str_to_sort_on(values)
         setattr(namespace, self.dest, sort)
 
 
@@ -75,7 +76,7 @@ class InputOrderAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        input_order = imagedata.formats.str_to_input_order(values)
+        input_order = str_to_input_order(values)
         setattr(namespace, self.dest, input_order)
 
 
@@ -87,28 +88,29 @@ class DtypeAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        output_dtype = imagedata.formats.str_to_dtype(values)
+        output_dtype = str_to_dtype(values)
         setattr(namespace, self.dest, output_dtype)
 
 
 def add_argparse_options(parser):
     parser.add_argument('--of', dest="output_format", action=OutputFormatAction,
-                        help="Output format [dicom|itk|nifti|biff|mat|ps] (default: dicom). Replaces %%p in output "
-                             "path.",
+                        help="Output format [dicom|itk|nifti|biff|mat|ps] (default: dicom). "
+                             "Replaces %%p in output path.",
                         choices=['dicom', 'itk', 'nifti', 'biff', 'mat', 'ps'],
                         default=[])
     parser.add_argument('--sort', dest="output_sort", action=SortOnAction,
                         help="Sort output file on slice or input order 'tag' (default: slice)",
-                        choices=['slice', 'tag'], default=imagedata.formats.SORT_ON_SLICE)
+                        choices=['slice', 'tag'], default=SORT_ON_SLICE)
     parser.add_argument('--order', dest="input_order",
                         action=InputOrderAction,
                         help="How to sort input file (time, b-value, fa, te) (default: none)",
-                        choices=['none', 'time', 'b', 'fa', 'te', 'faulty'],
-                        default=imagedata.formats.INPUT_ORDER_NONE)
+                        choices=['auto', 'none', 'time', 'b', 'fa', 'te', 'faulty'],
+                        default=INPUT_ORDER_AUTO)
     # readdata.str_to_dtype() will convert choice to numpy dtype
     parser.add_argument('--dtype', action=DtypeAction,
                         help="Specify output datatype. Otherwise keep input datatype",
-                        choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32', 'float64', 'double'],
+                        choices=['uint8', 'uint16', 'int16', 'int', 'float', 'float32',
+                                 'float64', 'double'],
                         default=None)
     parser.add_argument('--psopt',
                         help="Postscript options (opt=value,opt=value) where opt can be: " +
@@ -117,11 +119,12 @@ def add_argparse_options(parser):
                              "rotate=90 (default=0)",
                         default=None)
     parser.add_argument('--odir', dest="output_dir",
-                        help="Store all images in a single or multiple directories (default: single)",
+                        help="Store all images in a single or multiple directories "
+                             "(default: single)",
                         choices=['single', 'multi'], default='single')
-    parser.add_argument('--template',
-                        help="Directory to get DICOM template from")
-    parser.add_argument('--geometry',
+    parser.add_argument('--template', default=None,
+                        help="Source to get DICOM template from")
+    parser.add_argument('--geometry', default=None,
                         help="Second DICOM template for geometry attributes")
     parser.add_argument('--frame',
                         help="Set DICOM frame of reference uid")
@@ -149,7 +152,8 @@ def add_argparse_options(parser):
                         help='Calling AEtitle',
                         default=None)
     parser.add_argument('--correct_acq', action='store_true',
-                        help="Correct acquisition time on dynamic series (DICOM only) (implies --order time)")
+                        help="Correct acquisition time on dynamic series (DICOM only) "
+                             "(implies --order time)")
     parser.add_argument('--headers_only', action='store_true',
                         help="Read headers only")
     parser.add_argument('--input_shape',
@@ -157,7 +161,7 @@ def add_argparse_options(parser):
                         default=None)
     parser.add_argument('--input_sort', action=SortOnAction,
                         help="Sort input file on slice or input order 'tag' (default: slice)",
-                        choices=['slice', 'tag'], default=imagedata.formats.SORT_ON_SLICE)
+                        choices=['slice', 'tag'], default=SORT_ON_SLICE)
     parser.add_argument('-d', '--debug',
                         help="Print lots of debugging statements",
                         action="store_const", dest="loglevel",
@@ -170,4 +174,4 @@ def add_argparse_options(parser):
     parser.add_argument('-V', '--version',
                         help='Show program version',
                         action='version',
-                        version='{} {}'.format(sys.argv[0], imagedata.__version__))
+                        version='{} {}'.format(sys.argv[0], __version__))

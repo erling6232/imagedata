@@ -1,9 +1,9 @@
-"""Abstract class for image archives.
+"""Abstract class for archives.
 
 Defines generic functions.
 """
 
-# Copyright (c) 2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod
 
@@ -16,10 +16,28 @@ class WriteMultipleArchives(Exception):
     pass
 
 
+class Member(object):
+    """Class definition for filehandle in imagedata archives.
+    """
+
+    def __init__(self, filename,
+                 info=None,
+                 fh=None,
+                 local_file=None):
+        """Initialize the filehandle object."""
+        self.filename = filename
+        if info is None:
+            self.info = {}
+        else:
+            self.info = info
+        self.fh = fh
+        self.local_file = local_file
+
+
 class AbstractArchive(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata archive plugins.
     Plugins must be a subclass of AbstractPlugin and
-    must define the atttributes set in __init__() and
+    must define the attributes set in __init__() and
     the following methods:
 
     __init__() method
@@ -29,11 +47,16 @@ class AbstractArchive(object, metaclass=ABCMeta):
     open() method
     getmembers() method
     to_localfile() method
-    read() method
-    write() method
+    add_localfile() method
+    writedata() method
+    is_file() method
     """
 
+    plugin_type = 'archive'
+
     def __init__(self, name, description, authors, version, url, _mimetypes):
+        """Initialize the archive object.
+        """
         object.__init__(self)
         self.__name = name
         self.__description = description
@@ -42,17 +65,16 @@ class AbstractArchive(object, metaclass=ABCMeta):
         self.__url = url
         self.__mimetypes = _mimetypes
         self.__transport = None
-        """Return an archive object for filehandle."""
 
     @abstractmethod
     def use_query(self):
-        """Do the plugin need the ?query part of the url?"""
+        """Does the plugin need the ?query part of the url?"""
         pass
 
     @property
     def name(self):
         """Plugin name
-        
+
         Single word string describing the image format.
         Typical names: dicom, nifti, itk.
         """
@@ -61,7 +83,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def description(self):
         """Plugin description
-        
+
         Single line string describing the image format.
         """
         return self.__description
@@ -69,7 +91,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def authors(self):
         """Plugin authors
-        
+
         Multi-line string naming the author(s) of the plugin.
         """
         return self.__authors
@@ -77,7 +99,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def version(self):
         """Plugin version
-        
+
         String giving the plugin version.
         Version scheme: 1.0.0
         """
@@ -86,7 +108,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
     @property
     def url(self):
         """Plugin URL
-        
+
         URL string to the site of the plugin or the author(s).
         """
         return self.__url
@@ -99,8 +121,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
 
     @property
     def mimetypes(self):
-        """MIME types supporte by this plugin.
-        
+        """MIME types supported by this plugin.
+
         List of strings.
         """
         return self.__mimetypes
@@ -109,6 +131,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
     def getnames(self, files=None):
         """Get name list of the members.
 
+        Args:
+            files: List or single str of filename matches.
         Returns:
             The members as a list of their names.
                 It has the same order as the members of the archive.
@@ -124,15 +148,20 @@ class AbstractArchive(object, metaclass=ABCMeta):
 
         Args:
             filehandle: reference to member object
+        Returns:
+            Basename of file: str
         """
         pass
 
     @abstractmethod
-    def open(self, filehandle, mode='rb'):
+    def open(self, member, mode='rb'):
         """Open file.
 
+        Args:
+            member: Handle to file.
+            mode: Open mode.
         Returns:
-             a member object for member given its filehandle.
+             An IO object for the member.
         """
         pass
 
@@ -140,15 +169,22 @@ class AbstractArchive(object, metaclass=ABCMeta):
     def getmembers(self, files=None):
         """Get the members of the archive.
 
+        Args:
+            files: List of filename matches.
         Returns:
-            The members of the archive as an OrderedDict of member objects.
-                The keys are the member names as given by getnames().
+            The members of the archive as a list of Filehandles.
+                The list has the same order as the members of the archive.
         """
         pass
 
     @abstractmethod
-    def to_localfile(self, filehandle):
+    def to_localfile(self, member):
         """Access a member object through a local file.
+
+        Args:
+            member: handle to member file.
+        Returns:
+            filename to file guaranteed to be local.
         """
         pass
 
@@ -159,8 +195,6 @@ class AbstractArchive(object, metaclass=ABCMeta):
         Args:
             local_file: named local file
             filename: filename in the archive
-        Returns:
-            filehandle to file in the archive
         """
         pass
 
@@ -181,8 +215,13 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def is_file(self, filehandle):
+    def is_file(self, member):
         """Determine whether the named file is a single file.
+
+        Args:
+            member: file member.
+        Returns:
+            whether member is a single file (bool)
         """
         pass
 
@@ -260,7 +299,8 @@ class AbstractArchive(object, metaclass=ABCMeta):
 #         for archive in self.__archives:
 #             logging.debug("ArchiveCollection: construct archive {}".format(archive))
 #             filedict = archive.getnames()
-#             logging.debug("ArchiveCollection: construct filelist {} {}".format(type(filedict), filedict))
+#             logging.debug("ArchiveCollection: construct filelist {} {}".format(
+#                 type(filedict), filedict))
 #             for key in filedict.keys():
 #                 self.__memberlist[key] = (archive, filedict[key])
 #

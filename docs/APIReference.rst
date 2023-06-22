@@ -7,8 +7,10 @@ API Reference
   :maxdepth: 4
 
   APIReferenceSeries
+  APIReferenceCollections
   APIReferenceViewer
   APIReferenceImagedata
   APIReferenceFormats
   APIReferenceArchives
   APIReferenceTransports
+  APIReferenceApps

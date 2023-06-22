@@ -32,6 +32,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         self.opts = parser.parse_args(['--of', 'mat', '--serdes', '1'])
 
+    def test_mat_plugin(self):
         plugins = imagedata.formats.get_plugins_list()
         self.mat_plugin = None
         for pname, ptype, pclass in plugins:
@@ -128,6 +129,10 @@ class Test3DMatPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
+
+    def test_write_ndarray(self):
+        with tempfile.TemporaryDirectory() as d:
+            Series(np.eye(128)).write(d, formats=['mat'])
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):

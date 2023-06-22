@@ -1,6 +1,7 @@
 """Image series
 
-The Series class is a subclassed Numpy.ndarray enhancing the array with relevant medical image methods and attributes.
+The Series class is a subclassed Numpy.ndarray enhancing the array with relevant medical image
+methods and attributes.
 
   Typical example usage:
 
@@ -9,21 +10,18 @@ The Series class is a subclassed Numpy.ndarray enhancing the array with relevant
 """
 
 import copy
-
-import matplotlib.colors
 import numpy as np
-# from numpy.compat import basestring
 import logging
 from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
-# import numpy.core._multiarray_umath
 
-import imagedata.axis
-import imagedata.formats
-import imagedata.readdata as readdata
-import imagedata.formats.dicomlib.uid
-from imagedata.header import Header, add_template, add_geometry
+from .axis import UniformAxis, UniformLengthAxis, VariableAxis
+from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
+from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
+from .formats.dicomlib.uid import get_uid_for_storage_class
+from .readdata import read as r_read, write as r_write
+from .header import Header, deepcopy_DicomHeaderDict
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +33,8 @@ class DoNotSetSlicesError(Exception):
 class Series(np.ndarray):
     """Series -- a multidimensional array of medical imaging pixels.
 
-    The Series class is a subclassed Numpy.ndarray enhancing the ndarray
+    The Series class is a subclassed numpy.ndarray enhancing the ndarray
     with relevant medical image methods and attributes.
-
-    Series(data, input_order='none', opts=None, shape=(0,), dtype=float, order=None, template=None, geometry=None)
 
     Examples:
 
@@ -52,33 +48,42 @@ class Series(np.ndarray):
         >>> image = Series(a)
 
     Args:
-        data: (array_like or URL)
-            Input data, either explicit as np.ndarray, np.uint16, np.float32, or by URL to input data.
-        input_order (str): How to sort the input data. Typical values are:
-                * 'none' : 3D volume or 2D slice (default).
-                * 'time' : Time-resolved data.
-                * 'b' : Diffusion data with variable b values.
-                * 'te' : Varying echo times.
-                * 'fa' : Varying flip angles.
+        data (array_like or URL): Input data, either explicit as np.ndarray, np.uint16, np.float32,
+            or by URL to input data.
 
-        opts: Dict of input options, mostly for format specific plugins (argparse.Namespace or dict)
-        shape: Tuple of ints, specifying shape of input data.
-        dtype: Numpy data type. Default: float
-        template: Input data to use as template for DICOM header (Series, array_like or URL)
-        geometry: Input data to use as template for geometry (Series, array_like or URL)
+        input_order (str): How to sort the input data. Typical values are:
+
+            - 'auto' : auto-detect sort criteria (default).
+            - 'none' : 3D volume or 2D slice.
+            - 'time' : Time-resolved data.
+            - 'b' : Diffusion data with variable b values.
+            - 'te' : Varying echo times.
+            - 'fa' : Varying flip angles.
+
+        opts (argparse.Namespace or dict): Dict of input options,
+            mostly for format specific plugins.
+
+        shape (tuple of ints): Specifying shape of input data.
+        dtype (numpy.dtype): Numpy data type. Default: float.
+        template (Series, array_like or URL): Input data to use as template for DICOM header.
+        geometry (Series, array_like or URL): Input data to use as template for geometry.
+        axes (list of Axis): Set axes for new instance.
         order: Row-major (C-style) or column-major (Fortran-style) order, {'C', 'F'}, optional
 
     Returns:
-        Series instance
+        Series: Series instance
     """
 
     name = "Series"
     description = "Image series"
     authors = "Erling Andersen"
-    version = "1.1.1"
+    version = "1.2.0"
     url = "www.helse-bergen.no"
 
-    def __new__(cls, data, input_order='none',
+    viewer = None
+    latest_roi_parameters = None
+
+    def __new__(cls, data, input_order='auto',
                 opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None, axes=None):
@@ -94,30 +99,28 @@ class Series(np.ndarray):
             # cls.__init_attributes(cls, obj)
             # obj.header = Header() # Already set in __array_finalize__
 
+            # set the new 'input_order' attribute to the value passed
+            if input_order == 'auto':
+                obj.header.input_order = 'none'
+            else:
+                obj.header.input_order = input_order
+
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
-                # obj.__dict__ = data.__dict__.copy()  # carry forward attributes
                 obj.header = copy.copy(data.header)  # carry forward attributes
+                obj.input_order = data.input_order
+                obj.header.add_template(data.header)  # Includes DicomHeaderDict
+                obj.header.add_geometry(data.header)
+            else:
+                obj.header.set_default_values(obj.axes if axes is None else axes)
 
-            # set the new 'input_order' attribute to the value passed
-            obj.header.input_order = input_order
             # obj.header.set_default_values() # Already done in __array_finalize__
             if axes is not None:
                 obj.header.axes = copy.copy(axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
+            obj.header.add_template(template)
+            obj.header.add_geometry(geometry)
             return obj
         logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
-
-        if issubclass(type(data), np.uint16) or issubclass(type(data), np.float32):
-            obj = np.asarray(data).view(cls)
-            # cls.__init_attributes(cls, obj)
-            obj.header = Header()
-            obj.header.input_order = input_order
-            obj.header.set_default_values(obj.axes if axes is None else axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
-            return obj
 
         # Assuming data is url to input data
         if isinstance(data, np.compat.basestring) or issubclass(type(data), PurePath):
@@ -125,37 +128,48 @@ class Series(np.ndarray):
         elif isinstance(data, list):
             urls = data
         else:
-            obj = np.asarray(data).view(cls)
+            if np.ndim(data) == 0:
+                obj = np.asarray([data]).view(cls)
+            else:
+                obj = np.asarray(data).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
-            obj.header.input_order = input_order
+            if input_order == 'auto':
+                obj.header.input_order = 'none'
+            else:
+                obj.header.input_order = input_order
+            obj.header.input_format = type(data)
+            if np.ndim(data) == 0:
+                obj.header.axes = [UniformAxis('number', 0, 1)]
             obj.header.set_default_values(obj.axes if axes is None else axes)
-            add_template(obj.header, template)
-            add_geometry(obj.header, template, geometry)
+            obj.header.add_template(template)
+            obj.header.add_geometry(geometry)
             return obj
 
         # Read input, hdr is dict of attributes
-        hdr, si = readdata.read(urls, input_order, opts)
+        hdr, si = r_read(urls, input_order, opts)
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
 
         # set the new 'input_order' attribute to the value passed
-        obj.header.input_order = input_order
+        obj.header.input_order = hdr.input_order
+        obj.header.input_format = hdr.input_format
         # Copy attributes from hdr dict to newly created obj
         logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
         if axes is not None:
-            new_axes = axes
-        elif obj.axes is None and 'axes' in hdr:
-            new_axes = hdr['axes']
-        else:
-            new_axes = obj.axes
-        obj.header.set_default_values(new_axes)
-        for attr in hdr.keys():
-            setattr(obj.header, attr, hdr[attr])
+            obj.axes = copy.copy(axes)
+        elif hdr.axes is not None:
+            obj.axes = hdr.axes
+        obj.header.set_default_values(obj.axes)
+        obj.header.add_template(hdr)
+        obj.header.add_geometry(hdr)
+        # for attr in __attributes(hdr):
+        #     __set_attribute(obj.header, attr, __get_attribute(template, attr))
+        #     setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
-        add_template(obj.header, template)
-        add_geometry(obj.header, template, geometry)
+        obj.header.add_template(template)
+        obj.header.add_geometry(geometry)
         # Finally, we must return the newly created object
         return obj
 
@@ -186,7 +200,8 @@ class Series(np.ndarray):
         # Series.__new__ constructor, but also with arr.view(Series).
         # logger.debug("Series.__array_finalize__: obj: {}".format(type(obj)))
 
-        if issubclass(type(obj), Series):
+        # if issubclass(type(obj), Series):
+        if hasattr(obj, 'header') and issubclass(type(obj.header), Header):
             # Copy attributes from obj to newly created self
             # logger.debug('Series.__array_finalize__: Copy attributes from {}'.format(type(obj)))
             # self.__dict__ = obj.__dict__.copy()  # carry forward attributes
@@ -256,6 +271,8 @@ class Series(np.ndarray):
         if results and isinstance(results[0], Series):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
+            results[0].setDicomAttribute('WindowCenter', results[0].max() / 2)
+            results[0].setDicomAttribute('WindowWidth', results[0].max())
 
         return results[0] if len(results) == 1 else results
 
@@ -268,19 +285,27 @@ class Series(np.ndarray):
         This function will provide a header for the result of
         the expression.
 
-        Inputs:
-        - inputs: a tuple of arguments (ndarray or Series)
-        Return:
-        - header: a Header() class
+        Args:
+            inputs (ndarray or Series): a tuple of arguments
+        Returns:
+            Header: Unified header.
         """
 
         header = None
         for i, input_ in enumerate(inputs):
             if issubclass(type(input_), Series):
-                if header is None:
-                    header = input_.header
-                    # logger.debug('Series._unify_headers: copy header')
-                # else:
+                if input_.header is None:
+                    logger.warning('Series._unify_headers: new header')
+                    header = Header()
+                    header.input_order = INPUT_ORDER_NONE
+                else:
+                    logger.debug('Series._unify_headers: copy header')
+                    header = copy.copy(input_.header)
+                    header.input_order = input_.input_order
+                    header.set_default_values(input_.axes)
+                    header.add_template(input_.header)  # Includes DicomHeaderDict
+                    header.add_geometry(input_.header)
+
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
                 # The simplest resolution, however, is to take the
@@ -324,7 +349,8 @@ class Series(np.ndarray):
                 # Calculate slice range
                 try:
                     for _dim in range(obj.ndim):  # Loop over actual array shape
-                        _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])  # Initial start,stop,step,axis
+                        # Initial start,stop,step,axis
+                        _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])
                 except (AttributeError, NameError):
                     raise ValueError('No header in _calculate_spec')
 
@@ -392,15 +418,12 @@ class Series(np.ndarray):
                 new_axes.append(axis[start:stop:step])
 
                 if axis.name == 'slice':
-                    # Select slice of sliceLocations
-                    sloc = self.__get_sliceLocations(spec[i])
-                    todo.append(('sliceLocations', sloc))
                     # Select slice of imagePositions
                     ipp = self.__get_imagePositions(spec[i])
                     todo.append(('imagePositions', None))  # Wipe existing positions
                     if ipp is not None:
                         todo.append(('imagePositions', ipp))
-                elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+                elif axis.name == input_order_to_dirname_str(self.input_order):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
@@ -412,17 +435,23 @@ class Series(np.ndarray):
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
-        if slicing and issubclass(type(ret), Series):
+        # if slicing and issubclass(type(ret), Series):
+        if issubclass(type(ret), Series):
             # noinspection PyUnboundLocalVariable
-            todo.append(('axes', new_axes[-ret.ndim:]))
+            if slicing:
+                todo.append(('axes', new_axes[-ret.ndim:]))
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
                 if ret.axes[-ret.ndim].name in ['slice', 'row', 'column', 'color']:
-                    ret.input_order = imagedata.formats.INPUT_ORDER_NONE
+                    ret.input_order = INPUT_ORDER_NONE
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
+            new_uid = ret.header.new_uid()
+            ret.setDicomAttribute('SeriesInstanceUID', new_uid)
+            # ret.setDicomAttribute('SeriesInstanceUID', ret.header.new_uid())
+            ret.seriesInstanceUID = new_uid
         return ret
 
     def __get_sliceLocations(self, spec):
@@ -479,7 +508,7 @@ class Series(np.ndarray):
             start, stop, step, axis = specs[d]
             if axis.name == 'slice':
                 slice_spec = slice(start, stop, step)
-            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+            elif axis.name == input_order_to_dirname_str(self.input_order):
                 tag_spec = slice(start, stop, step)
         # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
         hdr = {}
@@ -515,6 +544,10 @@ class Series(np.ndarray):
         except ValueError:
             patientName = ''
         try:
+            modality = self.getDicomAttribute('Modality')
+        except ValueError:
+            modality = ''
+        try:
             seriesDescription = self.seriesDescription
         except ValueError:
             seriesDescription = ''
@@ -522,13 +555,20 @@ class Series(np.ndarray):
             seriesNumber = self.seriesNumber
         except ValueError:
             seriesNumber = 0
-        return """Patient: {} {}\nStudy  Time: {} {}\nSeries Time: {} {}\nSeries #{}: {}\nShape: {}, dtype: {}, input order: {}""".format(
-            patientID, patientName,
-            self.getDicomAttribute('StudyDate'), self.getDicomAttribute('StudyTime'),
-            self.getDicomAttribute('SeriesDate'), self.getDicomAttribute('SeriesTime'),
-            seriesNumber, seriesDescription,
-            imagedata.formats.shape_to_str(self.shape), self.dtype,
-            imagedata.formats.input_order_to_dirname_str(self.input_order))
+        return "Patient: {} {}\n".format(patientID, patientName) + \
+            "Study  Time: {} {}\n".format(
+                self.getDicomAttribute('StudyDate'),
+                self.getDicomAttribute('StudyTime')
+        ) + \
+            "Series Time: {} {}\n".format(
+                self.getDicomAttribute('SeriesDate'),
+                self.getDicomAttribute('SeriesTime')
+        ) + \
+            "Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
+            "Shape: {}, dtype: {}, input order: {}".format(
+                shape_to_str(self.shape), self.dtype,
+                input_order_to_dirname_str(self.input_order)
+        )
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
@@ -540,7 +580,7 @@ class Series(np.ndarray):
     def __get_tags(self, specs):
         try:
             tmpl_tags = self.tags
-            last_slice = len(self.tags) - 1  # known_slices might be less than actual data shape
+            _ = len(self.tags) - 1  # known_slices might be less than actual data shape
             tags = len(self.tags[0])
         except ValueError:
             return None
@@ -550,7 +590,7 @@ class Series(np.ndarray):
             start, stop, step, axis = specs[d]
             if axis.name == "slice":
                 slice_spec = slice(start, stop, step)
-            elif axis.name == imagedata.formats.input_order_to_dirname_str(self.input_order):
+            elif axis.name == input_order_to_dirname_str(self.input_order):
                 tag_spec = slice(start, stop, step)
         # tags: dict[slice] is np.array(tags)
         new_tags = {}
@@ -570,16 +610,14 @@ class Series(np.ndarray):
         """Write Series image
 
         Args:
-            self: Series array
-            directory_name: directory name
-            filename_template: template including %d for image number
-            opts: Output options (argparse.Namespace or dict)
-            formats: list of output formats, overriding opts.output_format (list or str)
+            url (str): Output URL.
+            opts (argparse.Namespace or dict): Output options.
+            formats (list or str): list of output formats, overriding opts.output_format.
         """
         logger.debug('Series.write: url    : {}'.format(url))
         logger.debug('Series.write: formats: {}'.format(formats))
         logger.debug('Series.write: opts   : {}'.format(opts))
-        readdata.write(self, url, formats=formats, opts=opts)
+        r_write(self, url, formats=formats, opts=opts)
 
     @property
     def input_order(self):
@@ -593,9 +631,6 @@ class Series(np.ndarray):
             * INPUT_ORDER_TE ('te'): Sort on echo time.
             * INPUT_ORDER_FAULTY ('faulty'): Correct erroneous attributes.
 
-        Returns:
-            Current input order.
-
         Raises:
             ValueError: when order is illegal.
         """
@@ -603,7 +638,7 @@ class Series(np.ndarray):
 
     @input_order.setter
     def input_order(self, order):
-        if order in imagedata.formats.input_order_set:
+        if order in input_order_set:
             self.header.input_order = order
         else:
             raise ValueError("Unknown input order: {}".format(order))
@@ -613,7 +648,8 @@ class Series(np.ndarray):
         """str: Input format
 
         Possible input formats depend on the available `formats` plugins,
-        and include `'dicom'`, `'itk'` and `'nifti'`."""
+        and include `'dicom'`, `'itk'` and `'nifti'`.
+        """
         return self.header.input_format
 
     @input_format.setter
@@ -628,9 +664,6 @@ class Series(np.ndarray):
             * SORT_ON_SLICE: Run over slices first
             * SORT_ON_TAG  : Run over input order first, then slices
 
-        Returns:
-            The input order.
-
         Raises:
             ValueError: when input order is not defined.
         """
@@ -643,7 +676,7 @@ class Series(np.ndarray):
 
     @input_sort.setter
     def input_sort(self, order):
-        if order is None or order in imagedata.formats.sort_on_set:
+        if order is None or order in sort_on_set:
             self.header.input_sort = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
@@ -656,8 +689,6 @@ class Series(np.ndarray):
             * SORT_ON_SLICE: Run over slices first
             * SORT_ON_TAG  : Run over input order first, then slices
 
-        Returns:
-            Current output order.
         Raises:
             ValueError: when output order is not defined.
         """
@@ -670,14 +701,14 @@ class Series(np.ndarray):
 
     @sort_on.setter
     def sort_on(self, order):
-        if order in imagedata.formats.sort_on_set:
+        if order in sort_on_set:
             self.header.sort_on = order
         else:
             raise ValueError("Unknown sort order: {}".format(order))
 
     @property
     def shape(self):
-        """tuple: Matrix shape
+        """tuple of ints: Matrix shape.
 
         Raises:
             IndexError: always when set (do not set shape). Should set axes instead.
@@ -690,7 +721,7 @@ class Series(np.ndarray):
 
     @property
     def rows(self):
-        """int: Number of rows
+        """int: Number of rows.
 
         Raises:
             ValueError: when number of rows is not defined.
@@ -708,7 +739,7 @@ class Series(np.ndarray):
 
     @property
     def columns(self):
-        """int: Number of columns
+        """int: Number of columns.
 
         Raises:
             ValueError: when number of columns is not defined.
@@ -726,7 +757,7 @@ class Series(np.ndarray):
 
     @property
     def slices(self):
-        """int: Number of slices
+        """int: Number of slices.
 
         Raises:
             ValueError: when number of slices is not defined.
@@ -734,7 +765,8 @@ class Series(np.ndarray):
         """
         try:
             slice_axis = self.find_axis('slice')
-            # logger.debug("Series.slices: {}D dataset slice_axis {}".format(self.ndim, slice_axis))
+            # logger.debug("Series.slices: {}D dataset slice_axis {}".format(
+            #              self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
             _color = 0
@@ -750,12 +782,12 @@ class Series(np.ndarray):
 
     @slices.setter
     def slices(self, nslices):
-        raise DoNotSetSlicesError('Do not set slices=%d explicitly. Slices are inferred from the shape.' %
-                                  nslices)
+        raise DoNotSetSlicesError('Do not set slices=%d explicitly. Slices are inferred '
+                                  'from the shape.' % nslices)
 
     @property
     def sliceLocations(self):
-        """numpy.array: Slice locations
+        """numpy.ndarray: Slice locations.
 
         Sorted numpy array of slice locations, in mm.
 
@@ -763,14 +795,20 @@ class Series(np.ndarray):
             ValueError: When no slice locations are defined.
         """
         try:
-            if self.header.sliceLocations is not None:
-                return self.header.sliceLocations
+            slice_axis = self.find_axis('slice')
+            if isinstance(slice_axis, VariableAxis):
+                return slice_axis.values
+            else:
+                return np.arange(slice_axis.start, slice_axis.stop, slice_axis.step)
+            # if self.header.sliceLocations is not None:
+            #     return self.header.sliceLocations
             # Some image formats do not provide slice locations.
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
             if self.header.orientation is not None and self.header.imagePositions is not None:
                 logger.debug(
-                    'sliceLocations: calculate {} slice from orientation and imagePositions'.format(self.slices))
+                    'sliceLocations: calculate {} slice from orientation and '
+                    'imagePositions'.format(self.slices))
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
                 for _slice in range(self.slices):
@@ -783,10 +821,36 @@ class Series(np.ndarray):
 
     @sliceLocations.setter
     def sliceLocations(self, loc):
-        if loc is not None:
-            self.header.sliceLocations = np.sort(loc)
+
+        def _is_uniform_spacing(loc):
+            # sort slice locations
+            _locations = {}
+            _location0 = loc[0]
+            for _location in loc[1:]:
+                _locations[_location - _location0] = True
+                _location0 = _location
+            return len(_locations) == 1
+
+        if loc is None or len(loc) < 1:
+            raise ValueError('Cannot set slice locations to empty list')
+        if len(loc) != self.slices:
+            raise ValueError('Cannot set {} slice locations for {} slices'.format(
+                len(loc), self.slices
+            ))
+        if _is_uniform_spacing(loc):
+            if len(loc) > 1:
+                ds = loc[1] - loc[0]
+            else:
+                ds = self.spacing[0]
+            _axis = UniformLengthAxis('slice', loc[0], len(loc), ds)
         else:
-            self.header.sliceLocations = None
+            _axis = VariableAxis('slice', loc)
+        for i, axis in enumerate(self.axes):
+            if axis.name == 'slice':
+                # Replace axis
+                self.axes[i] = _axis
+                return
+        raise ValueError("No slice axis object exist")
 
     @property
     def DicomHeaderDict(self):
@@ -800,14 +864,17 @@ class Series(np.ndarray):
         Examples:
             Get values for slice=0:
 
-            >>> tagvalue, filename, dicomheader = image.DicomHeaderDict()[0]
+            >>> si = Series(np.eye(128))
+            >>> tagvalue, filename, dicomheader = si.DicomHeaderDict()[0]
         """
         # logger.debug('Series.DicomHeaderDict: here')
         try:
             if self.header.DicomHeaderDict is not None:
                 # logger.debug('Series.DicomHeaderDict: return')
-                # logger.debug('Series.DicomHeaderDict: return {}'.format(type(self.header.DicomHeaderDict)))
-                # logger.debug('Series.DicomHeaderDict: return {}'.format(self.header.DicomHeaderDict.keys()))
+                # logger.debug('Series.DicomHeaderDict: return {}'.format(
+                #              type(self.header.DicomHeaderDict)))
+                # logger.debug('Series.DicomHeaderDict: return {}'.format(
+                #              self.header.DicomHeaderDict.keys()))
                 return self.header.DicomHeaderDict
         except AttributeError:
             pass
@@ -819,7 +886,7 @@ class Series(np.ndarray):
 
     @property
     def tags(self):
-        """dict[slice] of numpy.array(tags): Image tags for each slice
+        """dict[slice] of numpy.ndarray(tags): Image tags for each slice
 
         Image tags can be an array of:
             - time points
@@ -827,10 +894,10 @@ class Series(np.ndarray):
             - flip angles
 
         Setting the tags will adjust the tags in DicomHeaderDict too.
-        
+
         tags is a dict with (slice keys, tag array)
 
-        dict[slice] is np.array(tags)
+        dict[slice] is np.ndarray(tags)
 
         Examples:
 
@@ -870,7 +937,7 @@ class Series(np.ndarray):
 
     @property
     def axes(self):
-        """list of Axis: axes objects
+        """list of Axis: axes objects, sorted like shape indices.
 
         Raises:
             ValueError: when the axes are not set.
@@ -885,22 +952,31 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        if shape[-1] == 3 and self.dtype == np.uint8:
+        _color = shape[-1] in [3, 4] and self.dtype == np.uint8
+        if _color:
             _mono_shape = shape[:-1]
+            self.header.photometricInterpretation = 'RGB'
         else:
             _mono_shape = shape
         _max_known_shape = min(3, len(_mono_shape))
         _labels = ['slice', 'row', 'column'][-_max_known_shape:]
+        if _color:
+            _labels.append('rgb')
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
         i = 0
         for d in super(Series, self).shape:
-            self.header.axes.append(
-                imagedata.axis.UniformLengthAxis(
-                    _labels[i], 0, d, 1
+            if _labels[i] == 'rgb':
+                self.header.axes.append(
+                    VariableAxis('rgb', ['r', 'g', 'b'])
                 )
-            )
+            else:
+                self.header.axes.append(
+                    UniformLengthAxis(
+                        _labels[i], 0, d, 1
+                    )
+                )
             i += 1
         return self.header.axes
 
@@ -932,28 +1008,30 @@ class Series(np.ndarray):
         self.header.spacing = spacing
 
     def find_axis(self, name):
-        """Find axis with given name
+        """Find axis with given name.
 
         Args:
-            name: Axis name to search for
+            name: Axis name to search for.
 
         Returns:
-            axis object with given name
+            Axis: axis object with given name.
 
         Raises:
             ValueError: when no axis object has given name
 
         Usage:
+            >>> si = Series(np.array([3, 3, 3]))
             >>> axis = si.find_axis('slice')
         """
-        for axis in self.axes:
-            if axis.name == name:
-                return axis
-        raise ValueError("No axis object with name %s exist" % name)
+        return self.header.find_axis(name)
+        # for axis in self.axes:
+        #     if axis.name == name:
+        #         return axis
+        # raise ValueError("No axis object with name %s exist" % name)
 
     @property
     def spacing(self):
-        """numpy.array([ds,dr,dc]): spacing
+        """numpy.array([ds,dr,dc]): spacing in mm.
 
         Given as ds,dr,dc in mm.
         2D image will return ds=1.
@@ -963,11 +1041,12 @@ class Series(np.ndarray):
             ValueError: when spacing is not a tuple of 3 coordinates
 
         Usage:
+            >>> si = Series(np.eye(128))
             >>> ds, dr, dc = si.spacing
             >>> si.spacing = ds, dr, dc
         """
         try:
-            #if self.header.spacing is not None:
+            # if self.header.spacing is not None:
             #    return self.header.spacing
             slice_axis = self.find_axis('slice')
             ds = slice_axis.step
@@ -986,7 +1065,6 @@ class Series(np.ndarray):
     @spacing.setter
     def spacing(self, *args):
         if args[0] is None:
-            # self.header.spacing = None
             return
         logger.debug("spacing.setter {} {}".format(len(args), args))
         for arg in args:
@@ -1013,7 +1091,7 @@ class Series(np.ndarray):
         try:
             slice_axis = self.find_axis('slice')
             slice_axis.step = spacing[0]
-        except ValueError as e:
+        except ValueError:
             # Assume 2D image with no slice dimension
             pass
         try:
@@ -1027,24 +1105,26 @@ class Series(np.ndarray):
 
     @property
     def imagePositions(self):
-        """dict of numpy.array([z,y,x]): imagePositions
+        """dict of numpy.array([z,y,x]): The [z,y,x] coordinates of the upper left
+        hand corner (first pixel) of each slice.
 
-        The [z,y,x] coordinates of the upper left hand corner (first pixel)
-        of each slice.
-
-        dict(imagePositions[slice]) of [z,y,x] in mm, as numpy array
+        dict(imagePositions[s]) of [z,y,x] in mm, as numpy array
 
         When setting, the position list is added to existing imagePositions.
-        Overlapping dict keys will replace exisiting imagePosition for given slice.
+        Overlapping dict keys will replace exisiting imagePosition for given slice s.
 
         Examples:
-            >>> z,y,x = si.imagePositions[slice]
+            >>> from imagedata import Series
+            >>> import numpy as np
+            >>> si = Series(np.eye(128))
+            >>> z,y,x = si.imagePositions[0]
 
         Examples:
-            >>> for slice in range(slices):
-            >>>     si.imagePositions = {
-            >>>         slice: si.getPositionForVoxel(np.array([slice,0,0]))
-            >>>     }
+            >>> from imagedata import Series
+            >>> import numpy as np
+            >>> si = Series(np.zeros((16, 128, 128)))
+            >>> for s in range(si.slices):
+            ...     si.imagePositions = { s: si.getPositionForVoxel(np.array([s, 0, 0])) }
 
         Raises:
             ValueError: when imagePositions are not set.
@@ -1068,8 +1148,8 @@ class Series(np.ndarray):
                     # orientation.
                     # Set imagePositions for additional slices
                     logger.debug(
-                        'Series.imagePositions.get: 1 positions only.  Calculating the other {} positions'.format(
-                            self.slices - 1))
+                        'Series.imagePositions.get: 1 positions only.  Calculating the other {} '
+                        'positions'.format(self.slices - 1))
                     m = self.transformationMatrix
                     for _slice in range(1, self.slices):
                         self.header.imagePositions[_slice] = \
@@ -1103,10 +1183,9 @@ class Series(np.ndarray):
 
     @property
     def orientation(self):
-        """numpy.array: Orientation
+        """numpy.array: The direction cosines of the first row and the first column with
+        respect to the patient.
 
-        The direction cosines of the first row and the first column with respect
-        to the patient.
         These attributes shall be provided as a pair.
         Row value (column index) for the z,y,x axes respectively,
         followed by the column value (row index) for the z,y,x axes respectively.
@@ -1134,10 +1213,183 @@ class Series(np.ndarray):
         self.header.orientation = np.array(orient)
 
     @property
+    def modality(self):
+        """str: Imaging modality.
+
+        Raises:
+            ValueError: when modality is not set.
+            ValueError: when modality cannot be converted to str.
+        """
+        try:
+            if self.header.modality is not None:
+                return self.header.modality
+        except AttributeError:
+            pass
+        raise ValueError("No modality set.")
+
+    @modality.setter
+    def modality(self, mod):
+        if mod is None:
+            self.header.modality = None
+            return
+        try:
+            self.header.modality = str(mod)
+        except AttributeError:
+            raise ValueError("Cannot convert modality to string")
+
+    @property
+    def laterality(self):
+        """str: Imaging laterality.
+
+        Raises:
+            ValueError: when laterality is not set.
+            ValueError: when laterality cannot be converted to str.
+        """
+        try:
+            if self.header.laterality is not None:
+                return self.header.laterality
+        except AttributeError:
+            pass
+        raise ValueError("No laterality set.")
+
+    @laterality.setter
+    def laterality(self, lat):
+        if lat is None:
+            self.header.laterality = None
+            return
+        try:
+            self.header.laterality = str(lat)
+        except AttributeError:
+            raise ValueError("Cannot convert laterality to string")
+
+    @property
+    def bodyPartExamined(self):
+        """str: Body Part Examined.
+
+        Raises:
+            ValueError: when Body Part Examined is not set.
+            ValueError: when Body Part Examined cannot be converted to str.
+        """
+        try:
+            if self.header.bodyPartExamined is not None:
+                return self.header.bodyPartExamined
+        except AttributeError:
+            pass
+        raise ValueError("No Body Part Examined set.")
+
+    @bodyPartExamined.setter
+    def bodyPartExamined(self, part):
+        if part is None:
+            self.header.bodyPartExamined = None
+            return
+        try:
+            self.header.bodyPartExamined = str(part)
+        except AttributeError:
+            raise ValueError("Cannot convert Body Part Examined to string")
+
+    @property
+    def patientPosition(self):
+        """str: Patient Position.
+
+        Raises:
+            ValueError: when Patient Position is not set.
+            ValueError: when Patient Position cannot be converted to str.
+        """
+        try:
+            if self.header.patientPosition is not None:
+                return self.header.patientPosition
+        except AttributeError:
+            pass
+        raise ValueError("No Patient Position set.")
+
+    @patientPosition.setter
+    def patientPosition(self, pos):
+        if pos is None:
+            self.header.patientPosition = None
+            return
+        try:
+            self.header.patientPosition = str(pos)
+        except AttributeError:
+            raise ValueError("Cannot convert Patient Position to string")
+
+    @property
+    def protocolName(self):
+        """str: Imaging Protocol Name.
+
+        Raises:
+            ValueError: when protocolName is not set.
+            ValueError: when protocolName cannot be converted to str.
+        """
+        try:
+            if self.header.protocolName is not None:
+                return self.header.protocolName
+        except AttributeError:
+            pass
+        raise ValueError("No protocolName set.")
+
+    @protocolName.setter
+    def protocolName(self, protocol):
+        if protocol is None:
+            self.header.protocolName = None
+            return
+        try:
+            self.header.protocolName = str(protocol)
+        except AttributeError:
+            raise ValueError("Cannot convert Protocol Name to string")
+
+    @property
+    def seriesDate(self):
+        """str: Imaging Series Date.
+
+        Raises:
+            ValueError: when seriesDate is not set.
+            ValueError: when seriesDate cannot be converted to str.
+        """
+        try:
+            if self.header.seriesDate is not None:
+                return self.header.seriesDate
+        except AttributeError:
+            pass
+        raise ValueError("No Series Date set.")
+
+    @seriesDate.setter
+    def seriesDate(self, date):
+        if date is None:
+            self.header.seriesDate = None
+            return
+        try:
+            self.header.seriesDate = str(date)
+        except AttributeError:
+            raise ValueError("Cannot convert Series Date to string")
+
+    @property
+    def seriesTime(self):
+        """str: Imaging Series Time.
+
+        Raises:
+            ValueError: when seriesTime is not set.
+            ValueError: when seriesTime cannot be converted to str.
+        """
+        try:
+            if self.header.seriesTime is not None:
+                return self.header.seriesTime
+        except AttributeError:
+            pass
+        raise ValueError("No Series Time set.")
+
+    @seriesTime.setter
+    def seriesTime(self, time):
+        if time is None:
+            self.header.seriesTime = None
+            return
+        try:
+            self.header.seriesTime = str(time)
+        except AttributeError:
+            raise ValueError("Cannot convert Series Time to string")
+
+    @property
     def seriesNumber(self):
-        """int: Series number
-        
-        DICOM series number.
+        """int: DICOM series number.
 
         Raises:
             ValueError: when series number is not set.
@@ -1162,10 +1414,8 @@ class Series(np.ndarray):
 
     @property
     def seriesDescription(self):
-        """str: Series description
+        """str: DICOM series description.
 
-        DICOM series description.
-        
         Raises:
             ValueError: When series description is not set.
             AssertionError: when series description is not str
@@ -1187,10 +1437,8 @@ class Series(np.ndarray):
 
     @property
     def imageType(self):
-        """list of str: Image type
+        """list of str: DICOM image type(s).
 
-        DICOM image type
-        
         Raises:
             ValueError: when image type is not set.
             TypeError: When imagetype is not printable.
@@ -1216,9 +1464,7 @@ class Series(np.ndarray):
 
     @property
     def studyInstanceUID(self):
-        """str: Study instance UID
-
-        DICOM study instance UID
+        """str: DICOM Study instance UID
 
         Raises:
             ValueError: when study instance UID is not set.
@@ -1243,10 +1489,8 @@ class Series(np.ndarray):
 
     @property
     def studyID(self):
-        """str: Study ID
+        """str: DICOM study ID
 
-        DICOM study ID
-        
         Raises:
             ValueError: when study ID is not set.
             TypeError: When id is not printable
@@ -1270,10 +1514,8 @@ class Series(np.ndarray):
 
     @property
     def seriesInstanceUID(self):
-        """str: Series instance UID
+        """str: DICOM series instance UID
 
-        DICOM series instance UID
-        
         Raises:
             ValueError: when series instance UID is not set
             TypeError: When uid is not printable
@@ -1291,16 +1533,17 @@ class Series(np.ndarray):
             self.header.seriesInstanceUID = None
             return
         try:
-            self.header.seriesInstanceUID = str(uid)
+            if isinstance(uid, str):
+                self.header.seriesInstanceUID = uid
+            else:
+                self.header.seriesInstanceUID = str(uid)
         except AttributeError:
             raise TypeError("Given series instance UID is not printable")
 
     @property
     def frameOfReferenceUID(self):
-        """str: Frame of reference UID
+        """str: DICOM frame of reference UID
 
-        DICOM frame of reference UID
-        
         Raises:
             ValueError: when frame of reference UID is not set
             TypeError: When uid is not printable
@@ -1324,7 +1567,7 @@ class Series(np.ndarray):
 
     @property
     def SOPClassUID(self):
-        """DICOM SOP Class UID
+        """str: DICOM SOP Class UID
 
         Raises:
             ValueError: when SOP Class UID is not set
@@ -1342,15 +1585,13 @@ class Series(np.ndarray):
             self.header.SOPClassUID = None
             return
         try:
-            self.header.SOPClassUID = imagedata.formats.dicomlib.uid.get_uid_for_storage_class(uid)
+            self.header.SOPClassUID = get_uid_for_storage_class(uid)
         except ValueError:
             raise
 
     @property
     def accessionNumber(self):
-        """str: Accession number
-
-        DICOM accession number
+        """str: DICOM accession number
 
         Raises:
             ValueError: when accession number is not set
@@ -1377,8 +1618,6 @@ class Series(np.ndarray):
     def patientName(self):
         """str: Patient name
 
-        DICOM patient name
-
         Raises:
             ValueError: when patient name is not set
             TypeError: When patnam is not printable
@@ -1403,8 +1642,6 @@ class Series(np.ndarray):
     @property
     def patientID(self):
         """str: Patient ID
-
-        DICOM patient ID
 
         Raises:
             ValueError: when patient ID is not set
@@ -1431,8 +1668,6 @@ class Series(np.ndarray):
     def patientBirthDate(self):
         """str: Patient birth date
 
-        DICOM patient birth date
-
         Raises:
             ValueError: when patient birth date is not set.
             TypeError: When patient birth date is not printable.
@@ -1456,38 +1691,30 @@ class Series(np.ndarray):
 
     @property
     def color(self):
-        """bool: Color interpretation
+        """bool: Color interpretation.
 
         Whether the array stores a color image, and the
         last index represents the color components
-        
+
         Raises:
             ValueError: when color interpretation is not set
             TypeError: When color is not bool
         """
         try:
-            if self.header.color is not None:
-                return self.header.color
+            if self.header.axes is not None and len(self.header.axes):
+                return self.header.axes[-1].name == 'rgb'
         except AttributeError:
             pass
         raise ValueError("No Color Interpretation is set.")
 
     @color.setter
     def color(self, color):
-        if color is None:
-            self.header.color = False
-            return
-        try:
-            self.header.color = bool(color)
-        except AttributeError:
-            raise TypeError("Given color is not a boolean.")
+        raise ValueError("Do not set color. Set RGB axis.")
 
     @property
     def photometricInterpretation(self):
-        """str: Photometric Interpretation
+        """str: Photometric Interpretation.
 
-        DICOM Photometric Interpretation
-        
         Raises:
             ValueError: when photometric interpretation is not set
             TypeError: When photometric interpretation is not printable
@@ -1512,7 +1739,7 @@ class Series(np.ndarray):
     # noinspection PyPep8Naming
     @property
     def transformationMatrix(self):
-        """numpy.array: Transformation matrix
+        """numpy.array: Transformation matrix.
 
         If the transformation matrix is not set, an attempt will be made to calculate it
         from spacing, imagePositions and orientation.
@@ -1555,8 +1782,10 @@ class Series(np.ndarray):
             colr = np.array(orient[3:]).reshape(3, 1)
             colc = np.array(orient[:3]).reshape(3, 1)
             if slices > 1:
-                logger.debug('Series.transformationMatrix: multiple slices case (slices={})'.format(slices))
-                # Calculating normal vector based on first and last slice should be the correct method.
+                logger.debug('Series.transformationMatrix: multiple slices case (slices={})'
+                             ''.format(slices))
+                # Calculating normal vector based on first and last slice should be
+                # the correct method.
                 k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
                 # k = np.cross(colr, colc, axis=0) * ds
@@ -1611,9 +1840,10 @@ class Series(np.ndarray):
 
         Returns:
             tuple: Tuple of
-                - Origin np.array size 3.
-                - Orientation np.array size 6 (row, then column directional cosines) (DICOM convention).
-                - Normal vector np.array size 3 (slice direction).
+                - Origin (np.array size 3): Origin.
+                - Orientation (np.array size 6): (row, then column directional cosines)
+                  (DICOM convention).
+                - Normal vector (np.array size 3): Slice direction.
         """
         m = self.transformationMatrix
         ds, dr, dc = self.spacing
@@ -1649,33 +1879,37 @@ class Series(np.ndarray):
 
     @property
     def timeline(self):
-        """numpy.array: Timeline in seconds, as numpy array of floats
-                Delta time is given as seconds. First image is t=0.
-                Length of array is number of tags.
+        """numpy.array: Timeline in seconds, as numpy array of floats.
+
+        Delta time is given as seconds. First image is t=0.
+        Length of array is number of tags.
 
         Raises:
             ValueError: tags for dataset is not time tags
         """
-        if self.input_order == imagedata.formats.INPUT_ORDER_TIME:
+        if self.input_order == INPUT_ORDER_TIME:
             timeline = [0.0]
             for t in range(1, len(self.tags[0])):
                 timeline.append(self.tags[0][t] - self.tags[0][0])
             return np.array(timeline)
         else:
-            raise ValueError("No timeline tags are available. Input order: {}".format(self.input_order))
+            raise ValueError("No timeline tags are available. Input order: {}".format(
+                self.input_order))
 
     @property
     def bvalues(self):
-        """numpy.array: b-values in s/mm2, as numpy array of floats
-                Length of array is number of tags.
+        """numpy.array: b-values in s/mm2, as numpy array of floats.
+
+        Length of array is number of tags.
 
         Raises:
             ValueError: tags for dataset is not b tags
         """
-        if self.input_order == imagedata.formats.INPUT_ORDER_B:
+        if self.input_order == INPUT_ORDER_B:
             return np.array(self.tags[0])
         else:
-            raise ValueError("No b-value tags are available. Input order: {}".format(self.input_order))
+            raise ValueError("No b-value tags are available. Input order: {}".format(
+                self.input_order))
 
     def getDicomAttribute(self, keyword, slice=0, tag=0):
         """Get named DICOM attribute.
@@ -1697,7 +1931,10 @@ class Series(np.ndarray):
             _tag = keyword
         if _tag is None:
             return None
-        tg, fname, im = self.DicomHeaderDict[slice][tag]
+        try:
+            tg, fname, im = self.DicomHeaderDict[slice][tag]
+        except TypeError:
+            raise TypeError('No DicomHeaderDict[{}][{}], shape {}'.format(slice, tag, self.shape))
         if _tag in im:
             return im[_tag].value
         else:
@@ -1707,10 +1944,10 @@ class Series(np.ndarray):
         """Set named DICOM attribute.
 
         Args:
-            keyword (str): name or dicom tag
-            value: new value for DICOM attribute
-            slice (int): optional slice to set attribute for (default: all)
-            tag (int): optional tag to set attribute for (default: all)
+            keyword (str): name or dicom tag.
+            value: new value for DICOM attribute.
+            slice (int): optional slice to set attribute for. Default: all.
+            tag (int): optional tag to set attribute for. Default: all.
         Raises:
             ValueError: When no DICOM tag is set.
         """
@@ -1731,22 +1968,25 @@ class Series(np.ndarray):
             tags = [tag]
         for s in slices:
             for t in tags:
-                tg, fname, im = self.DicomHeaderDict[s][t]
-                if _tag in im:
-                    im[_tag].value = value
-                else:
+                try:
+                    tg, fname, im = self.DicomHeaderDict[s][t]
+                    # Always make a new attribute to avoid cross-talk after
+                    # copying Series instances.
                     VR = pydicom.datadict.dictionary_VR(_tag)
                     im.add_new(_tag, VR, value)
+                except (IndexError, TypeError):
+                    pass
 
     def getPositionForVoxel(self, r, transformation=None):
-        """Get patient position for center of given voxel r
+        """Get patient position for center of given voxel r.
 
         Use Patient Position and Image Orientation to calculate world
         coordinates for given voxel
 
         Args:
             r (numpy.array): (s,r,c) of voxel in voxel coordinates
-            transformation (numpy.array, optional): transformation matrix when different from self.transformationMatrix
+            transformation (numpy.array, optional): transformation matrix when different
+                from self.transformationMatrix
 
         Returns:
             numpy.array((z,y,x)): position of voxel in world coordinates (mm)
@@ -1778,7 +2018,8 @@ class Series(np.ndarray):
 
         Args:
             p (numpy.array): (z,y,x) of voxel in world coordinates (mm)
-            transformation (numpy.array, optional): transformation matrix when different from self.transformationMatrix
+            transformation (numpy.array, optional): transformation matrix when different
+                from self.transformationMatrix
 
         Returns:
             numpy.array((s,r,c)): of voxel in voxel coordinates
@@ -1803,84 +2044,358 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
-    def to_rgb(self, colormap='Greys', lut=None):
-        """Create an RGB color image of self.
+    def deepcopy(self):
+        """Create a copy using deepcopy."""
+        a = Series(np.copy(self), template=self, geometry=self)
+        a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
+        return a
+
+    def align(moving, reference, interpolation='linear', force=False):
+        """Align moving series (self) to reference.
+        The moving series is resampled on the grid of the reference series.
+        In effect the moving series is reformatted to the slices of the reference series.
+
+        Examples:
+
+            Align vibe series (moving) with reference dce series
+
+            >>> moving = Series('vibe')
+            >>> reference = Series('dce', 'time')
+            >>> img = moving.align(reference)
 
         Args:
-            colormap (str): Matplotlib colormap name. Defaults: 'Greys'.
-            lut (int): Number of rgb quantization levels. Default: None, lut is calculated from the voxel values.
+            moving (Series): The moving series which will be aligned to the reference series.
+            reference (Series): Reference series.
+            interpolation (str): Method of interpolation.
+                See scipy.interpolate.RegularGridInterpolator for possible value.
+                Default: 'linear'.
+
+            force (bool): Override check on FrameOfReferenceUID when True. Default: False.
+        Returns:
+            Series: Aligned series.
+        Raises:
+            ValueError: When FrameOfReference or TransformationMatrix is missing for either series.
+        """
+
+        from scipy.interpolate import RegularGridInterpolator
+
+        if moving.color or reference.color:
+            raise ValueError('Aligning color images not implemented.')
+
+        if not force:
+            if moving.frameOfReferenceUID != reference.frameOfReferenceUID:
+                raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
+
+        # Final axes for aligned series are the reference axes
+        slice_axis = reference.find_axis('slice')
+        row_axis = reference.find_axis('row')
+        column_axis = reference.find_axis('column')
+
+        # Make reference grid in voxel coordinates
+        cs, cr, cc = np.meshgrid(
+            np.arange(0, reference.slices),
+            np.arange(0, reference.rows),
+            np.arange(0, reference.columns), indexing='ij'
+        )
+        nc = np.ones(np.prod([reference.slices, reference.rows, reference.columns]))
+        cref = np.asanyarray([cs.flatten(), cr.flatten(), cc.flatten(), nc], dtype='int')
+
+        # Convert reference voxel coordinates to real coordinates
+        xref = np.dot(reference.transformationMatrix, cref)
+
+        # Generate voxel coordinated of reference image (moving in the space of the moving image
+        qinv = np.linalg.pinv(moving.transformationMatrix)
+        cref2mov = np.dot(qinv, xref)
+
+        # Only use the first three coordinates, the last is just ones.
+        # Interpolation method requires transpose()
+        cref2mov = cref2mov[:3, :].transpose()
+
+        if moving.ndim > 3:
+            tags = len(moving.tags[0])
+            tag_axis = moving.axes[0]
+            imreg = Series(
+                np.zeros([tags, reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
+                input_order=moving.input_order,
+                template=moving, geometry=reference,
+                axes=[tag_axis, slice_axis, row_axis, column_axis]
+            )
+
+            # Must convert to ndarray to slice the data
+            # immovnp = np.array(reference, dtype=float)
+            for i in range(tags):
+                fnc = RegularGridInterpolator(
+                    (np.arange(0, moving.slices),
+                     np.arange(0, moving.rows),
+                     np.arange(0, moving.columns)
+                     ),
+                    # immovnp[i],
+                    moving[i],
+                    method=interpolation,
+                    bounds_error=False,
+                    fill_value=0
+                )
+
+                # Apply interpolator
+                imh = fnc(cref2mov)
+                imreg[i, ...] = np.reshape(imh,
+                                           (reference.slices, reference.rows, reference.columns))
+        elif moving.ndim == 3:
+            imreg = Series(
+                np.zeros([reference.slices, reference.rows, reference.columns],
+                         dtype=moving.dtype),
+                template=moving, geometry=reference,
+                axes=[slice_axis, row_axis, column_axis]
+            )
+
+            # Must convert to ndarray to slice the data
+            # immovnp = np.array(reference, dtype=float)
+            fnc = RegularGridInterpolator(
+                (np.arange(0, moving.slices),
+                 np.arange(0, moving.rows),
+                 np.arange(0, moving.columns)
+                 ),
+                # immovnp,
+                moving,
+                method=interpolation,
+                bounds_error=False,
+                fill_value=0
+            )
+
+            # Apply interpolator
+            imh = fnc(cref2mov)
+            imreg[:] = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
+        else:
+            raise ValueError('Input has 2D, not implemented')
+
+        return imreg
+
+    def to_rgb(self, colormap='Greys_r', lut=None, norm='linear',
+               clip='window', probs=(0.01, 0.999)):
+        """Create an RGB color image of self.
+
+        Examples:
+
+            >>> T2 = Series(...)
+            >>> T2_rgb = T2.to_rgb()
+
+        Args:
+            colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
+            lut (int): Number of rgb quantization levels.
+                Default: None, lut is calculated from the voxel values.
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log,
+                or the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+                mapping to colors using colormap.
+            clip (str): How to clip the data values.
+                Default: 'window', clip data to window center and width.
+                'hist': clip data at histogram probabilities.
+            probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
 
         Returns:
             Series: RGB Series object
         """
 
+        def _calculate_clip_range(probs, bins):
+            assert len(probs) == 2, "Wrong format of histogram probabilities"
+
+            # Calculate cumulative counts and bin edges of the image
+            bins = 1024 if self.dtype.kind == 'f' else (self.max().item()) + 1
+            cumcounts, bin_edges = np.histogram(self, bins=bins)
+            # Normalize cumulative counts
+            cumcounts = cumcounts.cumsum() / cumcounts.sum()
+
+            # Find the indices of the bins that correspond to the given probabilities
+            min_bin, max_bin = np.searchsorted(cumcounts, probs)
+            # Get the intensity values at the min and max bins
+            return bin_edges[min_bin], bin_edges[max_bin]
+
         if self.color:
             return self
 
-        # shape = self.shape + (3,)
-        if lut is None:
-            if np.issubdtype(self.dtype, np.floating):
-                lut = 256
-            else:
-                lut = (self.max().item()) + 1
-        # img = np.zeros(shape, dtype=np.uint8)
-        # if largest_image_pixel_value > 255:
-        #     scaling = 256 / largest_image_pixel_value
-        #     img[...,0] = np.uint8(self[:] * scaling)
-        #     img[...,1] = np.uint8(self[:] * scaling)
-        #     img[...,2] = np.uint8(self[:] * scaling)
-        # else:
-        #     img[...,0] = self[:]
-        #     img[...,1] = self[:]
-        #     img[...,2] = self[:]
-
         import matplotlib.pyplot as plt
-        cm = plt.get_cmap(colormap, lut=lut)
-        if np.issubdtype(self.dtype, np.floating):
-            norm = (self - np.min(self)) / np.ptp(self)
+        import matplotlib.colors
+        from .viewer import get_window_level
+
+        if lut is None:
+            lut = 256 if self.dtype.kind == 'f' else (self.max().item()) + 1
+        if isinstance(norm, str):
+            if norm == 'linear':
+                norm = matplotlib.colors.Normalize
+            elif norm == 'log':
+                norm = matplotlib.colors.LogNorm
+            # elif norm == 'centered':
+            #     norm = matplotlib.colors.CenteredNorm
+            else:
+                raise ValueError('Unknown normalization function: {}'.format(norm))
+        if not issubclass(type(colormap), matplotlib.colors.Colormap):
+            colormap = plt.get_cmap(colormap, lut)
+        colormap.set_bad(color='k')  # Important for log display of non-positive values
+        colormap.set_under(color='k')
+        colormap.set_over(color='w')
+        if type(norm) == type:
+            if clip == 'window':
+                window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+            elif clip == 'hist':
+                vmin, vmax = _calculate_clip_range(probs, lut)
+            else:
+                raise ValueError('Unknow clip method: {}'.format(clip))
+            norm = norm(vmin=vmin, vmax=vmax, clip=True)
+        data = norm(self)
+        if self.dtype.kind == 'f':
             rgb = Series(
-                cm(norm, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
             )
         else:
             rgb = Series(
-                cm(self, bytes=True)[...,:3],  # Strip off alpha color
+                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
                 input_order=self.input_order,
                 geometry=self,
-                axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
+                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
             )
 
-        # rgb = Series(img, template=self, geometry=self)
-        #rgb = Series(img, input_order=self.input_order, geometry=self,
-        #             axes=self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
-        #             )
-        # rgb.axes = self.axes + [imagedata.axis.VariableAxis('rgb',['r', 'g', 'b'])]
         rgb.header.photometricInterpretation = 'RGB'
-        rgb.header.color = True
-        add_template(rgb.header, self.header)
+        rgb.header.add_template(self.header)
         return rgb
 
-    def show(self, im2=None, fig=None, cmap='Greys', window=None, level=None, link=False):
-        """Show image
+    def fuse_mask(self, mask, alpha=0.7,
+                  colormap='Greys_r', lut=None, norm='linear',
+                  clip='window', probs=(0.01, 0.999)):
+
+        """Color fusion of mask
+
+        Create an RGB image of self, enhancing the mask area in red.
+
+        With ideas from Hauke Bartsch and Sathiesh Kaliyugarasan (2023).
+
+        Examples:
+
+            >>> img = Series(...)
+            >>> mask = Series(...)
+            >>> overlayed_img = img.fuse_mask(mask, clip='hist')
+            >>> overlayed_img.show()
+
+        Args:
+            mask (Series or np.ndarray): Mask image
+            alpha (float): Alpha blending for each channel. Default: 0.7
+            colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
+            lut (int): Number of rgb quantization levels.
+                Default: None, lut is calculated from the voxel values.
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log,
+                or the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+                mapping to colors using colormap.
+            clip (str): How to clip the data values.
+                Default: 'window', clip data to window center and width.
+                'hist': clip data at histogram probabilities.
+            probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
+        Returns:
+            Series: RGB Series object
+        Raises:
+            IndexError: When the mask does not match the image
+        """
+
+        from scipy.ndimage import gaussian_filter
+
+        if self.color:
+            background = self / 255.  # [0, 1]
+        else:
+            background = self.to_rgb(colormap=colormap, lut=lut, norm=norm,
+                                     clip=clip, probs=probs) / 255.
+        if issubclass(type(mask), Series):
+            if mask.color:
+                raise ValueError('Mask cannot be a color image')
+        if background.ndim == 3 and mask.ndim != 2:  # 2D case
+            raise IndexError('Mask should be 2D')
+        elif background.ndim > 3 and mask.ndim != 3:  # >= 3D case
+            raise IndexError('Mask should be 3D')
+        if mask.ndim == 2:
+            if mask.shape != background.shape[-3:-1]:
+                raise IndexError('Shape of mask does not match image')
+        elif mask.ndim == 3:
+            if mask.shape != background.shape[-4:-1]:
+                raise IndexError('Shape of mask does not match image')
+
+        # Now smooth the colors channel
+        if mask.ndim == 2:
+            mask_filter = np.zeros_like(mask, dtype=np.float32)
+            if mask.max() > 0:
+                mask_filter = mask.astype(np.float32) / mask.max()  # [0, 1]
+            mask_filter = gaussian_filter(mask_filter, sigma=1.5)
+        else:
+            # Smooth for each slice independently
+            mask_filter = np.zeros_like(mask, dtype=np.float32)
+            for _slice in range(mask.shape[0]):
+                if mask[_slice].max() > 0:
+                    mask_filter[_slice] =\
+                        mask[_slice].astype(np.float32) / mask[_slice].max()  # [0, 1]
+                mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
+
+        overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
+        overlay[..., 0] = mask_filter
+
+        # Do alpha blending for each channel
+        fused = alpha * background + (1.0 - alpha) * overlay
+        fused = np.clip(fused, 0, 1)
+
+        background = fused * 255
+        background = background.astype(np.uint8)
+
+        if self.color:
+            new_axes = self.axes
+        else:
+            new_axes = self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+
+        rgb = Series(
+            background,
+            input_order=self.input_order,
+            geometry=self,
+            axes=new_axes
+        )
+
+        rgb.header.photometricInterpretation = 'RGB'
+        rgb.header.add_template(self.header)
+        return rgb
+
+    def show(self, im2=None, fig=None, colormap='Greys_r', norm='linear', colorbar=None,
+             window=None, level=None, link=False):
+        """Interactive display of series on screen.
+
+        Allows interactive scrolling and adjustment of window center and level.
 
         With ideas borrowed from Erlend Hodneland (2021).
 
+        Examples:
+
+            >>> img = Series(...)
+            >>> img.show()
+
         Args:
-            im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
+            im2 (Series or list of Series): Series or list of Series which will be displayed in
+                addition to self.
             fig (matplotlib.plt.Figure, optional): if already exist
-            cmap (str): color map for display. Default: 'Greys'
+            colormap (str): color map for display. Default: 'Greys_r'
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+                the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+                mapping to colors using colormap.
+            colorbar (bool): Display colorbar with image.
+                Default: None: determine colorbar based on colormap and norm.
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed images. Default: False
 
         Raises:
-            ValueError: when image is not a subclass of Series, or too many viewports are requested.
+            ValueError: when image is not a subclass of Series, or too many viewports
+                are requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from imagedata.viewer import Viewer, default_layout
+        from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
+        import matplotlib as mpl
+
+        notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
         images = list()
@@ -1897,45 +2412,69 @@ class Series(np.ndarray):
 
         axes = default_layout(fig, len(images))
         try:
-            viewer = Viewer(images, fig=fig, ax=axes,
-                            cmap=cmap, window=window, level=level, link=link)
+            self.viewer = Viewer(images, fig=fig, ax=axes,
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
-        v = viewer.connect()
+        self.viewer.connect()
         plt.tight_layout()
         plt.show()
-        viewer.disconnect()
+        if not notebook:
+            self.viewer.disconnect()
 
-    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None, cmap='Greys',
-                window=None, level=None, link=False, single=False):
-        """Let user draw ROI on image
+    def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None,
+                colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
+                link=False, single=False):
+        """Let user draw ROI on image.
+
+        Examples:
+
+            >>> img = Series(...)
+            >>> mask = img.get_roi()
+
+            >>> mask, vertices = img.get_roi(vertices=True)
 
         Args:
-            roi: Predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice], each is list of (x,y) pairs.
+            roi: Predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice],
+                each is list of (x,y) pairs.
             color (str): Color of polygon ROI. Default: 'r'.
             follow: (bool) Copy ROI to next tag. Default: False.
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
-            im2 (Series or list of Series): Series or list of Series which will be displayed in addition to self.
+            im2 (Series or list of Series): Series or list of Series which will be displayed in
+                addition to self.
             fig (matplotlib.plt.Figure, optional) if already exist
-            cmap (str): colour map for display. Default: 'Greys'
+            colormap (str): colour map for display. Default: 'Greys_r'
+            norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
+                the `.Normalize` instance used to scale scalar data to the [0, 1] range before
+                mapping to colors using colormap.
+            colorbar (bool): Display colorbar with image.
+                Default: None: determine colorbar based on colormap and norm.
             window (number): window width of signal intensities. Default is DICOM Window Width.
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed objects. Default: False.
             single (bool): draw ROI in single slice per tag. Default: False.
 
         Returns:
-            If vertices, tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
                 - grid mask: Series object with voxel=1 inside ROI.
                   Series object with shape (nz,ny,nx) from original image,
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
 
+            If running from a notebook (nbagg driver), no ROI is returned. Call get_roi_mask()
+            afterwards to get the mask.
+
         Raises:
-            ValueError: when image is not a subclass of Series, or too many viewports are requested.
+            ValueError: when image is not a subclass of Series, or too many viewports are
+                        requested.
             IndexError: when there is a mismatch with images and viewports.
         """
-        from imagedata.viewer import Viewer, default_layout, grid_from_roi
+        from .viewer import Viewer, default_layout
         import matplotlib.pyplot as plt
+        import matplotlib as mpl
+
+        notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
         images = list()
@@ -1952,22 +2491,60 @@ class Series(np.ndarray):
 
         axes = default_layout(fig, len(images))
         try:
-            viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
-                            cmap=cmap, window=window, level=level, link=link)
+            self.viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
+                                 colormap=colormap, norm=norm, colorbar=colorbar,
+                                 window=window, level=level, link=link)
         except AssertionError:
             raise
-        v = viewer.connect_draw(roi=roi, color=color)
+        self.viewer.connect_draw(roi=roi, color=color)
         plt.tight_layout()
         plt.show()
         # vertices = viewer.get_roi()
-        viewer.disconnect_draw()
+        self.latest_roi_parameters = (follow, vertices, single)
+        if notebook:
+            # Leave early without waiting for drawn mask
+            if vertices:
+                return None, None
+            else:
+                return None
+
+        self.viewer.disconnect_draw()
+        return self.get_roi_mask()
+
+    def get_roi_mask(self):
+        """Get mask drawn by user in get_roi().
+
+        Examples:
+            When used in Jupyter Notebook:
+
+            >>> img = Series(...)
+            >>> img.get_roi()
+            >>> mask = img.get_roi_mask()
+
+        Returns:
+            If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
+                - grid mask: Series object with voxel=1 inside ROI.
+                  Series object with shape (nz,ny,nx) from original image,
+                  dtype ubyte. Voxel inside ROI is 1, 0 outside.
+                - vertices_dict: if vertices: Dictionary of vertices.
+
+        Raises:
+            ValueError: when get_roi() has not produced a mask up front.
+        """
+        from .viewer import grid_from_roi
+
+        if self.latest_roi_parameters is None:
+            raise ValueError('Cannot get ROI mask until a successful call to get_roi().')
+
+        follow, vertices, single = self.latest_roi_parameters
         if follow:
             input_order = self.input_order
         else:
             input_order = 'none'
         try:
-            # new_roi = Series(grid_from_roi(self, viewer.get_roi()), input_order=input_order, template=self, geometry=self)
-            new_grid = grid_from_roi(self, viewer.get_roi(), single=single)
+            # new_roi = Series(grid_from_roi(self, viewer.get_roi()),
+            #                  input_order=input_order, template=self, geometry=self)
+            new_grid = grid_from_roi(self, self.viewer.get_roi(), single=single)
         except IndexError:
             if follow:
                 new_grid = np.zeros_like(self, dtype=np.ubyte)
@@ -1975,9 +2552,9 @@ class Series(np.ndarray):
                 new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
         new_roi = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_roi.seriesDescription = 'ROI'
-        new_roi.setDicomAttribute('WindowCenter',.5)
-        new_roi.setDicomAttribute('WindowWidth',1)
+        new_roi.setDicomAttribute('WindowCenter', .5)
+        new_roi.setDicomAttribute('WindowWidth', 1)
         if vertices:
-            return new_roi, viewer.get_roi()  # Return grid and vertices
+            return new_roi, self.viewer.get_roi()  # Return grid and vertices
         else:
             return new_roi  # Return grid only

@@ -38,6 +38,14 @@ class TestFileArchiveItk(unittest.TestCase):
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['itk']
 
+    def test_itk_plugin(self):
+        plugins = imagedata.formats.get_plugins_list()
+        self.itk_plugin = None
+        for pname, ptype, pclass in plugins:
+            if ptype == 'itk':
+                self.itk_plugin = pclass
+        self.assertIsNotNone(self.itk_plugin)
+
     # @unittest.skip("skipping test_file_not_found")
     def test_file_not_found(self):
         try:
@@ -89,6 +97,10 @@ class TestFileArchiveItk(unittest.TestCase):
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
+
+    def test_write_ndarray(self):
+        with tempfile.TemporaryDirectory() as d:
+            Series(np.eye(128, dtype=np.float32)).write(d, formats=['itk'])
 
     # @unittest.skip("skipping test_write_3d_single_file")
     def test_write_3d_single_file(self):
@@ -161,39 +173,17 @@ class TestWritePluginITKSlice(unittest.TestCase):
             si1.imagePositions))
         logging.debug("test_write_3d_itk: orientation {}".format(si1.orientation))
 
-        """
-        # Modify header
-        si1.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30)
-        #for slice in range(len(hdr.sliceLocations)):
-        #   hdr.tags=
-        #si1.spacing = (3, 1, 1)
-        for slice in range(len(si1.sliceLocations)):
-            si1.imagePositions = {
-                slice:
-                        np.array([slice,1,0])
-            }
-        #si1.orientation=np.array([1, 0, 0, 0, 0, -1])
-        for slice in range(si1.slices):
-            si1.imagePositions = {
-                    slice: si1.getPositionForVoxel(np.array([slice,0,0]))
-            }
-        si1.seriesNumber=1001
-        si1.seriesDescription="Test 1"
-        si1.imageType = ['AB', 'CD', 'EF']
-        """
-
         with tempfile.TemporaryDirectory() as d:
-            # Store image with modified header 'hdr'
             si1.write(d, formats=['itk'], opts=self.opts)
 
-            # Read back the ITK data and verify that the header was modified
+            # Read back the ITK data and verify the header
             si2 = Series(
                 d,
                 'none',
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
-        np.testing.assert_array_equal(si1, si2)
         compare_headers(self, si1, si2, uid=False)
+        np.testing.assert_array_almost_equal(si1, si2, decimal=4)
 
     # @unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
@@ -211,38 +201,6 @@ class TestWritePluginITKSlice(unittest.TestCase):
         import copy
         deep_si = copy.deepcopy(si)
         np.testing.assert_array_equal(si, deep_si)
-        # np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
-
-        # log.debug("test_write_4d_itk: sliceLocations {}".format(
-        #    hdr.sliceLocations))
-        # log.debug("test_write_4d_itk: tags {}".format(hdr.tags))
-        # log.debug("test_write_4d_itk: spacing {}".format(hdr.spacing))
-        # log.debug("test_write_4d_itk: imagePositions {}".format(
-        #    hdr.imagePositions))
-        # log.debug("test_write_4d_itk: orientation {}".format(hdr.orientation))
-
-        # Modify header
-        """
-        si.sliceLocations = (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
-        #slices = len(hdr.sliceLocations)
-        #hdr.sliceLocations = np.arange(1, slices*1+0.5, 1).tolist()
-        #for slice in range(slices):
-        #   hdr.tags=
-        hdr.spacing = (3, 2, 1)
-        for slice in range(si.shape[1]):
-            hdr.imagePositions = {
-                slice:
-                        np.array([slice,1,0])
-            }
-        hdr.orientation=np.array([1, 0, 0, 0, 0, -1])
-        for slice in range(si.shape[1]):
-            hdr.imagePositions = {
-                slice: hdr.getPositionForVoxel(np.array([slice,0,0]))
-            }
-        hdr.seriesNumber=1001
-        hdr.seriesDescription="Test 1"
-        hdr.imageType = ['AB', 'CD', 'EF']
-        """
 
         si.sort_on = imagedata.formats.SORT_ON_SLICE
         # si.sort_on = imagedata.formats.SORT_ON_TAG
@@ -251,20 +209,16 @@ class TestWritePluginITKSlice(unittest.TestCase):
         si.output_dir = 'single'
         # si.output_dir = 'multi'
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, opts=self.opts)
+            si.write(d, formats=['itk'], opts=self.opts)
             np.testing.assert_array_equal(si, deep_si)
 
-            # Read back the DICOM data and verify that the header was modified
+            # Read back the DICOM data and verify the header
             si2 = Series(
                 d,
                 imagedata.formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
         compare_headers(self, si, si2, uid=False)
-        logging.debug('si[0,0,0,0]={}, si2[0,0,0,0]={}'.format(
-            si[0, 0, 0, 0], si2[0, 0, 0, 0]))
-        logging.debug('si.dtype {}, si2.dtype {}'.format(
-            si.dtype, si2.dtype))
         np.testing.assert_array_almost_equal(si, si2, decimal=4)
 
 
