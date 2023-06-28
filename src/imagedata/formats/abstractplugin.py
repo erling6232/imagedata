@@ -603,7 +603,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     #    si[:,:,slice,tag] = data[tag,slice,:,:]
         elif data.ndim == 3:
             slices, rows, columns = data.shape
-            if flipud:
+            if flipud and flip:
                 rows, columns = columns, rows
             si = np.zeros((rows, columns, slices), data.dtype)
             for slice in range(slices):

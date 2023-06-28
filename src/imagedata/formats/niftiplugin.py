@@ -722,7 +722,8 @@ class NiftiPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
-        # TODO # self._save_dicom_to_nifti(si)
+        hdr, img = self._save_dicom_to_nifti(si)
+        """
         self.shape = si.shape
         self.slices = si.slices
         self.spacing = si.spacing
@@ -736,12 +737,16 @@ class NiftiPlugin(AbstractPlugin):
         assert si.ndim == 2 or si.ndim == 3,\
             "write_3d_series: input dimension %d is not 3D." % si.ndim
 
-        fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
+        fsi = self._reorder_from_dicom(si, flip=True, flipud=False)
         shape = fsi.shape
 
         affine_xyz = self.create_affine_xyz()
         nifti_header = nibabel.Nifti1Header()
-        nifti_header.set_dim_info(freq=0, phase=1, slice=2)
+        phase_encoding_direction = si.getDicomAttribute('InPlanePhaseEncodingDirection')
+        if phase_encoding_direction == 'ROW':
+            nifti_header.set_dim_info(freq=1, phase=0, slice=2)
+        else:
+            nifti_header.set_dim_info(freq=0, phase=1, slice=2)
         nifti_header.set_data_shape(shape)
         dz, dy, dx = self.spacing
         if si.ndim < 3:
@@ -750,8 +755,10 @@ class NiftiPlugin(AbstractPlugin):
             nifti_header.set_zooms((dx, dy, dz))
         nifti_header.set_data_dtype(fsi.dtype)
         nifti_header.set_sform(affine_xyz, code=1)
-        nifti_header.set_xyzt_units(xyz='mm')
+        nifti_header.set_qform(affine_xyz, code=1)
+        nifti_header.set_xyzt_units(xyz='mm', t='sec')
         img = nibabel.Nifti1Image(fsi, None, nifti_header)
+        """
         try:
             filename = filename_template % 0
         except TypeError:
@@ -832,6 +839,7 @@ class NiftiPlugin(AbstractPlugin):
         nifti_header.set_zooms((dx, dy, dz, 1))
         nifti_header.set_data_dtype(fsi.dtype)
         nifti_header.set_sform(affine_xyz, code=1)
+        nifti_header.set_qform(affine_xyz, code=1)
         # NiftiHeader.set_slice_duration()
         # NiftiHeader.set_slice_times(times)
         nifti_header.set_xyzt_units(xyz='mm', t='sec')
@@ -878,25 +886,198 @@ class NiftiPlugin(AbstractPlugin):
 
     def _save_dicom_to_nifti(self, si):
         """Convert DICOM to Nifti"""
-        hdr = nibabel.Nifti1Header()
-        img = si
+        hdr0, img = self._nii_load_image(si)
         if si.slices > 1:
-            hdr, slice_direction = self._header_dicom_to_nifti(hdr, si)
+            hdr, slice_direction = self._header_dicom_to_nifti(hdr0, si)
             if slice_direction < 0:
                 hdr, img = self._nii_flip_z(hdr, si)
                 slice_direction = abs(slice_direction)
             img = self._nii_set_ortho(hdr, img)
-        self._nii_save_attributes(si, hdr)
+        return self._nii_save_attributes(si, hdr)
 
-    def _header_dicom_to_nifti(self, hdr, si):
+    def _nii_load_image(self, dcm):
+        hdr = self._header_dicom_to_nifti(dcm, compute_sform=True)
+        # img = nibabel.Nifti1Image(dcm, None, hdr)
+        img = self._nii_load_image_core(dcm, hdr)
+        if img is None:
+            return img
+        if hdr.datatype == nibabel.DT_RGB24:
+            # Do this before Y-flip, or RGB order can be flipped
+            img = self._nii_rgb_to_planar(img, hdr, dcm.isPlanarRGB)
+        # if dcm.CSA.mosaicSlices > 1:
+        #     img = self._nii_de_mosaic(img, hdr, dcm.CSA.mosaicSlices
+        n_acq = dcm.locationsInAcquisition
+        if n_acq > 1 and hdr.dim[0] < 4 and (hdr.dim[3] % n_acq and hdr.dim[3] > n_acq):
+            hdr.dim[4] = hdr.dim[3] / n_acq
+            hdr.dim[3] = n_acq
+            hdr.dim[0] = 4
+        # if hdr.dim[0] > 3 and dcm.patientPositionSequentialRepeats > 1:
+        #     # Swizzle 3rd and 4th dimension (Philips stores time as 3rd dimension)
+        #     img = self._nii_xytz_xyzt(img, hdr, dcm.patientPositionsSequentialRepeats)
+        self._header_dicom_to_nifti_sform(dcm, dcm, hdr, False)
+        return img
+
+    def _nii_load_image_core(self, dcm, hdr):
+        raise Exception('Not implemented')
+        return img
+
+    def _nii_rgb_to_planar(self, img, hdr, is_planar_rgb):
+        raise Exception('Not implemented')
+        return img
+
+    def _nii_xytz_xyzt(self, img, hdr, patient_positions_sequential_repeats):
+        raise Exception('Not implemented')
+        return img
+
+    def _header_dicom_to_nifti_2(self, d, d2, hdr, verbose=False):
+        # """dcm2niix.headerDcm2Nii2"""
+        # if hdr.slice_code == nibabel.NIFTI_SLICE_UNKNOWN:
+        #     hdr.set_slice_code(d.CSA.sliceOrder)
+        # if hdr.slice_code == nibabel.NIFTI_SLICE_UNKNOWN:
+        #     hdr.set_slice_code(d2.CSA.sliceOrder)
+        # txt = "TE=%.2g;TIME=%.3f".format(d.TE, d.acquisitionTime)
+        # if d.CSA.phaseEncodingDirectionPositive >= 0:
+        #     txt += ";phase=%d".format(d.CSA.phaseEncodingDirectionPositive)
+        inPlanePhaseEncodingDirection = d.getDicomAttribute('InPlanePhaseEncodingDirection')
+        if inPlanePhaseEncodingDirection == 'ROW':
+            hdr.set_dim_info(freq=1, phase=0, slice=2)
+        elif inPlanePhaseEncodingDirection == 'COL':
+            hdr.set_dim_info(freq=0, phase=1, slice=2)
+        # if d.CSA.multiBandFactor > 1):
+        #     txt += ";mb=%d".format(d.CSA.multiBandFactor)
+        # hdr.set_description(txt)
+        return self._header_dicom_to_nifti_sform(d, d2, hdr, verbose)
+
+    def _header_dicom_to_nifti_sform(self, d, d2, hdr, verbose=False):
+        """dcm2niix.headerDcm2NiiSForm
+        Returns:
+            sliceDir: 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        slice_direction = 0
+        if d.slices < 2:
+            # Do not care direction for single slice
+            q44, slice_direction = self._set_nii_header_x(d, d2, h, verbose)
+            hdr.set_qform(q44, nibabel.NIFTI_XFORM_SCANNER_ANAT)
+            hdr.set_sform(q44, nibabel.NIFTI_XFORM_SCANNER_ANAT)
+            return slice_direction
+        is_ok = False
+        for i in range(6):
+            if d.orientation[i] != 0.0:
+                is_ok = True
+        if not is_ok:
+            # We will have to guess,
+            # assume axial acquisition saved in standard Siemens style?
+            d.orientation = [0, 1, 0, 0, 0, 1]
+        q44, slice_direction = self._set_nii_header_x(d, d2, hdr, verbose)
+        hdr.set_qform(q44, nibabel.NIFTI_XFORM_SCANNER_ANAT)
+        hdr.set_sform(q44, nibabel.NIFTI_XFORM_SCANNER_ANAT)
+        return slice_direction
+
+    def _set_nii_header_x(self, d, d2, h, verbose=False):
+        slice_direction = 0
+        q44 = self._nifti_dicom_to_mat(d.orientation, d.patientPosition, d.spacing)
+        if d.isSegamiOasis:
+            q44 = np.array([[-h.pixdim[1], 0, 0, 0],
+                            [0, -h.pixdim[2], 0, 0],
+                            [0, 0, h.pixdim[3], 0],
+                            [0, 0, 0, 0]])
+            originVx = np.array([(h.dim[1]+1.0)/2, (h.dim[2]+1.0])/2, (h.dim[3]+1.0)/2])
+            originMm = np.matmul(originVx, q44)
+            for i in range(4):
+                q44[i, 3] = -originMm[i]  # Set origin to center voxel
+            return q44, slice_direction
+        # if d.CSA.mosaicSlices > 1:
+        #     pass
+        q44, slice_direction = self._verify_slice_direction(d, d2, h)
+        for c in range(4):  # LPS to nifti RAS, xform matrix before reorient
+            for r in range(2):  # Swap rows 1 and 2
+                q44[r, c] = -q44[r, c]
+        return q44, slice_direction
+
+    def _nifti_dicom_to_mat(self, orient, patient_position, spacing):
+        q = np.array([[orient[5], orient[4], orient[3]],
+                      [orient[2], orient[1], orient[0]],
+                      [0, 0, 0]])
+        # Normalize row 0
+        val = q[0, 0] * q[0, 0] + q[0, 1] * q[0, 1] + q[0, 2] * q[0, 2]
+        val = q[0] * q[0]
+        if val > 0.01:
+            val = 1.01 / math.sqrt(val)
+            q[0] = val * q[0]
+        else:
+            q[0, 0] = 1.01
+            q[0, 1] = 0.01
+            q[0, 2] = 0.01
+        # Normalize row 1
+        val = q[1, 0] * q[1, 0] + q[1, 1] * q[1, 1] + q[1, 2] * q[1, 2]
+        val = q[1] * q[1]
+        if val > 0.01:
+            val = 1.01 / math.sqrt(val)
+            q[1] = val * q[1]
+        else:
+            q[1, 0] = 0.01
+            q[1, 1] = 1.01
+            q[1, 2] = 0.01
+        # Row 3 is the cross product of rows 1 and 2
+        q[2, 0] = q[0, 1] * q[1, 2] - q[0, 2] * q[1, 1]
+        q[2, 1] = q[0, 2] * q[1, 0] - q[0, 0] * q[1, 2]
+        q[2, 2] = q[0, 0] * q[1, 1] - q[0, 1] * q[1, 0]
+        q[2] = np.cross(q[0], q[1], axis=0)
+        q = q.T
+        if np.linalg.det(q) < 0:
+            q[0, 2] = -q[0, 2]
+            q[1, 2] = -q[1, 2]
+            q[2, 2] = -q[2, 2]
+            q[:, 2] = -q[:, 2]
+        # Next scale matrix
+        diag_vox = np.array([[spacing[2], 0.01, 0.01],
+                             [0.01, spacing[1], 0.01],
+                             [0.01, 0.01, spacing[0]]])
+        q = np.matmul(q, diag_vox)
+        q44 = np.eye(4)
+        q44[0:3, 0:3] = q
+        q44[0:3, 3] = patient_position[::-1]
+        return q44
+
+    def _verify_slice_direction(self, d, d2, h):
+        pass
+        return q44, slice_direction
+
+    def _header_dicom_to_nifti(self, dcm, compute_sform=False):
+        hdr = nibabel.Nifti1Header()
+        if dcm.itemsize == 1 and dcm.axes[0].name == 'rgb':
+            hdr.set_intent(nibabel.NIFTI_INTENT_ESTIMATE)
+        hdr.set_data_dtype(dcm.dtype)
+        hdr.set_data_shape(dcm.shape)
+        # hdr.set_slope_inter(slope, inter)
+        ds, dr, dc = dcm.spacing
+        if (dcm.ndim - dcm.color * 1) < 3:
+            hdr.set_zooms((dr, dc))
+        elif (dcm.ndim - dcm.color * 1) < 4:
+            hdr.set_zooms((dr, dc, ds))
+        else:
+            if dcm.input_order == 'time':
+                dt = dcm.timeline[1] - dcm.timeline[0]
+                hdr.set_zooms((dr, dc, ds, dt))
+            else:
+                hdr.set_zooms((dr, dc, ds))
+        hdr.set_xyzt_units(xyz='mm', t='sec')
+        affine = np.zeros((4,4))
+        affine[0][0] = -1
+        affine[1][2] = 1
+        affine[3][1] = -1
+        affine[0][3] = jjjjjjjjjjjjjjjjj
+        code = ''
+        hdr.set_sform(affine, code)
+
         # COL/ROW
-        inPlanePhaseEncodingDirection = si.getDicomAttribute('InPlanePhaseEncodingDirection')
+        inPlanePhaseEncodingDirection = dcm.getDicomAttribute('InPlanePhaseEncodingDirection')
         if inPlanePhaseEncodingDirection == 'ROW':
             hdr.set_dim_info(freq=1, phase=0, slice=2)
         elif inPlanePhaseEncodingDirection == 'COL':
             hdr.set_dim_info(freq=0, phase=1, slice=2)
         slice_direction = 0
-        if si.slices < 2:
+        if dcm.slices < 2:
             q44, slice_direction = self._nifti_dicom_mat(si)
             hdr.set_sform(q44, code=NIFTI_XFORM_UNKNOWN)
             hdr.set_qform(q44, code=NIFTI_XFORM_UNKNOWN)
@@ -1224,7 +1405,7 @@ class NiftiPlugin(AbstractPlugin):
         return img
 
     def _nii_save_attributes(self, si, hdr):
-        pass
+        return hdr, si
 
     def _find_slice_direction(self, si, affine, normal):
         """Return slice direction
