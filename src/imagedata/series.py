@@ -2071,7 +2071,8 @@ class Series(np.ndarray):
                 Default: 'linear'.
 
             force (bool): Override check on FrameOfReferenceUID when True. Default: False.
-            fill_value (number): The value to use for points outside of the interpolation domain. Default: 0.
+            fill_value (number): The value to use for points outside of the interpolation domain.
+                Default: 0.
         Returns:
             Series: Aligned series.
         Raises:
