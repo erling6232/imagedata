@@ -14,8 +14,6 @@ import imagedata.cmdline
 import imagedata.readdata
 import imagedata.formats
 from imagedata.series import Series
-
-
 class TestWriteNIfTIPlugin(unittest.TestCase):
 
     # cor_hf.zip	 cor_rl.zip  sag_hf.zip       tra_oblique.zip
@@ -23,11 +21,12 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
 
     def _compare_nifti_data(self, img1, img2):
         hdr1, hdr2 = img1.header, img2.header
-        self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape())
-        self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info())
-        self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units())
-        self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms())
+        self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape(), "get_data_shape")
+        self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
+        self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
+        print("hdr1 sform:\n{}\nhdr2 sform:\n{}".format(sform1, sform2))
+        self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
         # self.assertEqual(sform1, sform2)
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
         qform1, qform2 = hdr1.get_qform(coded=True)[0], hdr2.get_qform(coded=True)[0]
