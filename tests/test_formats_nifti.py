@@ -19,13 +19,13 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
     # cor_hf.zip	 cor_rl.zip  sag_hf.zip       tra_oblique.zip
     # cor_oblique.zip  sag_ap.zip  sag_oblique.zip  tra_rl.zip
 
-    def _compare_nifti_data(self, img1, img2):
+    def _compare_nifti_data(self, img1, img2, descr1='img1', descr2='img2'):
         hdr1, hdr2 = img1.header, img2.header
         self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape(), "get_data_shape")
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
-        print("hdr1 sform:\n{}\nhdr2 sform:\n{}".format(sform1, sform2))
+        print("{} sform:\n{}\n{} sform:\n{}".format(descr1, sform1, descr2, sform2))
         self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
         # self.assertEqual(sform1, sform2)
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
@@ -34,7 +34,8 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self.assertIsNotNone(qform2)
         np.testing.assert_array_almost_equal(qform1, qform2, decimal=4)
 
-        si1, si2 = img1.dataobj, img2.dataobj
+        si1, si2 = np.asarray(img1.dataobj), np.asarray(img2.dataobj)
+        # self.assertEqual(si1.dtype, si2.dtype, "dtype")
         np.testing.assert_array_equal(si1, si2)
 
     def test_tra_rl(self):
@@ -47,7 +48,19 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_tra_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'tra_oblique.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_hf(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
@@ -59,7 +72,68 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_cor_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'cor_oblique.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_cor_rl(self):
+        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'cor_rl.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_sag_ap(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'sag_ap.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_sag_hf(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'sag_hf.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
+    def test_sag_oblique(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
+        nii = nibabel.load(
+            os.path.join('data', 'nifti', 'sag_oblique.nii.gz')
+        )
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            for entry in os.scandir(path=d):
+                filename = entry.path
+            check = nibabel.load(filename)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
+
 
 class Test3DNIfTIPlugin(unittest.TestCase):
     def setUp(self):

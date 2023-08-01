@@ -890,6 +890,9 @@ class NiftiPlugin(AbstractPlugin):
             self._nii_flip_slices(img)
             slice_direction = abs(slice_direction)
         self._nii_set_ortho(img)
+        flip_y = True  # Always
+        if flip_y:
+            img = self._nii_flip_y(img)
         self._nii_save_nii_3d(img)
         self._nii_save_attributes(img, si)
         return img
@@ -1094,57 +1097,36 @@ class NiftiPlugin(AbstractPlugin):
         """
         q = np.array([[orient[2], orient[1], orient[0]],
                       [orient[5], orient[4], orient[3]],
-                      [0, 0, 0]])
+                      [0, 0, 0]], dtype=np.float64)
         # Normalize row 0
         val = q[0, 0] * q[0, 0] + q[0, 1] * q[0, 1] + q[0, 2] * q[0, 2]
-        # if val > 0.01:
-        #     val = 1.01 / math.sqrt(val)
-        #     q[0] = val * q[0]
-        # else:
-        #     q[0, 0] = 1.01
-        #     q[0, 1] = 0.01
-        #     q[0, 2] = 0.01
-        if val > 0.01:
+        if val > 0.0:
             val = 1.0 / math.sqrt(val)
             q[0] = val * q[0]
         else:
-            q[0, 0] = 1.
-            q[0, 1] = 0.
-            q[0, 2] = 0.
+            q[0, 0] = 1.0
+            q[0, 1] = 0.0
+            q[0, 2] = 0.0
         # Normalize row 1
         val = q[1, 0] * q[1, 0] + q[1, 1] * q[1, 1] + q[1, 2] * q[1, 2]
-        # if val > 0.01:
-        #     val = 1.01 / math.sqrt(val)
-        #     q[1] = val * q[1]
-        # else:
-        #     q[1, 0] = 0.01
-        #     q[1, 1] = 1.01
-        #     q[1, 2] = 0.01
-        if val > 0.01:
+        if val > 0.0:
             val = 1.0 / math.sqrt(val)
             q[1] = val * q[1]
         else:
-            q[1, 0] = 0.
-            q[1, 1] = 1.
-            q[1, 2] = 0.
+            q[1, 0] = 0.0
+            q[1, 1] = 1.0
+            q[1, 2] = 0.0
         # Row 3 is the cross product of rows 1 and 2
-        q[2, 0] = q[0, 1] * q[1, 2] - q[0, 2] * q[1, 1]
-        q[2, 1] = q[0, 2] * q[1, 0] - q[0, 0] * q[1, 2]
-        q[2, 2] = q[0, 0] * q[1, 1] - q[0, 1] * q[1, 0]
-        # q[2] = np.cross(q[0], q[1], axis=0)
-        # q = q.T
-        q = np.transpose(q)
+        q[2] = np.cross(q[0], q[1])
+        q = q.T
         if np.linalg.det(q) < 0:
             q[0, 2] = -q[0, 2]
             q[1, 2] = -q[1, 2]
             q[2, 2] = -q[2, 2]
         # Next scale matrix
-        # diag_vox = np.array([[spacing[2], 0.01, 0.01],
-        #                      [0.01, spacing[1], 0.01],
-        #                      [0.01, 0.01, spacing[0]]])
-        diag_vox = np.array([[spacing[2], 0., 0.],
-                             [0., spacing[1], 0.],
-                             [0., 0., spacing[0]]])
+        diag_vox = np.array([[spacing[2], 0.0, 0.0],
+                             [0.0, spacing[1], 0.0],
+                             [0.0, 0.0, spacing[0]]])
         q = np.matmul(q, diag_vox)
         q44 = np.eye(4)
         q44[0:3, 0:3] = q
@@ -1173,11 +1155,13 @@ class NiftiPlugin(AbstractPlugin):
             slice_direction = 3
         pos = None
         try:
-            pos = dcm.imagePositions[0][::-1][slice_direction-1]  # zyx to xyz
+            # Last slice in stack
+            pos = dcm.imagePositions[dcm.slices-1][::-1][slice_direction-1]  # zyx to xyz
         except ValueError:
             pass
         x = np.array([0.0, 0.0, dcm.slices-1.0, 1.0])
-        pos1v = np.matmul(x, r)
+        # pos1v = np.matmul(x, r)
+        pos1v = _nifti_vect44mat44_mul(x, r)
         pos1 = pos1v[slice_direction-1]  # -1 as C index from 0
         flip = False
         if pos is None:
@@ -1251,24 +1235,11 @@ class NiftiPlugin(AbstractPlugin):
         dim = hdr.get_data_shape()
         if dim[2] < 2:
             return
-        # LOAD_MAT33(s,h->srow_x[0],h->srow_x[1],h->srow_x[2],
-        #            h->srow_y[0],h->srow_y[1], h->srow_y[2],
-        #            h->srow_z[0],h->srow_z[1],h->srow_z[2]);
         sform = hdr.get_sform()[:3, :3]
-        # LOAD_MAT44(Q44,h->srow_x[0],h->srow_x[1],h->srow_x[2],h->srow_x[3],
-        #            h->srow_y[0],h->srow_y[1],h->srow_y[2],h->srow_y[3],
-        #            h->srow_z[0],h->srow_z[1],h->srow_z[2],h->srow_z[3]);
-        # q44 = np.eye(4)
-        # q44[:3, :3] = sform
         q44 = hdr.get_sform()
-        # vec4 v= setVec4(0.0f,0.0f,(float) h->dim[3]-1.0f);
         v = np.array([0, 0, dim[2] - 1, 1], dtype=float)
-        # v = nifti_vect44mat44_mul(v, Q44); //after flip this voxel will be the origin
-        # v = np.matmul(v, q44)  # after flip this voxel will be the origin
-        v = np.dot(q44, v)  # after flip this voxel will be the origin
-        # mat33 mFlipZ;
-        # LOAD_MAT33(mFlipZ,1.0f, 0.0f, 0.0f, 0.0f,1.0f,0.0f, 0.0f,0.0f,-1.0f);
-        mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=float)
+        v = _nifti_vect44mat44_mul(v, q44)  # after flip this voxel will be the origin
+        mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=np.float64)
         # s= nifti_mat33_mul( s , mFlipZ );
         sform = np.matmul(sform, mFlipZ)
         # LOAD_MAT44(Q44, s.m[0][0],s.m[0][1],s.m[0][2],v.v[0],
@@ -1299,11 +1270,20 @@ class NiftiPlugin(AbstractPlugin):
         half_volume = slices // 2
         if half_volume < 1:
             return
-        for z in range(half_volume):
-            # swap order of slices
-            tmp = img.dataobj[:,:,z]
-            img.dataobj[:,:,z] = img.dataobj[:,:,slices-z-1]
-            img.dataobj[:,:,slices-z-1] = tmp
+        data = img.get_fdata()
+        if data.ndim == 4:
+            for t in range(dim[3]):
+                for z in range(half_volume):
+                    # swap order of slices
+                    tmp = np.array(data[:, :, z, t])
+                    data[:, :, z, t] = data[:, :, slices - z - 1, t]
+                    data[:, :, slices - z - 1, t] = tmp
+        elif data.ndim == 3:
+            for z in range(half_volume):
+                # swap order of slices
+                tmp = np.array(data[:,:,z])
+                data[:,:,z] = data[:,:,slices-z-1]
+                data[:,:,slices-z-1] = tmp
 
     def _nii_set_ortho(self, img):
         """
@@ -1549,6 +1529,67 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0], minMM.v[1], minMM.v[2])
         return
 
+    def _nii_flip_y(self, img: nibabel.Nifti1Image):
+        """Flip image along Y direction.
+        dcm2niix.nii_flipY
+
+        Args:
+            img (nibabel.Nifti1Image): input instance
+        Returns:
+            (nibabel.Nifti1Image): flipped nifti image
+        """
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        s = hdr.get_sform()[:3, :3]
+        q44 = hdr.get_sform()
+        v = np.array([0, dim[1] - 1, 0, 1], dtype=float)
+        v = _nifti_vect44mat44_mul(v, q44)
+        m_flip_y = np.eye(3, dtype=float)
+        m_flip_y[1, 1] = -1
+        s = np.matmul(s, m_flip_y)
+        q44[:3, :3] = s
+        q44[:3, 3] = v[:3]
+        hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return self._nii_flip_image_y(img)
+
+    def _nii_flip_image_y(self, img: nibabel.Nifti1Image):
+        """Flip image data along Y direction.
+        dcm2niix.nii_flipImgY
+
+        Args:
+            img (nibabel.Nifti1Image): input instance
+        Returns:
+            (nibabel.Nifti1Image): flipped nifti image
+        """
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        y_size = dim[1]
+        half_y = y_size // 2
+        data = np.asarray(img.dataobj)
+        # Swap order of Y lines
+        if data.ndim == 4:
+            for t in range(dim[3]):
+                for z in range(dim[2]):
+                    for y in range(half_y):
+                        tmp = np.array(data[:, y, z, t])
+                        data[:, y, z, t] = data[:, y_size-y-1, z, t]
+                        data[:, y_size-y-1, z, t] = tmp
+        elif data.ndim == 3:
+            for z in range(dim[2]):
+                for y in range(half_y):
+                    tmp = np.array(data[:, y, z])
+                    data[:, y, z] = data[:, y_size-y-1, z]
+                    data[:, y_size-y-1, z] = tmp
+        elif data.ndim == 2:
+            for y in range(half_y):
+                tmp = np.array(data[:, y])
+                data[:, y] = data[:, y_size - y - 1]
+                data[:, y_size - y - 1] = tmp
+        else:
+            raise IndexError('Flipping image of dimension {} is not implemented.'.format(data.ndim))
+        return nibabel.Nifti1Image(data, img.affine, img.header)
+
     def _nii_save_attributes(self, img, dcm):
         """dcm2niix.nii_saveAttributes
 
@@ -1594,3 +1635,14 @@ class NiftiPlugin(AbstractPlugin):
         if flip:
             slice_direction = - slice_direction
         return slice_direction
+
+
+def _nifti_vect44mat44_mul(v, m):
+    """multiply vector * 4x4matrix
+    """
+    vO = np.zeros(4)
+    for i in range(4):  # multiply Pcrs * m
+        for j in range(4):
+            vO[i] += m[i, j] * v[j]
+    return vO
+
