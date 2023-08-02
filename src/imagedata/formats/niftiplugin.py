@@ -872,7 +872,7 @@ class NiftiPlugin(AbstractPlugin):
         _ = archive.add_localfile(f.name, filename)
         os.unlink(f.name)
 
-    def _save_dicom_to_nifti(self, si):
+    def _save_dicom_to_nifti(self, si: Series) -> nibabel.Nifti1Image:
         """Convert DICOM to Nifti
         dcm2niix.saveDcm2Nii
 
@@ -887,7 +887,7 @@ class NiftiPlugin(AbstractPlugin):
         if si.slices > 1:
             slice_direction = self._header_dicom_to_nifti_2(img.header, si)
         if slice_direction < 0:
-            self._nii_flip_slices(img)
+            img = self._nii_flip_slices(img)
             slice_direction = abs(slice_direction)
         self._nii_set_ortho(img)
         flip_y = True  # Always
@@ -1223,7 +1223,7 @@ class NiftiPlugin(AbstractPlugin):
                 q44[r, c] = - q44[r, c]
         return q44, slice_direction
 
-    def _nii_flip_slices(self, img: nibabel.Nifti1Image):
+    def _nii_flip_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
         """Flip slice order in img
         dcm2niix.nii_flipZ
 
@@ -1252,10 +1252,10 @@ class NiftiPlugin(AbstractPlugin):
         hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
         # printMessage("nii_flipImgY dims %dx%dx%d %d \n",h->dim[1],h->dim[2],
         #     dim3to7,h->bitpix/8);
-        self._nii_flip_image_slices(img)
+        return self._nii_flip_image_slices(img)
         # return self._reorder_from_dicom(si, flipud=True)
 
-    def _nii_flip_image_slices(self, img: nibabel.Nifti1Image):
+    def _nii_flip_image_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
         """Flip slice order of actual image.
         DICOM slice order opposite of NIfTI.
         dcm2niix.nii_flipImgZ
@@ -1270,22 +1270,29 @@ class NiftiPlugin(AbstractPlugin):
         half_volume = slices // 2
         if half_volume < 1:
             return
-        data = img.get_fdata()
-        if data.ndim == 4:
-            for t in range(dim[3]):
-                for z in range(half_volume):
-                    # swap order of slices
-                    tmp = np.array(data[:, :, z, t])
-                    data[:, :, z, t] = data[:, :, slices - z - 1, t]
-                    data[:, :, slices - z - 1, t] = tmp
-        elif data.ndim == 3:
-            for z in range(half_volume):
-                # swap order of slices
-                tmp = np.array(data[:,:,z])
-                data[:,:,z] = data[:,:,slices-z-1]
-                data[:,:,slices-z-1] = tmp
+        data = np.asarray(img.dataobj)
+        for z in range(half_volume):
+            # swap order of slices
+            tmp = np.array(data[:, :, z, ...])
+            data[:, :, z, ...] = data[:, :, slices - z - 1, ...]
+            data[:, :, slices - z - 1, ...] = tmp
+        #
+        # if data.ndim == 4:
+        #     for t in range(dim[3]):
+        #         for z in range(half_volume):
+        #             # swap order of slices
+        #             tmp = np.array(data[:, :, z, t])
+        #             data[:, :, z, t] = data[:, :, slices - z - 1, t]
+        #             data[:, :, slices - z - 1, t] = tmp
+        # elif data.ndim == 3:
+        #     for z in range(half_volume):
+        #         # swap order of slices
+        #         tmp = np.array(data[:,:,z])
+        #         data[:,:,z] = data[:,:,slices-z-1]
+        #         data[:,:,slices-z-1] = tmp
+        return nibabel.Nifti1Image(data, img.affine, img.header)
 
-    def _nii_set_ortho(self, img):
+    def _nii_set_ortho(self, img: nibabel.Nifti1Image):
         """
         Set ortho
 
@@ -1529,7 +1536,7 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0], minMM.v[1], minMM.v[2])
         return
 
-    def _nii_flip_y(self, img: nibabel.Nifti1Image):
+    def _nii_flip_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
         """Flip image along Y direction.
         dcm2niix.nii_flipY
 
@@ -1553,7 +1560,7 @@ class NiftiPlugin(AbstractPlugin):
         hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
         return self._nii_flip_image_y(img)
 
-    def _nii_flip_image_y(self, img: nibabel.Nifti1Image):
+    def _nii_flip_image_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
         """Flip image data along Y direction.
         dcm2niix.nii_flipImgY
 
@@ -1568,26 +1575,30 @@ class NiftiPlugin(AbstractPlugin):
         half_y = y_size // 2
         data = np.asarray(img.dataobj)
         # Swap order of Y lines
-        if data.ndim == 4:
-            for t in range(dim[3]):
-                for z in range(dim[2]):
-                    for y in range(half_y):
-                        tmp = np.array(data[:, y, z, t])
-                        data[:, y, z, t] = data[:, y_size-y-1, z, t]
-                        data[:, y_size-y-1, z, t] = tmp
-        elif data.ndim == 3:
-            for z in range(dim[2]):
-                for y in range(half_y):
-                    tmp = np.array(data[:, y, z])
-                    data[:, y, z] = data[:, y_size-y-1, z]
-                    data[:, y_size-y-1, z] = tmp
-        elif data.ndim == 2:
-            for y in range(half_y):
-                tmp = np.array(data[:, y])
-                data[:, y] = data[:, y_size - y - 1]
-                data[:, y_size - y - 1] = tmp
-        else:
-            raise IndexError('Flipping image of dimension {} is not implemented.'.format(data.ndim))
+        for y in range(half_y):
+            tmp = np.array(data[:, y, ...])
+            data[:, y, ...] = data[:, y_size - y - 1, ...]
+            data[:, y_size - y - 1, ...] = tmp
+        # if data.ndim == 4:
+        #     for t in range(dim[3]):
+        #         for z in range(dim[2]):
+        #             for y in range(half_y):
+        #                 tmp = np.array(data[:, y, z, t])
+        #                 data[:, y, z, t] = data[:, y_size-y-1, z, t]
+        #                 data[:, y_size-y-1, z, t] = tmp
+        # elif data.ndim == 3:
+        #     for z in range(dim[2]):
+        #         for y in range(half_y):
+        #             tmp = np.array(data[:, y, z])
+        #             data[:, y, z] = data[:, y_size-y-1, z]
+        #             data[:, y_size-y-1, z] = tmp
+        # elif data.ndim == 2:
+        #     for y in range(half_y):
+        #         tmp = np.array(data[:, y])
+        #         data[:, y] = data[:, y_size - y - 1]
+        #         data[:, y_size - y - 1] = tmp
+        # else:
+        #     raise IndexError('Flipping image of dimension {} is not implemented.'.format(data.ndim))
         return nibabel.Nifti1Image(data, img.affine, img.header)
 
     def _nii_save_attributes(self, img, dcm):

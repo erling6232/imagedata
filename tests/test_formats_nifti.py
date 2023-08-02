@@ -14,6 +14,8 @@ import imagedata.cmdline
 import imagedata.readdata
 import imagedata.formats
 from imagedata.series import Series
+
+
 class TestWriteNIfTIPlugin(unittest.TestCase):
 
     # cor_hf.zip	 cor_rl.zip  sag_hf.zip       tra_oblique.zip
