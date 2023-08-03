@@ -629,7 +629,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         return si
 
     @staticmethod
-    def _reorder_slice(data, flip, flipud):
+    def _reorder_slice(data: np.ndarray, flip: bool, flipud: bool) -> np.ndarray:
         if flip and flipud:
             return np.fliplr(data).T
         elif flip:

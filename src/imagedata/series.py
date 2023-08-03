@@ -2233,7 +2233,7 @@ class Series(np.ndarray):
         colormap.set_bad(color='k')  # Important for log display of non-positive values
         colormap.set_under(color='k')
         colormap.set_over(color='w')
-        if type(norm) == type:
+        if type(norm) is type:
             if clip == 'window':
                 window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
             elif clip == 'hist':

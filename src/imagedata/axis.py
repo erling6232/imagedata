@@ -38,7 +38,7 @@ class UniformAxis(Axis):
     def __getitem__(self, item):
         start, stop, step = 0, None, 1
         # logger.debug('UniformAxis: item %s' % type(item))
-        if type(item) == Ellipsis:
+        if type(item) is Ellipsis:
             # logger.debug('UniformAxis: Ellipsis')
             return self
         elif isinstance(item, slice):
@@ -101,7 +101,7 @@ class UniformLengthAxis(UniformAxis):
     def __getitem__(self, item):
         start, n, step = self.start, self.n, self.step
         # logger.debug('UniformLengthAxis: item %s' % type(item))
-        if type(item) == Ellipsis:
+        if type(item) is Ellipsis:
             # logger.debug('UniformLengthAxis: Ellipsis')
             return self
         elif isinstance(item, slice):
@@ -161,7 +161,7 @@ class VariableAxis(Axis):
         """
         start, stop, step = 0, None, 1
         # logger.debug('VariableAxis: item %s' % type(item))
-        if type(item) == Ellipsis:
+        if type(item) is Ellipsis:
             # logger.debug('VariableAxis: Ellipsis')
             return self
         elif isinstance(item, slice):

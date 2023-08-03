@@ -1,38 +1,31 @@
 """Read/Write Nifti-1 files
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import tempfile
 import logging
 import math
 import nibabel
+import nibabel.data
 import nibabel.spatialimages
+from ..series import Series
 import numpy as np
-from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str,\
-    shape_to_str, sort_on_to_str,\
-    SORT_ON_SLICE
+from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 
 # import nitransforms
-
-logger = logging.getLogger(__name__)
-
+NIFTI_INTENT_NONE = 0
 NIFTI_XFORM_UNKNOWN = 0
 NIFTI_XFORM_SCANNER_ANAT = 1
 NIFTI_XFORM_ALIGNED_ANAT = 2
 NIFTI_XFORM_TALAIRACH = 3
 NIFTI_XFORM_MNI_152 = 4
+NIFTI_XFORM_TEMPLATE_OTHER = 5
 
-
-class NoInputFile(Exception):
-    pass
-
-
-class FilesGivenForMultipleURLs(Exception):
-    pass
+logger = logging.getLogger(__name__)
 
 
 class NiftiPlugin(AbstractPlugin):
@@ -42,7 +35,7 @@ class NiftiPlugin(AbstractPlugin):
     name = "nifti"
     description = "Read and write Nifti-1 files."
     authors = "Erling Andersen"
-    version = "1.0.0"
+    version = "2.0.0"
     url = "www.helse-bergen.no"
 
     """
@@ -102,17 +95,26 @@ class NiftiPlugin(AbstractPlugin):
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
             raise
-        info = img
 
         if hdr.input_order == 'auto':
             hdr.input_order = 'none'
 
         hdr.color = False
+
+        flip_y = True  # Always
+        if flip_y:
+            img = self._nii_flip_y(img)
+
+        slice_direction = self._verify_nifti_slice_direction(img)
+        if slice_direction < 0:
+            img = self._nii_flip_slices(img)
+            # slice_direction = abs(slice_direction)
+
         si = self._reorder_to_dicom(
             np.asanyarray(img.dataobj),
             flip=False,
             flipud=True)
-        return info, si
+        return img, si
 
     def _need_local_file(self):
         """Do the plugin need access to local files?
@@ -185,27 +187,35 @@ class NiftiPlugin(AbstractPlugin):
         if sform is not None and scode != 0:
             logger.debug("Method 3 - sform: orientation")
 
-            for c in range(4):  # NIfTI is RAS+, DICOM is LPS+
-                for r in range(2):
-                    sform[r, c] = - sform[r, c]
-            Q = sform[:3, :3]
-            # p = sform[:3, 3]
-            p = nibabel.affines.apply_affine(sform, (0, ny - 1, 0))
-            if np.linalg.det(Q) < 0:
-                Q[:3, 1] = - Q[:3, 1]
-            # Note: rz, ry, rx, cz, cy, cx
-            iop = np.array([
-                Q[2, 0] / dx, Q[1, 0] / dx, Q[0, 0] / dx,
-                Q[2, 1] / dy, Q[1, 1] / dy, Q[0, 1] / dy
-            ])
+            # for c in range(4):  # NIfTI is RAS+, DICOM is LPS+
+            #     for r in range(2):
+            #         sform[r, c] = - sform[r, c]
 
-            for _slice in range(nz):
-                _p = np.array([
-                    (Q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
-                    (Q[1, 2] * _slice + p[1]),
-                    (Q[2, 2] * _slice + p[2])
-                ])
-                hdr.imagePositions[_slice] = _p[::-1]
+            hdr.transformationMatrix = np.eye(4, dtype=np.float64)
+            # NIfTI is RAS+, DICOM is LPS+
+            hdr.transformationMatrix[:3, 0] = sform[:3, 2][::-1]
+            hdr.transformationMatrix[:3, 1] = sform[:3, 1][::-1]
+            hdr.transformationMatrix[:3, 2] = sform[:3, 0][::-1]
+            hdr.transformationMatrix[:3, 3] = sform[:3, 3][::-1]
+
+            q = sform[:3, :3]
+            # # p = sform[:3, 3]
+            # p = nibabel.affines.apply_affine(sform, (0, ny - 1, 0))
+            # if np.linalg.det(q) < 0:
+            #     q[:3, 1] = - q[:3, 1]
+            # # Note: rz, ry, rx, cz, cy, cx
+            iop = np.array([
+                q[2, 0] / dx, q[1, 0] / dx, q[0, 0] / dx,
+                q[2, 1] / dy, q[1, 1] / dy, q[0, 1] / dy
+            ])
+            #
+            # for _slice in range(nz):
+            #     _p = np.array([
+            #         (Q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
+            #         (Q[1, 2] * _slice + p[1]),
+            #         (Q[2, 2] * _slice + p[2])
+            #     ])
+            #     hdr.imagePositions[_slice] = _p[::-1]
 
         elif qform is not None and qcode != 0:
             logger.debug("Method 2 - qform: orientation")
@@ -251,7 +261,7 @@ class NiftiPlugin(AbstractPlugin):
         times = [0]
         if nt > 1:
             times = np.arange(0, nt * dt, dt)
-        assert len(times) == nt,\
+        assert len(times) == nt, \
             "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logger.debug("_set_tags: times {}".format(times))
         tags = {}
@@ -300,401 +310,7 @@ class NiftiPlugin(AbstractPlugin):
                     (times[tag], None, hdr.empty_ds())
                 )
 
-    # def nifti_to_affine(self, affine, shape):
-    #
-    #     if len(shape) != 4:
-    #         raise ValueError("4D only (was: %dD)" % len(shape))
-    #
-    #     q = affine.copy()
-    #
-    #     logger.debug("q from nifti_to_affine():\n{}".format(q))
-    #     # Swap row 0 (z) and 2 (x)
-    #     q[[0, 2],:] = q[[2, 0],:]
-    #     # Swap column 0 (z) and 2 (x)
-    #     q[:,[0, 2]] = q[:,[2, 0]]
-    #     logger.debug("q swap nifti_to_affine():\n{}".format(q))
-    #
-    #     analyze_to_dicom = np.eye(4)
-    #     analyze_to_dicom[0,3] = 1
-    #     analyze_to_dicom[1,3] = 1
-    #     analyze_to_dicom[2,3] = 1
-    #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
-    #     q = np.dot(q,dicom_to_analyze)
-    #     logger.debug("q after dicom_to_analyze:\n{}".format(q))
-    #
-    #     analyze_to_dicom = np.eye(4)
-    #     analyze_to_dicom[0,3] = -1
-    #     analyze_to_dicom[1,1] = -1
-    #     rows = shape[2]
-    #     analyze_to_dicom[1,3] = rows
-    #     analyze_to_dicom[2,3] = -1
-    #     dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
-    #     q = np.dot(q,dicom_to_analyze)
-    #     logger.debug("q after rows dicom_to_analyze:\n{}".format(q))
-    #
-    #     patient_to_tal = np.eye(4)
-    #     patient_to_tal[0,0] = -1
-    #     patient_to_tal[1,1] = -1
-    #     tal_to_patient = np.linalg.inv(patient_to_tal)
-    #     q = np.dot(tal_to_patient,q)
-    #     logger.debug("q after tal_to_patient:\n{}".format(q))
-    #
-    #     return q
-
-    # def affine_to_nifti(self, shape):
-    #     q = self.transformationMatrix.copy()
-    #     logger.debug("Affine from self.transformationMatrix:\n{}".format(q))
-    #     # Swap row 0 (z) and 2 (x)
-    #     q[[0, 2],:] = q[[2, 0],:]
-    #     # Swap column 0 (z) and 2 (x)
-    #     q[:,[0, 2]] = q[:,[2, 0]]
-    #     logger.debug("Affine swap self.transformationMatrix:\n{}".format(q))
-    #
-    #     # q now equals dicom_to_patient in spm_dicom_convert
-    #
-    #     # Convert space
-    #     analyze_to_dicom = np.eye(4)
-    #     analyze_to_dicom[0,3] = -1
-    #     analyze_to_dicom[1,1] = -1
-    #     #if len(shape) == 3:
-    #     #    rows = shape[1]
-    #     #else:
-    #     #    rows = shape[2]
-    #     rows = shape[-2]
-    #     analyze_to_dicom[1,3] = rows
-    #     analyze_to_dicom[2,3] = -1
-    #     logger.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
-    #
-    #     patient_to_tal = np.eye(4)
-    #     patient_to_tal[0,0] = -1
-    #     patient_to_tal[1,1] = -1
-    #     logger.debug("patient_to_tal:\n{}".format(patient_to_tal))
-    #
-    #     q = np.dot(patient_to_tal,q)
-    #     logger.debug("q with patient_to_tal:\n{}".format(q))
-    #     q = np.dot(q,analyze_to_dicom)
-    #     # q now equals mat in spm_dicom_convert
-    #
-    #     analyze_to_dicom = np.eye(4)
-    #     analyze_to_dicom[0,3] = 1
-    #     analyze_to_dicom[1,3] = 1
-    #     analyze_to_dicom[2,3] = 1
-    #     logger.debug("analyze_to_dicom:\n{}".format(analyze_to_dicom))
-    #     q = np.dot(q,analyze_to_dicom)
-    #
-    #     logger.debug("q nifti:\n{}".format(q))
-    #     return q
-
-    @staticmethod
-    def _get_geometry_from_affine(hdr, q):
-        """Extract geometry attributes from Nifti header
-
-        Args:
-            self: NiftiPlugin instance
-            q: nifti Qform
-            hdr.spacing
-        Returns:
-            hdr: header
-                - hdr.imagePositions[0]
-                - hdr.orientation
-                - hdr.transformationMatrix
-        """
-
-        # Swap back from nifti patient space, flip x and y directions
-        affine = np.dot(np.diag([-1, -1, 1, 1]), q)
-        # Set imagePositions for first slice
-        x, y, z = affine[0:3, 3]
-        hdr.imagePositions = {0: np.array([z, y, x])}
-        logger.debug("getGeometryFromAffine: hdr imagePositions={}".format(hdr.imagePositions))
-        # Set slice orientation
-        ds, dr, dc = hdr.spacing
-        logger.debug("getGeometryFromAffine: spacing ds {}, dr {}, dc {}".format(ds, dr, dc))
-
-        colr = affine[:3, 0][::-1] / dr
-        colc = affine[:3, 1][::-1] / dc
-        # T0 = affine[:3,3][::-1]
-        orient = []
-        logger.debug("getGeometryFromAffine: affine\n{}".format(affine))
-        for i in range(3):
-            orient.append(colc[i])
-        for i in range(3):
-            orient.append(colr[i])
-        logger.debug("getGeometryFromAffine: orient {}".format(orient))
-        hdr.orientation = orient
-        return
-
     # noinspection PyPep8Naming
-    def create_affine_xyz(self):
-        """Create affine in xyz.
-        """
-
-        def normalize(v):
-            """Normalize a vector
-
-            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
-
-            Args:
-                v: 3D vector
-            Returns:
-                normalized 3D vector
-            """
-            norm = np.linalg.norm(v, ord=1)
-            if norm == 0:
-                norm = np.finfo(v.dtype).eps
-            return v / norm
-
-        ds, dr, dc = self.spacing
-
-        # NIfTI is RAS+, DICOM is LPS+
-        colr = normalize(np.array(self.orientation[3:6])).reshape((3,)) * [1, 1, -1]
-        colc = normalize(np.array(self.orientation[0:3])).reshape((3,)) * [-1, -1, 1]
-        # T0 = self.imagePositions[0][::-1].reshape(3, )  # x,y,z
-        if self.slices > 1:
-            # Tn = self.imagePositions[self.slices - 1][::-1].reshape(3, )  # x,y,z
-            # k = Tn
-            k = np.cross(colc, colr, axis=0)
-            k = k * ds
-        else:
-            k = np.cross(colc, colr, axis=0)
-            k = k * ds
-
-        L = np.zeros((4, 4))
-        L[:3, 1] = colr * dr
-        L[:3, 0] = colc * dc
-        L[:3, 2] = -k
-        ny = self.shape[-2]
-        p = self.getPositionForVoxel((0, ny - 1, 0))[::-1]
-        # L[:3, 3] = self.origin * [-1, -1, 1]
-        L[:3, 3] = p * [-1, -1, 1]
-        L[3, 3] = 1
-        return L
-
-    # def getQformFromTransformationMatrix(self):
-    #     # def matrix_from_orientation(orientation, normal):
-    #     #    oT = orientation.reshape((2,3)).T
-    #     #    colr = oT[:,0].reshape((3,1))
-    #     #    colc = oT[:,1].reshape((3,1))
-    #     #    coln = normal.reshape((3,1))
-    #     #    if len(self.shape) < 3:
-    #     #        M = np.hstack((colr[:2], colc[:2])).reshape((2,2))
-    #     #    else:
-    #     #        M = np.hstack((colr, colc, coln)).reshape((3,3))
-    #     #    return M
-    #
-    #     def normalize(v):
-    #         """Normalize a vector
-    #
-    #         https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
-    #
-    #         :param v: 3D vector
-    #         :return: normalized 3D vector
-    #         """
-    #         norm = np.linalg.norm(v, ord=1)
-    #         if norm == 0:
-    #             norm = np.finfo(v.dtype).eps
-    #         return v / norm
-    #
-    #     def L_from_orientation(orientation, normal, spacing):
-    #         """
-    #         orientation: row, then column index direction cosines
-    #         """
-    #         _ds, _dr, _dc = spacing
-    #         _colr = normalize(np.array(orientation[3:6])).reshape((3,))
-    #         _colc = normalize(np.array(orientation[0:3])).reshape((3,))
-    #         _t0 = self.imagePositions[0][::-1].reshape(3, )  # x,y,z
-    #         if self.slices > 1:
-    #             _tn = self.imagePositions[self.slices - 1][::-1].reshape(3, )  # x,y,z
-    #             # k = _tn
-    #             _k = np.cross(_colr, _colc, axis=0)
-    #             _k = _k * _ds
-    #         else:
-    #             _k = np.cross(_colr, _colc, axis=0)
-    #             _k = _k * _ds
-    #
-    #         _L = np.zeros((4, 4))
-    #         _L[:3, 0] = _t0[:]
-    #         _L[3, 0] = 1
-    #         _L[:3, 1] = _k
-    #         _L[3, 1] = 1 if self.slices > 1 else 0
-    #         _L[:3, 2] = _colr * [-1, -1, 1] * _dr
-    #         _L[:3, 3] = _colc * [-1, -1, 1] * _dc
-    #         return _L
-    #
-    #     # M = self.transformationMatrix
-    #     # M = matrix_from_orientation(self.orientation, self.normal)
-    #     # ipp = self.origin
-    #     # q = np.array([[M[2,2], M[2,1], M[2,0], ipp[0]],
-    #     #              [M[1,2], M[1,1], M[1,0], ipp[1]],
-    #     #              [M[0,2], M[0,1], M[0,0], ipp[2]],
-    #     #              [     0,      0,      0,     1 ]]
-    #     #        )
-    #
-    #     if self.slices > 1:
-    #         r = np.array([[1, 1, 1, 0], [1, 1, 0, 1], [1, self.slices, 0, 0], [1, 1, 0, 0]])
-    #     else:
-    #         r = np.array([[1, 0, 1, 0], [1, 0, 0, 1], [1, self.slices, 0, 0], [1, 0, 0, 0]])
-    #     l = L_from_orientation(self.orientation, self.normal, self.spacing)
-    #
-    #     # Linv = np.linalg.inv(L)
-    #     # Aspm = np.dot(r, np.linalg.inv(l))
-    #     to_ones = np.eye(4)
-    #     to_ones[:, 3] = 1
-    #     # A = np.dot(Aspm, to_ones)
-    #
-    #     ds, dr, dc = self.spacing
-    #     colr = normalize(np.array(self.orientation[3:6])).reshape((3,))
-    #     colc = normalize(np.array(self.orientation[0:3])).reshape((3,))
-    #     coln = normalize(np.cross(colc, colr, axis=0))
-    #     t_0 = self.imagePositions[0][::-1].reshape(3, )  # x,y,z
-    #     if self.slices > 1:
-    #         t_n = self.imagePositions[self.slices - 1][::-1].reshape((3,))  # x,y,z
-    #         abcd = np.array([1, 1, self.slices, 1]).reshape((4,))
-    #         one = np.ones((1,))
-    #         efgh = np.concatenate((t_n, one))
-    #     else:
-    #         abcd = np.array([0, 0, 1, 0]).reshape((4,))
-    #         # zero = np.zeros((1,))
-    #         efgh = np.concatenate((n * ds, zeros))
-    #
-    #     # From derivations/spm_dicom_orient.py
-    #
-    #     # premultiplication matrix to go from 0 to 1 based indexing
-    #     one_based = np.eye(4)
-    #     one_based[:3, 3] = (1, 1, 1)
-    #     # premult for swapping row and column indices
-    #     row_col_swap = np.eye(4)
-    #     row_col_swap[:, 0] = np.eye(4)[:, 1]
-    #     row_col_swap[:, 1] = np.eye(4)[:, 0]
-    #
-    #     # various worming matrices
-    #     orient_pat = np.hstack([colr.reshape(3, 1), colc.reshape(3, 1)])
-    #     orient_cross = coln
-    #     pos_pat_0 = t_0
-    #     if self.slices > 1:
-    #         missing_r_col = (t_0 - t_n) / (1 - self.slices)
-    #         pos_pat_N = t_n
-    #     pixel_spacing = [dr, dc]
-    #     NZ = self.slices
-    #     slice_thickness = ds
-    #
-    #     R3 = np.dot(orient_pat, np.diag(pixel_spacing))
-    #     # R3 = orient_pat * np.diag(pixel_spacing)
-    #     r = np.zeros((4, 2))
-    #     r[:3, :] = R3
-    #
-    #     # The following is specific to the SPM algorithm.
-    #     x1 = np.ones(4)
-    #     y1 = np.ones(4)
-    #     y1[:3] = pos_pat_0
-    #
-    #     to_inv = np.zeros((4, 4))
-    #     to_inv[:, 0] = x1
-    #     to_inv[:, 1] = abcd
-    #     to_inv[0, 2] = 1
-    #     to_inv[1, 3] = 1
-    #     inv_lhs = np.zeros((4, 4))
-    #     inv_lhs[:, 0] = y1
-    #     inv_lhs[:, 1] = efgh
-    #     inv_lhs[:, 2:] = r
-    #
-    #     def spm_full_matrix(x2, y2):
-    #         rhs = to_inv[:, :]
-    #         rhs[:, 1] = x2
-    #         lhs = inv_lhs[:, :]
-    #         lhs[:, 1] = y2
-    #         return np.dot(lhs, np.linalg.inv(rhs))
-    #
-    #     if self.slices > 1:
-    #         x2_ms = np.array([1, 1, NZ, 1])
-    #         y2_ms = np.ones((4,))
-    #         y2_ms[:3] = pos_pat_N
-    #         A_ms = spm_full_matrix(x2_ms, y2_ms)
-    #         A = A_ms
-    #     else:
-    #         orient = np.zeros((3, 3))
-    #         orient[:3, :2] = orient_pat
-    #         orient[:, 2] = orient_cross
-    #         x2_ss = np.array([0, 0, 1, 0])
-    #         y2_ss = np.zeros((4,))
-    #         # y2_ss[:3] = orient * np.array([0, 0, slice_thickness])
-    #         y2_ss[:3] = np.dot(orient, np.array([0, 0, slice_thickness]))
-    #         A_ss = spm_full_matrix(x2_ss, y2_ss)
-    #         A = A_ss
-    #
-    #     A = np.dot(A, row_col_swap)
-    #
-    #     multi_aff = np.eye(4)
-    #     multi_aff[:3, :2] = R3
-    #     trans_z_N = np.array([0, 0, self.slices - 1, 1])
-    #     multi_aff[:3, 2] = missing_r_col
-    #     multi_aff[:3, 3] = pos_pat_0
-    #     # est_pos_pat_N = np.dot(multi_aff, trans_z_N)
-    #
-    #     # Flip voxels in y
-    #     analyze_to_dicom = np.eye(4)
-    #     analyze_to_dicom[1, 1] = -1
-    #     # analyze_to_dicom[1,3] = shape[1]+1
-    #     analyze_to_dicom[1, 3] = self.slices
-    #     logger.debug("getQformFromTransformationMatrix: analyze_to_dicom\n{}".format(
-    #         analyze_to_dicom))
-    #     # dicom_to_analyze = np.linalg.inv(analyze_to_dicom)
-    #     # q = np.dot(q,dicom_to_analyze)
-    #     q = np.dot(A, analyze_to_dicom)
-    #     # ## 2019.07.03 # q = np.dot(q,analyze_to_dicom)
-    #     # ## 2019.07.03 # logger.debug("q after rows dicom_to_analyze:\n{}".format(q))
-    #     # Flip mm coords in x and y directions
-    #     patient_to_tal = np.diag([1, -1, -1, 1])
-    #     # patient_to_tal = np.eye(4)
-    #     # patient_to_tal[0,0] = -1
-    #     # patient_to_tal[1,1] = -1
-    #     # tal_to_patient = np.linalg.inv(patient_to_tal)
-    #     # q = np.dot(tal_to_patient,q)
-    #     logger.debug("getQformFromTransformationMatrix: patient_to_tal\n{}".format(
-    #         patient_to_tal))
-    #     q = np.dot(patient_to_tal, q)
-    #     logger.debug("getQformFromTransformationMatrix: q after\n{}".format(q))
-    #
-    #     return q
-
-    # def create_affine(self, sorted_dicoms):
-    #     """
-    #     Function to generate the affine matrix for a dicom series
-    #     From dicom2nifti:common.py:
-    #     https://github.com/icometrix/dicom2nifti/blob/master/dicom2nifti/common.py
-    #     This method was based on (http://nipy.org/nibabel/dicom/dicom_orientation.html)
-    #     :param sorted_dicoms: list with sorted dicom files
-    #     """
-    #
-    #     # Create affine matrix
-    #     (http://nipy.sourceforge.net/nibabel/dicom/dicom_orientation.html#dicom-slice-affine)
-    #     image_orient1 = np.array(sorted_dicoms[0].ImageOrientationPatient)[0:3]
-    #     image_orient2 = np.array(sorted_dicoms[0].ImageOrientationPatient)[3:6]
-    #
-    #     delta_r = float(sorted_dicoms[0].PixelSpacing[0])
-    #     delta_c = float(sorted_dicoms[0].PixelSpacing[1])
-    #
-    #     image_pos = np.array(sorted_dicoms[0].ImagePositionPatient)
-    #
-    #     last_image_pos = np.array(sorted_dicoms[-1].ImagePositionPatient)
-    #
-    #     if len(sorted_dicoms) == 1:
-    #         # Single slice
-    #         step = [0, 0, -1]
-    #     else:
-    #         step = (image_pos - last_image_pos) / (1 - len(sorted_dicoms))
-    #
-    #     # check if this is actually a volume and not all slices on the same location
-    #     if np.linalg.norm(step) == 0.0:
-    #         raise NotImageError("Not a volume")
-    #
-    #     affine = np.array(
-    #         [[-image_orient1[0] * delta_c, -image_orient2[0] * delta_r, -step[0], -image_pos[0]],
-    #          [-image_orient1[1] * delta_c, -image_orient2[1] * delta_r, -step[1], -image_pos[1]],
-    #          [image_orient1[2] * delta_c, image_orient2[2] * delta_r, step[2], image_pos[2]],
-    #          [0, 0, 0, 1]]
-    #     )
-    #     return affine, np.linalg.norm(step)
-
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Nifti file
 
@@ -722,36 +338,7 @@ class NiftiPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
-        # TODO # self._save_dicom_to_nifti(si)
-        self.shape = si.shape
-        self.slices = si.slices
-        self.spacing = si.spacing
-        self.transformationMatrix = si.transformationMatrix
-        self.imagePositions = si.imagePositions
-        self.tags = si.tags
-        self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
-        # slice_direction = _find_slice_direction(si, self.transformationMatrix, self.normal)
-
-        logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
-        assert si.ndim == 2 or si.ndim == 3,\
-            "write_3d_series: input dimension %d is not 3D." % si.ndim
-
-        fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
-        shape = fsi.shape
-
-        affine_xyz = self.create_affine_xyz()
-        nifti_header = nibabel.Nifti1Header()
-        nifti_header.set_dim_info(freq=0, phase=1, slice=2)
-        nifti_header.set_data_shape(shape)
-        dz, dy, dx = self.spacing
-        if si.ndim < 3:
-            nifti_header.set_zooms((dx, dy))
-        else:
-            nifti_header.set_zooms((dx, dy, dz))
-        nifti_header.set_data_dtype(fsi.dtype)
-        nifti_header.set_sform(affine_xyz, code=1)
-        nifti_header.set_xyzt_units(xyz='mm')
-        img = nibabel.Nifti1Image(fsi, None, nifti_header)
+        img = self._save_dicom_to_nifti(si)
         try:
             filename = filename_template % 0
         except TypeError:
@@ -761,16 +348,12 @@ class NiftiPlugin(AbstractPlugin):
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Nifti file
 
-        Args:
-            self: NiftiPlugin instance
-            si[tag,slice,rows,columns]: Series array, including these attributes:
-                slices,
-                spacing,
-                imagePositions,
-                transformationMatrix,
-                orientation,
-                tags
+        si[tag,slice,rows,columns]: Series array, including these attributes:
+                slices, spacing, imagePositions, transformationMatrix,
+                orientation, tags
 
+        Args:
+            si (Series): Series array
             destination: dict of archive and filenames
             opts: Output options (dict)
         """
@@ -785,57 +368,7 @@ class NiftiPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
 
-        self.shape = si.shape
-        self.slices = si.slices
-        self.spacing = si.spacing
-        self.transformationMatrix = si.transformationMatrix
-        self.imagePositions = si.imagePositions
-        self.tags = si.tags
-        self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
-
-        # Defaults
-        self.output_sort = SORT_ON_SLICE
-        if 'output_sort' in opts:
-            self.output_sort = opts['output_sort']
-
-        # Should we allow to write 3D volume?
-        if si.ndim == 2:
-            si.shape = (1, 1,) + si.shape
-        elif si.ndim == 3:
-            si.shape = (1,) + si.shape
-        if si.ndim != 4:
-            raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
-
-        logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
-            si.dtype, si.shape,
-            sort_on_to_str(self.output_sort)))
-
-        steps = si.shape[0]
-        slices = si.shape[1]
-        if steps != len(si.tags[0]):
-            raise ValueError(
-                "write_4d_series: tags of dicom template ({}) differ "
-                "from input array ({}).".format(len(si.tags[0]), steps))
-        if slices != si.slices:
-            raise ValueError(
-                "write_4d_series: slices of dicom template ({}) differ "
-                "from input array ({}).".format(si.slices, slices))
-
-        fsi = self._reorder_from_dicom(si, flip=False, flipud=True)
-        shape = fsi.shape
-
-        affine_xyz = self.create_affine_xyz()
-        nifti_header = nibabel.Nifti1Header()
-        nifti_header.set_dim_info(freq=0, phase=1, slice=2)
-        nifti_header.set_data_shape(shape)
-        dz, dy, dx = self.spacing
-        nifti_header.set_zooms((dx, dy, dz, 1))
-        nifti_header.set_data_dtype(fsi.dtype)
-        nifti_header.set_sform(affine_xyz, code=1)
-        # NiftiHeader.set_slice_duration()
-        # NiftiHeader.set_slice_times(times)
-        nifti_header.set_xyzt_units(xyz='mm', t='sec')
-        img = nibabel.Nifti1Image(fsi, None, nifti_header)
+        img = self._save_dicom_to_nifti(si)
         try:
             filename = filename_template % 0
         except TypeError:
@@ -847,14 +380,6 @@ class NiftiPlugin(AbstractPlugin):
         """Write nifti data to file
 
         Args:
-            self: ITKPlugin instance, including these attributes:
-            - slices (not used)
-            - spacing
-            - imagePositions
-            - transformationMatrix
-            - orientation (not used)
-            - tags (not used)
-
             img: Nifti1Image
             archive: archive object
             filename: file name, possibly without extentsion
@@ -876,118 +401,380 @@ class NiftiPlugin(AbstractPlugin):
         _ = archive.add_localfile(f.name, filename)
         os.unlink(f.name)
 
-    def _save_dicom_to_nifti(self, si):
-        """Convert DICOM to Nifti"""
-        hdr = nibabel.Nifti1Header()
-        img = si
-        if si.slices > 1:
-            hdr, slice_direction = self._header_dicom_to_nifti(hdr, si)
-            if slice_direction < 0:
-                hdr, img = self._nii_flip_z(hdr, si)
-                slice_direction = abs(slice_direction)
-            img = self._nii_set_ortho(hdr, img)
-        self._nii_save_attributes(si, hdr)
+    def _save_dicom_to_nifti(self, si: Series) -> nibabel.Nifti1Image:
+        """Convert DICOM to Nifti
+        dcm2niix.saveDcm2Nii
 
-    def _header_dicom_to_nifti(self, hdr, si):
-        # COL/ROW
-        inPlanePhaseEncodingDirection = si.getDicomAttribute('InPlanePhaseEncodingDirection')
+        Args:
+            si (Series): input Series instance
+        Returns:
+            (nibabel.Nifti1Image): nifti instance
+        """
+
+        img = self._nii_load_image(si)
+        slice_direction = 0
+        if si.slices > 1:
+            slice_direction = self._header_dicom_to_nifti_2(img.header, si)
+        if slice_direction < 0:
+            img = self._nii_flip_slices(img)
+            # slice_direction = abs(slice_direction)
+        self._nii_set_ortho(img)
+        flip_y = True  # Always
+        if flip_y:
+            img = self._nii_flip_y(img)
+        return img
+
+    def _nii_load_image(self, si):
+        """Create Nifti1Image from Series
+        dcm2niix.nii_loadImgXL
+
+        Args:
+            si (Series): input Series instance
+        Returns:
+            (nibabel.Nifti1Image): nifti instance
+        """
+        hdr = self._header_dicom_to_nifti(si, compute_sform=True)
+        img = nibabel.Nifti1Image(self._reorder_from_dicom(si, flipud=True), None, hdr)
+        # img = self._nii_load_image_core(dcm, hdr)
+        # if img is None:
+        #     return img
+        # if hdr.get_data_dtype() == 128:  # DT_RGB24
+        raw = hdr.structarr
+        if raw['datatype'] == 128:  # DT_RGB24
+            # Do this before Y-flip, or RGB order can be flipped
+            img = self._nii_rgb_to_planar(img, hdr, si.isPlanarRGB)
+        # if dcm.CSA.mosaicSlices > 1:
+        #     img = self._nii_de_mosaic(img, hdr, dcm.CSA.mosaicSlices
+        # n_acq = si.slices
+        # dim = hdr.get_data_shape()
+        # if n_acq > 1 and (dim[2] % n_acq and dim[2] > n_acq):
+        #     # dim[3] = dim[2] // n_acq
+        #     # dim[2] = n_acq
+        #     dim = (dim[0], dim[1], n_acq, dim[2] // n_acq)
+        # if hdr.dim[0] > 3 and dcm.patientPositionSequentialRepeats > 1:
+        #     # Swizzle 3rd and 4th dimension (Philips stores time as 3rd dimension)
+        #     img = self._nii_xytz_xyzt(img, hdr, dcm.patientPositionsSequentialRepeats)
+        self._header_dicom_to_nifti_sform(hdr, si)
+        return img
+
+    # def _nii_load_image_core(self, dcm, hdr):
+    #     """dcm2niix.nii_loadImgCore
+    #     """
+    #     raise Exception('Not implemented')
+    #     return img
+
+    def _nii_rgb_to_planar(self, img, hdr, is_planar_rgb):
+        """dcm2niix.nii_rgb2planar
+        """
+        raise Exception('Not implemented')
+
+    def _nii_xytz_xyzt(self, img, hdr, patient_positions_sequential_repeats):
+        """dcm2niix.nii_XYTZ_XYZT
+        """
+        raise Exception('Not implemented')
+
+    def _header_dicom_to_nifti(self, dcm, compute_sform=False):
+        """dcm2niix.headerDcm2Nii
+        """
+        hdr = nibabel.Nifti1Header()
+        if dcm.itemsize == 1 and dcm.axes[0].name == 'rgb':
+            hdr.set_intent('estimate')
+        hdr.set_data_dtype(dcm.dtype)
+        hdr.set_data_shape(dcm.shape[::-1])
+        # hdr.set_slope_inter(slope, inter)
+        ds, dr, dc = dcm.spacing
+        if (dcm.ndim - dcm.color * 1) < 3:
+            hdr.set_zooms((dc, dr))
+        elif (dcm.ndim - dcm.color * 1) < 4:
+            hdr.set_zooms((dc, dr, ds))
+        else:
+            if dcm.input_order == 'time':
+                dt = dcm.timeline[1] - dcm.timeline[0]
+                hdr.set_zooms((dc, dr, ds, dt))
+            else:
+                hdr.set_zooms((dc, dr, ds))
+        hdr.set_xyzt_units(xyz='mm', t='sec')
+        affine = np.zeros((4, 4))
+        affine[0, 0] = -1
+        affine[1, 2] = 1
+        affine[2, 1] = -1
+        affine[0, 3] = dcm.shape[-1 - dcm.color*1] / 2  # C
+        affine[1, 3] = dcm.shape[-2 - dcm.color*1] / 2  # R
+        try:
+            affine[2, 3] = dcm.shape[-3 - dcm.color*1] / 2  # S
+        except IndexError:
+            # Probably a 2D image
+            pass
+        hdr.set_qform(affine, NIFTI_XFORM_UNKNOWN)
+        hdr.set_sform(affine, NIFTI_XFORM_SCANNER_ANAT)
+        hdr.set_intent(NIFTI_INTENT_NONE)
+        if compute_sform:
+            self._header_dicom_to_nifti_2(hdr, dcm)
+        return hdr
+
+    def _header_dicom_to_nifti_2(self, hdr: nibabel.Nifti1Header, dcm: Series):
+        """Set Nifti1 header from Series instance
+        dcm2niix.headerDcm2Nii2
+
+        Args:
+            hdr (nibabel.Nifti1Header): nifti header
+            dcm (Series): Series instance
+        Returns:
+            sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        # """dcm2niix.headerDcm2Nii2"""
+        # if hdr.slice_code == nibabel.NIFTI_SLICE_UNKNOWN:
+        #     hdr.set_slice_code(d.CSA.sliceOrder)
+        # if hdr.slice_code == nibabel.NIFTI_SLICE_UNKNOWN:
+        #     hdr.set_slice_code(d2.CSA.sliceOrder)
+        # txt = "TE=%.2g;TIME=%.3f".format(d.TE, d.acquisitionTime)
+        # if d.CSA.phaseEncodingDirectionPositive >= 0:
+        #     txt += ";phase=%d".format(d.CSA.phaseEncodingDirectionPositive)
+        inPlanePhaseEncodingDirection = dcm.getDicomAttribute('InPlanePhaseEncodingDirection')
         if inPlanePhaseEncodingDirection == 'ROW':
             hdr.set_dim_info(freq=1, phase=0, slice=2)
         elif inPlanePhaseEncodingDirection == 'COL':
             hdr.set_dim_info(freq=0, phase=1, slice=2)
-        slice_direction = 0
-        if si.slices < 2:
-            q44, slice_direction = self._nifti_dicom_mat(si)
-            hdr.set_sform(q44, code=NIFTI_XFORM_UNKNOWN)
-            hdr.set_qform(q44, code=NIFTI_XFORM_UNKNOWN)
-        else:
-            q44, slice_direction = self._nifti_dicom_mat(si)
-            hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        # if d.CSA.multiBandFactor > 1):
+        #     txt += ";mb=%d".format(d.CSA.multiBandFactor)
+        # hdr.set_description(txt)
+        return self._header_dicom_to_nifti_sform(hdr, dcm)
+
+    def _header_dicom_to_nifti_sform(self, hdr: nibabel.Nifti1Header, dcm: Series):
+        """dcm2niix.headerDcm2NiiSForm
+
+        Args:
+            hdr (nibabel.Nifti1Header): nifti header
+            dcm (Series): Series instance
+        Returns:
+            sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        if dcm.slices < 2:
+            # Do not care direction for single slice
+            q44, slice_direction = self._set_nii_header_x(dcm)
             hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
-        return hdr, slice_direction
+            hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+            return slice_direction
+        is_ok = False
+        for i in range(6):
+            if dcm.orientation[i] != 0.0:
+                is_ok = True
+        if not is_ok:
+            # We will have to guess,
+            # assume axial acquisition saved in standard Siemens style?
+            dcm.orientation = [0, 1, 0, 0, 0, 1]
+        q44, slice_direction = self._set_nii_header_x(dcm)
+        hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return slice_direction
 
-    def _nifti_dicom_mat(self, si):
-        """Create NIfTI header based on values from DICOM header"""
+    def _set_nii_header_x(self, dcm: Series):
+        """dcm2niix.set_nii_header_x
 
-        def normalize(v):
-            """Normalize a vector
-
-            https://stackoverflow.com/questions/21030391/how-to-normalize-an-array-in-numpy
-
-            Args:
-                v: 3D vector
-            Returns:
-                normalized 3D vector
-            """
-            norm = np.linalg.norm(v, ord=1)
-            if norm == 0:
-                norm = np.finfo(v.dtype).eps
-            return v / norm
-
-        origin, orientation, normal = si.get_transformation_components_xyz()
-        spacing = si.spacing[::-1]  # x,y,z
-
-        q = np.zeros((3, 3))
-        q[0] = normalize(orientation[:3])
-        q[1] = normalize(orientation[3:])
-        q[2] = np.cross(q[0], q[1], axis=0)
-        q = np.transpose(q)
-        if np.linalg.det(q) < 0:
-            q[:2, 2] = - q[:2, 2]
-
-        diagVox = np.diag(spacing)
-
-        q = np.matmul(q, diagVox)
-
-        q44 = np.zeros((4, 4))
-        q44[:3, :3] = q
-        q44[:3, 3] = origin
-        q44[3, 3] = 1
-
-        slice_direction = self._find_slice_direction(si, q44, normal)
-        for c in range(4):  # LPS to nifti RAS
-            for r in range(2):  # Swap rows 0 and 1
-                q44[r, c] = - q44[r, c]
+        Args:
+            dcm (Series): Series instance
+        Returns:
+            q44 (numpy.ndarray): affine matrix
+            sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        q44 = self._nifti_dicom_to_mat(dcm.orientation, dcm.imagePositions[0], dcm.spacing)
+        # if dcm.isSegamiOasis:
+        #     q44 = np.array([[-h.pixdim[1], 0, 0, 0],
+        #                     [0, -h.pixdim[2], 0, 0],
+        #                     [0, 0, h.pixdim[3], 0],
+        #                     [0, 0, 0, 0]])
+        #     originVx = np.array([(h.dim[1]+1.0)/2, (h.dim[2]+1.0])/2, (h.dim[3]+1.0)/2])
+        #     originMm = np.matmul(originVx, q44)
+        #     for i in range(4):
+        #         q44[i, 3] = -originMm[i]  # Set origin to center voxel
+        #     return q44, slice_direction
+        # if d.CSA.mosaicSlices > 1:
+        #     pass
+        slice_direction = self._verify_slice_direction(dcm, q44)
+        # LPS to nifti RAS, xform matrix before reorient
+        q44[:2, :4] = -q44[:2, :4]
         return q44, slice_direction
 
-    def _nii_flip_z(self, hdr, si):
-        """Flip slice order"""
+    def _nifti_dicom_to_mat(self, orient, patient_position, spacing):
+        """dcm2niix.nifti_dicom2mat
 
-        if si.slices < 2:
-            return si
-        # LOAD_MAT33(s,h->srow_x[0],h->srow_x[1],h->srow_x[2],
-        #            h->srow_y[0],h->srow_y[1], h->srow_y[2],
-        #            h->srow_z[0],h->srow_z[1],h->srow_z[2]);
+        Args:
+            orient (np.ndarray): zyx
+            patient_position (np.ndarray): image position of first slice, zyx
+            spacing (np.ndarray):, ds, dr, dc
+        """
+        q = np.array([[orient[2], orient[1], orient[0]],
+                      [orient[5], orient[4], orient[3]],
+                      [0, 0, 0]], dtype=np.float64)
+        # Normalize row 0
+        val = q[0, 0] * q[0, 0] + q[0, 1] * q[0, 1] + q[0, 2] * q[0, 2]
+        if val > 0.0:
+            val = 1.0 / math.sqrt(val)
+            q[0] = val * q[0]
+        else:
+            q[0, 0] = 1.0
+            q[0, 1] = 0.0
+            q[0, 2] = 0.0
+        # Normalize row 1
+        val = q[1, 0] * q[1, 0] + q[1, 1] * q[1, 1] + q[1, 2] * q[1, 2]
+        if val > 0.0:
+            val = 1.0 / math.sqrt(val)
+            q[1] = val * q[1]
+        else:
+            q[1, 0] = 0.0
+            q[1, 1] = 1.0
+            q[1, 2] = 0.0
+        # Row 3 is the cross product of rows 1 and 2
+        q[2] = np.cross(q[0], q[1])
+        q = q.T
+        if np.linalg.det(q) < 0:
+            q[0, 2] = -q[0, 2]
+            q[1, 2] = -q[1, 2]
+            q[2, 2] = -q[2, 2]
+        # Next scale matrix
+        diag_vox = np.array([[spacing[2], 0.0, 0.0],
+                             [0.0, spacing[1], 0.0],
+                             [0.0, 0.0, spacing[0]]])
+        q = np.matmul(q, diag_vox)
+        q44 = np.eye(4)
+        q44[0:3, 0:3] = q
+        q44[0:3, 3] = patient_position[::-1]
+        return q44
+
+    def _verify_slice_direction(self, dcm: Series, r: np.ndarray):
+        """dcm2niix.verify_slice_dir
+
+        Args:
+            dcm (Series): Series instance
+            r (numpy.ndarray): affine matrix in nifti orientation
+        Returns:
+            sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        slice_direction = 0
+        if dcm.slices < 2:
+            return slice_direction
+        # find Z-slice direction: row with highest magnitude of 1st column
+        slice_direction = 1
+        if (abs(r[1, 2]) >= abs(r[0, 2])) and (abs(r[1, 2]) >= abs(r[2, 2])):
+            slice_direction = 2
+        if (abs(r[2, 2]) >= abs(r[0, 2])) and (abs(r[2, 2]) >= abs(r[1, 2])):
+            slice_direction = 3
+        pos_dicom = None
+        try:
+            # Last slice in stack
+            pos_dicom = dcm.imagePositions[dcm.slices-1][::-1][slice_direction-1]  # zyx to xyz
+        except ValueError:
+            pass
+        x = np.array([0.0, 0.0, dcm.slices-1.0, 1.0])
+        # pos1v = np.matmul(x, r)
+        pos1v = _nifti_vect44mat44_mul(x, r)
+        pos_nifti = pos1v[slice_direction-1]  # -1 as C index from 0
+        if pos_dicom is None:
+            # Do some guess work
+            orient = dcm.orientation  # in zyx
+            read_v = np.array([orient[2], orient[1], orient[0]])
+            phase_v = np.array([orient[5], orient[4], orient[3]])
+            slice_v = np.cross(read_v, phase_v)
+            flip = np.sum(slice_v) < 0
+        else:
+            # same direction? note C indices from 0
+            flip = (pos_dicom > r[slice_direction-1, 3]) != (pos_nifti > r[slice_direction-1, 3])
+        if flip:
+            r[:, 2] = -r[:, 2]
+            slice_direction = -slice_direction
+        return slice_direction
+
+    def _verify_nifti_slice_direction(self, img: nibabel.Nifti1Image) -> int:
+        """Calculate slice direction.
+
+        Args:
+            img (nibabel.Nifti1Image): nifti image instance
+        Returns:
+            sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
+        """
+        h = img.header
+        slice_direction = 0
+        dim = h.get_data_shape()
+        if dim[2] < 2:
+            return slice_direction
+
+        # find Z-slice direction: row with highest magnitude of 1st column
+        q44 = h.get_qform()
+        slice_direction = -1  # By convention all sagital series are reversed
+        if (abs(q44[1, 2]) >= abs(q44[0, 2])) and (abs(q44[1, 2]) >= abs(q44[2, 2])):
+            slice_direction = 2
+        if (abs(q44[2, 2]) >= abs(q44[0, 2])) and (abs(q44[2, 2]) >= abs(q44[1, 2])):
+            slice_direction = 3
+
+        if slice_direction < 0:
+            sform = h.get_sform()[:3, :3]
+            q44 = h.get_sform()
+            v = np.array([0, 0, dim[2] - 1, 1], dtype=float)
+            v = _nifti_vect44mat44_mul(v, q44)  # after flip this voxel will be the origin
+            mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=np.float64)
+            sform = np.matmul(sform, mFlipZ)
+            q44[:3, :3] = sform
+            q44[:, 3] = v
+
+        q44[:2, :4] = -q44[:2, :4]  # Swap rows 0 and 1 (Nifti RAS to LPS)
+        img.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        img.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return slice_direction
+
+    def _nii_flip_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+        """Flip slice order in img
+        dcm2niix.nii_flipZ
+
+        Args:
+            img (nibabel.Nifti1Image): nifti instance
+        """
+
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        if dim[2] < 2:
+            return img
         sform = hdr.get_sform()[:3, :3]
-        # LOAD_MAT44(Q44,h->srow_x[0],h->srow_x[1],h->srow_x[2],h->srow_x[3],
-        #            h->srow_y[0],h->srow_y[1],h->srow_y[2],h->srow_y[3],
-        #            h->srow_z[0],h->srow_z[1],h->srow_z[2],h->srow_z[3]);
-        # q44 = np.eye(4)
-        # q44[:3, :3] = sform
         q44 = hdr.get_sform()
-        # vec4 v= setVec4(0.0f,0.0f,(float) h->dim[3]-1.0f);
-        v = np.array([0, 0, si.slices - 1, 1], dtype=float)
-        # v = nifti_vect44mat44_mul(v, Q44); //after flip this voxel will be the origin
-        v = np.matmul(v, q44)  # after flip this voxel will be the origin
-        # mat33 mFlipZ;
-        # LOAD_MAT33(mFlipZ,1.0f, 0.0f, 0.0f, 0.0f,1.0f,0.0f, 0.0f,0.0f,-1.0f);
-        mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=float)
-        # s= nifti_mat33_mul( s , mFlipZ );
+        v = np.array([0, 0, dim[2] - 1, 1], dtype=float)
+        v = _nifti_vect44mat44_mul(v, q44)  # after flip this voxel will be the origin
+        mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=np.float64)
         sform = np.matmul(sform, mFlipZ)
-        # LOAD_MAT44(Q44, s.m[0][0],s.m[0][1],s.m[0][2],v.v[0],
-        #        s.m[1][0],s.m[1][1],s.m[1][2],v.v[1],
-        #        s.m[2][0],s.m[2][1],s.m[2][2],v.v[2]);
         q44[:3, :3] = sform
         q44[:, 3] = v
-        # setQSForm(h,Q44, true);
-        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
         hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
-        # printMessage("nii_flipImgY dims %dx%dx%d %d \n",h->dim[1],h->dim[2],
-        #     dim3to7,h->bitpix/8);
-        # return self._nii_flip_image_z(hdr, si)
-        return hdr, self._reorder_from_dicom(si, flipud=True)
+        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return self._nii_flip_image_slices(img)
 
-    def _nii_set_ortho(self, hdr, img):
+    def _nii_flip_image_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+        """Flip slice order of actual image.
+        DICOM slice order opposite of NIfTI.
+        dcm2niix.nii_flipImgZ
+
+        Args:
+            img (nibabel.Nifti1Image): nifti instance
+        """
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        slices = dim[2]
+        # note truncated toward zero, so half_volume=2 regardless of 4 or 5 slices
+        half_volume = slices // 2
+        if half_volume < 1:
+            return img
+        data = np.asarray(img.dataobj)
+        for z in range(half_volume):
+            # swap order of slices
+            tmp = np.array(data[:, :, z, ...])
+            data[:, :, z, ...] = data[:, :, slices - z - 1, ...]
+            data[:, :, slices - z - 1, ...] = tmp
+        return nibabel.Nifti1Image(data, img.affine, img.header)
+
+    def _nii_set_ortho(self, img: nibabel.Nifti1Image):
+        """
+        Set ortho
+
+        Args:
+            img (nibabel.Nifti1Image): nifti image
+        """
 
         def isMat44Canonical(R):
             # returns true if diagonals >0 and all others =0
@@ -1023,6 +810,7 @@ class NiftiPlugin(AbstractPlugin):
             corner = {}
             # mat44 s = sFormMat(h);
             s = h.get_sform()
+            dim = h.get_data_shape()
             for i in range(8):
                 flipVecs[i] = np.zeros(3)
                 flipVecs[i][0] = -1 if (i & 1) == 1 else 1
@@ -1030,11 +818,11 @@ class NiftiPlugin(AbstractPlugin):
                 flipVecs[i][2] = -1 if (i & 4) == 1 else 1
                 corner[i] = np.array([0., 0., 0.])  # assume no reflections
                 if (flipVecs[i][0]) < 1:
-                    corner[i][0] = h.dim[1] - 1  # reflect X
+                    corner[i][0] = dim[0] - 1  # reflect X
                 if (flipVecs[i][1]) < 1:
-                    corner[i][1] = h.dim[2] - 1  # reflect Y
+                    corner[i][1] = dim[1] - 1  # reflect Y
                 if (flipVecs[i][2]) < 1:
-                    corner[i][2] = h.dim[3] - 1  # reflect Z
+                    corner[i][2] = dim[2] - 1  # reflect Z
                 corner[i] = xyz2mm(s, corner[i])
             # find extreme edge from ALL corners....
             _min = corner[0]
@@ -1068,6 +856,7 @@ class NiftiPlugin(AbstractPlugin):
             orig = R[:3, :3]
             best = 0.0
             for rot in range(6):  # 6 rotations
+                newmat = np.eye(3)
                 if rot == 0:
                     # LOAD_MAT33(newmat,flipVec.v[0],0,0, 0,flipVec.v[1],0, 0,0,flipVec.v[2])
                     newmat = np.eye(3) * flipVec
@@ -1144,7 +933,8 @@ class NiftiPlugin(AbstractPlugin):
         def reOrient(img, h, orientVec, orient, minMM):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
-            nvox = img.columns * img.rows * img.slices
+            columns, rows, slices = img.get_shape()
+            nvox = columns * rows * slices
             if nvox < 1:
                 return img
             outDim = np.zeros(3)
@@ -1195,12 +985,13 @@ class NiftiPlugin(AbstractPlugin):
             h.set_qform(s, code=sform_code)
             return img
 
+        hdr = img.header
         # mat44 s = sFormMat(h);
         s = hdr.get_sform()
         h = hdr  # TODO
         if isMat44Canonical(s):
             logger.debug("Image in perfect alignment: no need to reorient")
-            return img
+            return
         # vec3i  flipV;
         flipV = np.zeros(3)
         minMM, flipV = minCornerFlip(hdr)
@@ -1208,49 +999,72 @@ class NiftiPlugin(AbstractPlugin):
         orientVec = setOrientVec(orient)
         if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
             logger.debug("Image already near best orthogonal alignment: no need to reorient")
-            return img
+            return
         is24 = False
         if h.bitpix == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
-            return img
-            is24 = True
-            h.bitpix = 8
-            h.dim[3] = h.dim[3] * 3
+            return
+            # is24 = True
+            # h.bitpix = 8
+            # h.dim[3] = h.dim[3] * 3
         img = reOrient(img, h, orientVec, orient, minMM)
         if is24:
             h.bitpix = 24
             h.dim[3] = h.dim[3] / 3
-        logger.debug("NewRotation= %d %d %d\n", orientVec.v[0], orientVec.v[1], orientVec.v[2])
-        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM.v[0], minMM.v[1], minMM.v[2])
-        return img
+        logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
+        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
+        return
 
-    def _nii_save_attributes(self, si, hdr):
-        pass
+    def _nii_flip_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+        """Flip image along Y direction.
+        dcm2niix.nii_flipY
 
-    def _find_slice_direction(self, si, affine, normal):
-        """Return slice direction
+        Args:
+            img (nibabel.Nifti1Image): input instance
+        Returns:
+            (nibabel.Nifti1Image): flipped nifti image
+        """
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        s = hdr.get_sform()[:3, :3]
+        q44 = hdr.get_sform()
+        v = np.array([0, dim[1] - 1, 0, 1], dtype=float)
+        v = _nifti_vect44mat44_mul(v, q44)
+        m_flip_y = np.eye(3, dtype=float)
+        m_flip_y[1, 1] = -1
+        s = np.matmul(s, m_flip_y)
+        q44[:3, :3] = s
+        q44[:3, 3] = v[:3]
+        img.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        img.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        return self._nii_flip_image_y(img)
 
-        Returns
-         None : unknown
-         1 : sag,
-         2 : cor
-         3 : axial
-         - : flipped
-         """
-        if si.ndim < 3:
-            return None
-        slice_direction = 1
-        if abs(normal[1]) >= abs(normal[0]) and abs(normal[1]) >= abs(normal[2]):
-            slice_direction = 2
-        if abs(normal[2]) >= abs(normal[0]) and abs(normal[2]) >= abs(normal[1]):
-            slice_direction = 3
-        # pos = si.patientPosition(slice_direction)
-        pos = si.imagePositions[0][::-1][slice_direction - 1]
-        x = np.array([0, 0, si.ndim - 1, 1], dtype=float).reshape((1, 4))
-        # pos1v = nifti_vect44mat44_mul(x, affine)
-        pos1v = x @ affine
-        pos1 = pos1v[0, slice_direction - 1]
-        # Same direction? Note Python indices from 0
-        flip = (pos > affine[slice_direction - 1, 3]) != (pos1 > affine[slice_direction - 1, 3])
-        if flip:
-            slice_direction = - slice_direction
-        return slice_direction
+    def _nii_flip_image_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+        """Flip image data along Y direction.
+        dcm2niix.nii_flipImgY
+
+        Args:
+            img (nibabel.Nifti1Image): input instance
+        Returns:
+            (nibabel.Nifti1Image): flipped nifti image
+        """
+        hdr = img.header
+        dim = hdr.get_data_shape()
+        y_size = dim[1]
+        half_y = y_size // 2
+        data = np.asarray(img.dataobj)
+        # Swap order of Y lines
+        for y in range(half_y):
+            tmp = np.array(data[:, y, ...])
+            data[:, y, ...] = data[:, y_size - y - 1, ...]
+            data[:, y_size - y - 1, ...] = tmp
+        return nibabel.Nifti1Image(data, img.affine, img.header)
+
+
+def _nifti_vect44mat44_mul(v, m):
+    """multiply vector * 4x4matrix
+    """
+    vO = np.zeros(4)
+    for i in range(4):  # multiply Pcrs * m
+        for j in range(4):
+            vO[i] += m[i, j] * v[j]
+    return vO

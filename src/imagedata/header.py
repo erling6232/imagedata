@@ -313,7 +313,7 @@ class Header(object):
                     tag_list = template.tags[0].copy()
                 else:
                     tag_list = np.array(template.tags[0])
-                assert isinstance(tag_list, np.ndarray),\
+                assert isinstance(tag_list, np.ndarray), \
                     "__construct_tags_from_axis not np.ndarray (is {})".format(type(
                         tag_list
                     ))

@@ -1184,7 +1184,7 @@ class DICOMPlugin(AbstractPlugin):
                 si.orientation[2], si.orientation[1], si.orientation[0],
                 si.orientation[5], si.orientation[4], si.orientation[3]]
         except ValueError:
-            ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
+            ds.ImageOrientationPatient = [0, 0, 1, 0, 1, 0]
         try:
             ds.SeriesNumber = si.seriesNumber
         except ValueError:

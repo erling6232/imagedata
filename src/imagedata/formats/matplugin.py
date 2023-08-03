@@ -8,7 +8,7 @@ import logging
 import numpy as np
 import scipy
 import scipy.io
-from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented,\
+from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, \
     shape_to_str, sort_on_to_str, SORT_ON_SLICE
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -196,7 +196,7 @@ class MatPlugin(AbstractPlugin):
             si.shape = si.shape[1:]
         # if si.ndim == 2:
         #    si.shape = (1,) + si.shape
-        assert si.ndim == 2 or si.ndim == 3,\
+        assert si.ndim == 2 or si.ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[0]
         # if slices != si.slices:

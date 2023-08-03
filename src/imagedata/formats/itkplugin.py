@@ -8,7 +8,7 @@ import logging
 import tempfile
 import itk
 import numpy as np
-from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented,\
+from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, \
     SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
 from ..axis import UniformLengthAxis, VariableAxis
 from .abstractplugin import AbstractPlugin
@@ -300,7 +300,7 @@ class ITKPlugin(AbstractPlugin):
         # if si.shape[0] != 1:
         #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(
         #        si.shape))
-        assert si.ndim == 2 or si.ndim == 3,\
+        assert si.ndim == 2 or si.ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
         # slices = si.shape[1]
         # if slices != si.slices:

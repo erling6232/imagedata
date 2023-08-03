@@ -139,13 +139,13 @@ class XnatTransport(AbstractTransport):
             for experiment in experiments:
                 # Walk the scan list
                 scans, labels = self._get_scans(experiment, scan_search)
-                yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id),\
+                yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id), \
                       labels, []
                 for scan in scans:
                     # Walk the file list
                     files = self._get_files(scan, instance_search)
                     yield '/{}/{}/{}/{}'.format(self.__project.id, subject.label,
-                                                experiment.id, scan.id),\
+                                                experiment.id, scan.id), \
                           [], files
 
     def _get_subjects(self, search):

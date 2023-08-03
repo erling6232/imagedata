@@ -908,9 +908,9 @@ def get_window_level(si, norm, window, level):
 
 
 def _check_vmin_vmax(vmin, vmax, norm):
-    if type(norm) == type:
+    if type(norm) is type:
         norm = norm(vmin=vmin, vmax=vmax)
-    if type(norm) == matplotlib.colors.LogNorm:
+    if type(norm) is matplotlib.colors.LogNorm:
         vmin = max(POSITIVE_EPS, vmin)
         vmax = max(POSITIVE_EPS, vmin, vmax)
     return vmin, vmax
@@ -930,7 +930,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
     colormap.set_under(color='k')
     colormap.set_over(color='w')
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
-    if type(norm) == type:
+    if type(norm) is type:
         norm = norm(vmin=vmin, vmax=vmax)
     tag_axis = get_tag_axis(im)
     slice_axis = get_slice_axis(im)
