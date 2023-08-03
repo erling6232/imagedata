@@ -73,7 +73,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'))
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'cor_oblique.nii.gz')
         )
