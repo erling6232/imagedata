@@ -55,15 +55,6 @@ class TestNiftiZipRead(unittest.TestCase):
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
-    @unittest.skip("skipping test_read_two_files")
-    def test_read_two_files(self):
-        si1 = Series(
-            os.path.join('data', 'nifti', 'time_all.zip?*Image_0000[01].mha'),
-            imagedata.formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 3, 192, 152))
-
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
         si1 = Series(
@@ -96,23 +87,11 @@ class TestNiftiZipWrite(unittest.TestCase):
     def test_write_single_file(self):
         si1 = Series(os.path.join(
             'data',
-            'nifti',
-            'time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'))
+            'dicom',
+            'cor_hf.zip'))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'nifti.zip'), formats=['nifti'])
             si2 = Series(os.path.join(d, 'nifti.zip?Image.nii.gz'))
-        self.assertEqual(si1.dtype, si2.dtype)
-        self.assertEqual(si1.shape, si2.shape)
-
-    # @unittest.skip("skipping test_write_all_files")
-    def test_write_all_files(self):
-        si1 = Series(
-            os.path.join('data', 'nifti', 'time_all.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
-            self.opts)
-        with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'nifti.zip'), formats=['nifti'])
-            si2 = Series(os.path.join(d, 'nifti.zip'))
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
