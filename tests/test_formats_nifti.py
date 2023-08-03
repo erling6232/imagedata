@@ -3,7 +3,6 @@
 import unittest
 import os.path
 import tempfile
-import shutil
 import numpy as np
 import logging
 import argparse
@@ -24,7 +23,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
-        print("{} sform:\n{}\n{} sform:\n{}".format(descr1, sform1, descr2, sform2))
+        # print("{} sform:\n{}\n{} sform:\n{}".format(descr1, sform1, descr2, sform2))
         self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
         # self.assertEqual(sform1, sform2)
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
@@ -136,14 +135,9 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
 
 class TestReadNIfTIPlugin(unittest.TestCase):
 
-# cor_hf.zip	 cor_rl.zip  sag_hf.zip       tra_oblique.zip
-# cor_oblique.zip  sag_ap.zip  sag_oblique.zip  tra_rl.zip
-
-    def _compare_dicom_data(self, dcm, nifti, descr1='dcm', descr2='nifti'):
+    def _compare_dicom_data(self, dcm, nifti):
         self.assertEqual('dicom', dcm.input_format, "dicom input_format")
         # self.assertEqual('nifti', nifti.input_format, "nifti input_format")
-        dt = dcm.transformationMatrix
-        nt = nifti.transformationMatrix
         self.assertEqual(dcm.shape, nifti.shape, "shape")
         # obj.assertEqual(dcm.dtype, nifti.dtype)
         np.testing.assert_allclose(nifti.spacing, dcm.spacing,
@@ -190,11 +184,7 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_tra_rl(self):
         dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'))
         nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'))
-        print('dcm {}:\n{}'.format(dcm.transformationMatrix.dtype, dcm.transformationMatrix))
-        print('nifti {}:\n{}'.format(nifti.transformationMatrix.dtype, nifti.transformationMatrix))
         self._compare_dicom_data(dcm, nifti)
-        # nifti_on_dcm = nifti.align(dcm, force=True)
-        # self._compare_dicom_data(dcm, nifti_on_dcm)
 
 
 class Test3DNIfTIPlugin(unittest.TestCase):
@@ -230,7 +220,6 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             dcm.write(d, formats=['nifti'])
             n = Series(d)
         self.assertEqual('nifti', n.input_format)
-        nt = n.transformationMatrix
         self.assertEqual(dcm.shape, n.shape)
         self.assertEqual(dcm.dtype, n.dtype)
         np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, atol=1e-2)
@@ -241,12 +230,10 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             os.path.join('data', 'dicom', 'time'),
             'time')
         self.assertEqual('dicom', dcm.input_format)
-        dt = dcm.transformationMatrix
         n = Series(
             os.path.join('data', 'nifti', 'time', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'time')
         self.assertEqual('nifti', n.input_format)
-        nt = n.transformationMatrix
         self.assertEqual(dcm.shape, n.shape)
         # obj.assertEqual(dcm.dtype, n.dtype)
         np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, atol=1e-2)
