@@ -2419,7 +2419,7 @@ class Series(np.ndarray):
             fig = _ax.get_figure()
             axes = np.array(_ax).reshape((1,1))
         else:
-            if fig is not None:
+            if fig is None:
                 fig = plt.figure()
             axes = default_layout(fig, len(images))
 
@@ -2515,7 +2515,7 @@ class Series(np.ndarray):
             fig = _ax.get_figure()
             axes = np.array(_ax).reshape((1,1))
         else:
-            if fig is not None:
+            if fig is None:
                 fig = plt.figure()
             axes = default_layout(fig, len(images))
 
