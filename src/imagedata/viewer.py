@@ -33,12 +33,16 @@ class Viewer(object):
         window (number): Window width of signal intensities. Default: DICOM Window Width.
         level (number): Window level of signal intensities. Default: DICOM Window Center.
         link (bool): Whether scrolling is linked between displayed objects. Default: False.
+        onselect (function): call function when roi changes. Default: None.
+            When a polygon is completed or modified after completion,
+            the *onselect* function is called and passed idx, tag and a list of the vertices as
+            ``(xdata, ydata)`` tuples.
 
     """
 
     def __init__(self, images, fig=None, ax=None, follow=False,
                  colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
-                 link=False):
+                 link=False, onselect=None):
         self.fig = fig
         self.ax = ax
         if self.ax is None:
@@ -67,6 +71,7 @@ class Viewer(object):
         self.vertices = None  # The polygon vertices, as a dictionary of tags of (x,y)
         self.poly = None
         self.paste_buffer = None
+        self.callback_onselect = onselect
         self.viewport = {}
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
@@ -315,11 +320,14 @@ class Viewer(object):
 
     def onselect(self, vertices):
         idx = self.im[0]['idx']
+        tag = None
         if self.follow:
             tag = self.im[0]['tag']
             self.vertices[tag, idx] = copy.copy(vertices)
         else:
             self.vertices[idx] = copy.copy(vertices)
+        if self.callback_onselect is not None:
+            self.callback_onselect(idx, tag, vertices)
 
     def on_copy(self, polygon):
         self.paste_buffer = polygon
@@ -647,6 +655,12 @@ class MyPolygonSelector(PolygonSelector):
                          lineprops=lineprops, markerprops=markerprops,
                          vertex_select_radius=vertex_select_radius)
 
+        try:
+            _ = self._xys
+            self._use_xys = True
+        except AttributeError as e:
+            self._use_xys = False
+
         self.tag = tag
         self.copy_handle = copy
         self.paste_handle = paste
@@ -667,12 +681,18 @@ class MyPolygonSelector(PolygonSelector):
         self.vertex_select_radius = vertex_select_radius
 
         if vertices is not None and len(vertices):
-            self._add_polygon(
-                [x for x, y in vertices],
-                [y for x, y in vertices]
-            )
+            if self._use_xys:
+                self.verts = vertices
+            else:
+                self._add_polygon(
+                    [x for x, y in vertices],
+                    [y for x, y in vertices]
+                )
 
     def _add_polygon(self, xs, ys):
+        """Add polygon.
+        Only used with old matplotlib using self._xs and self._ys.
+        """
         self._xs = copy.copy(xs)
         self._ys = copy.copy(ys)
         # Append end-point of closed polygon
@@ -693,6 +713,45 @@ class MyPolygonSelector(PolygonSelector):
         self.set_visible(True)
 
     def _on_key_release(self, event):
+        """Key release event handler"""
+        if self._use_xys:
+            self._on_key_release_38(event)
+        else:
+            self._on_key_release_33(event)
+
+    def _on_key_release_38(self, event):
+        """Key release event handler."""
+        # Add back the pending vertex if leaving the 'move_vertex' or
+        # 'move_all' mode (by checking the released key)
+        if (not self._selection_completed
+                and
+                (event.key == self._state_modifier_keys.get('move_vertex')
+                 or event.key == self._state_modifier_keys.get('move_all'))):
+            self._xys.append((event.xdata, event.ydata))
+            self._draw_polygon()
+        # Reset the polygon if the released key is the 'clear' key.
+        elif event.key == self._state_modifier_keys.get('clear'):
+            event = self._clean_event(event)
+            self._xys = [(event.xdata, event.ydata)]
+            self._selection_completed = False
+            self._remove_box()
+            self.set_visible(True)
+        # Copy polygon to paste buffer using handle
+        elif event.key.upper() == 'C':
+            if self.copy_handle is not None:
+                self.copy_handle(self)
+        # Add polygon from paste buffer handle
+        elif event.key.upper() == 'V':
+            if self.paste_handle is not None:
+                obj = self.paste_handle()
+                self.verts = obj.verts
+                self._selection_completed = obj._selection_completed
+                self._draw_polygon()
+                self.set_visible(True)
+                if self._selection_completed:
+                    self.onselect(self.verts)
+
+    def _on_key_release_33(self, event):
         """Key release event handler"""
         # Add back the pending vertex if leaving the 'move_vertex' or
         # 'move_all' mode (by checking the released key)
@@ -721,6 +780,9 @@ class MyPolygonSelector(PolygonSelector):
                 self._xs, self._ys = copy.copy(obj._xs), copy.copy(obj._ys)
                 self._polygon_completed = copy.copy(obj._polygon_completed)
                 self._draw_polygon()
+                self.set_visible(True)
+                if self._polygon_completed:
+                    self.onselect(self.verts)
 
 
 def default_layout(fig, n):
