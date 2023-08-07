@@ -209,13 +209,14 @@ class NiftiPlugin(AbstractPlugin):
                 q[2, 1] / dy, q[1, 1] / dy, q[0, 1] / dy
             ])
             #
-            # for _slice in range(nz):
-            #     _p = np.array([
-            #         (Q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
-            #         (Q[1, 2] * _slice + p[1]),
-            #         (Q[2, 2] * _slice + p[2])
-            #     ])
-            #     hdr.imagePositions[_slice] = _p[::-1]
+            p = sform[:3, 3]
+            for _slice in range(nz):
+                _p = np.array([
+                    (q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
+                    (q[1, 2] * _slice + p[1]),
+                    (q[2, 2] * _slice + p[2])
+                ])
+                hdr.imagePositions[_slice] = _p[::-1]
 
         elif qform is not None and qcode != 0:
             logger.debug("Method 2 - qform: orientation")

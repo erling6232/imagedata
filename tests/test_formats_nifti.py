@@ -139,9 +139,16 @@ class TestReadNIfTIPlugin(unittest.TestCase):
         self.assertEqual('dicom', dcm.input_format, "dicom input_format")
         # self.assertEqual('nifti', nifti.input_format, "nifti input_format")
         self.assertEqual(dcm.shape, nifti.shape, "shape")
+        self.assertEqual(dcm.slices, nifti.slices, "slices")
         # obj.assertEqual(dcm.dtype, nifti.dtype)
         np.testing.assert_allclose(nifti.spacing, dcm.spacing,
                                    rtol=1e-3, err_msg="spacing")
+
+        for s in range(dcm.slices):
+            np.testing.assert_allclose(nifti.imagePositions[s], dcm.imagePositions[s],
+                                       atol=1e-2, err_msg="imagePositions[{}]".format(s))
+        np.testing.assert_allclose(nifti.orientation, dcm.orientation,
+                                   atol=1e-2, err_msg="orientation")
         np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix,
                                    atol=1e-2, err_msg="transformationMatrix")
         np.testing.assert_array_equal(nifti, dcm, err_msg="voxel values")
