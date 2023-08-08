@@ -2054,6 +2054,7 @@ class Series(np.ndarray):
         """Align moving series (self) to reference.
         The moving series is resampled on the grid of the reference series.
         In effect the moving series is reformatted to the slices of the reference series.
+        The aligned image is rounded to nearest integer when the moving image is integer.
 
         Examples:
 
