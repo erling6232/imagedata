@@ -2139,6 +2139,9 @@ class Series(np.ndarray):
 
                 # Apply interpolator
                 imh = fnc(cref2mov)
+                if np.issubdtype(imreg.dtype, np.integer):
+                    # imh is always np.float64. Round to nearest integer
+                    imh = np.rint(imh)
                 imreg[i, ...] = np.reshape(imh,
                                            (reference.slices, reference.rows, reference.columns))
         elif moving.ndim == 3:
@@ -2165,6 +2168,9 @@ class Series(np.ndarray):
 
             # Apply interpolator
             imh = fnc(cref2mov)
+            if np.issubdtype(imreg.dtype, np.integer):
+                # imh is always np.float64. Round to nearest integer
+                imh = np.rint(imh)
             imreg[:] = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
         else:
             raise ValueError('Input has 2D, not implemented')
