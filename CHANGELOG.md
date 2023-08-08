@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc2] - 2023-08-08
+### Changed
+* Series.align(): Resulting image is rounded to nearest integer when the moving image is integer.
+
+## [v3.0.0-rc1] - 2023-08-07
+### Fixed
+* imagedata.formats.niftiplugin also calculates imagePositions on read.
+
 ## [v3.0.0-rc0] - 2023-08-03
 ### Changed
 * imagedata.formats.niftiplugin improved to handle nifti files
