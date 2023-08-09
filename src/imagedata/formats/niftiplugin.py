@@ -948,7 +948,7 @@ class NiftiPlugin(AbstractPlugin):
                 elif abs(orientVec[i]) == 2:
                     outInc[i] = h['dim'][1]
                 elif abs(orientVec[i]) == 3:
-                    outInc[i] = h['dim'][1] * h['dim'][2]
+                    outInc[i] = int(h['dim'][1]) * int(h['dim'][2])
                 if orientVec[i] < 0:
                     outInc[i] = -outInc[i]  # flip
             nvol = 1  # convert all non-spatial volumes from source to destination
