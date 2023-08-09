@@ -800,7 +800,7 @@ class NiftiPlugin(AbstractPlugin):
                              math.pow((v[1] - _min[1]), 2) +
                              math.pow((v[2] - _min[2]), 2))
 
-        def minCornerFlip(h: nibabel.Nifti1Header):
+        def minCornerFlip(h: nibabel.Nifti1Header) -> tuple:
             # Orthogonal rotations and reflections applied as 3x3 matrices will cause the origin
             # to shift. A simple solution is to first compute the most left, posterior, inferior
             # voxel in the source image. This voxel will be at location i,j,k = 0,0,0, so we can
@@ -813,7 +813,7 @@ class NiftiPlugin(AbstractPlugin):
             s = h.get_sform()
             dim = h.get_data_shape()
             for i in range(8):
-                flipVecs[i] = np.zeros(3)
+                flipVecs[i] = np.zeros(3, dtype=int)
                 flipVecs[i][0] = -1 if (i & 1) == 1 else 1
                 flipVecs[i][1] = -1 if (i & 2) == 1 else 1
                 flipVecs[i][2] = -1 if (i & 4) == 1 else 1
