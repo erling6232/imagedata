@@ -10,6 +10,7 @@ import argparse
 import fnmatch
 import pathlib
 import urllib.parse
+import traceback as tb
 from .formats import INPUT_ORDER_NONE, input_order_to_str, find_plugin, get_plugins_list
 from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
 from .transports import RootIsNotDirectory
@@ -282,6 +283,7 @@ def write(si, url, opts=None, formats=None):
             except Exception as e:
                 logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
                 msg = msg + '\n{}: {}'.format(ptype, e)
+                msg = msg + ''.join(tb.format_exception(None, e, e.__traceback__))
                 pass
             destination['archive'].close()
     if not written:
