@@ -912,9 +912,9 @@ class NiftiPlugin(AbstractPlugin):
                         nvol: int):
             # Reslice data to new orientation
             # Generate look up tables
-            xLUT = orthoOffsetArray(outDim[0], bytePerVox * outInc[0])
-            yLUT = orthoOffsetArray(outDim[1], bytePerVox * outInc[1])
-            zLUT = orthoOffsetArray(outDim[2], bytePerVox * outInc[2])
+            xLUT = orthoOffsetArray(outDim[0], outInc[0])
+            yLUT = orthoOffsetArray(outDim[1], outInc[1])
+            zLUT = orthoOffsetArray(outDim[2], outInc[2])
             # Convert data
             # number of voxels in spatial dimensions [1,2,3]
             # bytePerVol = bytePerVox*outDim[0]*outDim[1]*outDim[2]
@@ -923,34 +923,32 @@ class NiftiPlugin(AbstractPlugin):
             # outbuf = (uint8_t *) img  # source image
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
-                inbuf = np.copy(img[vol])  # copy source volume
+                inbuf = np.asarray(img.dataobj[vol]).flatten()  # copy source volume
                 for z in range(outDim[2]):
                     for y in range(outDim[1]):
                         for x in range(outDim[0]):
                             logger.error('Has not verified adressing')
                             # memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox)
-                            # Wrong? # img[vol, z, y, x] = inbuf[xLUT[x], yLUT[y], zLUT[z]]
-                            img[x, y, z, vol] = inbuf[xLUT[x], yLUT[y], zLUT[z]]
+                            img[x, y, z, vol] = inbuf[xLUT[x] + yLUT[y] + zLUT[z]]
                             # o += bytePerVox
 
         def reOrient(img, h, orientVec, orient, minMM):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
-            dim = h.get_data_shape()
-            columns, rows, slices = dim
+            columns, rows, slices = h.get_data_shape()
             nvox = columns * rows * slices
             if nvox < 1:
                 return img
-            outDim = np.zeros(3)
-            outInc = np.zeros(3)
+            outDim = np.zeros(3, dtype=int)
+            outInc = np.zeros(3, dtype=int)
             for i in range(3):  # set dimensions, pixdim
-                outDim[i] = dim[abs(orientVec[i])]
+                outDim[i] = h['dim'][abs(orientVec[i])]
                 if abs(orientVec[i]) == 1:
                     outInc[i] = 1
                 elif abs(orientVec[i]) == 2:
-                    outInc[i] = dim[1]
+                    outInc[i] = h['dim'][1]
                 elif abs(orientVec[i]) == 3:
-                    outInc[i] = dim[1] * dim[2]
+                    outInc[i] = h['dim'][1] * h['dim'][2]
                 if orientVec[i] < 0:
                     outInc[i] = -outInc[i]  # flip
             nvol = 1  # convert all non-spatial volumes from source to destination
