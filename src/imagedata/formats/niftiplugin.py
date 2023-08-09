@@ -934,34 +934,35 @@ class NiftiPlugin(AbstractPlugin):
         def reOrient(img, h, orientVec, orient, minMM):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
-            columns, rows, slices = h.get_data_shape()
+            dim = h.get_data_shape()
+            columns, rows, slices = dim
             nvox = columns * rows * slices
             if nvox < 1:
                 return img
             outDim = np.zeros(3)
             outInc = np.zeros(3)
             for i in range(3):  # set dimensions, pixdim
-                outDim[i] = h.dim[abs(orientVec[i])]
+                outDim[i] = dim[abs(orientVec[i])]
                 if abs(orientVec[i]) == 1:
                     outInc[i] = 1
                 elif abs(orientVec[i]) == 2:
-                    outInc[i] = h.dim[1]
+                    outInc[i] = dim[1]
                 elif abs(orientVec[i]) == 3:
-                    outInc[i] = h.dim[1] * h.dim[2]
+                    outInc[i] = dim[1] * dim[2]
                 if orientVec[i] < 0:
                     outInc[i] = -outInc[i]  # flip
             nvol = 1  # convert all non-spatial volumes from source to destination
             for vol in range(4, 8):
-                if h.dim[vol] > 1:
-                    nvol = nvol * h.dim[vol]
+                if h['dim'][vol] > 1:
+                    nvol = nvol * h['dim'][vol]
             reOrientImg(img, outDim, outInc, h['bitpix'] / 8, nvol)
             # now change the header....
-            outPix = np.array([h.pixdim[abs(orientVec[0])],
-                               h.pixdim[abs(orientVec[1])],
-                               h.pixdim[abs(orientVec[2])]])
+            outPix = np.array([h['pixdim'][abs(orientVec[0])],
+                               h['pixdim'][abs(orientVec[1])],
+                               h['pixdim'][abs(orientVec[2])]])
             for i in range(3):
-                h.dim[i + 1] = outDim[i]
-                h.pixdim[i + 1] = outPix[i]
+                h['dim'][i + 1] = outDim[i]
+                h['pixdim'][i + 1] = outPix[i]
             # mat44 s = sFormMat(h);
             s = h.get_sform()
             # mat33 mat; //computer transform
@@ -1010,7 +1011,7 @@ class NiftiPlugin(AbstractPlugin):
         img = reOrient(img, h, orientVec, orient, minMM)
         if is24:
             h['bitpix'] = 24
-            h.dim[3] = h.dim[3] / 3
+            h['dim'][3] = h['dim'][3] / 3
         logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
         return
