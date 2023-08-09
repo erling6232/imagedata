@@ -917,19 +917,19 @@ class NiftiPlugin(AbstractPlugin):
             zLUT = orthoOffsetArray(outDim[2], outInc[2])
             # Convert data
             # number of voxels in spatial dimensions [1,2,3]
-            # bytePerVol = bytePerVox*outDim[0]*outDim[1]*outDim[2]
+            perVol = outDim[0]*outDim[1]*outDim[2]
             # o = 0  # output address
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
+            inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
-                inbuf = np.asarray(img.dataobj[vol]).flatten()  # copy source volume
                 for z in range(outDim[2]):
                     for y in range(outDim[1]):
                         for x in range(outDim[0]):
                             logger.error('Has not verified adressing')
                             # memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox)
-                            img[x, y, z, vol] = inbuf[xLUT[x] + yLUT[y] + zLUT[z]]
+                            img[x, y, z, vol] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
                             # o += bytePerVox
 
         def reOrient(img, h, orientVec, orient, minMM):
