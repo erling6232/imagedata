@@ -922,7 +922,7 @@ class NiftiPlugin(AbstractPlugin):
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
             inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
-            outbuf = np.empty(tuple(outDim), dtype=inbuf)
+            outbuf = np.empty(tuple(outDim), dtype=inbuf.dtype)
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
                 for z in range(outDim[2]):
