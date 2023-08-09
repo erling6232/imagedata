@@ -1002,16 +1002,7 @@ class NiftiPlugin(AbstractPlugin):
         if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
             logger.debug("Image already near best orthogonal alignment: no need to reorient")
             return img
-        is24 = False
-        if h['bitpix'] == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
-            pass
-            # is24 = True
-            # h['bitpix'] = 8
-            # h.dim[3] = h.dim[3] * 3
         img = reOrient(img, h, orientVec, orient, minMM)
-        if is24:
-            h['bitpix'] = 24
-            h['dim'][3] = h['dim'][3] / 3
         logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
         return img
