@@ -954,7 +954,7 @@ class NiftiPlugin(AbstractPlugin):
             for vol in range(4, 8):
                 if h.dim[vol] > 1:
                     nvol = nvol * h.dim[vol]
-            reOrientImg(img, outDim, outInc, h.bitpix / 8, nvol)
+            reOrientImg(img, outDim, outInc, h['bitpix'] / 8, nvol)
             # now change the header....
             outPix = np.array([h.pixdim[abs(orientVec[0])],
                                h.pixdim[abs(orientVec[1])],
@@ -1002,14 +1002,14 @@ class NiftiPlugin(AbstractPlugin):
             logger.debug("Image already near best orthogonal alignment: no need to reorient")
             return
         is24 = False
-        if h.bitpix == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
+        if h['bitpix'] == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
             return
             # is24 = True
-            # h.bitpix = 8
+            # h['bitpix'] = 8
             # h.dim[3] = h.dim[3] * 3
         img = reOrient(img, h, orientVec, orient, minMM)
         if is24:
-            h.bitpix = 24
+            h['bitpix'] = 24
             h.dim[3] = h.dim[3] / 3
         logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
