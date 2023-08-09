@@ -942,7 +942,7 @@ class NiftiPlugin(AbstractPlugin):
             outDim = np.zeros(3, dtype=int)
             outInc = np.zeros(3, dtype=int)
             for i in range(3):  # set dimensions, pixdim
-                outDim[i] = h['dim'][abs(orientVec[i])-1]
+                outDim[i] = h['dim'][abs(orientVec[i])]
                 if abs(orientVec[i]) == 1:
                     outInc[i] = 1
                 elif abs(orientVec[i]) == 2:
