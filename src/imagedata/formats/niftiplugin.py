@@ -923,9 +923,9 @@ class NiftiPlugin(AbstractPlugin):
             # outbuf = (uint8_t *) img  # source image
             inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
             outbuf = np.empty_like(inbuf)
+            o = 0
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
-                o = vol*perVol
                 for z in range(outDim[2]):
                     for y in range(outDim[1]):
                         for x in range(outDim[0]):
