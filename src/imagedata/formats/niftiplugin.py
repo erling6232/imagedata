@@ -885,7 +885,7 @@ class NiftiPlugin(AbstractPlugin):
         def setOrientVec(m: np.ndarray) -> np.ndarray:
             # Assumes isOrthoMat NOT computed on INVERSE, hence return INVERSE of solution...
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
-            ret = np.array([0, 0, 0])
+            ret = np.array([0, 0, 0], dtype=int)
             for i in range(3):
                 for j in range(3):
                     if m[i, j] > 0:
@@ -898,7 +898,7 @@ class NiftiPlugin(AbstractPlugin):
             # return lookup table of length dim with values incremented by stepBytesPerVox
             #  e.g. if Dim=10 and stepBytes=2: 0,2,4..18, is stepBytes=-2 18,16,14...0
             # size_t *lut= (size_t *)malloc(dim*sizeof(size_t));
-            lut = np.zeros(dim)
+            lut = np.zeros(dim, dtype=int)
             if stepBytesPerVox > 0:
                 lut[0] = 0
             else:
