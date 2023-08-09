@@ -942,7 +942,7 @@ class NiftiPlugin(AbstractPlugin):
             outDim = np.zeros(3, dtype=int)
             outInc = np.zeros(3, dtype=int)
             for i in range(3):  # set dimensions, pixdim
-                outDim[i] = h['dim'][abs(orientVec[i])]
+                outDim[i] = h['dim'][abs(orientVec[i])-1]
                 if abs(orientVec[i]) == 1:
                     outInc[i] = 1
                 elif abs(orientVec[i]) == 2:
@@ -957,9 +957,9 @@ class NiftiPlugin(AbstractPlugin):
                     nvol = nvol * h['dim'][vol]
             reOrientImg(img, outDim, outInc, nvol)
             # now change the header....
-            outPix = np.array([h['pixdim'][abs(orientVec[0])],
-                               h['pixdim'][abs(orientVec[1])],
-                               h['pixdim'][abs(orientVec[2])]])
+            outPix = np.array([h['pixdim'][abs(orientVec[0])-1],
+                               h['pixdim'][abs(orientVec[1])-1],
+                               h['pixdim'][abs(orientVec[2])-1]])
             for i in range(3):
                 h['dim'][i + 1] = outDim[i]
                 h['pixdim'][i + 1] = outPix[i]
