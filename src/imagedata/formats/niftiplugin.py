@@ -960,9 +960,9 @@ class NiftiPlugin(AbstractPlugin):
                     nvol = nvol * h['dim'][vol]
             img = reOrientImg(img, outDim, outInc, nvol)
             # now change the header....
-            outPix = np.array([h['pixdim'][abs(orientVec[0])-1],
-                               h['pixdim'][abs(orientVec[1])-1],
-                               h['pixdim'][abs(orientVec[2])-1]])
+            outPix = np.array([h['pixdim'][abs(orientVec[0])],
+                               h['pixdim'][abs(orientVec[1])],
+                               h['pixdim'][abs(orientVec[2])]])
             for i in range(3):
                 h['dim'][i + 1] = outDim[i]
                 h['pixdim'][i + 1] = outPix[i]
