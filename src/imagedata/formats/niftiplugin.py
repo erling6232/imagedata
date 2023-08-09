@@ -922,16 +922,17 @@ class NiftiPlugin(AbstractPlugin):
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
             inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
-            outbuf = np.empty(tuple(outDim), dtype=inbuf.dtype)
+            outbuf = np.empty_like(inbuf)
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
+                o = vol*perVol
                 for z in range(outDim[2]):
                     for y in range(outDim[1]):
                         for x in range(outDim[0]):
-                            logger.error('Has not verified adressing')
                             # memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox)
-                            outbuf[x, y, z, vol] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
-                            # o += bytePerVox
+                            outbuf[o] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
+                            o += 1
+            outbuf = np.reshape(outbuf, tuple(outDim))
             return nibabel.Nifti1Image(outbuf, img.affine, img.header)
 
         def reOrient(img, h, orientVec, orient, minMM):
