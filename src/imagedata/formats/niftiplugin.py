@@ -934,7 +934,7 @@ class NiftiPlugin(AbstractPlugin):
         def reOrient(img, h, orientVec, orient, minMM):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
-            columns, rows, slices = img.get_data_shape()
+            columns, rows, slices = h.get_data_shape()
             nvox = columns * rows * slices
             if nvox < 1:
                 return img
