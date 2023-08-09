@@ -419,7 +419,7 @@ class NiftiPlugin(AbstractPlugin):
         if slice_direction < 0:
             img = self._nii_flip_slices(img)
             # slice_direction = abs(slice_direction)
-        self._nii_set_ortho(img)
+        img = self._nii_set_ortho(img)
         flip_y = True  # Always
         if flip_y:
             img = self._nii_flip_y(img)
@@ -909,7 +909,7 @@ class NiftiPlugin(AbstractPlugin):
             return lut
 
         def reOrientImg(img: nibabel.Nifti1Image, outDim: np.ndarray, outInc: np.ndarray,
-                        nvol: int):
+                        nvol: int) -> nibabel.Nifti1Image:
             # Reslice data to new orientation
             # Generate look up tables
             xLUT = orthoOffsetArray(outDim[0], outInc[0])
@@ -921,8 +921,8 @@ class NiftiPlugin(AbstractPlugin):
             # o = 0  # output address
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
-            outbuf = np.asarray(img.dataobj).flatten()  # copy source volume
-            inbuf = np.reshape(outbuf, outDim)
+            inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
+            outbuf = np.reshape(inbuf, outDim)
             for vol in range(nvol):  # for each volume
                 # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
                 for z in range(outDim[2]):
@@ -930,8 +930,9 @@ class NiftiPlugin(AbstractPlugin):
                         for x in range(outDim[0]):
                             logger.error('Has not verified adressing')
                             # memcpy(&outbuf[o], &inbuf[xLUT[x]+yLUT[y]+zLUT[z]], bytePerVox)
-                            img[x, y, z, vol] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
+                            outbuf[x, y, z, vol] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
                             # o += bytePerVox
+            return nibabel.Nifti1Image(outbuf, img.affine, img.header)
 
         def reOrient(img, h, orientVec, orient, minMM):
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
@@ -956,7 +957,7 @@ class NiftiPlugin(AbstractPlugin):
             for vol in range(4, 8):
                 if h['dim'][vol] > 1:
                     nvol = nvol * h['dim'][vol]
-            reOrientImg(img, outDim, outInc, nvol)
+            img = reOrientImg(img, outDim, outInc, nvol)
             # now change the header....
             outPix = np.array([h['pixdim'][abs(orientVec[0])-1],
                                h['pixdim'][abs(orientVec[1])-1],
@@ -992,14 +993,14 @@ class NiftiPlugin(AbstractPlugin):
         s = h.get_sform()
         if isMat44Canonical(s):
             logger.debug("Image in perfect alignment: no need to reorient")
-            return
+            return img
         flipV = np.zeros(3)
         minMM, flipV = minCornerFlip(h)
         orient = getBestOrient(s, flipV)
         orientVec = setOrientVec(orient)
         if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
             logger.debug("Image already near best orthogonal alignment: no need to reorient")
-            return
+            return img
         is24 = False
         if h['bitpix'] == 24:  # RGB stored as planar data. Treat as 3 8-bit slices
             pass
@@ -1012,6 +1013,7 @@ class NiftiPlugin(AbstractPlugin):
             h['dim'][3] = h['dim'][3] / 3
         logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
         logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
+        return img
 
     def _nii_flip_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
         """Flip image along Y direction.
