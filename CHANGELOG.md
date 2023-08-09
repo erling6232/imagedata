@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc3] - 2023-08-09
+### Fixed
+* imagedata.formats.niftiplugin corrected for rotated volumes.
+### Changed
+* Drop support for Python 3.6.
+* Require nibabel version 4.0.0 or later.
+
 ## [v3.0.0-rc2] - 2023-08-08
 ### Changed
 * Series.align(): Resulting image is rounded to nearest integer when the moving image is integer.
