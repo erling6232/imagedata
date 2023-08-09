@@ -283,7 +283,7 @@ def write(si, url, opts=None, formats=None):
             except Exception as e:
                 logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
                 msg = msg + '\n{}: {}'.format(ptype, e)
-                msg = msg + ''.join(tb.format_exception(None, e, e.__traceback__))
+                msg = msg + '\n' + ''.join(tb.format_exception(None, e, e.__traceback__))
                 pass
             destination['archive'].close()
     if not written:
