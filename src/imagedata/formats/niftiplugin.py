@@ -419,7 +419,7 @@ class NiftiPlugin(AbstractPlugin):
         if slice_direction < 0:
             img = self._nii_flip_slices(img)
             # slice_direction = abs(slice_direction)
-        img = self._nii_set_ortho(img)
+        # img = self._nii_set_ortho(img)
         flip_y = True  # Always
         if flip_y:
             img = self._nii_flip_y(img)
