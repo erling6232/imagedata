@@ -419,7 +419,7 @@ class NiftiPlugin(AbstractPlugin):
         if slice_direction < 0:
             img = self._nii_flip_slices(img)
             # slice_direction = abs(slice_direction)
-        img = self._nii_set_ortho(img)
+        # img = self._nii_set_ortho(img)
         flip_y = True  # Always
         if flip_y:
             img = self._nii_flip_y(img)
@@ -921,8 +921,6 @@ class NiftiPlugin(AbstractPlugin):
             # o = 0  # output address
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
-            data = np.asarray(img.dataobj)
-            strides = data.strides
             inbuf = np.asarray(img.dataobj).flatten()  # copy source volume
             outbuf = np.empty_like(inbuf)
             o = 0
