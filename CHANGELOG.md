@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc4] - 2023-08-10
+### Changed
+* imagedata.formats.niftiplugin: Use sform, not qform, when possible.
+* Removed unused testing code.
+
 ## [v3.0.0-rc3] - 2023-08-09
 ### Fixed
 * imagedata.formats.niftiplugin corrected for rotated volumes.

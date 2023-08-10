@@ -52,15 +52,6 @@ class TestMatZipRead(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
-    @unittest.skip("skipping test_read_two_files")
-    def test_read_two_files(self):
-        si1 = Series(
-            os.path.join('data', 'mat', 'time.zip?*Image_0000[01].mat'),
-            imagedata.formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 40, 192, 152))
-
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):
         si1 = Series(
