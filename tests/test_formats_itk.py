@@ -230,52 +230,6 @@ class TestWritePluginItkTag(unittest.TestCase):
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['itk']
 
-    @unittest.skip("skipping test_write_3d_itk")
-    def test_write_3d_itk(self):
-        log = logging.getLogger("TestWritePluginITK.test_write_3d_itk")
-        log.debug("test_write_3d_itk")
-        si = Series(
-            os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
-            'none',
-            self.opts)
-        self.assertEqual(si.dtype, np.uint16)
-        self.assertEqual(si.shape, (40, 192, 152))
-
-        # log.debug("test_write_3d_itk: sliceLocations {}".format(
-        #    si.sliceLocations))
-        log.debug("test_write_3d_itk: tags {}".format(si.tags))
-        log.debug("test_write_3d_itk: spacing {}".format(si.spacing))
-        log.debug("test_write_3d_itk: imagePositions {}".format(
-            si.imagePositions))
-        log.debug("test_write_3d_itk: orientation {}".format(si.orientation))
-
-        # Modify header
-        si.sliceLocations = [i for i in range(40)]
-        si.spacing = (3, 2, 1)
-        for slice in range(len(si.sliceLocations)):
-            si.imagePositions = {
-                slice:
-                    np.array([slice, 1, 0])
-            }
-        for slice in range(si.shape[1]):
-            si.imagePositions = {
-                slice: si.getPositionForVoxel(np.array([slice, 0, 0]))
-            }
-
-        # Store image with modified header
-        with tempfile.TemporaryDirectory() as d:
-            si.write(d, self.opts)
-
-            # Read back the ITK data and verify that the header was modified
-            si2 = Series(
-                d,
-                'none',
-                self.opts)
-        self.assertEqual(si.shape, si2.shape)
-        np.testing.assert_array_equal(si, si2)
-        # np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
-        compare_headers(self, si, si2)
-
     # @unittest.skip("skipping test_write_4d_itk")
     def test_write_4d_itk(self):
         log = logging.getLogger("TestWritePlugin.test_write_4d_itk")

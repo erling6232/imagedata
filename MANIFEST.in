@@ -20,6 +20,7 @@ recursive-include data *.zip
 recursive-include data *.nii.gz
 # prune data
 prune .idea
+prune venv
 prune devtests
 include docs
 prune docs/_build
