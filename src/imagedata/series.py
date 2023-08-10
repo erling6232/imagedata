@@ -2424,7 +2424,7 @@ class Series(np.ndarray):
                 except (TypeError, IndexError):
                     _ax = ax
             fig = _ax.get_figure()
-            axes = np.array(_ax).reshape((1,1))
+            axes = np.array(_ax).reshape((1, 1))
         else:
             if fig is None:
                 fig = plt.figure()
@@ -2520,7 +2520,7 @@ class Series(np.ndarray):
                 except (TypeError, IndexError):
                     _ax = ax
             fig = _ax.get_figure()
-            axes = np.array(_ax).reshape((1,1))
+            axes = np.array(_ax).reshape((1, 1))
         else:
             if fig is None:
                 fig = plt.figure()

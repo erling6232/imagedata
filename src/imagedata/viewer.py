@@ -3,8 +3,7 @@ import copy
 import matplotlib.colors
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
-from matplotlib.widgets import PolygonSelector, ToolHandles
-from matplotlib.lines import Line2D
+from matplotlib.widgets import PolygonSelector
 # from matplotlib.widgets import Slider
 from matplotlib.path import Path as MplPath
 import mpl_toolkits.axes_grid1
