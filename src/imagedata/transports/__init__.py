@@ -44,8 +44,8 @@ def Transport(
     if netloc is None and root is None:
         url_tuple = parse.urlsplit(scheme)
         scheme = url_tuple.scheme
-        netloc = url_tuple.hostname
-        # netloc = url_tuple.netloc
+        # netloc = url_tuple.hostname
+        netloc = url_tuple.netloc
         try:
             opts['username'] = url_tuple.username
         except AttributeError:
