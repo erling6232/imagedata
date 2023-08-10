@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc5] - 2023-08-xx
+### Added
+* Series.show() and Series.get_roi() take an `ax` argument to show image in existing matplotlib Axes.
+* Series.get_roi() takes an `onselect` callback function which is called when the ROI is modified.
+
 ## [v3.0.0-rc4] - 2023-08-10
 ### Changed
 * Drop dependency on importlib_metadata.
