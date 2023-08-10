@@ -31,7 +31,6 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_almost_equal(qform1, qform2, decimal=4)
 
         si1, si2 = np.asarray(img1.dataobj), np.asarray(img2.dataobj)
-        # self.assertEqual(si1.dtype, si2.dtype, "dtype")
         np.testing.assert_array_equal(si1, si2)
 
     def test_tra_rl(self):
