@@ -22,10 +22,8 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape(), "get_data_shape")
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
-        sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
-        # print("{} sform:\n{}\n{} sform:\n{}".format(descr1, sform1, descr2, sform2))
         self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
-        # self.assertEqual(sform1, sform2)
+        sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
         qform1, qform2 = hdr1.get_qform(coded=True)[0], hdr2.get_qform(coded=True)[0]
         if qform1 is not None:
@@ -33,7 +31,6 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_almost_equal(qform1, qform2, decimal=4)
 
         si1, si2 = np.asarray(img1.dataobj), np.asarray(img2.dataobj)
-        # self.assertEqual(si1.dtype, si2.dtype, "dtype")
         np.testing.assert_array_equal(si1, si2)
 
     def test_tra_rl(self):
@@ -137,18 +134,16 @@ class TestReadNIfTIPlugin(unittest.TestCase):
 
     def _compare_dicom_data(self, dcm, nifti):
         self.assertEqual('dicom', dcm.input_format, "dicom input_format")
-        # self.assertEqual('nifti', nifti.input_format, "nifti input_format")
         self.assertEqual(dcm.shape, nifti.shape, "shape")
         self.assertEqual(dcm.slices, nifti.slices, "slices")
-        # obj.assertEqual(dcm.dtype, nifti.dtype)
         np.testing.assert_allclose(nifti.spacing, dcm.spacing,
-                                   rtol=1e-3, err_msg="spacing")
+                                   atol=1e-4, err_msg="spacing")
 
         for s in range(dcm.slices):
             np.testing.assert_allclose(nifti.imagePositions[s], dcm.imagePositions[s],
-                                       atol=1e-2, err_msg="imagePositions[{}]".format(s))
+                                       atol=1e-3, err_msg="imagePositions[{}]".format(s))
         np.testing.assert_allclose(nifti.orientation, dcm.orientation,
-                                   atol=1e-2, err_msg="orientation")
+                                   atol=1e-6, err_msg="orientation")
         np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix,
                                    atol=1e-2, err_msg="transformationMatrix")
         np.testing.assert_array_equal(nifti, dcm, err_msg="voxel values")
