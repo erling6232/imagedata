@@ -2366,7 +2366,7 @@ class Series(np.ndarray):
         rgb.header.add_template(self.header)
         return rgb
 
-    def show(self, im2=None, fig=None, colormap='Greys_r', norm='linear', colorbar=None,
+    def show(self, im2=None, fig=None, ax=None, colormap='Greys_r', norm='linear', colorbar=None,
              window=None, level=None, link=False):
         """Interactive display of series on screen.
 
@@ -2383,6 +2383,7 @@ class Series(np.ndarray):
             im2 (Series or list of Series): Series or list of Series which will be displayed in
                 addition to self.
             fig (matplotlib.plt.Figure, optional): if already exist
+            ax (matplotlib.plt.Axes, optional): if already exist
             colormap (str): color map for display. Default: 'Greys_r'
             norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
                 the `.Normalize` instance used to scale scalar data to the [0, 1] range before
@@ -2414,10 +2415,21 @@ class Series(np.ndarray):
                 images.append(im2)  # Append single Series instance
 
         # Create or connect to canvas
-        if fig is None:
-            fig = plt.figure()
+        if ax is not None:
+            try:
+                _ax = ax[0][0]
+            except (TypeError, IndexError):
+                try:
+                    _ax = ax[0]
+                except (TypeError, IndexError):
+                    _ax = ax
+            fig = _ax.get_figure()
+            axes = np.array(_ax).reshape((1, 1))
+        else:
+            if fig is None:
+                fig = plt.figure()
+            axes = default_layout(fig, len(images))
 
-        axes = default_layout(fig, len(images))
         try:
             self.viewer = Viewer(images, fig=fig, ax=axes,
                                  colormap=colormap, norm=norm, colorbar=colorbar,
@@ -2431,8 +2443,9 @@ class Series(np.ndarray):
             self.viewer.disconnect()
 
     def get_roi(self, roi=None, color='r', follow=False, vertices=False, im2=None, fig=None,
+                ax=None,
                 colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
-                link=False, single=False):
+                link=False, single=False, onselect=None):
         """Let user draw ROI on image.
 
         Examples:
@@ -2451,6 +2464,7 @@ class Series(np.ndarray):
             im2 (Series or list of Series): Series or list of Series which will be displayed in
                 addition to self.
             fig (matplotlib.plt.Figure, optional) if already exist
+            ax (matplotlib.plt.Figure, optional) if already exist
             colormap (str): colour map for display. Default: 'Greys_r'
             norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log, or
                 the `.Normalize` instance used to scale scalar data to the [0, 1] range before
@@ -2461,6 +2475,10 @@ class Series(np.ndarray):
             level (number): window level of signal intensities. Default is DICOM Window Center.
             link (bool): whether scrolling is linked between displayed objects. Default: False.
             single (bool): draw ROI in single slice per tag. Default: False.
+            onselect (function): call function when roi change. Default: None.
+                When a polygon is completed or modified after completion,
+                the *onselect* function is called and passed a list of the vertices as
+                ``(xdata, ydata)`` tuples.
 
         Returns:
             If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
@@ -2493,14 +2511,25 @@ class Series(np.ndarray):
                 images.append(im2)  # Append single Series instance
 
         # Create or connect to canvas
-        if fig is None:
-            fig = plt.figure()
+        if ax is not None:
+            try:
+                _ax = ax[0][0]
+            except (TypeError, IndexError):
+                try:
+                    _ax = ax[0]
+                except (TypeError, IndexError):
+                    _ax = ax
+            fig = _ax.get_figure()
+            axes = np.array(_ax).reshape((1, 1))
+        else:
+            if fig is None:
+                fig = plt.figure()
+            axes = default_layout(fig, len(images))
 
-        axes = default_layout(fig, len(images))
         try:
             self.viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
                                  colormap=colormap, norm=norm, colorbar=colorbar,
-                                 window=window, level=level, link=link)
+                                 window=window, level=level, link=link, onselect=onselect)
         except AssertionError:
             raise
         self.viewer.connect_draw(roi=roi, color=color)
