@@ -22,9 +22,9 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape(), "get_data_shape")
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
+        self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
         # print("{} sform:\n{}\n{} sform:\n{}".format(descr1, sform1, descr2, sform2))
-        self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
         # self.assertEqual(sform1, sform2)
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
         qform1, qform2 = hdr1.get_qform(coded=True)[0], hdr2.get_qform(coded=True)[0]

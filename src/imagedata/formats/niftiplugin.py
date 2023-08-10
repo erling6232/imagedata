@@ -700,7 +700,7 @@ class NiftiPlugin(AbstractPlugin):
             return slice_direction
 
         # find Z-slice direction: row with highest magnitude of 1st column
-        q44 = h.get_qform()
+        q44 = h.get_sform()
         slice_direction = -1  # By convention all sagital series are reversed
         if (abs(q44[1, 2]) >= abs(q44[0, 2])) and (abs(q44[1, 2]) >= abs(q44[2, 2])):
             slice_direction = 2
