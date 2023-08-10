@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.0.0-rc4] - 2023-08-10
 ### Changed
+* Drop dependency on importlib_metadata.
+* Require numpy version 1.19 or later.
+* Require nibabel version 5.0.0 or later.
 * Drop support for Python 3.7.
 * imagedata.formats.niftiplugin: Use sform, not qform, when possible.
 * Removed unused testing code.
