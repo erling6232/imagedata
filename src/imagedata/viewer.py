@@ -655,12 +655,6 @@ class MyPolygonSelector(PolygonSelector):
                          lineprops=lineprops, markerprops=markerprops,
                          vertex_select_radius=vertex_select_radius)
 
-        try:
-            _ = self._xys
-            self._use_xys = True
-        except AttributeError as e:
-            self._use_xys = False
-
         self.tag = tag
         self.copy_handle = copy
         self.paste_handle = paste
@@ -681,45 +675,9 @@ class MyPolygonSelector(PolygonSelector):
         self.vertex_select_radius = vertex_select_radius
 
         if vertices is not None and len(vertices):
-            if self._use_xys:
-                self.verts = vertices
-            else:
-                self._add_polygon(
-                    [x for x, y in vertices],
-                    [y for x, y in vertices]
-                )
-
-    def _add_polygon(self, xs, ys):
-        """Add polygon.
-        Only used with old matplotlib using self._xs and self._ys.
-        """
-        self._xs = copy.copy(xs)
-        self._ys = copy.copy(ys)
-        # Append end-point of closed polygon
-        self._xs.append(self._xs[0])
-        self._ys.append(self._ys[0])
-        self._polygon_completed = True
-
-        self.line = Line2D(self._xs, self._ys, **self.lineprops)
-        self.ax.add_line(self.line)
-
-        self._polygon_handles = ToolHandles(self.ax, self._xs, self._ys,
-                                            useblit=self.useblit,
-                                            marker_props=self.markerprops)
-
-        self._active_handle_idx = -1
-
-        self.artists = [self.line, self._polygon_handles.artist]
-        self.set_visible(True)
+            self.verts = vertices
 
     def _on_key_release(self, event):
-        """Key release event handler"""
-        if self._use_xys:
-            self._on_key_release_38(event)
-        else:
-            self._on_key_release_33(event)
-
-    def _on_key_release_38(self, event):
         """Key release event handler."""
         # Add back the pending vertex if leaving the 'move_vertex' or
         # 'move_all' mode (by checking the released key)
@@ -749,39 +707,6 @@ class MyPolygonSelector(PolygonSelector):
                 self._draw_polygon()
                 self.set_visible(True)
                 if self._selection_completed:
-                    self.onselect(self.verts)
-
-    def _on_key_release_33(self, event):
-        """Key release event handler"""
-        # Add back the pending vertex if leaving the 'move_vertex' or
-        # 'move_all' mode (by checking the released key)
-        if (not self._polygon_completed
-                and
-                (event.key == self.state_modifier_keys.get('move_vertex')
-                 or event.key == self.state_modifier_keys.get('move_all'))):
-            self._xs.append(event.xdata)
-            self._ys.append(event.ydata)
-            self._draw_polygon()
-        # Reset the polygon if the released key is the 'clear' key.
-        elif event.key == self.state_modifier_keys.get('clear'):
-            event = self._clean_event(event)
-            self._xs, self._ys = [event.xdata], [event.ydata]
-            self._polygon_completed = False
-            self._draw_polygon()
-            self.set_visible(True)
-        # Copy polygon to paste buffer using handle
-        elif event.key.upper() == 'C':
-            if self.copy_handle is not None:
-                self.copy_handle(self)
-        # Add polygon from paste buffer handle
-        elif event.key.upper() == 'V':
-            if self.paste_handle is not None:
-                obj = self.paste_handle()
-                self._xs, self._ys = copy.copy(obj._xs), copy.copy(obj._ys)
-                self._polygon_completed = copy.copy(obj._polygon_completed)
-                self._draw_polygon()
-                self.set_visible(True)
-                if self._polygon_completed:
                     self.onselect(self.verts)
 
 
