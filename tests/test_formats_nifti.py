@@ -324,7 +324,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
                 self.nifti_plugin = pclass
         self.assertIsNotNone(self.nifti_plugin)
 
-    def test_write_4d_nifti(self):
+    def test_write_4d_nifti_time(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
             imagedata.formats.INPUT_ORDER_TIME,
@@ -347,6 +347,23 @@ class Test4DNIfTIPlugin(unittest.TestCase):
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
+
+    def test_write_4d_nifti_dwi(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'dwi'),
+            imagedata.formats.INPUT_ORDER_B,
+            self.opts
+        )
+        self.assertEqual(si1.shape, (3, 30, 384, 312))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['nifti'], opts=self.opts)
+            # Read back the NIfTI data and verify
+            si2 = Series(d,
+                         imagedata.formats.INPUT_ORDER_B,
+                         self.opts)
+            self.assertEqual(si1.shape, si2.shape)
+            np.testing.assert_array_almost_equal(si1.spacing, si2.spacing)
+            np.testing.assert_array_equal(si1, si2)
 
 
 if __name__ == '__main__':

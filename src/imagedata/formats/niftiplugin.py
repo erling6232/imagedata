@@ -493,7 +493,7 @@ class NiftiPlugin(AbstractPlugin):
                 dt = dcm.timeline[1] - dcm.timeline[0]
                 hdr.set_zooms((dc, dr, ds, dt))
             else:
-                hdr.set_zooms((dc, dr, ds))
+                hdr.set_zooms((dc, dr, ds, 1))
         hdr.set_xyzt_units(xyz='mm', t='sec')
         affine = np.zeros((4, 4))
         affine[0, 0] = -1

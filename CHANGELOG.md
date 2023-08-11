@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.0.0-rc5] - 2023-08-xx
+## [v3.0.0-rc5] - 2023-08-11
+### Fixed
+* imagedata.format.niftiplugin: Corrected writing 4D images.
+When the 4th dimension is not time, the zoom is set to 1.
+
 ### Added
 * Series.show() and Series.get_roi() take an `ax` argument to show image in existing matplotlib Axes.
 * Series.get_roi() takes an `onselect` callback function which is called when the ROI is modified.
