@@ -865,11 +865,9 @@ def get_level(si, level):
         except TypeError:
             pass
     if level is None:
-        diff = si.max() - si.min()
-        if abs(diff) < 2:
-            level = (float(si.max()) - si.min()) / 2
-        else:
-            level = (si.max() - si.min()) / 2
+        level = (np.float32(si.max()) + np.float32(si.min())) / 2
+        if abs(level) > 2:
+            level = round(level)
     return level
 
 
@@ -887,7 +885,9 @@ def get_window_level(si, norm, window, level):
         except TypeError:
             pass
     if window is None:
-        window = si.max() - si.min()
+        window = np.float32(si.max()) - np.float32(si.min())
+        if abs(window) > 2:
+            window = round(window)
     level = get_level(si, level)
     vmin, vmax = _check_vmin_vmax(level - window / 2, level + window / 2, norm)
     return window, level, vmin, vmax
