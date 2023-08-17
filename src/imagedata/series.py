@@ -209,6 +209,10 @@ class Series(np.ndarray):
         else:
             self.header = Header()
             self.header.set_default_values(self.axes)
+            if self.ndim > 0:
+                _level, _width = self.__calculate_window()
+                self.setDicomAttribute('WindowCenter', _level)
+                self.setDicomAttribute('WindowWidth', _width)
 
         # We do not need to return anything
 
@@ -271,8 +275,9 @@ class Series(np.ndarray):
         if results and isinstance(results[0], Series):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
-            results[0].setDicomAttribute('WindowCenter', results[0].max() / 2)
-            results[0].setDicomAttribute('WindowWidth', results[0].max())
+            _level, _width = results[0].__calculate_window()
+            results[0].setDicomAttribute('WindowCenter', _level)
+            results[0].setDicomAttribute('WindowWidth', _width)
 
         return results[0] if len(results) == 1 else results
 
@@ -605,6 +610,23 @@ class Series(np.ndarray):
                     raise IndexError("Could not get tag for slice {}, tag {}".format(s, t))
             j += 1
         return new_tags
+
+    def __calculate_window(self):
+        if np.issubdtype(self.dtype, np.integer):
+            _min_value = self.min()
+            _max_value = self.max()
+            _width = _max_value - _min_value
+            if abs(_width) < 2:
+                _width = np.float32(_max_value) - np.float32(_min_value)
+                _level = np.float32((_min_value + _max_value) / 2)
+            else:
+                _level = (_min_value + _max_value) // 2
+        else:
+            _min_value = np.float32(self.min())
+            _max_value = np.float32(self.max())
+            _width = _max_value - _min_value
+            _level = np.float32((_min_value + _max_value) / 2)
+        return _level, _width
 
     def write(self, url, opts=None, formats=None):
         """Write Series image
