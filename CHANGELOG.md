@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Window center and level are now calculated using float32.
 * Series: Calculate proper window center and level when a new instance is created.
 * imagedata.formats.dicomplugin: write_slice will change Series into ndarray before rescaling content.
-This avoid crosstalk with original window center and level in Series.
+This avoids crosstalk with original window center and level in Series.
 
 ## [v3.0.0-rc5] - 2023-08-11
 ### Fixed
