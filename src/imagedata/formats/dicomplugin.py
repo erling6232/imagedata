@@ -1130,12 +1130,6 @@ class DICOMPlugin(AbstractPlugin):
         filename = 'dummy'
         logger.debug("write_enhanced {} {}".format(filename, self.serInsUid))
 
-        # if np.issubdtype(si.dtype, np.floating):
-        if si.dtype.kind == 'f':
-            safe_si = np.nan_to_num(si)
-        else:
-            safe_si = si
-
         try:
             tg, member_name, im = si.DicomHeaderDict[0][0]
         except (KeyError, IndexError):
@@ -1148,7 +1142,7 @@ class DICOMPlugin(AbstractPlugin):
             si.header.seriesInstanceUID = si.header.new_uid()
         self.serInsUid = si.header.seriesInstanceUID
 
-        ds = self.construct_enhanced_dicom(filename_template, im, safe_si)
+        ds = self.construct_enhanced_dicom(filename_template, im, si)
 
         # Add header information
         try:
@@ -1208,16 +1202,16 @@ class DICOMPlugin(AbstractPlugin):
         ds[0x0028, 0x0109].VR = 'US'
         ds.WindowCenter = self.center
         ds.WindowWidth = self.width
-        if safe_si.dtype in self.smallint or np.issubdtype(safe_si.dtype, np.bool_):
-            ds.SmallestImagePixelValue = np.uint16(safe_si.min().astype('uint16'))
-            ds.LargestImagePixelValue = np.uint16(safe_si.max().astype('uint16'))
+        if si.dtype in self.smallint or np.issubdtype(si.dtype, np.bool_):
+            ds.SmallestImagePixelValue = np.uint16(si.min().astype('uint16'))
+            ds.LargestImagePixelValue = np.uint16(si.max().astype('uint16'))
             if 'RescaleSlope' in ds:
                 del ds.RescaleSlope
             if 'RescaleIntercept' in ds:
                 del ds.RescaleIntercept
         else:
-            ds.SmallestImagePixelValue = np.uint16((safe_si.min().item() - self.b) / self.a)
-            ds.LargestImagePixelValue = np.uint16((safe_si.max().item() - self.b) / self.a)
+            ds.SmallestImagePixelValue = np.uint16((si.min().item() - self.b) / self.a)
+            ds.LargestImagePixelValue = np.uint16((si.max().item() - self.b) / self.a)
             try:
                 ds.RescaleSlope = "%f" % self.a
             except OverflowError:
@@ -1232,12 +1226,12 @@ class DICOMPlugin(AbstractPlugin):
         # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
         ds.Rows = si.rows
         ds.Columns = si.columns
-        self._insert_pixeldata(ds, safe_si)
+        self._insert_pixeldata(ds, si)
         # logger.debug("write_enhanced: filename {}".format(filename))
 
         # Set tag
-        # safe_si will always have only the present tag
-        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])
+        # si will always have only the present tag
+        self._set_dicom_tag(ds, si.input_order, si.tags[0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1282,12 +1276,6 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug("write_slice {} {}".format(filename, self.serInsUid))
 
-        # if np.issubdtype(si.dtype, np.floating):
-        if si.dtype.kind == 'f':
-            safe_si = np.nan_to_num(si)
-        else:
-            safe_si = si
-
         try:
             logger.debug("write_slice slice {}, tag {}".format(slice, tag))
             # logger.debug("write_slice {}".format(si.DicomHeaderDict))
@@ -1301,7 +1289,7 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         logger.debug("write_slice member_name {}".format(member_name))
-        ds = self.construct_dicom(filename, im, safe_si)
+        ds = self.construct_dicom(filename, im, si)
         # self._copy_dicom_group(0x21, im, ds)
         # self._copy_dicom_group(0x29, im, ds)
 
@@ -1374,12 +1362,12 @@ class DICOMPlugin(AbstractPlugin):
         # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
         ds.Rows = si.rows
         ds.Columns = si.columns
-        self._insert_pixeldata(ds, safe_si)
+        self._insert_pixeldata(ds, si)
         # logger.debug("write_slice: filename {}".format(filename))
 
         # Set tag
-        # safe_si will always have only the present tag
-        self._set_dicom_tag(ds, safe_si.input_order, safe_si.tags[0])
+        # si will always have only the present tag
+        self._set_dicom_tag(ds, si.input_order, si.tags[0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1518,7 +1506,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Other high precision data type, like float:
             # rescale to uint16
-            rescaled = (arr - self.b) / self.a
+            rescaled = (np.asarray(arr) - self.b) / self.a
             ds.PixelData = rescaled.astype('uint16').tobytes()
             ds[0x7fe0, 0x0010].VR = 'OW'
             ds.BitsAllocated = 16
@@ -1543,9 +1531,11 @@ class DICOMPlugin(AbstractPlugin):
         self.range_VR = 'SS' if np.issubdtype(arr.dtype, np.signedinteger) else 'US'
         self.range_VR = 'US' if arr.color else self.range_VR
         # Window center/width
-        ymin = np.nanmin(arr).item()
-        ymax = np.nanmax(arr).item()
-        self.center = (ymax - ymin) / 2
+        # ymin = np.nanmin(arr).item()
+        # ymax = np.nanmax(arr).item()
+        ymin = np.min(arr).item()
+        ymax = np.max(arr).item()
+        self.center = (ymax + ymin) / 2
         self.width = max(1, ymax - ymin)
         # y = ax + b,
         if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_):
