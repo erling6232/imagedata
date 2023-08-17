@@ -653,3 +653,7 @@ class TestSeries(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+    # import logging
+    # logging.basicConfig(level=logging.DEBUG)
+    # runner = unittest.TextTestRunner(verbosity=2)
+    # unittest.main(testRunner=runner)
