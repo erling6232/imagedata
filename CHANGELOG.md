@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc6] - 2023-08-17
+### Fixed
+* Series: Fixed a problem where calculated float window center and level could not be represented in DICOM DS tag.
+Window center and level are now calculated using float32.
+* Series: Calculate proper window center and level when a new instance is created.
+* imagedata.formats.dicomplugin: write_slice will change Series into ndarray before rescaling content.
+This avoid crosstalk with original window center and level in Series.
+
 ## [v3.0.0-rc5] - 2023-08-11
 ### Fixed
-* imagedata.format.niftiplugin: Corrected writing 4D images.
+* imagedata.formats.niftiplugin: Corrected writing 4D images.
 When the 4th dimension is not time, the zoom is set to 1.
 
 ### Added
