@@ -2,6 +2,7 @@
 
 import unittest
 import copy
+import math
 import os.path
 import tempfile
 import numpy as np
@@ -319,6 +320,24 @@ class TestDicomPlugin(unittest.TestCase):
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
+
+    def test_write_float(self):
+        si = Series(np.arange(8*8*8).reshape((8, 8, 8)))
+        si.seriesNumber = 100
+        si.seriesDescription = 'float'
+        si.imageType = ['DERIVED', 'SECONDARY']
+        si.header.photometricInterpretation = 'MONOCHROME2'
+        fsi = si / math.sqrt(2)
+        fsi_center = fsi.getDicomAttribute('WindowCenter')
+        fsi_width = fsi.getDicomAttribute('WindowWidth')
+        with tempfile.TemporaryDirectory() as d:
+            fsi.write(d, formats=['dicom'])
+            fsi_read = Series(d)
+        compare_headers(self, fsi, fsi_read)
+        self.assertAlmostEqual(fsi_read.getDicomAttribute('WindowCenter'), fsi_center, places=5)
+        self.assertAlmostEqual(fsi_read.getDicomAttribute('WindowWidth'), fsi_width, places=4)
+        self.assertAlmostEqual(fsi.getDicomAttribute('WindowCenter'),
+                         fsi_read.getDicomAttribute('WindowCenter'))
 
     def test_changed_uid(self):
         eye = Series(np.eye(128, dtype=np.uint16))
