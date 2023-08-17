@@ -615,12 +615,12 @@ class Series(np.ndarray):
         if np.issubdtype(self.dtype, np.integer):
             _min_value = self.min()
             _max_value = self.max()
-            _width = _max_value - _min_value
-            if abs(_width) < 2:
-                _width = np.float32(_max_value) - np.float32(_min_value)
-                _level = np.float32((_min_value + _max_value) / 2)
-            else:
-                _level = (_min_value + _max_value) // 2
+            _width = np.float32(_max_value) - np.float32(_min_value)
+            _level = (np.float32(_min_value) + np.float32(_max_value)) / 2
+            if abs(_width) > 2:
+                _width = round(_width)
+            if abs(_level) > 2:
+                _level = round(_level)
         else:
             _min_value = np.float32(self.min())
             _max_value = np.float32(self.max())
