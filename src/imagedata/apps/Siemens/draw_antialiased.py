@@ -31,7 +31,7 @@ def draw_polygon_mask(canvas, points, colour, threshold, fill=True):
     """
 
     # Flag the voxels that will be in the mask
-    mask = np.zeros_like(canvas, dtype=np.bool)
+    mask = np.zeros_like(canvas, dtype=bool)
 
     # Colour the voxels on the polygon with the True colour
     pn = points[len(points) - 1]  # Close the polygon

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0-rc7] - 2023-08-23
+### Fixed
+* numpy.bool is deprecated.
+
 ## [v3.0.0-rc6] - 2023-08-17
 ### Fixed
 * Series: Fixed a problem where calculated float window center and level could not be represented in DICOM DS tag.

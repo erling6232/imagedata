@@ -56,14 +56,14 @@ class ROI(object, metaclass=ABCMeta):
         pass
 
     @staticmethod
-    def create_canvas(shape, mode=np.bool):
+    def create_canvas(shape, mode=bool):
         """Make a 2D [ny,nx] canvas
 
         Args:
             shape:
                 4D [nt,nz,ny,nx] or 3D [nz,ny,nx] shape
             mode:
-                np.bool for binary image, np.uint8 for 8-bit grayscale image
+                bool for binary image, np.uint8 for 8-bit grayscale image
         """
         if len(shape) == 3:
             nz, ny, nx = shape
