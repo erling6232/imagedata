@@ -184,7 +184,7 @@ def make_mask_in_slice(roi_type, si, points, shape):
         """
         slice = polygon.verify_all_voxels_in_slice(points_matrix)  # TODO
 
-        mask = np.zeros(shape[1:], dtype=np.bool)
+        mask = np.zeros(shape[1:], dtype=bool)
 
         polygon2D = []
         for p in points_matrix:
@@ -197,7 +197,7 @@ def make_mask_in_slice(roi_type, si, points, shape):
         (centre_cm, angles, thickness) = points
         centre = transform_data_points_to_voxels(si, centre_cm)[0]
         slice = centre[0]
-        mask = np.zeros(shape[1:], dtype=np.bool)
+        mask = np.zeros(shape[1:], dtype=bool)
 
         angle1 = angles[1]
         radius_cm = math.sqrt(angle1[0] * angle1[0] +
