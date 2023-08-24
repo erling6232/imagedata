@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.0.0] - 2023-08-24
+### Added
+* Stable release.
+
+### Changed
+* Modified NIfTI reading/writing.
+DICOM to NIfTI is now compatible with popular `dcm2niix` tool.
+
+### Fixed
+* Require itk-io version >= 5.3. Previous versions use the np.bool dtype.
+
 ## [v3.0.0-rc7] - 2023-08-23
 ### Fixed
 * numpy.bool is deprecated.
