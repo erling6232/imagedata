@@ -158,6 +158,12 @@ class Viewer(object):
                     if im['lower_left_data'] != (window, level, im['idx']):
                         im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
                         im['lower_left_data'] = (window, level, im['idx'])
+            if self.callback_onselect is not None:
+                try:
+                    vertices = self.vertices[im['idx']]
+                except (KeyError, TypeError):
+                    vertices = None
+                self.callback_onselect(im['idx'], im['tag'], vertices)
             try:
                 vp['ax'].axes.figure.canvas.draw()
             except ValueError:
