@@ -88,6 +88,33 @@ Finally, the color image is displayed.
     T2rgb.show()
 
 
+Draw a time curve when mask is moved
+------------------------------------
+
+.. code-block:: python
+
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from imagedata.viewer import grid_from_roi
+
+    def plot_aif(idx, tag, vertices):
+        # Called from Viewer when vertices are modified
+        # Clear any previous axis plot
+        plt.sca(ax[1])
+        plt.cla()
+        if vertices is None:
+            return
+        mask = grid_from_roi(si, {idx: vertices})
+        curve = np.sum(si, axis=(1, 2, 3), where mask == 1) / np.count_nonzero(mask)
+        ax[1].plot(curve, label='AIF')
+        ax[1].legend()
+        ax[1].figure.canvas.draw()
+
+    si = Series('data', 'time')
+    fig, ax = plt.subplots(1, 2)
+    mask = si.get_roi(ax=ax[0], onselect=plot_aif)
+
+
 Motion correction using FSL MCFLIRT
 -----------------------------------
 
