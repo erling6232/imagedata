@@ -307,9 +307,13 @@ class Study(SortedDict):
         _used_urls = []
         for _seriesInstanceUID in self.keys():
             _series = self[_seriesInstanceUID]
-            _url = "{}/{}-{}".format(
+            try:
+                series_str = '{}-{}'.format(_series.seriesNumber, _series.seriesDescription)
+            except TypeError:
+                series_str = _seriesInstanceUID
+            _url = "{}/{}".format(
                 url,
-                _series.seriesNumber, _series.seriesDescription
+                series_str
             )
             while _url in _used_urls:
                 _url = _url + "0"  # Make unique output file
@@ -470,16 +474,22 @@ class Patient(SortedDict):
         _used_urls = []
         for _studyInstanceUID in self.keys():
             _study = self[_studyInstanceUID]
+            try:
+                study_str = datetime.combine(
+                    _study.studyDate, _study.studyTime
+                ).strftime('%Y%m%d-%H%M%S')
+            except TypeError:
+                study_str = _studyInstanceUID
             for _seriesInstanceUID in _study:
                 _series = _study[_seriesInstanceUID]
                 try:
-                    study_str = datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                    series_str = '{}-{}'.format(_series.seriesNumber, _series.seriesDescription)
                 except TypeError:
-                    study_str = _studyInstanceUID
-                _url = "{}/{}/{}-{}".format(
+                    series_str = _seriesInstanceUID
+                _url = "{}/{}/{}".format(
                     url,
                     study_str,
-                    _series.seriesNumber, _series.seriesDescription
+                    series_str
                 )
                 while _url in _used_urls:
                     _url = _url + "0"  # Make unique output file
@@ -618,17 +628,25 @@ class Cohort(SortedDict):
             _patient = self[_patientID]
             for _studyInstanceUID in _patient:
                 _study = _patient[_studyInstanceUID]
+                try:
+                    study_str = datetime.combine(
+                        _study.studyDate, _study.studyTime
+                    ).strftime('%Y%m%d-%H%M%S')
+                except TypeError:
+                    study_str = _studyInstanceUID
                 for _seriesInstanceUID in _study:
                     _series = _study[_seriesInstanceUID]
                     try:
-                        study_str = datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                        series_str = '{}-{}'.format(
+                            _series.seriesNumber, _series.seriesDescription
+                        )
                     except TypeError:
-                        study_str = _studyInstanceUID
-                    _url = "{}/{}/{}/{}-{}".format(
+                        series_str = _seriesInstanceUID
+                    _url = "{}/{}/{}/{}".format(
                         url,
                         _patientID,
                         study_str,
-                        _series.seriesNumber, _series.seriesDescription
+                        series_str
                     )
                     while _url in _used_urls:
                         _url = _url + "0"  # Make unique output file
