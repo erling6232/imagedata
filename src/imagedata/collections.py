@@ -472,9 +472,13 @@ class Patient(SortedDict):
             _study = self[_studyInstanceUID]
             for _seriesInstanceUID in _study:
                 _series = _study[_seriesInstanceUID]
+                try:
+                    study_str = datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                except TypeError:
+                    study_str = _studyInstanceUID
                 _url = "{}/{}/{}-{}".format(
                     url,
-                    datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                    study_str,
                     _series.seriesNumber, _series.seriesDescription
                 )
                 while _url in _used_urls:
@@ -616,11 +620,14 @@ class Cohort(SortedDict):
                 _study = _patient[_studyInstanceUID]
                 for _seriesInstanceUID in _study:
                     _series = _study[_seriesInstanceUID]
+                    try:
+                        study_str = datetime.combine(_study.studyDate, _study.studyTime).strftime('%Y%m%d-%H%M%S'),
+                    except TypeError:
+                        study_str = _studyInstanceUID
                     _url = "{}/{}/{}/{}-{}".format(
                         url,
                         _patientID,
-                        datetime.combine(_study.studyDate, _study.studyTime).strftime(
-                            '%Y%m%d-%H%M%S'),
+                        study_str,
                         _series.seriesNumber, _series.seriesDescription
                     )
                     while _url in _used_urls:

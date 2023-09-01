@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.1.0] - 2023-08-31
+## [v3.1.0-rc0] - 2023-09-01
 ### Added
 * Viewer.update() and Viewer.onselect():
 Call onselect when setting up display which includes a ROI.
 This allows e.g. drawing a time curve on initial display.
+
+### Fixed
+* Corrected problem in collections where writing images failed when study datetime is None.
+The study instance UID is used instead to construct directory names.
 
 ## [v3.0.0] - 2023-08-24
 ### Added
