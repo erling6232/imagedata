@@ -318,7 +318,10 @@ class Study(SortedDict):
             while _url in _used_urls:
                 _url = _url + "0"  # Make unique output file
             _used_urls.append(_url)
-            _series.write(_url, opts=opts, formats=formats)
+            try:
+                _series.write(_url, opts=opts, formats=formats)
+            except Exception as e:
+                raise Exception(_url) from e
 
 
 class Patient(SortedDict):
@@ -494,7 +497,10 @@ class Patient(SortedDict):
                 while _url in _used_urls:
                     _url = _url + "0"  # Make unique output file
                 _used_urls.append(_url)
-                _series.write(_url, opts=opts, formats=formats)
+                try:
+                    _series.write(_url, opts=opts, formats=formats)
+                except Exception as e:
+                    raise Exception(_url) from e
 
 
 class Cohort(SortedDict):
@@ -651,4 +657,7 @@ class Cohort(SortedDict):
                     while _url in _used_urls:
                         _url = _url + "0"  # Make unique output file
                     _used_urls.append(_url)
-                    _series.write(_url, opts=opts, formats=formats)
+                    try:
+                        _series.write(_url, opts=opts, formats=formats)
+                    except Exception as e:
+                        raise Exception(_url) from e
