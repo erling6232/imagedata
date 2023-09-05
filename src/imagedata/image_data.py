@@ -18,6 +18,7 @@ from .transports import Transport
 from .series import Series
 from .collections import Cohort
 
+
 def dump():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
@@ -133,7 +134,6 @@ def calculator():
     parser.add_argument("indirs", help="Input arguments", nargs="*")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
 
     if len(args.output_format) == 0:
         args.output_format.append('dicom')
@@ -219,7 +219,6 @@ def statistics(cmdline=None):
             cmdline = [cmdline]
         args = parser.parse_args(cmdline)
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
 
     try:
         cohort = Cohort(args.in_dirs, opts=args)
@@ -298,7 +297,6 @@ def timeline():
                         help="Input directories and files")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -321,7 +319,6 @@ def show():
                         help="Input directories and files")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -347,7 +344,6 @@ def conversion():
                         help="Input directories and files")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     # print("Output format: %s, %s, in %s directory." % (
@@ -374,7 +370,6 @@ def image_list():
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
 
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)

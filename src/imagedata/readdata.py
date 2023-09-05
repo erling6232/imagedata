@@ -136,9 +136,11 @@ def read(urls, order=None, opts=None):
 
     # All reader plugins failed - report
     if issubclass(type(urls), list):
-        raise UnknownInputError('Could not determine input format of "{}": {}'.format(urls[0], summary))
+        raise UnknownInputError('Could not determine input format of "{}": {}'.format(
+            urls[0], summary))
     else:
-        raise UnknownInputError('Could not determine input format of "{}": {}'.format(urls, summary))
+        raise UnknownInputError('Could not determine input format of "{}": {}'.format(
+            urls, summary))
 
 
 # def _add_template(hdr, pre_hdr):
