@@ -104,6 +104,7 @@ def read(urls, order=None, opts=None):
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(get_plugins_list())
     logger.debug("readdata.read plugins length {}".format(len(plugins)))
+    summary = 'Summary of read plugins:'
     for pname, ptype, pclass in plugins:
         logger.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
         reader = pclass()
@@ -124,19 +125,20 @@ def read(urls, order=None, opts=None):
             raise
         except NotImageError as e:
             logger.info("Giving up {}: {}".format(ptype, e))
-            pass
+            summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
             logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
-            pass
+            summary = summary + '\n  {}: {}'.format(ptype, e)
 
     for source in sources:
         logger.debug("readdata.read: close archive {}".format(source['archive']))
         source['archive'].close()
 
+    # All reader plugins failed - report
     if issubclass(type(urls), list):
-        raise UnknownInputError('Could not determine input format of "%s"' % urls[0])
+        raise UnknownInputError('Could not determine input format of "{}": {}'.format(urls[0], summary))
     else:
-        raise UnknownInputError('Could not determine input format of "%s"' % urls)
+        raise UnknownInputError('Could not determine input format of "{}": {}'.format(urls, summary))
 
 
 # def _add_template(hdr, pre_hdr):

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.1.0-rc2] - 2023-09-05
+### Fixed
+* Restored logging facility in command-line utilities.
+
+## [v3.1.0-rc1] - 2023-09-01
+### Fixed
+* Collections error fixed.
+
 ## [v3.1.0-rc0] - 2023-09-01
 ### Added
 * Viewer.update() and Viewer.onselect():

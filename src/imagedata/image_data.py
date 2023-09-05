@@ -18,16 +18,14 @@ from .transports import Transport
 from .series import Series
 from .collections import Cohort
 
-logger = logging.getLogger()
-
-
 def dump():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
     # Let in_opts be a dict from args
     if args is None:
@@ -134,8 +132,9 @@ def calculator():
     parser.add_argument("expression", help="Expression")
     parser.add_argument("indirs", help="Input arguments", nargs="*")
     args = parser.parse_args()
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
-    logger.setLevel(args.loglevel)
     if len(args.output_format) == 0:
         args.output_format.append('dicom')
     # if args.version:
@@ -219,7 +218,8 @@ def statistics(cmdline=None):
         if not issubclass(type(cmdline), list):
             cmdline = [cmdline]
         args = parser.parse_args(cmdline)
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
     try:
         cohort = Cohort(args.in_dirs, opts=args)
@@ -297,7 +297,8 @@ def timeline():
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -319,7 +320,8 @@ def show():
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
 
@@ -344,7 +346,8 @@ def conversion():
     parser.add_argument("in_dirs",
                         help="Input directories and files")
     args = parser.parse_args()
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
     # print("Output format: %s, %s, in %s directory." % (
@@ -370,7 +373,8 @@ def image_list():
                         action="store_true")
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
-    logger.setLevel(args.loglevel)
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)
