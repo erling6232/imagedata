@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.1.0-rc2] - 2023-09-05
+## [v3.1.0] - 2023-09-05
 ### Fixed
 * Restored logging facility in command-line utilities.
+* Better logging when reader plugins fail.
 
 ## [v3.1.0-rc1] - 2023-09-01
 ### Fixed
