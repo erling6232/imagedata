@@ -515,8 +515,8 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
                 except Exception as e:
-                    logger.warning("Cannot read pixel data: {}".format(e))
-                    raise
+                    logger.warning("Cannot read pixel data: {} {}".format(member_name, e))
+                    raise Exception(member_name) from e
                 del im
 
         # Simplify shape
