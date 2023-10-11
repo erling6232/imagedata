@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.2.2-rc0] - 2023-10-11
+## [v3.2.2] - 2023-10-11
 ### Fixed
 * Added sphinx_rtd_theme as requirement.
 
