@@ -1,6 +1,7 @@
 """imagedata"""
 
 import logging
+import importlib
 # from imagedata.formats.abstractplugin import AbstractPlugin
 from .series import Series
 from .collections import Study, Patient, Cohort
@@ -49,6 +50,7 @@ except TypeError:
         pass
 for _plugin in _plugins:
     _class = _plugin.load()
+    importlib.import_module(_plugin.module)
     if _class.plugin_type not in plugins:
         plugins[_class.plugin_type] = []
     if (_plugin.name, _class.name, _class) not in plugins[_class.plugin_type]:

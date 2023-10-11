@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.2.0-dev0] - 2023-10-10
+### Added
+* imagedata.__init__(): Import all plugins to enable plugin-specific initialisation,
+   e.g. setting mimetypes.
+
 ## [v3.1.0] - 2023-09-05
 ### Fixed
 * Restored logging facility in command-line utilities.
