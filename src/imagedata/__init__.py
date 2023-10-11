@@ -52,6 +52,9 @@ for _plugin in _plugins:
     _class = _plugin.load()
     try:
         importlib.import_module(_plugin.module)
+    except AttributeError:
+        _module,_classname = _plugin.value.split(':')
+        importlib.import_module(_module)
     except Exception as e:
         raise ValueError("_plugin: {}\n{}: {}: {}\n{}".format(
             e, _plugin.name, _plugin.group, _plugin.value, _plugin.__dir__()))
