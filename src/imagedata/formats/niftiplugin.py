@@ -90,7 +90,7 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("niftiplugin::read load f {}".format(f))
         try:
             img = nibabel.load(f)
-        except nibabel.spatialimages.ImageFileError:
+        except nibabel.spatialimages.ImageDataError:
             raise NotImageError(
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
