@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.2.1] - 2023-10-11
+### Fixed
+* Added sphinx_rtd_theme to Sphinx conf.py.
+
 ## [v3.2.0] - 2023-10-11
 ### Added
 * imagedata.__init__(): Import all plugins to enable plugin-specific initialisation,
