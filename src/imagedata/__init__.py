@@ -56,7 +56,7 @@ for _plugin in _plugins:
         _module, _classname = _plugin.value.split(':')
         importlib.import_module(_module)
     except Exception as e:
-        raise ValueError("_plugin: {}\n{}: {}: {}\n{}".format(
+        raise ImportError("Cannot import plugin: {}\n{}: {}: {}\n{}".format(
             e, _plugin.name, _plugin.group, _plugin.value, _plugin.__dir__()))
     if _class.plugin_type not in plugins:
         plugins[_class.plugin_type] = []
