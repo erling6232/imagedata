@@ -50,7 +50,10 @@ except TypeError:
         pass
 for _plugin in _plugins:
     _class = _plugin.load()
-    importlib.import_module(_plugin.module)
+    if 'module' in _plugin:
+        importlib.import_module(_plugin.module)
+    else:
+        raise ValueError("_plugin: {}".format(_plugin.__dict__))
     if _class.plugin_type not in plugins:
         plugins[_class.plugin_type] = []
     if (_plugin.name, _class.name, _class) not in plugins[_class.plugin_type]:
