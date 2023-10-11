@@ -53,7 +53,8 @@ for _plugin in _plugins:
     try:
         importlib.import_module(_plugin.module)
     except Exception as e:
-        raise ValueError("_plugin: {}\n{}".format(e, _plugin.__dir__()))
+        raise ValueError("_plugin: {}\n{}: {}: {}\n{}".format(
+            e, _plugin.name, _plugin.group, _plugin.value, _plugin.__dir__()))
     if _class.plugin_type not in plugins:
         plugins[_class.plugin_type] = []
     if (_plugin.name, _class.name, _class) not in plugins[_class.plugin_type]:
