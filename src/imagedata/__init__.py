@@ -50,6 +50,7 @@ except TypeError:
         pass
 for _plugin in _plugins:
     _class = _plugin.load()
+    raise ValueError("_plugin: {}".format(type(_plugin)))
     if 'module' in _plugin:
         importlib.import_module(_plugin.module)
     else:
