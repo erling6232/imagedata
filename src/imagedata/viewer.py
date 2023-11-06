@@ -656,11 +656,12 @@ class MyPolygonSelector(PolygonSelector):
     """
 
     def __init__(self, ax, onselect, useblit=False,
-                 lineprops=None, markerprops=None, vertex_select_radius=15,
+                 lineprops=None, markerprops=None, vertex_select_radius=10,
                  vertices=None, tag=None, copy=None, paste=None):
         super().__init__(ax, onselect, useblit=useblit,
-                         lineprops=lineprops, markerprops=markerprops,
-                         vertex_select_radius=vertex_select_radius)
+                         props=lineprops,
+                         handle_props=markerprops,
+                         grab_range=vertex_select_radius)
 
         self.tag = tag
         self.copy_handle = copy
