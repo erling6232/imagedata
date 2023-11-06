@@ -613,8 +613,8 @@ class Series(np.ndarray):
 
     def __calculate_window(self):
         if np.issubdtype(self.dtype, np.integer):
-            _min_value = self.min()
-            _max_value = self.max()
+            _min_value = np.nanmin(self)
+            _max_value = np.nanmax(self)
             _width = np.float32(_max_value) - np.float32(_min_value)
             _level = (np.float32(_min_value) + np.float32(_max_value)) / 2
             if abs(_width) > 2:
@@ -622,8 +622,8 @@ class Series(np.ndarray):
             if abs(_level) > 2:
                 _level = round(_level)
         else:
-            _min_value = np.float32(self.min())
-            _max_value = np.float32(self.max())
+            _min_value = np.float32(np.nanmin(self))
+            _max_value = np.float32(np.nanmax(self))
             _width = _max_value - _min_value
             _level = np.float32((_min_value + _max_value) / 2)
         return _level, _width
@@ -2229,7 +2229,7 @@ class Series(np.ndarray):
             assert len(probs) == 2, "Wrong format of histogram probabilities"
 
             # Calculate cumulative counts and bin edges of the image
-            bins = 1024 if self.dtype.kind == 'f' else (self.max().item()) + 1
+            bins = 1024 if self.dtype.kind == 'f' else (np.nanmax(self).item()) + 1
             cumcounts, bin_edges = np.histogram(self, bins=bins)
             # Normalize cumulative counts
             cumcounts = cumcounts.cumsum() / cumcounts.sum()
@@ -2247,7 +2247,7 @@ class Series(np.ndarray):
         from .viewer import get_window_level
 
         if lut is None:
-            lut = 256 if self.dtype.kind == 'f' else (self.max().item()) + 1
+            lut = 256 if self.dtype.kind == 'f' else (np.nanmax(self).item()) + 1
         if isinstance(norm, str):
             if norm == 'linear':
                 norm = matplotlib.colors.Normalize
@@ -2350,16 +2350,17 @@ class Series(np.ndarray):
         # Now smooth the colors channel
         if mask.ndim == 2:
             mask_filter = np.zeros_like(mask, dtype=np.float32)
-            if mask.max() > 0:
-                mask_filter = mask.astype(np.float32) / mask.max()  # [0, 1]
+            if np.nanmax(mask) > 0:
+                mask_filter = mask.astype(np.float32) / np.nanmax(mask)  # [0, 1]
             mask_filter = gaussian_filter(mask_filter, sigma=1.5)
         else:
             # Smooth for each slice independently
             mask_filter = np.zeros_like(mask, dtype=np.float32)
             for _slice in range(mask.shape[0]):
-                if mask[_slice].max() > 0:
+                _max_in_slice = np.nanmax(mask[_slice])
+                if _max_in_slice > 0:
                     mask_filter[_slice] =\
-                        mask[_slice].astype(np.float32) / mask[_slice].max()  # [0, 1]
+                        mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
         overlay = np.zeros(mask.shape + (3,), dtype=np.float32)

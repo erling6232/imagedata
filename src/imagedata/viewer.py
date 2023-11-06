@@ -1,4 +1,5 @@
 import copy
+import logging
 
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -12,6 +13,7 @@ import numpy as np
 from .series import Series
 
 POSITIVE_EPS = 1e-3
+logger = logging.getLogger(__name__)
 
 
 class Viewer(object):
@@ -871,7 +873,9 @@ def get_level(si, level):
         except TypeError:
             pass
     if level is None:
-        level = (np.float32(si.max()) + np.float32(si.min())) / 2
+        level = (np.float32(np.nanmax(si)) + np.float32(np.nanmin(si))) / 2
+        if np.isnan(level):
+            level = 1
         if abs(level) > 2:
             level = round(level)
     return level
@@ -891,7 +895,9 @@ def get_window_level(si, norm, window, level):
         except TypeError:
             pass
     if window is None:
-        window = np.float32(si.max()) - np.float32(si.min())
+        window = np.float32(np.nanmax(si)) - np.float32(np.nanmin(si))
+        if np.isnan(window):
+            window = 1
         if abs(window) > 2:
             window = round(window)
     level = get_level(si, level)
@@ -915,7 +921,14 @@ def build_info(im, colormap, norm, colorbar, window, level):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
     if colormap is None:
         colormap = 'Greys_r'
-    lut = 256 if np.issubdtype(im.dtype, np.floating) else (im.max().item()) + 1
+    if np.issubdtype(im.dtype, np.floating):
+        lut = 256
+    elif np.issubdtype(im.dtype, np.complexfloating):
+        lut = 256
+        logger.warning('Displaying real part of complex values.')
+        im = np.real(im)
+    else:
+        lut = (np.nanmax(im).item()) + 1
     if not issubclass(type(colormap), matplotlib.colors.Colormap):
         colormap = plt.get_cmap(colormap, lut)
     colormap.set_bad(color='k')  # Important for log display of non-positive values
