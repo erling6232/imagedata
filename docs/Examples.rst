@@ -105,7 +105,7 @@ Draw a time curve when mask is moved
         if vertices is None:
             return
         mask = grid_from_roi(si, {idx: vertices})
-        curve = np.sum(si, axis=(1, 2, 3), where mask == 1) / np.count_nonzero(mask)
+        curve = np.sum(si, axis=(1, 2, 3), where=mask == 1) / np.count_nonzero(mask)
         ax[1].plot(curve, label='AIF')
         ax[1].legend()
         ax[1].figure.canvas.draw()
