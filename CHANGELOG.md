@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.2.4dev0] - 2023-11-09
+
 ## [v3.2.3] - 2023-11-09
 ### Fixed
 * Error in documentation example on drawing a time curve when mask is moved. Fixed.
