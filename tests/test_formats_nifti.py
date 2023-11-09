@@ -366,5 +366,18 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             np.testing.assert_array_equal(si1, si2)
 
 
+class TestNIfTIPluginWrite(unittest.TestCase):
+    def test_write_dicom(self):
+        si1 = Series(
+            # os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            os.path.join('data', 'nifti', 'cor_rl.nii.gz'),
+            'time')
+        self.assertEqual(si1.input_format, 'nifti')
+        self.assertEqual(si1.dtype, np.int16)
+        self.assertEqual(si1.shape, (3, 320, 220))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['dicom'])
+
+
 if __name__ == '__main__':
     unittest.main()

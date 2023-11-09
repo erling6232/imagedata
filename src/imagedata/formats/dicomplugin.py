@@ -1594,7 +1594,7 @@ class DICOMPlugin(AbstractPlugin):
                 ds.RescaleSlope = pydicom.valuerep.format_number_as_ds(self.a)
             except OverflowError:
                 ds.RescaleSlope = "%d" % int(self.a)
-            ds.RescaleIntercept = pydicom.valuerep.format_number_as_ds(self.b)
+            ds.RescaleIntercept = pydicom.valuerep.format_number_as_ds(float(self.b))
             _min = np.array((arr.min() - self.b) / self.a).astype('uint16')
             _max = np.array((arr.max() - self.b) / self.a).astype('uint16')
             _series_min = np.array(
