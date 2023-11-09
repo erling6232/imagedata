@@ -650,6 +650,11 @@ class TestSeries(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             moved.write(d, formats=['dicom'])
 
+    def test_numpy_mask(self):
+        si = Series(os.path.join('data', 'dicom', 'time'))
+        mask = si < 10
+        curve = np.sum(si, axis=(1, 2, 3), where=mask==True)
+
 
 if __name__ == '__main__':
     unittest.main()
