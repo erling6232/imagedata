@@ -2,6 +2,7 @@
 include *.rst
 include *.md
 include *.bib
+include *.yml
 
 # Include the license file
 include LICENSE.txt
