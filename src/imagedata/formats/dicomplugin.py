@@ -957,6 +957,9 @@ class DICOMPlugin(AbstractPlugin):
         self._calculate_rescale(si)
         logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
         logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
+        if 'window' in opts and opts['window'] == 'original':
+            self.center = si.getDicomAttribute('WindowCenter')
+            self.width = si.getDicomAttribute('WindowWidth')
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Set series instance UID when writing

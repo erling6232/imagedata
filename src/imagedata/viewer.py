@@ -455,6 +455,9 @@ class Viewer(object):
             return
         old_idx = im['idx']
         im['idx'] = min(max(im['idx'] + increment, 0), im['slices'] - 1)
+        if self.link:
+            # Scroll all images to same index (if possible)
+            self.scroll_all_data(im, im['idx'])
         im['modified'] = old_idx != im['idx']
         if self.poly is not None:
             new_idx = im['idx']
@@ -488,6 +491,17 @@ class Viewer(object):
         # elif self.im2 is not None and inaxes == self.im2['ax'] and self.im2['scrollable']:
         #    self.im2['idx'] = min(max(self.im2['idx'] + increment, 0), self.im2['slices']-1)
         self.update()
+
+    def scroll_all_data(self, im, idx):
+        for vp_idx in self.viewport:
+            vp = self.viewport[vp_idx]
+            if vp is not None:
+                im_idx = vp['present']
+                if im_idx != idx:
+                    im2 = self.im[im_idx]
+                    old_idx = im2['idx']
+                    im2['idx'] = min(max(idx, 0), im2['slices'] - 1)
+                    im2['modified'] = old_idx != im2['idx']
 
     def advance_data(self, inaxes, increment):
         """Advance display to next/previous tag value"""
@@ -922,6 +936,8 @@ def build_info(im, colormap, norm, colorbar, window, level):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
     if colormap is None:
         colormap = 'Greys_r'
+    if colormap == 'Greys_r' and im.photometricInterpretation == 'MONOCHROME1':
+        colormap = 'Greys'
     if np.issubdtype(im.dtype, np.floating):
         lut = 256
     elif np.issubdtype(im.dtype, np.complexfloating):
