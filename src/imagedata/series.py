@@ -220,6 +220,9 @@ class Series(np.ndarray):
         # logger.debug('Series.__array_ufunc__ method: %s' % method)
         args = []
         in_no = []
+        if 'where' in kwargs:
+            if issubclass(type(kwargs['where']), Series):
+                kwargs['where'] = kwargs['where'].view(np.ndarray)
         # logger.debug('Series.__array_ufunc__ inputs: %s %d' % (
         #    type(inputs), len(inputs)))
         for i, input_ in enumerate(inputs):
@@ -256,6 +259,7 @@ class Series(np.ndarray):
 
         results = super(Series, self).__array_ufunc__(ufunc, method,
                                                       *args, **kwargs)
+        # results = getattr(ufunc, method)(*inputs, **kwargs)
         if results is NotImplemented:
             return NotImplemented
 
