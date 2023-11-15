@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.2.4dev0] - 2023-11-09
+## [v3.2.4-dev0] - 2023-11-14
+### Added
+* Series.write(..., opts={'window': 'original'}): Use original
+  window center/level from data object, do not calculate window
+  from present data.
+* Viewer: Accept MONOCHROME1 photometric interpretation, using the Greys colormap.
+### Fixed
+* Viewer: Re-enabled linked scrolling of several images series.
 
 ## [v3.2.3] - 2023-11-09
 ### Fixed
