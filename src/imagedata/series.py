@@ -638,17 +638,21 @@ class Series(np.ndarray):
         Args:
             url (str): Output URL.
             opts (argparse.Namespace or dict): Output options.
-            - DICOMPlugin opts:
-                - 'keep_uid' (bool): whether we will keep existing SOP Instance UID.
-                - 'window': 'original': will keep window center/level DICOM attributes,
-                  not recalculate from present data.
-                - 'output_sort' (int): Which tag will sort the output images (slice or tag).
-                  Values: SORT_ON_SLICE, SORT_ON_TAG. Default: SORT_ON_SLICE.
-                - 'output_dir' (str): Store all images in a single or multiple directories.
-                  Values: 'single', 'multi'. Default: 'single'
-                - input_order (str): DICOM tag for given input_order.
-
             formats (list or str): list of output formats, overriding opts.output_format.
+
+        DICOMPlugin accept these opts:
+            - "keep_uid": whether we will keep existing SOP Instance UID (bool).
+
+            - "window": "original" will keep window center/level DICOM attributes,
+              not recalculate from present data (str).
+
+            - "output_sort": Which tag will sort the output images (int).
+              Values: SORT_ON_SLICE, SORT_ON_TAG. Default: SORT_ON_SLICE.
+
+            - "output_dir": Store all images in a single or multiple directories (str).
+              Values: "single", "multi". Default: "single"
+
+            - input_order: DICOM tag for given input_order (str).
         """
         logger.debug('Series.write: url    : {}'.format(url))
         logger.debug('Series.write: formats: {}'.format(formats))
