@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.2.4-dev1] - 2023-11-15
+## [v3.2.4-rc0] - 2023-11-15
 ### Fixed
 * Series: Handle the special case when a ufunc is called with a where= Series object used
   by NumPy >= 1.25.
