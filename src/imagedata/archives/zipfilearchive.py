@@ -264,7 +264,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         This is necessary to allow the seek() operation on open files.
 
         Args:
-            member (Member): Handle to file.
+            member (imagedata.archives.abstractarchive.Member): Handle to file.
             mode (str): Open mode.
         Returns:
             An IO object for the member.

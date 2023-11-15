@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * Series: Handle the special case when a ufunc is called with a where= Series object used
   by NumPy >= 1.25.
+* Series.write(): Updated documentation on 'window' option.
 
 ## [v3.2.4-dev0] - 2023-11-14
 ### Added

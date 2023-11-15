@@ -23,12 +23,6 @@ def draw_polygon_mask(canvas, points, colour, threshold, fill=True):
         threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
         fill: whether to fill the circle (boolean)
     """
-    # points_matrix = self.get_points_matrix(hdr)
-    """
-    print("polygon: points cm    ", points)
-    print("polygon: points matrix", polygon)
-    print("polygon: colour %d fill" % colour, fill)
-    """
 
     # Flag the voxels that will be in the mask
     mask = np.zeros_like(canvas, dtype=bool)
@@ -90,18 +84,20 @@ def draw_line_mask(canvas, x1, y1, x2, y2, colour, threshold):
     Only given colour value is drawn. Intended usage is as a mask index.
 
     Args:
-        canvas: numpy array (2D)
-        (x1,y1), (x2,y2): line end points (float)
-        colour: colour to draw (mask index) (int)
-        threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
+        canvas: 2D numpy array (np.ndarray)
+        x1 (float): line end points
+        y1 (float): line end points
+        x2 (float): line end points
+        y2 (float): line end points
+        colour (int): colour to draw 'mask index'
+        threshold (float): only pixels with an alpha > threshold will be drawn, 0.0-1.0
     """
+
     dx = x2 - x1
-    """
-    if not dx:
-        # Vertical line
-        draw_line((x1, y1, x2, y2), fill=col, width=1)
-        return
-    """
+    # if not dx:
+    #     # Vertical line
+    #     draw_line((x1, y1, x2, y2), fill=col, width=1)
+    #     return
 
     dy = y2 - y1
     steep = abs(dx) < abs(dy)
@@ -143,19 +139,6 @@ def draw_line_mask(canvas, x1, y1, x2, y2, colour, threshold):
         intery = intery + gradient
 
 
-"""
-def draw_simple_line(x1, y1, x2, y2, fill=col, width=1):
-    if x1 != x2:
-        # Horizontal line
-        assert y1 == y2, "Horizontal line only."
-        if x1 > x2: x2,x1 = x1,x2
-        x = x1
-        while x <= x2:
-            plot(canvas, x, y1
-            x += 1
-"""
-
-
 def point_in_polygon(canvas, polygon):
     ny, nx = canvas.shape
 
@@ -192,28 +175,6 @@ def draw_circle_mask(canvas, center_x, center_y, outer_radius, colour, threshold
         colour: _colour to draw (mask index) (int)
         threshold: only pixels with an alpha > threshold will be drawn (float, 0.0-1.0)
         fill: whether to fill the circle (boolean)
-    """
-    """
-    def _draw_8point(_canvas, _cx, _cy, x, y, _colour):
-        # Draw the 8 symmetries
-        print("_draw_8point", _cy, _cx, y, x)
-        print("_draw_8point", _cy + y,  _cx - x)
-        print("_draw_8point", _cy + y,  _cx + x)
-        print("_draw_8point", _cy - y,  _cx - x)
-        print("_draw_8point", _cy - y,  _cx + x)
-        print("_draw_8point", _cx + x,  _cy - y)
-        print("_draw_8point", _cx + x,  _cy + y)
-        print("_draw_8point", _cx - x,  _cy - y)
-        print("_draw_8point", _cx - x,  _cy + y)
-
-        _canvas[_cy + y,  _cx - x] = _colour
-        _canvas[_cy + y,  _cx + x] = _colour
-        _canvas[_cy - y,  _cx - x] = _colour
-        _canvas[_cy - y,  _cx + x] = _colour
-        _canvas[_cx + x,  _cy - y] = _colour
-        _canvas[_cx + x,  _cy + y] = _colour
-        _canvas[_cx - x,  _cy - y] = _colour
-        _canvas[_cx - x,  _cy + y] = _colour
     """
 
     def _draw_8point(_canvas, _cx, _cy, _i, _j, _colour):

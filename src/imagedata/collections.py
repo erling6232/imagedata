@@ -297,7 +297,7 @@ class Study(SortedDict):
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         Raises:
-            UnknownOptionType: When opts cannot be made into a dict.
+            imagedata.collections.UnknownOptionType: When opts cannot be made into a dict.
             TypeError: List of output format is not list().
             ValueError: Wrong number of destinations given,
                 or no way to write multidimensional image.
@@ -467,7 +467,7 @@ class Patient(SortedDict):
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         Raises:
-            UnknownOptionType: When opts cannot be made into a dict.
+            imagedata.collections.UnknownOptionType: When opts cannot be made into a dict.
             TypeError: List of output format is not list().
             ValueError: Wrong number of destinations given,
                 or no way to write multidimensional image.
@@ -622,7 +622,7 @@ class Cohort(SortedDict):
             opts: Output options (argparse.Namespace or dict)
             formats: list of output formats, overriding opts.output_format (list or str)
         Raises:
-            UnknownOptionType: When opts cannot be made into a dict.
+            imagedata.collections.UnknownOptionType: When opts cannot be made into a dict.
             TypeError: List of output format is not list().
             ValueError: Wrong number of destinations given,
                 or no way to write multidimensional image.

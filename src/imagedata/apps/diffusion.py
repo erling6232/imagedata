@@ -12,7 +12,7 @@ def get_g_vectors(img):
     Extracting diffusion gradient vectors has been tested on MRI data from some major vendors.
 
     Args:
-        img (Series): Series object.
+        img (imagedata.Series): Series object.
     Returns:
         pd.DataFrame: Diffusion gradient vectors, columns b, z, y, x.
     Raises:
@@ -83,7 +83,7 @@ def get_b_value(img, tag=0):
     Extracting diffusion b value has been tested on MRI data from some major vendors.
 
     Args:
-        img (Series): Series object.
+        img (imagedata.Series): Series object.
         tag (int): Optional tag in Series object. Default: 0.
     Returns:
         float: b value. Returns NaN when no b value is present in dataset.

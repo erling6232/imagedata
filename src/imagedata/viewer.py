@@ -20,7 +20,7 @@ class Viewer(object):
     """Viewer -- a graphical tool to display and interact with Series objects.
 
     Args:
-        images (Series or list): Series object or list of Series objects to view.
+        images (imagedata.Series or list): Series object or list of Series objects to view.
         fig (Figure): matplotlib.plt.figure if already exist (optional).
         ax (Axes): matplotlib axis if already exist (optional).
         follow (bool): Copy ROI to next tag. Default: False.
@@ -759,7 +759,7 @@ def grid_from_roi(im, vertices, single=False):
     """Return drawn ROI as grid.
 
     Args:
-        im (Series): Series object as template
+        im (imagedata.Series): Series object as template
         vertices: The polygon vertices, as a dictionary of tags of (x,y)
         single (bool): Draw ROI in single slice per tag
     Returns:

@@ -354,7 +354,7 @@ class NiftiPlugin(AbstractPlugin):
                 orientation, tags
 
         Args:
-            si (Series): Series array
+            si (imagedata.Series): Series array
             destination: dict of archive and filenames
             opts: Output options (dict)
         """

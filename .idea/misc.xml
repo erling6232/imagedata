@@ -3,7 +3,7 @@
   <component name="Black">
     <option name="sdkName" value="imagedata" />
   </component>
-  <component name="ProjectRootManager" version="2" project-jdk-name="pycharm-imagedata" project-jdk-type="Python SDK" />
+  <component name="ProjectRootManager" version="2" project-jdk-name="pycharm-imagedata-numpy" project-jdk-type="Python SDK" />
   <component name="PythonCompatibilityInspectionAdvertiser">
     <option name="version" value="3" />
   </component>
