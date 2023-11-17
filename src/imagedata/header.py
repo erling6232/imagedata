@@ -222,9 +222,9 @@ class Header(object):
                     template_tag = next_tag
                 next_tag = template_tag + tag_increment(DicomHeaderDict[_slice])
                 try:
-                    templateHeader = copy.copy(template[_slice][tag][2])
+                    templateHeader = copy.deepcopy(template[_slice][tag][2])
                 except (KeyError, IndexError):
-                    templateHeader = copy.copy(default_header)
+                    templateHeader = copy.deepcopy(default_header)
                 DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
         return DicomHeaderDict
 
