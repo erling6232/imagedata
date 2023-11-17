@@ -2308,7 +2308,7 @@ class Series(np.ndarray):
         rgb.header.add_template(self.header)
         return rgb
 
-    def fuse_mask(self, mask, alpha=0.7,
+    def fuse_mask(self, mask, alpha=0.7, blend=False,
                   colormap='Greys_r', lut=None, norm='linear',
                   clip='window', probs=(0.01, 0.999)):
 
@@ -2328,6 +2328,7 @@ class Series(np.ndarray):
         Args:
             mask (Series or np.ndarray): Mask image
             alpha (float): Alpha blending for each channel. Default: 0.7
+            blend (bool): Whether the self image will be blended using alpha. Default: False
             colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
             lut (int): Number of rgb quantization levels.
                 Default: None, lut is calculated from the voxel values.
@@ -2382,10 +2383,14 @@ class Series(np.ndarray):
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
         overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
-        overlay[..., 0] = mask_filter
+        overlay[..., 0] = mask_filter  # Red channel
 
-        # Do alpha blending for each channel
-        fused = alpha * background + (1.0 - alpha) * overlay
+        if blend:
+            fused = alpha * background + (1.0 - alpha) * overlay
+        else:
+            # Do alpha blending for each channel inside mask
+            fused = background + (1.0 - alpha) * overlay
+            fused /= fused.max()
         fused = np.clip(fused, 0, 1)
 
         background = fused * 255
@@ -2619,19 +2624,17 @@ class Series(np.ndarray):
         else:
             input_order = 'none'
         try:
-            # new_roi = Series(grid_from_roi(self, viewer.get_roi()),
-            #                  input_order=input_order, template=self, geometry=self)
             new_grid = grid_from_roi(self, self.viewer.get_roi(), single=single)
         except IndexError:
             if follow:
                 new_grid = np.zeros_like(self, dtype=np.ubyte)
             else:
                 new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
-        new_roi = Series(new_grid, input_order=input_order, template=self, geometry=self)
-        new_roi.seriesDescription = 'ROI'
-        new_roi.setDicomAttribute('WindowCenter', .5)
-        new_roi.setDicomAttribute('WindowWidth', 1)
+            new_grid = Series(new_grid, input_order=input_order, template=self, geometry=self)
+        new_grid.seriesDescription = 'ROI'
+        new_grid.setDicomAttribute('WindowCenter', .5)
+        new_grid.setDicomAttribute('WindowWidth', 1)
         if vertices:
-            return new_roi, self.viewer.get_roi()  # Return grid and vertices
+            return new_grid, self.viewer.get_roi()  # Return grid and vertices
         else:
-            return new_roi  # Return grid only
+            return new_grid  # Return grid only
