@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.2.4-rc1] - 2023-11-17
+### Fixed
+* Header: When using a template to create DicomHeaderDict, use deepcopy to get a unique
+  DicomHeaderDict for the new instance.
+### Added
+* Viewer: Save window center/width to Series object when returning.
+* Series.fuse_mask(): New parameter `blend` which determines whether
+  the self image is blended. Default is False, so the self images is
+  not blended, only the mask is blended.
+
 ## [v3.2.4-rc0] - 2023-11-15
 ### Fixed
 * Series: Handle the special case when a ufunc is called with a where= Series object used
