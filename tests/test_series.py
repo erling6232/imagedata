@@ -443,8 +443,6 @@ class TestSeries(unittest.TestCase):
         si1_window = si.getDicomAttribute('WindowWidth')
         self.assertEqual('dicom', si.input_format)
         si.setDicomAttribute('WindowWidth', 1)
-        print(template_window, si1_window,
-              si.getDicomAttribute('WindowWidth'))
         self.assertNotEqual(si.getDicomAttribute('WindowWidth'), template.getDicomAttribute('WindowWidth'))
 
     def test_cross_talk_series_template(self):
@@ -454,8 +452,6 @@ class TestSeries(unittest.TestCase):
         si_window = si.getDicomAttribute('WindowWidth')
         self.assertEqual('dicom', si.input_format)
         si.setDicomAttribute('WindowWidth', 1)
-        print(template_window, si_window,
-              si.getDicomAttribute('WindowWidth'))
         self.assertNotEqual(si.getDicomAttribute('WindowWidth'), template.getDicomAttribute('WindowWidth'))
 
     def test_cross_talk_spacing(self):
