@@ -417,6 +417,13 @@ class Viewer(object):
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
         elif event.key == 'Q' or event.key == 'q':
+            # Quit Viewer
+            # Set present window/level on Series objects
+            for i in self.im.keys():
+                self.im[i]['im'].setDicomAttribute('WindowCenter',
+                                                   self.im[i]['level'])
+                self.im[i]['im'].setDicomAttribute('WindowWidth',
+                                                   self.im[i]['window'])
             if self.callback_quit is not None:
                 self.callback_quit()
         # else:
