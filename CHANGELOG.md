@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.3.0-dev0] - 2023-11-30
+## [v3.3.0-rc0] - 2023-11-30
 ### Changed
 * Major modification to Series class, removing the DicomHeaderDict attribute.
 
