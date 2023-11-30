@@ -64,7 +64,7 @@ class DICOMPlugin(AbstractPlugin):
 
     Attributes:
         input_order
-        DicomHeaderDict
+        # DicomHeaderDict
         instanceNumber
         today
         now
@@ -90,6 +90,7 @@ class DICOMPlugin(AbstractPlugin):
                                           self.authors, self.version, self.url)
         self.input_order = None
         self.DicomHeaderDict = None
+        self.dicomTemplate = None
         self.instanceNumber = 0
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
@@ -145,6 +146,7 @@ class DICOMPlugin(AbstractPlugin):
             'imageType', 'accessionNumber',
             'modality', 'laterality',
             'protocolName', 'bodyPartExamined', 'patientPosition',
+            'windowCenter', 'windowWidth',
             'SOPClassUID'
         ]
         for attribute in attributes:
@@ -253,7 +255,7 @@ class DICOMPlugin(AbstractPlugin):
                     - input_order
                     - slices
                     - sliceLocations
-                    - DicomHeaderDict
+                    - dicomTemplate
                     - keep_uid
                     - tags
                     - seriesNumber
@@ -600,7 +602,8 @@ class DICOMPlugin(AbstractPlugin):
                     - input_order
                     - slices
                     - sliceLocations
-                    - DicomHeaderDict
+                    - dicomTemplate
+                    - SOPInstanceUIDs
                     - tags
                 - shape
         """
@@ -626,7 +629,7 @@ class DICOMPlugin(AbstractPlugin):
         # hdr.input_order = input_order
         sliceLocations = sorted(header_dict)
         # hdr.slices = len(sliceLocations)
-        hdr.sliceLocations = sliceLocations
+        hdr.sliceLocations = np.array(sliceLocations)
 
         # Verify same number of images for each slice
         if len(header_dict) == 0:
@@ -683,6 +686,7 @@ class DICOMPlugin(AbstractPlugin):
             tag_list[islice] = sorted(tag_list[islice])
         # Sort images based on position in tag_list
         sorted_headers = {}
+        SOPInstanceUIDs = {}
         islice = 0
         # Allow for variable sized slices
         frames = None
@@ -710,15 +714,19 @@ class DICOMPlugin(AbstractPlugin):
                 # sorted_headers[islice].insert(idx, (tag, (archive,filename), image))
                 # noinspection PyTypeChecker
                 sorted_headers[islice][idx] = (tag, (archive, filename), im)
+                SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
                 rows = max(rows, im.Rows)
                 columns = max(columns, im.Columns)
                 if 'NumberOfFrames' in im:
                     frames = im.NumberOfFrames
                 i += 1
             islice += 1
-        hdr.DicomHeaderDict = _copy_headers(sorted_headers)
-        # hdr.seriesInstanceUID = self.getDicomAttribute(hdr.DicomHeaderDict, 'SeriesInstanceUID')
-        # hdr.SOPClassUID = self.getDicomAttribute(hdr.DicomHeaderDict, 'SOPClassUID')
+        # hdr.DicomHeaderDict = _copy_headers(sorted_headers)
+        self.DicomHeaderDict = sorted_headers
+        hdr.dicomTemplate = im
+        hdr.SOPInstanceUIDs = SOPInstanceUIDs
+        # hdr.seriesInstanceUID = self.getDicomAttribute(self.DicomHeaderDict, 'SeriesInstanceUID')
+        # hdr.SOPClassUID = self.getDicomAttribute(self.DicomHeaderDict, 'SOPClassUID')
         hdr.tags = {}
         for _slice in range(len(tag_list)):
             hdr.tags[_slice] = np.array(tag_list[_slice])
@@ -730,7 +738,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             shape = (nz, rows, columns)
         spacing = self.__get_voxel_spacing(sorted_headers)
-        ipp = self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
+        ipp = self.getDicomAttribute(self.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
         if ipp is not None:
             ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
         else:
@@ -958,8 +966,8 @@ class DICOMPlugin(AbstractPlugin):
         logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
         logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         if 'window' in opts and opts['window'] == 'original':
-            self.center = si.getDicomAttribute('WindowCenter')
-            self.width = si.getDicomAttribute('WindowWidth')
+            self.center = si.windowCenter
+            self.width = si.windowWidth
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Set series instance UID when writing
@@ -978,21 +986,31 @@ class DICOMPlugin(AbstractPlugin):
             ifile = 0
             if _ndim < 3:
                 logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
+                if self.keep_uid:
+                    sop_ins_uid = si.SOPInstanceUIDs[(0, 0)]
+                else:
+                    sop_ins_uid = si.header.new_uid()
                 try:
                     filename = filename_template % 0
                 except TypeError:
                     filename = filename_template
-                self.write_slice(0, 0, si, archive, filename, ifile)
+                self.write_slice('none', 0, 0, si, archive, filename, ifile,
+                                 sop_ins_uid=sop_ins_uid)
             else:
                 logger.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
                 for _slice in range(si.slices):
+                    if self.keep_uid:
+                        sop_ins_uid = si.SOPInstanceUIDs[(0, _slice)]
+                    else:
+                        sop_ins_uid = si.header.new_uid()
                     try:
                         # Interpret parameter substitution in filename_template
                         filename = filename_template % _slice
                     except TypeError:
                         filename = filename_template + "_{}".format(_slice)
                     try:
-                        self.write_slice(0, _slice, si[_slice], archive, filename, ifile)
+                        self.write_slice('none', 0, _slice, si[_slice], archive, filename, ifile,
+                                         sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
@@ -1026,8 +1044,6 @@ class DICOMPlugin(AbstractPlugin):
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
         self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
-
-        self.DicomHeaderDict = si.DicomHeaderDict
 
         # Defaults
         self.output_sort = SORT_ON_SLICE
@@ -1074,6 +1090,10 @@ class DICOMPlugin(AbstractPlugin):
                 digits = len("{}".format(steps))
                 for tag in range(steps):
                     for _slice in range(si.slices):
+                        if self.keep_uid:
+                            sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                        else:
+                            sop_ins_uid = si.header.new_uid()
                         if self.output_dir == 'single':
                             # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
@@ -1087,8 +1107,8 @@ class DICOMPlugin(AbstractPlugin):
                             filename = os.path.join(dirn,
                                                     filename_template % ifile)
                         try:
-                            self.write_slice(tag, _slice, si[tag, _slice],
-                                             archive, filename, ifile)
+                            self.write_slice(si.input_order, tag, _slice, si[tag, _slice],
+                                             archive, filename, ifile, sop_ins_uid=sop_ins_uid)
                         except Exception as e:
                             print('DICOMPlugin.write_slice Exception: {}'.format(e))
                             traceback.print_exc(file=sys.stdout)
@@ -1099,6 +1119,10 @@ class DICOMPlugin(AbstractPlugin):
                 digits = len("{}".format(si.slices))
                 for _slice in range(si.slices):
                     for tag in range(steps):
+                        if self.keep_uid:
+                            sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                        else:
+                            sop_ins_uid = si.header.new_uid()
                         if self.output_dir == 'single':
                             # Interpret parameter substitution in filename_template
                             filename = filename_template % ifile
@@ -1110,8 +1134,8 @@ class DICOMPlugin(AbstractPlugin):
                             filename = os.path.join(dirn,
                                                     filename_template % ifile)
                         try:
-                            self.write_slice(tag, _slice, si[tag, _slice],
-                                             archive, filename, ifile)
+                            self.write_slice(si.input_order, tag, _slice, si[tag, _slice],
+                                             archive, filename, ifile, sop_ins_uid=sop_ins_uid)
                         except Exception as e:
                             print('DICOMPlugin.write_slice Exception: {}'.format(e))
                             traceback.print_exc(file=sys.stdout)
@@ -1251,17 +1275,20 @@ class DICOMPlugin(AbstractPlugin):
         raise ValueError("write_enhanced: to be implemented")
 
     # noinspection PyPep8Naming,PyArgumentList
-    def write_slice(self, tag, slice, si, archive, filename, ifile):
+    def write_slice(self, input_order, tag, slice, si, archive, filename, ifile,
+                    sop_ins_uid=None):
         """Write single slice to DICOM file
 
         Args:
             self: DICOMPlugin instance
+            input_order: input order
             tag: tag index
             slice: slice index
             si: Series instance, including these attributes:
             -   slices
             -   sliceLocations
-            -   DicomHeaderDict
+            -   dicomTemplate
+            -   dicomToDo
             -   tags (not used)
             -   seriesNumber
             -   seriesDescription
@@ -1279,20 +1306,25 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug("write_slice {} {}".format(filename, self.serInsUid))
 
-        try:
-            logger.debug("write_slice slice {}, tag {}".format(slice, tag))
-            # logger.debug("write_slice {}".format(si.DicomHeaderDict))
-            tg, member_name, im = si.DicomHeaderDict[0][0]
-            # tg,member_name,image = si.DicomHeaderDict[slice][tag]
-        except (KeyError, IndexError, TypeError):
-            print('DICOMPlugin.write_slice: DicomHeaderDict: {}'.format(si.DicomHeaderDict))
-            raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]"
-                             % (slice, tag))
+        # try:
+        #     logger.debug("write_slice slice {}, tag {}".format(slice, tag))
+        #     # logger.debug("write_slice {}".format(si.DicomHeaderDict))
+        #     tg, member_name, im = si.DicomHeaderDict[0][0]
+        #     # tg,member_name,image = si.DicomHeaderDict[slice][tag]
+        # except (KeyError, IndexError, TypeError):
+        #     print('DICOMPlugin.write_slice: DicomHeaderDict: {}'.format(si.DicomHeaderDict))
+        #     raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]"
+        #                      % (slice, tag))
         # except AttributeError:
+        # except ValueError:
+        #     raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
+        try:
+            # im = si.dicomTemplate
+            ds = self.construct_dicom(filename, si.dicomTemplate, si, sop_ins_uid=sop_ins_uid)
         except ValueError:
-            raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
-        logger.debug("write_slice member_name {}".format(member_name))
-        ds = self.construct_dicom(filename, im, si)
+            ds = self.construct_basic_dicom(si, sop_ins_uid=sop_ins_uid)
+            # raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
+        # logger.debug("write_slice member_name {}".format(member_name))
         # self._copy_dicom_group(0x21, im, ds)
         # self._copy_dicom_group(0x29, im, ds)
 
@@ -1300,13 +1332,8 @@ class DICOMPlugin(AbstractPlugin):
         try:
             ds.SliceLocation = pydicom.valuerep.format_number_as_ds(float(si.sliceLocations[0]))
         except (AttributeError, ValueError):
-            # Dont know the SliceLocation, attempt to calculate from image geometry
-            try:
-                ds.SliceLocation =\
-                    pydicom.valuerep.format_number_as_ds(self._calculate_slice_location(im))
-            except ValueError:
-                # Dont know the SliceLocation, so will set this to be the slice index
-                ds.SliceLocation = slice
+            # Dont know the SliceLocation, so will set this to be the slice index
+            ds.SliceLocation = slice
         try:
             dz, dy, dx = si.spacing
         except ValueError:
@@ -1356,6 +1383,18 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             pass
 
+        # Add DICOM To Do items to present slice
+        for _attr, _value, _slice, _tag in si.header.dicomToDo:
+            _this_slice = True if _slice is None else _slice == slice
+            _this_tag = True if _tag is None else _tag == tag
+            if _this_slice and _this_tag:
+                # Set Dicom Attribute
+                if _attr not in ds:
+                    VR = pydicom.datadict.dictionary_VR(_attr)
+                    ds.add_new(_attr, VR, _value)
+                else:
+                    ds[_attr].value = _value
+
         self._set_pixel_rescale(ds, si)
 
         # General Image Module Attributes
@@ -1370,7 +1409,7 @@ class DICOMPlugin(AbstractPlugin):
 
         # Set tag
         # si will always have only the present tag
-        self._set_dicom_tag(ds, si.input_order, si.tags[0])
+        self._set_dicom_tag(ds, input_order, si.tags[0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1387,12 +1426,22 @@ class DICOMPlugin(AbstractPlugin):
 
     def construct_basic_dicom(self, template=None, filename='NA', sop_ins_uid=None):
 
+        if sop_ins_uid is None:
+            raise ValueError('SOPInstanceUID is undefined.')
         # Populate required values for file meta information
         file_meta = pydicom.dataset.FileMetaDataset()
-        if template is not None:
-            file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        sop_class_uid = getattr(template, 'SOPClassUID', None)
+        if sop_class_uid is None:
+            sop_class_uid = '1.2.840.10008.5.1.4.1.1.7'
+        file_meta.MediaStorageSOPClassUID = sop_class_uid
+        # if template is not None and 'SOPClassUID' in template:
+        #     file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        # else:
+        #     file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.7'
         if sop_ins_uid is not None:
             file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+        else:
+            file_meta.MediaStorageSOPInstanceUID = template.header.new_uid()
         file_meta.ImplementationClassUID = "%s.1" % self.root
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
@@ -1403,18 +1452,24 @@ class DICOMPlugin(AbstractPlugin):
             {},
             file_meta=file_meta,
             preamble=b"\0" * 128)
+        ds.SOPInstanceUID = sop_ins_uid
         return ds
 
-    def construct_dicom(self, filename, template, si):
+    def construct_dicom(self, filename, template, si, sop_ins_uid=None):
 
         self.instanceNumber += 1
-        if not self.keep_uid:
-            si.setDicomAttribute('SOPInstanceUID', si.header.new_uid())
-        sop_ins_uid = si.getDicomAttribute('SOPInstanceUID')
+        # if not self.keep_uid:
+        #     si.SOPInstanceUID = si.header.new_uid()
+        # if 'SOPInstanceUID' in si:
+        #     sop_ins_uid = si.SOPInstanceUID
+        # else:
+        #     sop_ins_uid = si.header.new_uid()
+        if sop_ins_uid is None:
+            sop_ins_uid = si.header.new_uid()
 
         # Populate required values for file meta information
         file_meta = pydicom.dataset.FileMetaDataset()
-        file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+        file_meta.MediaStorageSOPClassUID = si.SOPClassUID
         file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
         file_meta.ImplementationClassUID = "%s.1" % self.root
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
@@ -1443,7 +1498,7 @@ class DICOMPlugin(AbstractPlugin):
         ds.StudyID = si.header.studyID
         # ds.SeriesInstanceUID = si.header.seriesInstanceUID
         ds.SeriesInstanceUID = self.serInsUid
-        ds.SOPClassUID = template.SOPClassUID
+        ds.SOPClassUID = si.SOPClassUID
         ds.SOPInstanceUID = sop_ins_uid
 
         ds.AccessionNumber = si.header.accessionNumber
@@ -1744,6 +1799,18 @@ class DICOMPlugin(AbstractPlugin):
                 csa_head = csa.get_csa_header(im)
                 try:
                     if csa.get_b_value(csa_head) != float(value):
+                        if not (0x29, 0x10) in im:  # Cannot be Siemens CSA
+                            return None
+                        section_start = csa.find_private_section(im, 0x29, 'SIEMENS CSA HEADER')
+                        if section_start is None:
+                            return None
+                        # element_offset = 0x10
+                        # element_no = section_start + element_offset
+                        try:
+                            csa_head['tags']['B_value']['items'] = [float(value)]
+                            return
+                        except KeyError:
+                            return None
                         raise ValueError(
                             'Replacing b value in CSA header has not been implemented.')
                 except Exception:

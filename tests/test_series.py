@@ -413,46 +413,48 @@ class TestSeries(unittest.TestCase):
         si = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si.input_format)
         si1 = si[0] * 10
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+        self.assertNotEqual(si.windowWidth, si1.windowWidth)
 
     def test_cross_talk_wl(self):
         si = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si.input_format)
-        si1 = si.deepcopy()[0] * 10
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+        si1 = copy.deepcopy(si)[0] * 10
+        self.assertNotEqual(si.windowWidth, si1.windowWidth)
 
     def test_cross_talk_series_ref(self):
         si = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si.input_format)
         si1 = Series(si, input_order=si.input_order)
-        si1.setDicomAttribute('WindowWidth', 1)
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
-
-    def test_cross_talk_series(self):
-        si = Series('data/dicom/time/time00')
-        self.assertEqual('dicom', si.input_format)
-        si1 = si.deepcopy()
-        si1.setDicomAttribute('WindowWidth', 1)
-        self.assertEqual(1, si1.getDicomAttribute('WindowWidth'))
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), si1.getDicomAttribute('WindowWidth'))
+        si1.windowWidth = 1
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['dicom'])
+            si2 = Series(d)
+        self.assertNotEqual(si2.windowWidth, si1.windowWidth)
 
     def test_cross_talk_dicom_series_template(self):
         template = Series('data/dicom/time/time00')
-        template_window = template.getDicomAttribute('WindowWidth')
+        template_window = template.windowWidth
         si = Series('data/dicom/time/time01', template=template)
-        si1_window = si.getDicomAttribute('WindowWidth')
+        si1_window = si.windowWidth
         self.assertEqual('dicom', si.input_format)
-        si.setDicomAttribute('WindowWidth', 1)
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), template.getDicomAttribute('WindowWidth'))
+        si.windowWidth = 1
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            si2 = Series(d)
+        self.assertNotEqual(si2.windowWidth, template.windowWidth)
 
     def test_cross_talk_series_template(self):
         template = Series('data/dicom/time/time00')
-        template_window = template.getDicomAttribute('WindowWidth')
+        template_window = template.windowWidth
         si = Series(np.zeros_like(template), template=template)
-        si_window = si.getDicomAttribute('WindowWidth')
+        si_window = si.windowWidth
         self.assertEqual('dicom', si.input_format)
-        si.setDicomAttribute('WindowWidth', 1)
-        self.assertNotEqual(si.getDicomAttribute('WindowWidth'), template.getDicomAttribute('WindowWidth'))
+        si.windowWidth = 1
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            si2 = Series(d)
+        self.assertNotEqual(si.windowWidth, template.windowWidth)
+        self.assertEqual(si2.windowWidth, si.windowWidth)
 
     def test_cross_talk_spacing(self):
         si = Series('data/dicom/time', 'time')

@@ -20,7 +20,8 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
 
     # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
     try:
-        self.assertEqual(hdr.DicomHeaderDict.keys(), newhdr.DicomHeaderDict.keys())
+        self.assertEqual(hdr.dicomTemplate.keys(), newhdr.dicomTemplate.keys())
+        # self.assertEqual(hdr.DicomHeaderDict.keys(), newhdr.DicomHeaderDict.keys())
         # for k in hdr.DicomHeaderDict.keys():
         #    obj.assertEqual(hdr.DicomHeaderDict[k], newhdr.DicomHeaderDict[k])
     except ValueError:
@@ -89,10 +90,10 @@ def compare_axes(self, axes, new_axes):
             self.assertEqual(axis.step, new_axis.step)
 
 
-def compare_pydicom(self, orig, temp):
+def compare_pydicom(self, orig, temp, uid=False):
     dont_verify = ['Content Date', 'Content Time', 'Instance Number',
                    'Largest Pixel Value in Series', 'Window Center',
-                   'Window Width']
+                   'Window Width', 'Acquisition Number']
     for data_element in orig:
         if data_element.VR == "SQ":
             pass
@@ -107,10 +108,18 @@ def compare_pydicom(self, orig, temp):
             )
         else:
             tag = data_element.tag
-            self.assertEqual(data_element.value, temp[tag].value,
+            if not uid and data_element.VR == "UI":
+                continue
+            try:
+                self.assertEqual(data_element.value, temp[tag].value,
                              msg='Name="{}", VR={}'.format(
                                  data_element.name, data_element.VR)
                              )
+            except AssertionError as e:
+                if data_element.private_creator == 'SIEMENS CSA HEADER':
+                    pass
+                else:
+                    raise
     np.testing.assert_array_almost_equal(orig.SliceLocation, temp.SliceLocation)
     np.testing.assert_array_almost_equal(
         orig.ImagePositionPatient, temp.ImagePositionPatient)

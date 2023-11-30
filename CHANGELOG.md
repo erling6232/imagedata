@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.0-dev0] - 2023-11-30
+### Changed
+* Major modification to Series class, removing the DicomHeaderDict attribute.
+
 ## [v3.2.4-rc1] - 2023-11-17
 ### Fixed
 * Header: When using a template to create DicomHeaderDict, use deepcopy to get a unique

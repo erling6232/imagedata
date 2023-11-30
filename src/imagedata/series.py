@@ -10,6 +10,7 @@ methods and attributes.
 """
 
 import copy
+import numbers
 import numpy as np
 import logging
 from pathlib import PurePath
@@ -21,7 +22,7 @@ from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
 from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
-from .header import Header, deepcopy_DicomHeaderDict
+from .header import Header
 
 logger = logging.getLogger(__name__)
 
@@ -211,8 +212,8 @@ class Series(np.ndarray):
             self.header.set_default_values(self.axes)
             if self.ndim > 0:
                 _level, _width = self.__calculate_window()
-                self.setDicomAttribute('WindowCenter', _level)
-                self.setDicomAttribute('WindowWidth', _width)
+                self.windowCenter = _level
+                self.windowWidth = _width
 
         # We do not need to return anything
 
@@ -280,8 +281,8 @@ class Series(np.ndarray):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
             _level, _width = results[0].__calculate_window()
-            results[0].setDicomAttribute('WindowCenter', _level)
-            results[0].setDicomAttribute('WindowWidth', _width)
+            results[0].windowCenter = _level
+            results[0].windowWidth = _width
 
         return results[0] if len(results) == 1 else results
 
@@ -324,24 +325,30 @@ class Series(np.ndarray):
     def __getitem__(self, item):
         """__getitem__(self, item)
 
-        Called to implement evaluation of self[item]. For sequence types, the
+        Called to implement evaluation of self[item]. The
         accepted items should be integers and slice objects. Note that the
         special interpretation of negative indexes (if the class wishes to
         emulate a sequence type) is up to the __getitem__() method. If item is
         of an inappropriate type, TypeError may be raised; if of a value
         outside the set of indexes for the sequence (after any special
-        interpretation of negative values), IndexError should be raised. For
-        mapping types, if item is missing (not in the container), KeyError
-        should be raised. Note: for loops expect that an IndexError will be
+        interpretation of negative values), IndexError should be raised.
+        Note: for loops expect that an IndexError will be
         raised for illegal indexes to allow proper detection of the end of the
         sequence.
         """
 
         def _set_geometry(_ret, _todo):
+            # Ensure 'axes' is set first
+            for i in range(len(_todo)):
+                attr, value = _todo[i]
+                if attr == 'axes':
+                    setattr(_ret, attr, value)
+                    _todo.pop(i)
+                    break
             for attr, value in _todo:
                 try:
                     setattr(_ret, attr, value)
-                except AttributeError:
+                except (AttributeError, ValueError):
                     pass
 
         def _number_of_ellipses(_items):
@@ -428,6 +435,8 @@ class Series(np.ndarray):
 
                 if axis.name == 'slice':
                     # Select slice of imagePositions
+                    sl = self.sliceLocations[start:stop:step]
+                    todo.append(('sliceLocations', sl))
                     ipp = self.__get_imagePositions(spec[i])
                     todo.append(('imagePositions', None))  # Wipe existing positions
                     if ipp is not None:
@@ -438,9 +447,9 @@ class Series(np.ndarray):
                     todo.append(('tags', tags))
                     if len(tags[0]) == 1:
                         reduce_dim = True
-            # Select slice of DicomHeaderDict
-            hdr = self.__get_DicomHeaderDict(spec)
-            todo.append(('DicomHeaderDict', hdr))
+            # # Select slice of DicomHeaderDict
+            # hdr = self.__get_DicomHeaderDict(spec)
+            # todo.append(('DicomHeaderDict', hdr))
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
@@ -458,7 +467,7 @@ class Series(np.ndarray):
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
             new_uid = ret.header.new_uid()
-            ret.setDicomAttribute('SeriesInstanceUID', new_uid)
+            ret.seriesInstanceUID = new_uid
             # ret.setDicomAttribute('SeriesInstanceUID', ret.header.new_uid())
             ret.seriesInstanceUID = new_uid
         return ret
@@ -504,41 +513,41 @@ class Series(np.ndarray):
         # logger.debug('__get_imagePositions: exit')
         return ippdict
 
-    def __get_DicomHeaderDict(self, specs):
-        try:
-            slices = len(self.DicomHeaderDict)
-        except ValueError:
-            return None
-        slice_spec = slice(0, slices, 1)
-        assert len(self.tags) > 0, "No tags defined"
-        tags = len(self.tags[0])
-        tag_spec = slice(0, tags, 1)
-        for d in specs:
-            start, stop, step, axis = specs[d]
-            if axis.name == 'slice':
-                slice_spec = slice(start, stop, step)
-            elif axis.name == input_order_to_dirname_str(self.input_order):
-                tag_spec = slice(start, stop, step)
-        # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
-        hdr = {}
-        j = 0
-        for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
-            _slice = min(s, slices - 1)
-            hdr[j] = list()
-            for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-                try:
-                    tag = self.tags[_slice][t]
-                except IndexError:
-                    raise IndexError("Could not get tag for slice {}, tag {}".format(_slice, t))
-                try:
-                    hdr[j].append(
-                        self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
-                    )
-                except TypeError:
-                    return None
-            j += 1
-
-        return hdr
+    # def __get_DicomHeaderDict(self, specs):
+    #     try:
+    #         slices = len(self.DicomHeaderDict)
+    #     except ValueError:
+    #         return None
+    #     slice_spec = slice(0, slices, 1)
+    #     assert len(self.tags) > 0, "No tags defined"
+    #     tags = len(self.tags[0])
+    #     tag_spec = slice(0, tags, 1)
+    #     for d in specs:
+    #         start, stop, step, axis = specs[d]
+    #         if axis.name == 'slice':
+    #             slice_spec = slice(start, stop, step)
+    #         elif axis.name == input_order_to_dirname_str(self.input_order):
+    #             tag_spec = slice(start, stop, step)
+    #     # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
+    #     hdr = {}
+    #     j = 0
+    #     for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
+    #         _slice = min(s, slices - 1)
+    #         hdr[j] = list()
+    #         for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
+    #             try:
+    #                 tag = self.tags[_slice][t]
+    #             except IndexError:
+    #                 raise IndexError("Could not get tag for slice {}, tag {}".format(_slice, t))
+    #             try:
+    #                 hdr[j].append(
+    #                     self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
+    #                 )
+    #             except TypeError:
+    #                 return None
+    #         j += 1
+    #
+    #     return hdr
 
     def __repr__(self):
         return super().__repr__()
@@ -834,14 +843,9 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no slice locations are defined.
         """
+        if self.header.sliceLocations is not None:
+            return self.header.sliceLocations
         try:
-            slice_axis = self.find_axis('slice')
-            if isinstance(slice_axis, VariableAxis):
-                return slice_axis.values
-            else:
-                return np.arange(slice_axis.start, slice_axis.stop, slice_axis.step)
-            # if self.header.sliceLocations is not None:
-            #     return self.header.sliceLocations
             # Some image formats do not provide slice locations.
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
@@ -856,6 +860,8 @@ class Series(np.ndarray):
                 self.header.sliceLocations = loc
                 return self.header.sliceLocations
         except AttributeError:
+            pass
+        except Exception:
             pass
         raise ValueError("Slice locations are not defined.")
 
@@ -877,6 +883,7 @@ class Series(np.ndarray):
             raise ValueError('Cannot set {} slice locations for {} slices'.format(
                 len(loc), self.slices
             ))
+        self.header.sliceLocations = loc
         if _is_uniform_spacing(loc):
             if len(loc) > 1:
                 ds = loc[1] - loc[0]
@@ -890,39 +897,39 @@ class Series(np.ndarray):
                 # Replace axis
                 self.axes[i] = _axis
                 return
-        raise ValueError("No slice axis object exist")
+        # raise ValueError("No slice axis object exist")
 
-    @property
-    def DicomHeaderDict(self):
-        """dict: DICOM header dictionary
-
-        DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
-
-        Raises:
-            ValueError: when DICOM header is not set.
-
-        Examples:
-            Get values for slice=0:
-
-            >>> si = Series(np.eye(128))
-            >>> tagvalue, filename, dicomheader = si.DicomHeaderDict()[0]
-        """
-        # logger.debug('Series.DicomHeaderDict: here')
-        try:
-            if self.header.DicomHeaderDict is not None:
-                # logger.debug('Series.DicomHeaderDict: return')
-                # logger.debug('Series.DicomHeaderDict: return {}'.format(
-                #              type(self.header.DicomHeaderDict)))
-                # logger.debug('Series.DicomHeaderDict: return {}'.format(
-                #              self.header.DicomHeaderDict.keys()))
-                return self.header.DicomHeaderDict
-        except AttributeError:
-            pass
-        raise ValueError("Dicom Header Dict is not set.")
-
-    @DicomHeaderDict.setter
-    def DicomHeaderDict(self, dct):
-        self.header.DicomHeaderDict = dct
+    # @property
+    # def DicomHeaderDict(self):
+    #     """dict: DICOM header dictionary
+    #
+    #     DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
+    #
+    #     Raises:
+    #         ValueError: when DICOM header is not set.
+    #
+    #     Examples:
+    #         Get values for slice=0:
+    #
+    #         >>> si = Series(np.eye(128))
+    #         >>> tagvalue, filename, dicomheader = si.DicomHeaderDict()[0]
+    #     """
+    #     # logger.debug('Series.DicomHeaderDict: here')
+    #     try:
+    #         if self.header.DicomHeaderDict is not None:
+    #             # logger.debug('Series.DicomHeaderDict: return')
+    #             # logger.debug('Series.DicomHeaderDict: return {}'.format(
+    #             #              type(self.header.DicomHeaderDict)))
+    #             # logger.debug('Series.DicomHeaderDict: return {}'.format(
+    #             #              self.header.DicomHeaderDict.keys()))
+    #             return self.header.DicomHeaderDict
+    #     except AttributeError:
+    #         pass
+    #     raise ValueError("Dicom Header Dict is not set.")
+    #
+    # @DicomHeaderDict.setter
+    # def DicomHeaderDict(self, dct):
+    #     self.header.DicomHeaderDict = dct
 
     @property
     def tags(self):
@@ -956,24 +963,24 @@ class Series(np.ndarray):
     @tags.setter
     def tags(self, tags):
         self.header.tags = {}
-        hdr = {}
+        # hdr = {}
         for s in tags.keys():
             self.header.tags[s] = np.array(tags[s])
-            hdr[s] = list()
-            max_t = len(self.header.DicomHeaderDict[s]) - 1
-            for t in range(len(tags[s])):
-                if t <= max_t:
-                    wrongtag, filename, dcm = self.header.DicomHeaderDict[s][t]
-                    hdr[s].append(
-                        (tags[s][t], filename, dcm)
-                    )
-                else:
-                    # Copy last DicomHeaderDict
-                    wrongtag, filename, dcm = self.header.DicomHeaderDict[s][max_t]
-                    hdr[s].append(
-                        (tags[s][t], None, dcm)
-                    )
-        self.header.DicomHeaderDict = hdr
+        #     hdr[s] = list()
+        #     max_t = len(self.header.DicomHeaderDict[s]) - 1
+        #     for t in range(len(tags[s])):
+        #         if t <= max_t:
+        #             wrongtag, filename, dcm = self.header.DicomHeaderDict[s][t]
+        #             hdr[s].append(
+        #                 (tags[s][t], filename, dcm)
+        #             )
+        #         else:
+        #             # Copy last DicomHeaderDict
+        #             wrongtag, filename, dcm = self.header.DicomHeaderDict[s][max_t]
+        #             hdr[s].append(
+        #                 (tags[s][t], None, dcm)
+        #             )
+        # self.header.DicomHeaderDict = hdr
 
     @property
     def axes(self):
@@ -1251,6 +1258,31 @@ class Series(np.ndarray):
         # Invalidate existing transformation matrix
         # self.header.transformationMatrix = None
         self.header.orientation = np.array(orient)
+
+    @property
+    def dicomTemplate(self):
+        """pydicom.dataset.Dataset: DICOM data set
+
+        Raises:
+        ValueError: when modality is not set.
+        ValueError: when modality cannot be converted to str.
+        """
+        try:
+            if self.header.dicomTemplate is not None:
+                return self.header.dicomTemplate
+        except AttributeError:
+            pass
+        raise ValueError("No DICOM template set.")
+
+    @dicomTemplate.setter
+    def dicomTemplate(self, ds):
+        if ds is None:
+            self.header.dicomTemplate = None
+            return
+        if issubclass(type(ds), pydicom.dataset.Dataset):
+            self.header.dicomTemplate = str(ds)
+        else:
+            raise ValueError("Dataset is not a pydicom.dataset.Dataset.")
 
     @property
     def modality(self):
@@ -1630,6 +1662,24 @@ class Series(np.ndarray):
             raise
 
     @property
+    def SOPInstanceUIDs(self):
+        """str: DICOM SOP Instance UIDs
+
+        Raises:
+            ValueError: when SOP Instance UIDs is not set
+        """
+        try:
+            if self.header.SOPInstanceUIDs is not None:
+                return self.header.SOPInstanceUIDs
+        except AttributeError:
+            pass
+        raise ValueError("No SOP Instance UIDs set.")
+
+    @SOPInstanceUIDs.setter
+    def SOPInstanceUIDs(self, uids):
+        self.header.SOPInstanceUIDs = uids
+
+    @property
     def accessionNumber(self):
         """str: DICOM accession number
 
@@ -1775,6 +1825,68 @@ class Series(np.ndarray):
             self.header.photometricInterpretation = str(string)
         except AttributeError:
             raise TypeError("Given phometric interpretation is not printable")
+
+    @property
+    def windowCenter(self):
+        """number: Window Center
+
+        Raises:
+            ValueError: when window center is not set
+            TypeError: When window center is not a number
+        """
+        try:
+            if self.header.windowCenter is None:
+                level = (np.float32(np.nanmax(self)) + np.float32(np.nanmin(self))) / 2
+                if np.isnan(level):
+                    level = 1
+                if abs(level) > 2:
+                    level = round(level)
+                self.header.windowCenter = level
+            return self.header.windowCenter
+        except AttributeError:
+            pass
+        raise ValueError("No Window Center is set.")
+
+    @windowCenter.setter
+    def windowCenter(self, value):
+        if value is None:
+            self.header.windowCenter = None
+            return
+        if isinstance(value, numbers.Number):
+            self.header.windowCenter = value
+        else:
+            raise TypeError("Given window center is not a number.")
+
+    @property
+    def windowWidth(self):
+        """number: Window Width
+
+        Raises:
+            ValueError: when window width is not set
+            TypeError: When window width is not a number
+        """
+        try:
+            if self.header.windowWidth is None:
+                window = np.float32(np.nanmax(self)) - np.float32(np.nanmin(self))
+                if np.isnan(window):
+                    window = 1
+                if abs(window) > 2:
+                    window = round(window)
+                self.header.windowWidth = window
+            return self.header.windowWidth
+        except AttributeError:
+            pass
+        raise ValueError("No Window Width is set.")
+
+    @windowWidth.setter
+    def windowWidth(self, value):
+        if value is None:
+            self.header.windowWidth = None
+            return
+        if isinstance(value, numbers.Number):
+            self.header.windowWidth = value
+        else:
+            raise TypeError("Given window width is not a number.")
 
     # noinspection PyPep8Naming
     @property
@@ -1951,33 +2063,28 @@ class Series(np.ndarray):
             raise ValueError("No b-value tags are available. Input order: {}".format(
                 self.input_order))
 
-    def getDicomAttribute(self, keyword, slice=0, tag=0):
+    def getDicomAttribute(self, keyword):
         """Get named DICOM attribute.
 
         Args:
             keyword (str): name or dicom tag
-            slice (int): optional slice to get attribute from (default: 0)
-            tag (int): optional tag to get attribute from (default: 0)
 
         Returns:
             DICOM attribute
         """
 
-        if self.DicomHeaderDict is None:
-            return None
-        if issubclass(type(keyword), str):
-            _tag = pydicom.datadict.tag_for_keyword(keyword)
-        else:
-            _tag = keyword
-        if _tag is None:
-            return None
         try:
-            tg, fname, im = self.DicomHeaderDict[slice][tag]
-        except TypeError:
-            raise TypeError('No DicomHeaderDict[{}][{}], shape {}'.format(slice, tag, self.shape))
-        if _tag in im:
-            return im[_tag].value
-        else:
+            if issubclass(type(keyword), str):
+                _tag = pydicom.datadict.tag_for_keyword(keyword)
+            else:
+                _tag = keyword
+            if _tag is None:
+                return None
+            if _tag in self.dicomTemplate:
+                return self.dicomTemplate[_tag].value
+            else:
+                return None
+        except ValueError:
             return None
 
     def setDicomAttribute(self, keyword, value, slice=None, tag=None):
@@ -1991,31 +2098,34 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no DICOM tag is set.
         """
-
-        if self.DicomHeaderDict is None:
-            return None
+    #
+    #     if self.DicomHeaderDict is None:
+    #         return None
         if issubclass(type(keyword), str):
             _tag = pydicom.datadict.tag_for_keyword(keyword)
         else:
             _tag = keyword
         if _tag is None:
             raise ValueError('No DICOM tag set')
-        slices = [i for i in range(self.slices)]
-        tags = [i for i in range(len(self.tags[0]))]
-        if slice is not None:
-            slices = [slice]
-        if tag is not None:
-            tags = [tag]
-        for s in slices:
-            for t in tags:
-                try:
-                    tg, fname, im = self.DicomHeaderDict[s][t]
-                    # Always make a new attribute to avoid cross-talk after
-                    # copying Series instances.
-                    VR = pydicom.datadict.dictionary_VR(_tag)
-                    im.add_new(_tag, VR, value)
-                except (IndexError, TypeError):
-                    pass
+        self.header.dicomToDo.append(
+            (_tag, value, slice, tag)
+        )
+    #     slices = [i for i in range(self.slices)]
+    #     tags = [i for i in range(len(self.tags[0]))]
+    #     if slice is not None:
+    #         slices = [slice]
+    #     if tag is not None:
+    #         tags = [tag]
+    #     for s in slices:
+    #         for t in tags:
+    #             try:
+    #                 tg, fname, im = self.DicomHeaderDict[s][t]
+    #                 # Always make a new attribute to avoid cross-talk after
+    #                 # copying Series instances.
+    #                 VR = pydicom.datadict.dictionary_VR(_tag)
+    #                 im.add_new(_tag, VR, value)
+    #             except (IndexError, TypeError):
+    #                 pass
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r.
@@ -2084,11 +2194,11 @@ class Series(np.ndarray):
         # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
-    def deepcopy(self):
-        """Create a copy using deepcopy."""
-        a = Series(np.copy(self), template=self, geometry=self)
-        a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
-        return a
+    # def deepcopy(self):
+    #     """Create a copy using deepcopy."""
+    #     a = Series(np.copy(self), template=self, geometry=self)
+    #     a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
+    #     return a
 
     def align(moving, reference, interpolation='linear', force=False):
         """Align moving series (self) to reference.
@@ -2632,8 +2742,8 @@ class Series(np.ndarray):
                 new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
             new_grid = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_grid.seriesDescription = 'ROI'
-        new_grid.setDicomAttribute('WindowCenter', .5)
-        new_grid.setDicomAttribute('WindowWidth', 1)
+        new_grid.windowCenter = .5
+        new_grid.windowWidth = 1
         if vertices:
             return new_grid, self.viewer.get_roi()  # Return grid and vertices
         else:

@@ -420,10 +420,8 @@ class Viewer(object):
             # Quit Viewer
             # Set present window/level on Series objects
             for i in self.im.keys():
-                self.im[i]['im'].setDicomAttribute('WindowCenter',
-                                                   self.im[i]['level'])
-                self.im[i]['im'].setDicomAttribute('WindowWidth',
-                                                   self.im[i]['window'])
+                self.im[i]['im'].windowCenter = self.im[i]['level']
+                self.im[i]['im'].windowWidth = self.im[i]['window']
             if self.callback_quit is not None:
                 self.callback_quit()
         # else:
@@ -886,7 +884,7 @@ def get_level(si, level):
     if level is None:
         # First, attempt to get DICOM attribute
         try:
-            level = si.getDicomAttribute('WindowCenter')
+            level = si.windowCenter
         except (KeyError, AttributeError, TypeError):
             pass
         try:
@@ -907,7 +905,7 @@ def get_window_level(si, norm, window, level):
     if window is None:
         # First, attempt to get DICOM attribute
         try:
-            window = si.getDicomAttribute('WindowWidth')
+            window = si.windowWidth
         except (KeyError, AttributeError, TypeError):
             pass
         try:
