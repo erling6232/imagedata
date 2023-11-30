@@ -81,6 +81,12 @@ These attributes can be set and interrogated directly from the Series object:
 +-------------------------+-------------------------+-----------------------+
 |sliceLocations           |SliceLocation            |numpy array (in mm)    |
 +-------------------------+-------------------------+-----------------------+
+|**VOI LUT Module**                                                         |
++-------------------------+-------------------------+-----------------------+
+|windowCenter             |WindowCenter             |number                 |
++-------------------------+-------------------------+-----------------------+
+|windowWidth              |WindowWidth              |number                 |
++-------------------------+-------------------------+-----------------------+
 |**Image Pixel Module**                                                     |
 +-------------------------+-------------------------+-----------------------+
 |color                    |SamplesPerPixel          |bool                   |
@@ -102,6 +108,13 @@ These attributes can be set and interrogated directly from the Series object:
 +-------------------------+-------------------------+-----------------------+
 |transformationMatrix     |                         |numpy array 4x4        |
 |                         |                         |in z,y,x order         |
++-------------------------+-------------------------+-----------------------+
+|SOPInstanceUIDs          |                         |Dict of collected      |
+|                         |                         |SOPInstanceUID from    |
+|                         |                         |instances read.        |
+|                         |                         |Key: (tag, slice)      |
++-------------------------+-------------------------+-----------------------+
+|dicomTemplate            |                         |A pydicom Dataset      |
 +-------------------------+-------------------------+-----------------------+
 
 
