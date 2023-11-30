@@ -62,6 +62,7 @@ class TestFileArchiveItk(unittest.TestCase):
         self.assertEqual(si1.input_format, 'itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
+        self.assertNotEqual(si1.windowCenter, 1)
 
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):

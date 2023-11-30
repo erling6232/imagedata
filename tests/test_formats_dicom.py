@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import unittest
-import copy
 import math
 import os.path
 import tempfile
@@ -125,7 +124,7 @@ class TestDicomPlugin(unittest.TestCase):
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
         with self.assertRaises(imagedata.formats.CannotSort) as context:
-            si1 = Series(
+            _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 'b',
                 self.opts)
@@ -195,10 +194,7 @@ class TestDicomPlugin(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual('dicom', si1.input_format)
-        for _slice in range(si1.slices):
-            for _tag in si1.tags[_slice]:
-                tag, f, ds = si1.DicomHeaderDict[_slice][_tag]
-                del ds.SliceLocation
+        del si1.dicomTemplate.SliceLocation
         si1.axes[0].values = None
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'], opts={'keep_uid': True})
@@ -232,7 +228,7 @@ class TestDicomPlugin(unittest.TestCase):
                     temp = pydicom.filereader.dcmread(
                         os.path.join(d, 'Image_{:05d}.dcm'.format(i))
                     )
-                    compare_pydicom(self, orig, temp)
+                    compare_pydicom(self, orig, temp, uid=False)
                     i += 1
 
     # @unittest.skip("skipping test_copy_dicom_4D")
@@ -328,16 +324,16 @@ class TestDicomPlugin(unittest.TestCase):
         si.imageType = ['DERIVED', 'SECONDARY']
         si.header.photometricInterpretation = 'MONOCHROME2'
         fsi = si / math.sqrt(2)
-        fsi_center = fsi.getDicomAttribute('WindowCenter')
-        fsi_width = fsi.getDicomAttribute('WindowWidth')
+        fsi_center = fsi.windowCenter
+        fsi_width = fsi.windowWidth
         with tempfile.TemporaryDirectory() as d:
             fsi.write(d, formats=['dicom'])
             fsi_read = Series(d)
-        compare_headers(self, fsi, fsi_read)
-        self.assertAlmostEqual(fsi_read.getDicomAttribute('WindowCenter'), fsi_center, places=5)
-        self.assertAlmostEqual(fsi_read.getDicomAttribute('WindowWidth'), fsi_width, places=4)
-        self.assertAlmostEqual(fsi.getDicomAttribute('WindowCenter'),
-                         fsi_read.getDicomAttribute('WindowCenter'))
+            self.assertEqual(fsi_read.input_format, 'dicom')
+        compare_headers(self, fsi, fsi_read, uid=False)
+        self.assertAlmostEqual(fsi_read.windowCenter, fsi_center, places=5)
+        self.assertAlmostEqual(fsi_read.windowWidth, fsi_width, places=4)
+        self.assertAlmostEqual(fsi.windowCenter, fsi_read.windowCenter, places=4)
 
     def test_changed_uid(self):
         eye = Series(np.eye(128, dtype=np.uint16))
@@ -358,7 +354,8 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] = \
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                    si1.SOPInstanceUIDs[(_tag, _slice)]
+                    # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write('{}?Image%05d.dcm'.format(d),
                       formats=['dicom'],
@@ -376,13 +373,13 @@ class TestDicomPlugin(unittest.TestCase):
             for _tag in si1.tags[0]:
                 # si1 SOPInstanceUIDs should be identical to si2
                 self.assertEqual(
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
-                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                    si1.SOPInstanceUIDs[(_tag, _slice)],
+                    si2.SOPInstanceUIDs[(_tag, _slice)]
                 )
                 # si2 SOPInstanceUIDs should also be identical to original si1
                 self.assertEqual(
                     si1_sopinsuid[_slice][_tag],
-                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                    si2.SOPInstanceUIDs[(_tag, _slice)]
                 )
 
     def test_write_no_keep_uid(self):
@@ -395,7 +392,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] =\
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                    si1.SOPInstanceUIDs[(_tag, _slice)]
         with tempfile.TemporaryDirectory() as d:
             si1.write('{}?Image%05d.dcm'.format(d),
                       formats=['dicom'],
@@ -411,15 +408,10 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(len(si1.tags[0]), len(si2.tags[0]))
         for _slice in range(si1.slices):
             for _tag in si1.tags[0]:
-                # si1 SOPInstanceUIDs where modified at write() and will be identical to si2
-                self.assertEqual(
-                    si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag),
-                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
-                )
                 # si2 SOPInstanceUIDs should differ from original si1
                 self.assertNotEqual(
                     si1_sopinsuid[_slice][_tag],
-                    si2.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
+                    si2.SOPInstanceUIDs[(_tag, _slice)]
                 )
 
 

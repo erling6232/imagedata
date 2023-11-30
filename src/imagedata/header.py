@@ -19,12 +19,15 @@ header_tags = ['input_format',
                'seriesDate', 'seriesTime', 'seriesNumber',
                'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
-               'SOPClassUID',
+               'SOPClassUID', 'SOPInstanceUIDs',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
+               'windowCenter', 'windowWidth',
+               'dicomTemplate', 'dicomToDo',
                'tags',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
+                 'sliceLocations',
                  'patientPosition',
                  'photometricInterpretation', 'axes']
 
@@ -36,7 +39,7 @@ class Header(object):
         input_order
         sort_on
         input_format
-        DicomHeaderDict
+        dicomTemplate
         seriesNumber
         seriesDescription
         imageType
@@ -82,7 +85,10 @@ class Header(object):
         # pydicom.datadict.DicomDictionary
         # from pydicom.uid import UID
         # UID.
-        self.DicomHeaderDict = None
+        # self.dicomTemplate = None
+        self.dicomToDo = []
+        # self.windowCenter = 1
+        # self.windowWidth = 2
 
     def __repr__(self):
         return object.__repr__(self)
@@ -101,15 +107,16 @@ class Header(object):
     def set_default_values(self, axes) -> None:
         """Set default values.
         """
-        if self.DicomHeaderDict is not None:
-            return
-        # self.axes = copy.copy(axes)
+        # if self.DicomHeaderDict is not None:
+        #     return
         self.axes = []
 
         self.spacing = np.array([1, 1, 1])
         self.orientation = np.array([0, 0, 1, 0, 1, 0], dtype=np.float32)
-        self.DicomHeaderDict = {}
+        self.dicomTemplate = None
         self.imagePositions = {}
+        # self.windowCenter = 1
+        # self.windowWidth = 2
 
         if axes is None:
             return
@@ -128,11 +135,6 @@ class Header(object):
 
         for _slice in range(slices):
             self.imagePositions[_slice] = np.array([_slice, 0, 0])
-            self.DicomHeaderDict[_slice] = []
-            for tag in range(tags):
-                self.DicomHeaderDict[_slice].append(
-                    (tag, None, self.empty_ds())
-                )
         if self.tags is None:
             self.tags = {}
             for _slice in range(slices):
@@ -182,10 +184,10 @@ class Header(object):
 
         # Make sure tags are set last. Template may be None
         self.__set_tags_from_template(template)
-        # Make sure DicomHeaderDict is set last
-        if template.DicomHeaderDict is not None:
-            self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
-                template.DicomHeaderDict)
+        # # Make sure DicomHeaderDict is set last
+        # if template.DicomHeaderDict is not None:
+        #     self.DicomHeaderDict = self.__make_DicomHeaderDict_from_template(
+        #         template.DicomHeaderDict)
 
     def __get_tags_and_slices(self):  # -> tuple[int, int]:
         slices = tags = 1
@@ -197,62 +199,36 @@ class Header(object):
                     tags = len(axis)
         return tags, slices
 
-    def __make_DicomHeaderDict_from_template(self, template):
-        """Shallow copy of template Dataset.
-        When modifying attributes with Series.setDicomAttribute,
-        new attribute will be set to avoid cross-talk.
-        """
-        def tag_increment(tuple_list):
-            if len(tuple_list) < 2:
-                return 1.0
-            else:
-                return tuple_list[-1][0] - tuple_list[-2][0]  # Difference of last to tags
-
-        DicomHeaderDict = {}
-        default_header = template[0][0][2]
-        tags, slices = self.__get_tags_and_slices()
-        for _slice in range(slices):
-            DicomHeaderDict[_slice] = []
-            next_tag = 0
-            for tag in range(tags):
-                try:
-                    template_tag = template[_slice][tag][0]
-                except (KeyError, IndexError):
-                    # template_tag = tag
-                    template_tag = next_tag
-                next_tag = template_tag + tag_increment(DicomHeaderDict[_slice])
-                try:
-                    templateHeader = copy.deepcopy(template[_slice][tag][2])
-                except (KeyError, IndexError):
-                    templateHeader = copy.deepcopy(default_header)
-                DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
-        return DicomHeaderDict
-
-    # def __copy_DicomHeaderDict(self, source, filename=None):
-    #     sop_ins_uid = self.new_uid()
+    # def __make_DicomHeaderDict_from_template(self, template):
+    #     """Shallow copy of template Dataset.
+    #     When modifying attributes with Series.setDicomAttribute,
+    #     new attribute will be set to avoid cross-talk.
+    #     """
+    #     def tag_increment(tuple_list):
+    #         if len(tuple_list) < 2:
+    #             return 1.0
+    #         else:
+    #             return tuple_list[-1][0] - tuple_list[-2][0]  # Difference of last to tags
     #
-    #     # Populate required values for file meta information
-    #     file_meta = pydicom.dataset.FileMetaDataset()
-    #     # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
-    #     file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
-    #     # file_meta.ImplementationClassUID = "%s.1" % obj.root
-    #     file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-    #
-    #     ds = pydicom.dataset.FileDataset(
-    #         filename,
-    #         {},
-    #         file_meta=file_meta,
-    #         preamble=b"\0" * 128
-    #     )
-    #
-    #     for element in source.iterall():
-    #         if element.tag == 0x7fe00010:
-    #             continue  # Do not copy pixel data, will be added later
-    #         # ds.add(copy.copy(element))
-    #         ds.add(element)
-    #     ds.SOPInstanceUID = sop_ins_uid
-    #
-    #     return ds
+    #     DicomHeaderDict = {}
+    #     default_header = template[0][0][2]
+    #     tags, slices = self.__get_tags_and_slices()
+    #     for _slice in range(slices):
+    #         DicomHeaderDict[_slice] = []
+    #         next_tag = 0
+    #         for tag in range(tags):
+    #             try:
+    #                 template_tag = template[_slice][tag][0]
+    #             except (KeyError, IndexError):
+    #                 # template_tag = tag
+    #                 template_tag = next_tag
+    #             next_tag = template_tag + tag_increment(DicomHeaderDict[_slice])
+    #             try:
+    #                 templateHeader = copy.deepcopy(template[_slice][tag][2])
+    #             except (KeyError, IndexError):
+    #                 templateHeader = copy.deepcopy(default_header)
+    #             DicomHeaderDict[_slice].append((template_tag, None, templateHeader))
+    #     return DicomHeaderDict
 
     def __set_tags_from_template(self, template) -> None:
         """Set tags from template tags, alternatively from template axes.
@@ -339,13 +315,17 @@ class Header(object):
         if geometry is None:
             return
         for attr in geometry.__dict__:
-            if attr in geometry_tags and attr not in ['tags', 'axes', 'input_format']:
-                value = getattr(geometry, attr, None)
-                if value is not None:
-                    setattr(self, attr, value)
+            if attr not in ['tags', 'axes', 'input_format', 'sliceLocations']:
+                if attr in geometry_tags:
+                    value = getattr(geometry, attr, None)
+                    if value is not None:
+                        setattr(self, attr, value)
         # Make sure axes are set last. Geometry may be None
         self.__set_axes_from_template(
             getattr(geometry, 'axes', None)
+        )
+        self.__set_slice_locations_from_template(
+            getattr(geometry, 'sliceLocations', None)
         )
 
     def __set_axes_from_template(self, geometry_axes):
@@ -360,6 +340,25 @@ class Header(object):
                     if geometry_axis.name == axis.name:
                         # Ensure geometry_axis length agree with matrix size
                         self.axes[i] = self.__adjust_axis_from_template(axis, geometry_axis)
+
+    def __set_slice_locations_from_template(self, geometry_sloc):
+        if geometry_sloc is None:
+            return
+        if issubclass(type(geometry_sloc), list):
+            sloc = geometry_sloc
+        else:
+            sloc = geometry_sloc.tolist()
+        try:
+            slice_axis = self.find_axis('slice')
+            ds = 1
+            if len(sloc) > 1:
+                ds = sloc[1] - sloc[0]  # Distance in slice location
+            while len(sloc) < len(slice_axis):
+                sloc.append(sloc[-1] + ds)
+            sloc = sloc[:len(slice_axis)]
+            self.sliceLocations = np.array(sloc)
+        except ValueError:
+            self.sliceLocations = geometry_sloc
 
     def __adjust_axis_from_template(self, axis, template):
         """Construct new axis from template, retaining axis length.
@@ -405,44 +404,44 @@ class Header(object):
         raise ValueError("No axis object with name %s exist" % name)
 
 
-def deepcopy_DicomHeaderDict(source, filename=None):
-    """Deepcopy contents of DicomHeaderDict."""
-
-    if isinstance(source, dict):
-        ds = {}
-        for tag, element in source.items():
-            if tag == 0x7fe00010:
-                continue  # Do not copy pixel data, will be added later
-            ds[tag] = copy.deepcopy(element)
-            # ds.add(element)
-    else:
-        # sop_ins_uid = obj.new_uid()
-
-        # Populate required values for file meta information
-        file_meta = pydicom.dataset.FileMetaDataset()
-        # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
-        # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
-        # file_meta.ImplementationClassUID = "%s.1" % obj.root
-        file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-
-        ds = pydicom.dataset.FileDataset(
-            filename,
-            {},
-            file_meta=file_meta,
-            preamble=b"\0" * 128
-        )
-
-        for element in source.iterall():
-            # print('deepcopy_DicomHeaderDict: element {} {}'.format(
-            #    element.tag,
-            #    get_size(element)))
-            if element.tag == 0x7fe00010:
-                continue  # Do not copy pixel data, will be added later
-            ds.add(copy.deepcopy(element))
-            # ds.add(element)
-
-    # print('deepcopy_DicomHeaderDict: {} -> {}'.format(
-    #    get_size(source),
-    #    get_size(ds)
-    # ))
-    return ds
+# def deepcopy_DicomHeaderDict(source, filename=None):
+#     """Deepcopy contents of DicomHeaderDict."""
+#
+#     if isinstance(source, dict):
+#         ds = {}
+#         for tag, element in source.items():
+#             if tag == 0x7fe00010:
+#                 continue  # Do not copy pixel data, will be added later
+#             ds[tag] = copy.deepcopy(element)
+#             # ds.add(element)
+#     else:
+#         # sop_ins_uid = obj.new_uid()
+#
+#         # Populate required values for file meta information
+#         file_meta = pydicom.dataset.FileMetaDataset()
+#         # file_meta.MediaStorageSOPClassUID = template.SOPClassUID
+#         # file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
+#         # file_meta.ImplementationClassUID = "%s.1" % obj.root
+#         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
+#
+#         ds = pydicom.dataset.FileDataset(
+#             filename,
+#             {},
+#             file_meta=file_meta,
+#             preamble=b"\0" * 128
+#         )
+#
+#         for element in source.iterall():
+#             # print('deepcopy_DicomHeaderDict: element {} {}'.format(
+#             #    element.tag,
+#             #    get_size(element)))
+#             if element.tag == 0x7fe00010:
+#                 continue  # Do not copy pixel data, will be added later
+#             ds.add(copy.deepcopy(element))
+#             # ds.add(element)
+#
+#     # print('deepcopy_DicomHeaderDict: {} -> {}'.format(
+#     #    get_size(source),
+#     #    get_size(ds)
+#     # ))
+#     return ds

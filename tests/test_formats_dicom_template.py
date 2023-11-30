@@ -277,9 +277,9 @@ class TestDicomGeometryTemplate(unittest.TestCase):
         # add DICOM template in Series constructor
         template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', template.input_format)
-        si1 = Series(
-            np.zeros((4, 192, 152)),
-            geometry=template)
+        # Add an extra slice
+        shape = (template.shape[0]+1, template.shape[1], template.shape[2])
+        si1 = Series(np.zeros(shape), geometry=template)
         # Compare constructed series si1 to original series template
         # Append one slice location to template
         ds = template.sliceLocations[1] - template.sliceLocations[0]

@@ -81,6 +81,12 @@ These attributes can be set and interrogated directly from the Series object:
 +-------------------------+-------------------------+-----------------------+
 |sliceLocations           |SliceLocation            |numpy array (in mm)    |
 +-------------------------+-------------------------+-----------------------+
+|**VOI LUT Module**                                                         |
++-------------------------+-------------------------+-----------------------+
+|windowCenter             |WindowCenter             |number                 |
++-------------------------+-------------------------+-----------------------+
+|windowWidth              |WindowWidth              |number                 |
++-------------------------+-------------------------+-----------------------+
 |**Image Pixel Module**                                                     |
 +-------------------------+-------------------------+-----------------------+
 |color                    |SamplesPerPixel          |bool                   |
@@ -103,6 +109,13 @@ These attributes can be set and interrogated directly from the Series object:
 |transformationMatrix     |                         |numpy array 4x4        |
 |                         |                         |in z,y,x order         |
 +-------------------------+-------------------------+-----------------------+
+|SOPInstanceUIDs          |                         |Dict of collected      |
+|                         |                         |SOPInstanceUID from    |
+|                         |                         |instances read.        |
+|                         |                         |Key: (tag, slice)      |
++-------------------------+-------------------------+-----------------------+
+|dicomTemplate            |                         |A pydicom Dataset      |
++-------------------------+-------------------------+-----------------------+
 
 
 
@@ -112,9 +125,7 @@ Full access to DICOM attributes
 Any DICOM attribute can be set or fetched using the getDicomAttribute()
 and setDicomAttribute() methods.
 
-The getDicomAttribute() method will by default fetch the DICOM attribute
-for slice 0 and tag 0. When an attribute varies in a series, a
-specific slice and/or tag can be specified.
+The getDicomAttribute() method will fetch the named DICOM attribute.
 
 By default the setDicomAttribute() method will set an attribute
 for all slices and tags of a series. Alternatively, a specific slice
@@ -125,6 +136,6 @@ and/or tag can be targeted.
   # Fetch the MR Repetition Time
   TR = a.getDicomAttribute('RepetitionTime')
 
-  # Fetch the Acquisition Time from tag 9, and duplicate this for tag 10
-  acqTime = a.getDicomAttribute('AcquisitionTime', slice=5, tag=9)
+  # Fetch the Acquisition Time, and duplicate this for given slice and tag
+  acqTime = a.getDicomAttribute('AcquisitionTime')
   a.setDicomAttribute('AcquisitionTime', acqTime, slice=5, tag=10)
