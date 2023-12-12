@@ -577,16 +577,16 @@ class Series(np.ndarray):
             "Study  Time: {} {}\n".format(
                 self.getDicomAttribute('StudyDate'),
                 self.getDicomAttribute('StudyTime')
-        ) + \
+            ) + \
             "Series Time: {} {}\n".format(
                 self.getDicomAttribute('SeriesDate'),
                 self.getDicomAttribute('SeriesTime')
-        ) + \
+            ) + \
             "Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
             "Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
                 input_order_to_dirname_str(self.input_order)
-        )
+            )
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
@@ -2103,9 +2103,9 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no DICOM tag is set.
         """
-    #
-    #     if self.DicomHeaderDict is None:
-    #         return None
+        #
+        #     if self.DicomHeaderDict is None:
+        #         return None
         if issubclass(type(keyword), str):
             _tag = pydicom.datadict.tag_for_keyword(keyword)
         else:
@@ -2115,6 +2115,7 @@ class Series(np.ndarray):
         self.header.dicomToDo.append(
             (_tag, value, slice, tag)
         )
+
     #     slices = [i for i in range(self.slices)]
     #     tags = [i for i in range(len(self.tags[0]))]
     #     if slice is not None:
@@ -2153,9 +2154,9 @@ class Series(np.ndarray):
             ))
             transformation = self.transformationMatrix
         else:
-            logger.debug('Series.getPositionForVoxel: user-provided transformationMatrix {}'.format(
-                transformation.shape
-            ))
+            logger.debug('Series.getPositionForVoxel: user-provided transformationMatrix'
+                         '{}'.format(transformation.shape)
+                         )
         # q = self.getTransformationMatrix()
 
         # V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
@@ -2500,7 +2501,7 @@ class Series(np.ndarray):
             for _slice in range(mask.shape[0]):
                 _max_in_slice = np.nanmax(mask[_slice])
                 if _max_in_slice > 0:
-                    mask_filter[_slice] =\
+                    mask_filter[_slice] = \
                         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
