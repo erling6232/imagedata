@@ -227,6 +227,16 @@ class TestSeries(unittest.TestCase):
         sic = Series(si)
         self.assertEqual(si.input_order, sic.input_order)
 
+    def test_zeros_like(self):
+        si = Series('data/dicom/time', 'time')
+        a = np.zeros_like(si)
+        self.assertEqual(si.input_order, a.input_order)
+        for i in range(si.ndim):
+            self.assertEqual(si.axes[i], a.axes[i])
+        np.testing.assert_array_equal(si.transformationMatrix, a.transformationMatrix)
+        np.testing.assert_array_equal(si.spacing, a.spacing)
+        a[:, :, 10:50, 10:50]  = 1
+
     def test_slicing_z(self):
         a1 = np.eye(128)
         a1.shape = (1,128,128)
