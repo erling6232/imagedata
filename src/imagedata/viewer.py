@@ -761,7 +761,7 @@ def default_layout(fig, n):
     raise ValueError("Too many axes required (n={})".format(n))
 
 
-def grid_from_roi(im: Series, vertices: dict, single: bool=False) -> Union[bool, Series]:
+def grid_from_roi(im: Series, vertices: dict, single: bool = False) -> Union[bool, Series]:
     """Return drawn ROI as grid.
 
     Args:
