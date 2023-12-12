@@ -1588,6 +1588,7 @@ class DICOMPlugin(AbstractPlugin):
         """
         self.range_VR = 'SS' if np.issubdtype(arr.dtype, np.signedinteger) else 'US'
         self.range_VR = 'US' if arr.color else self.range_VR
+        _range = 65536. if self.range_VR == 'US' else 32768.
         # Window center/width
         # ymin = np.nanmin(arr).item()
         # ymax = np.nanmax(arr).item()
@@ -1607,7 +1608,7 @@ class DICOMPlugin(AbstractPlugin):
             # Must rescale data
             self.b = ymin
             if math.fabs(ymax - ymin) > 1e-6:
-                self.a = (ymax - ymin) / 65535.
+                self.a = (ymax - ymin) / (_range - 1)
             else:
                 self.a = 1.0
             logger.debug("Rescale slope %f, rescale intercept %s" % (self.a, self.b))
