@@ -4,6 +4,7 @@
 from abc import ABCMeta  # , abstractmethod, abstractproperty
 import sys
 import logging
+import numbers
 import numpy as np
 
 
@@ -154,6 +155,18 @@ class VariableAxis(Axis):
     def __init__(self, name, values):
         super(VariableAxis, self).__init__(name)
         self.values = np.array(values)
+        if len(values) < 2:
+            self.step = 1
+        elif not isinstance(values[0], numbers.Number):
+            self.step = None
+        else:
+            ds = values[1] - values[0]
+            for i in range(2, len(values)):
+                d = values[i] - values[i - 1]
+                if abs(d - ds) / ds > 1e-4:
+                    ds = None
+                    break
+            self.step = ds
 
     def __getitem__(self, item):
         """Slice the axis
