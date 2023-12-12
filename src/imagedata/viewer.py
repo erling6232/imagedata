@@ -1,5 +1,6 @@
 import copy
 import logging
+from typing import Union
 
 import matplotlib.colors
 import matplotlib.pyplot as plt
@@ -760,7 +761,7 @@ def default_layout(fig, n):
     raise ValueError("Too many axes required (n={})".format(n))
 
 
-def grid_from_roi(im, vertices, single=False):
+def grid_from_roi(im: Series, vertices: dict, single: bool=False) -> Union[bool, Series]:
     """Return drawn ROI as grid.
 
     Args:
@@ -768,7 +769,7 @@ def grid_from_roi(im, vertices, single=False):
         vertices: The polygon vertices, as a dictionary of tags of (x,y)
         single (bool): Draw ROI in single slice per tag
     Returns:
-        Numpy ndarray with shape (nz,ny,nx) from original image, dtype ubyte.
+        Series with shape (nz,ny,nx) from original image, dtype ubyte.
         Voxels inside ROI is 1, 0 outside.
     """
 
