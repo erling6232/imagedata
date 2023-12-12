@@ -822,11 +822,11 @@ class Series(np.ndarray):
             if self.color:
                 _color = 1
             if self.ndim - _color < 3:
-                logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
+                # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
                 # raise ValueError("{}D dataset has no slices".format(self.ndim))
                 return 1
-            logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
-                self.ndim, self.shape, self.shape[-3 - _color]))
+            # logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
+            #     self.ndim, self.shape, self.shape[-3 - _color]))
             return self.shape[-3 - _color]
 
     @slices.setter
@@ -1097,7 +1097,7 @@ class Series(np.ndarray):
             #    return self.header.spacing
             slice_axis = self.find_axis('slice')
             ds = slice_axis.step
-        except ValueError as e:
+        except (AttributeError, ValueError) as e:
             if self.header.spacing is not None:
                 ds = self.header.spacing[0]
             else:
@@ -1921,12 +1921,16 @@ class Series(np.ndarray):
 
         try:
             if self.header.transformationMatrix is not None:
+                logger.debug('Series.transformationMatrix: return existing matrix')
                 return self.header.transformationMatrix
 
             # Calculate transformation matrix
             logger.debug('Series.transformationMatrix: Calculate transformation matrix')
+            logger.debug('Series.transformationMatrix: self {} {}'.format(self.dtype, self.shape))
             ds, dr, dc = self.spacing
+            logger.debug('Series.transformationMatrix: ds {}, dr {}, dc {}'.format(ds, dr, dc))
             slices = len(self.header.imagePositions)
+            logger.debug('Series.transformationMatrix: slices {}'.format(slices))
             T0 = self.header.imagePositions[0].reshape(3, 1)  # z,y,x
             Tn = self.header.imagePositions[slices - 1].reshape(3, 1)
             orient = self.orientation
@@ -1960,6 +1964,7 @@ class Series(np.ndarray):
             self.header.transformationMatrix = A
             return self.header.transformationMatrix
         except AttributeError:
+            logger.debug('Series.transformationMatrix: AttributeError')
             pass
         raise ValueError('Transformation matrix cannot be constructed.')
 
@@ -2143,7 +2148,14 @@ class Series(np.ndarray):
         """
 
         if transformation is None:
+            logger.debug('Series.getPositionForVoxel: use existing transformationMatrix {}'.format(
+                self.transformationMatrix.shape
+            ))
             transformation = self.transformationMatrix
+        else:
+            logger.debug('Series.getPositionForVoxel: user-provided transformationMatrix {}'.format(
+                transformation.shape
+            ))
         # q = self.getTransformationMatrix()
 
         # V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
