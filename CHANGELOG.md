@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.0-rc2] - 2023-12-13
+### Fixed
+* Protected Series and Header objects for missing properties.
+
 ## [v3.3.0-rc1] - 2023-12-01
 ### Fixed
 * Fixed signed integer overflow in DICOMPlugin.write_slice().
