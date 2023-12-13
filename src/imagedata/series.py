@@ -277,12 +277,14 @@ class Series(np.ndarray):
         results = tuple((np.asarray(result).view(Series)
                          if output is None else output)
                         for result, output in zip(results, outputs))
-        if results and isinstance(results[0], Series):
+        # if results and isinstance(results[0], Series):
+        if results and issubclass(type(results[0]), Series):
             # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
-            _level, _width = results[0].__calculate_window()
-            results[0].windowCenter = _level
-            results[0].windowWidth = _width
+            if results[0].header is not None:
+                _level, _width = results[0].__calculate_window()
+                results[0].header.windowCenter = _level
+                results[0].header.windowWidth = _width
 
         return results[0] if len(results) == 1 else results
 
@@ -302,14 +304,16 @@ class Series(np.ndarray):
         """
 
         header = None
+        # logger.debug('Series._unify_headers: inputs {}'.format(len(inputs)))
         for i, input_ in enumerate(inputs):
+            # logger.debug('Series._unify_headers: input {}: {}'.format(i, type(input_)))
             if issubclass(type(input_), Series):
                 if input_.header is None:
-                    logger.warning('Series._unify_headers: new header')
+                    # logger.debug('Series._unify_headers: new header')
                     header = Header()
                     header.input_order = INPUT_ORDER_NONE
                 else:
-                    logger.debug('Series._unify_headers: copy header')
+                    # logger.debug('Series._unify_headers: copy header')
                     header = copy.copy(input_.header)
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
@@ -369,6 +373,9 @@ class Series(np.ndarray):
                         _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])
                 except (AttributeError, NameError):
                     raise ValueError('No header in _calculate_spec')
+                except IndexError:
+                    # Probably an obj without axes property
+                    return False, _spec
 
                 # Determine how to loop over slice spec and items
                 if _number_of_ellipses(_items) > 1:
@@ -1850,10 +1857,16 @@ class Series(np.ndarray):
     @windowCenter.setter
     def windowCenter(self, value):
         if value is None:
-            self.header.windowCenter = None
+            try:
+                self.header.windowCenter = None
+            except AttributeError:
+                pass
             return
         if isinstance(value, numbers.Number):
-            self.header.windowCenter = value
+            try:
+                self.header.windowCenter = value
+            except AttributeError:
+                pass
         else:
             raise TypeError("Given window center is not a number.")
 
@@ -1881,10 +1894,16 @@ class Series(np.ndarray):
     @windowWidth.setter
     def windowWidth(self, value):
         if value is None:
-            self.header.windowWidth = None
+            try:
+                self.header.windowWidth = None
+            except AttributeError:
+                pass
             return
         if isinstance(value, numbers.Number):
-            self.header.windowWidth = value
+            try:
+                self.header.windowWidth = value
+            except AttributeError:
+                pass
         else:
             raise TypeError("Given window width is not a number.")
 
