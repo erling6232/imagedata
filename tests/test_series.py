@@ -237,6 +237,15 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(si.spacing, a.spacing)
         a[:, :, 10:50, 10:50]  = 1
 
+    def test_sum_with_series_mask(self):
+        si = Series('data/dicom/time', 'time')
+        mask = np.zeros(si.shape[1:], dtype=np.uint8)
+        mask[:, 10:20, 10:20] = 1
+        mask = Series(mask, input_order=si.input_order,
+                      template=si, geometry=si)
+        time_course = np.sum(np.array(si),
+                             axis=(1, 2, 3), where=mask == 1) / np.count_nonzero(mask)
+
     def test_slicing_z(self):
         a1 = np.eye(128)
         a1.shape = (1,128,128)
