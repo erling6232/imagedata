@@ -279,6 +279,9 @@ class Header(object):
             else:
                 return tag_list[-1] - tag_list[-2]  # Difference of last to tags
 
+        if template.tags is None:
+            return np.ndarray([])
+
         tags, slices = self.__get_tags_and_slices()
         tag_list = {}
 
