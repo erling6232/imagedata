@@ -1,11 +1,11 @@
 repo_name: erling6232/imagedata
-report_id: 98321811f90c01ce784d64bc7dc256c8
+report_id: 35fa1fdf0db541f5af2a16516bbaf2d5
 repo_type: Public
-timestamp: '2023-11-10T08:04:14+00:00'
+timestamp: '2023-12-14T10:13:42+00:00'
 requested_by: erling6232
 provider: github
 branch: master
-detected_tools_count: 8
+detected_tools_count: 22
 tools:
 - name: Python
   description: A clear and powerful object-oriented programming language, comparable
@@ -28,6 +28,17 @@ tools:
   detection_source: docs/requirements.txt
   last_updated_by: Erling Andersen
   last_updated_on: 2021-03-11 10:43:18.000000000 Z
+- name: pgvector
+  description: Open-source vector similarity search for Postgres
+  website_url: https://github.com/pgvector/pgvector/
+  open_source: false
+  hosted_saas: false
+  category: Data Stores
+  sub_category: Database Tools
+  image_url: https://img.stackshare.io/service/109221/default_b888cdf5617d936aa6aacf130911906955508639.png
+  detection_source: LICENSE.txt
+  last_updated_by: erling6232
+  last_updated_on: 2018-02-28 09:43:45.000000000 Z
 - name: Git
   description: Fast, scalable, distributed revision control system
   website_url: http://git-scm.com/
@@ -48,6 +59,17 @@ tools:
   detection_source: ".github/workflows/ci.yml"
   last_updated_by: Erling Andersen
   last_updated_on: 2022-11-08 12:16:02.000000000 Z
+- name: PyPI
+  description: A repository of software for the Python programming language
+  website_url: https://pypi.org/
+  open_source: false
+  hosted_saas: false
+  category: Build, Test, Deploy
+  sub_category: Hosted Package Repository
+  image_url: https://img.stackshare.io/service/12572/-RIWgodF_400x400.jpg
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-03-03 13:39:24.000000000 Z
 - name: Travis CI
   description: A hosted continuous integration service for open source and private
     projects
@@ -72,6 +94,17 @@ tools:
   detection_source: docs/requirements.txt
   last_updated_by: Erling Andersen
   last_updated_on: 2021-03-03 13:39:24.000000000 Z
+- name: LangChain
+  description: Build AI apps with LLMs through composability
+  website_url: https://github.com/hwchase17/langchain
+  open_source: true
+  hosted_saas: false
+  category: Communications
+  sub_category: Large Language Model Tools
+  image_url: https://img.stackshare.io/service/48790/default_5b6c6b73f1ff3775c85d2a1ba954cb87e30cbf13.jpg
+  detection_source: LICENSE.txt
+  last_updated_by: erling6232
+  last_updated_on: 2018-02-28 09:43:45.000000000 Z
 - name: NumPy
   description: Fundamental package for scientific computing with Python
   website_url: http://www.numpy.org/
@@ -96,3 +129,137 @@ tools:
   detection_source: docs/requirements.txt
   last_updated_by: Erling Andersen
   last_updated_on: 2021-03-03 13:39:24.000000000 Z
+- name: Sphinx
+  description: Python documentation generator
+  package_url: https://pypi.org/project/Sphinx
+  license: BSD-3-Clause
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/19866/default_bd86f80ade48cfe191d5781a2efa0e66fa22163a.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2023-10-11 13:11:57.000000000 Z
+- name: flake8
+  description: 'The modular source code checker: pep8, pyflakes and co'
+  package_url: https://pypi.org/project/flake8
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/19920/default_c8be5290cb8d8a8b578535a2c6475d1057ff4ea4.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-09-06 10:07:57.000000000 Z
+- name: imageio
+  description: Library for reading and writing a wide range of image
+  package_url: https://pypi.org/project/imageio
+  license: BSD-3-Clause
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/20258/default_c011fd31f7e9af58e2e3e8a82a6acdf8662ecdb6.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-03-03 13:50:03.000000000 Z
+- name: nibabel
+  description: Access a multitude of neuroimaging data formats
+  package_url: https://pypi.org/project/nibabel
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/20230/default_71217187f056ec959bc8c507067b931f2ea7f8ba.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-03-03 13:39:24.000000000 Z
+- name: pandas
+  description: Powerful data structures for data analysis
+  package_url: https://pypi.org/project/pandas
+  license: BSD-3-Clause
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/19837/default_85689b353a3a9409328e253ea28d859d29151e0c.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2023-05-15 12:08:16.000000000 Z
+- name: pydicom
+  description: Pure python package for DICOM medical file reading and writing
+  package_url: https://pypi.org/project/pydicom
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/20181/default_cce94831138206ab61e361b18c1d852a1e5ab6a1.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-03-03 13:39:24.000000000 Z
+- name: python-magic
+  description: File type identification using libmagic
+  package_url: https://pypi.org/project/python-magic
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/20245/default_79c7a01488eebdf30ca22b7316d9f77bbe7fad8b.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2021-03-03 13:39:24.000000000 Z
+- name: setuptools
+  description: Easily download
+  package_url: https://pypi.org/project/setuptools
+  version: 65.5.1
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/19831/default_65d1c12a133e1aa67ae96a1221c9c122ddf86c5f.png
+  detection_source_url: https://github.com/erling6232/imagedata/blob/master/docs/requirements.txt
+  detection_source: docs/requirements.txt
+  last_updated_by: snyk-bot
+  last_updated_on: 2022-11-15 12:19:43.000000000 Z
+- name: sortedcontainers
+  description: Sorted Containers -- Sorted List, Sorted Dict, Sorted Set
+  package_url: https://pypi.org/project/sortedcontainers
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/pypi/image.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2023-01-09 09:30:45.000000000 Z
+- name: sphinx-rtd-theme
+  description: Read the Docs theme for Sphinx
+  package_url: https://pypi.org/project/sphinx-rtd-theme
+  license: MIT
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/20198/default_1b766c7727f93da29992cd7a2499f00a0ba7bc2d.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2023-10-11 13:11:57.000000000 Z
+- name: xnat
+  description: An XNAT client that exposes the XNAT REST interface as python objects
+  package_url: https://pypi.org/project/xnat
+  license: Apache-2.0
+  open_source: true
+  hosted_saas: false
+  category: Libraries
+  sub_category: PyPI Packages
+  image_url: https://img.stackshare.io/package/pypi/image.png
+  detection_source: docs/requirements.txt
+  last_updated_by: Erling Andersen
+  last_updated_on: 2023-01-09 09:30:45.000000000 Z
