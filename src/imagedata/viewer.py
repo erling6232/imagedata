@@ -224,11 +224,11 @@ class Viewer(object):
         # Update upper left text
         fmt = self.upper_left_text(im['im'])
         im['upper_left_text'] = AnchoredText(fmt,
-                                              prop=dict(size=6, color='white',
-                                                        backgroundcolor='black'),
-                                              frameon=False,
-                                              loc='upper left'
-                                              )
+                                             prop=dict(size=6, color='white',
+                                                       backgroundcolor='black'),
+                                             frameon=False,
+                                             loc='upper left'
+                                             )
         ax.add_artist(im['upper_left_text'])
 
         # Update upper right text
@@ -322,7 +322,7 @@ class Viewer(object):
             )
             if len(_date_fmt) > 0:
                 fmt += '\n{}'.format(_date_fmt)
-        except Exception as e:
+        except Exception:
             logger.debug('Cannot append _datefmt for \"{}\" and \"{}\"'.format(
                 im.getDicomAttribute('SeriesDate'),
                 im.getDicomAttribute('SeriesTime')))
