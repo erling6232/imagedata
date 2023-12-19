@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.0] - 2023-12-19
+* Ready for public distribution.
+
 ## [v3.3.0-rc4] - 2023-12-19
 * Viewer: Key press 'w' will normalize window level/width to displayed slice
   using a histogram normalization.
@@ -38,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * Viewer: Save window center/width to Series object when returning.
 * Series.fuse_mask(): New parameter `blend` which determines whether
-  the self image is blended. Default is False, so the self images is
+  the self image is blended. Default is False, such that the self image is
   not blended, only the mask is blended.
 
 ## [v3.2.4-rc0] - 2023-11-15
