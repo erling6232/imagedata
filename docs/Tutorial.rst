@@ -76,12 +76,13 @@ Displaying data
 The show() method will use matplotlib to display your dataset.
 The following controls can be used to manipulate the viewer:
 
-* Mouse scroll wheel: scroll through the slices of a volume
-* Array up/down: scroll through the slices of a volume
-* Array left/right: step through the 4th dimension of a 4D dataset
-* PgUp/PgDown: Page through datasets when there are more datasets than views
-* Left mouse key pressed: adjust window/level of display
-* Mouse over: will display 2D coordinate and signal intensity at mouse position
+* Mouse scroll wheel: scroll through the slices of a volume.
+* Array up/down: scroll through the slices of a volume.
+* Array left/right: step through the 4th dimension of a 4D dataset.
+* PgUp/PgDown: Page through datasets when there are more datasets than views.
+* Left mouse key pressed: adjust window/level of display.
+* Mouse over: will display 2D coordinate and signal intensity at mouse position.
+* 'w': Normalize window center/width based on image histogram.
 * 'q': Quit. Will end the show() method.
 
 .. code-block:: python
