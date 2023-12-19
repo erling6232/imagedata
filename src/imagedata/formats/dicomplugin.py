@@ -9,7 +9,7 @@ import logging
 import traceback
 import warnings
 import math
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import numpy as np
 import pydicom
 import pydicom.valuerep
@@ -1409,7 +1409,7 @@ class DICOMPlugin(AbstractPlugin):
 
         # Set tag
         # si will always have only the present tag
-        self._set_dicom_tag(ds, input_order, si.tags[0])
+        self._set_dicom_tag(ds, input_order, si.tags[0][0])
 
         if len(os.path.splitext(filename)[1]) > 0:
             fn = filename
@@ -1779,14 +1779,16 @@ class DICOMPlugin(AbstractPlugin):
                 VR = pydicom.datadict.dictionary_VR(time_tag)
                 if VR == 'TM':
                     im.add_new(time_tag, VR,
-                               datetime.utcfromtimestamp(float(0.0)).strftime("%H%M%S.%f")
+                               datetime.fromtimestamp(
+                                   float(0.0), timezone.utc
+                               ).strftime("%H%M%S.%f")
                                )
                 else:
                     im.add_new(time_tag, VR, 0.0)
                 # elem = pydicom.dataelem.DataElement(time_tag, 'TM', 0)
                 # im.add(elem)
             if im.data_element(time_tag).VR == 'TM':
-                time_str = datetime.utcfromtimestamp(float(value)).strftime("%H%M%S.%f")
+                time_str = datetime.fromtimestamp(float(value), timezone.utc).strftime("%H%M%S.%f")
                 im.data_element(time_tag).value = time_str
             else:
                 im.data_element(time_tag).value = float(value)
