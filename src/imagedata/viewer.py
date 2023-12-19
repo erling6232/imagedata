@@ -219,6 +219,19 @@ class Viewer(object):
                                                  loc='lower left'
                                                  )
         ax.add_artist(im['lower_left_text'])
+
+        # Update upper right text
+        try:
+            fmt = '{}'.format(im['im'].seriesDescription)
+        except ValueError:
+            fmt = ''
+        im['upper_right_text'] = AnchoredText(fmt,
+                                              prop=dict(size=6, color='white',
+                                                        backgroundcolor='black'),
+                                              frameon=False,
+                                              loc='upper right'
+                                              )
+        ax.add_artist(im['upper_right_text'])
         im['modified'] = True
 
         if im['colorbar']:
