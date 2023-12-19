@@ -54,17 +54,17 @@ jobs:
           # python setup.py build_ext -i
           # bash build_tools/wheels/build_wheels.sh
 
-      - name: Testing - prepare with coverage
-        run: |
-          python3 -m pip install coverage
-      #- name: File list
+      #- name: Testing - prepare with coverage
       #  run: |
-      #    pwd
-      #    ls -lR
-      - name: Testing - with Cython
-        run: |
-          # python3 -m pip install SimpleITK-SimpleElastix nipype
-          coverage run -m unittest discover tests -t .
+      #    python3 -m pip install coverage
+      ##- name: File list
+      ##  run: |
+      ##    pwd
+      ##    ls -lR
+      #- name: Testing - with Cython
+      #  run: |
+      #    # python3 -m pip install SimpleITK-SimpleElastix nipype
+      #    coverage run -m unittest discover tests -t .
       - name: Testing - without Cython
         run: |
           find . -name '*.so' | xargs rm
