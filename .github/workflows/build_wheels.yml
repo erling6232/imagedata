@@ -51,7 +51,7 @@ jobs:
           mkdir -p imagedata
           find . -name '*.so' -o -name '*.c' -print
           find . -name '*.so' -o -name '*.c' -print0 | xargs -0 /bin/rm -f
-          python setup.py build_ext -i
+          # python setup.py build_ext -i
           # bash build_tools/wheels/build_wheels.sh
 
       - name: Testing - prepare with coverage
