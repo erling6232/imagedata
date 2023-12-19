@@ -511,6 +511,9 @@ class Viewer(object):
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
+        elif event.key == 'W' or event.key == 'w':
+            # Normalize window center/width using a probability histogram
+            self.normalize_window(event.inaxes)
         elif event.key == 'Q' or event.key == 'q':
             # Quit Viewer
             # Set present window/level on Series objects
@@ -687,6 +690,41 @@ class Viewer(object):
         # for vp_idx in range(viewports):
         #    if vp_idx in self.viewport:
         #        print('leave', self.viewport[vp_idx]['next'])
+        self.update()
+
+    def normalize_window(self, inaxes):
+        im = self.find_image_from_event(inaxes)
+        if im is None:
+            return
+        # Normalize on displayed slice only
+        probs = (0.01, 0.99)
+        if im['slice_axis'] is None:
+            # 2D data
+            vmin, vmax = im['im'].calculate_clip_range(probs)
+        elif im['tag_axis'] is None:
+            # 3D data
+            idx = im['idx']
+            vmin, vmax = im['im'][idx].calculate_clip_range(probs)
+        else:
+            # 4D data
+            idx = im['idx']
+            tag = im['tag']
+            vmin, vmax = im['im'][tag, idx].calculate_clip_range(probs)
+        im['vmin'] = vmin
+        im['vmax'] = vmax
+        level = (np.float32(vmax) + np.float32(vmin)) / 2
+        if np.isnan(level):
+            level = 1
+        # if abs(level) > 2:
+        #     level = round(level)
+        im['level'] = level
+        window = vmax - vmin
+        if np.isnan(window):
+            window = 1
+        # if abs(window) > 2:
+        #     window = round(window)
+        im['window'] = window
+        im['modified'] = True
         self.update()
 
     def update_tag(self, value):
