@@ -9,6 +9,7 @@ methods and attributes.
 
 """
 
+from typing import Tuple
 import copy
 import numbers
 import numpy as np
@@ -2385,20 +2386,6 @@ class Series(np.ndarray):
             Series: RGB Series object
         """
 
-        def _calculate_clip_range(probs, bins):
-            assert len(probs) == 2, "Wrong format of histogram probabilities"
-
-            # Calculate cumulative counts and bin edges of the image
-            bins = 1024 if self.dtype.kind == 'f' else (np.nanmax(self).item()) + 1
-            cumcounts, bin_edges = np.histogram(self, bins=bins)
-            # Normalize cumulative counts
-            cumcounts = cumcounts.cumsum() / cumcounts.sum()
-
-            # Find the indices of the bins that correspond to the given probabilities
-            min_bin, max_bin = np.searchsorted(cumcounts, probs)
-            # Get the intensity values at the min and max bins
-            return bin_edges[min_bin], bin_edges[max_bin]
-
         if self.color:
             return self
 
@@ -2426,7 +2413,7 @@ class Series(np.ndarray):
             if clip == 'window':
                 window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
             elif clip == 'hist':
-                vmin, vmax = _calculate_clip_range(probs, lut)
+                vmin, vmax = self.calculate_clip_range(probs, lut)
             else:
                 raise ValueError('Unknow clip method: {}'.format(clip))
             norm = norm(vmin=vmin, vmax=vmax, clip=True)
@@ -2780,3 +2767,20 @@ class Series(np.ndarray):
             return new_grid, self.viewer.get_roi()  # Return grid and vertices
         else:
             return new_grid  # Return grid only
+
+
+    def calculate_clip_range(self, probs: Tuple, bins: int=None):
+        assert len(probs) == 2, "Wrong format of histogram probabilities"
+
+        # Calculate cumulative counts and bin edges of the image
+        if bins is None:
+            bins = 1024 if self.dtype.kind == 'f' else (np.nanmax(self).item()) + 1
+        cumcounts, bin_edges = np.histogram(self, bins=bins)
+        # Normalize cumulative counts
+        cumcounts = cumcounts.cumsum() / cumcounts.sum()
+
+        # Find the indices of the bins that correspond to the given probabilities
+        min_bin, max_bin = np.searchsorted(cumcounts, probs)
+        # Get the intensity values at the min and max bins
+        return bin_edges[min_bin], bin_edges[max_bin]
+
