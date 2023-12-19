@@ -196,7 +196,9 @@ class Viewer(object):
                                                   frameon=False,
                                                   loc='lower right'
                                                   )
-            ax.add_artist(im['lower_right_text'])
+            artist = ax.add_artist(im['lower_right_text'])
+            artist.set_visible(im['show_text'])
+            im['artists'].append(artist)
 
         # Update lower left text
         if im['color']:
@@ -219,7 +221,9 @@ class Viewer(object):
                                                  frameon=False,
                                                  loc='lower left'
                                                  )
-        ax.add_artist(im['lower_left_text'])
+        artist = ax.add_artist(im['lower_left_text'])
+        artist.set_visible(im['show_text'])
+        im['artists'].append(artist)
 
         # Update upper left text
         fmt = self.upper_left_text(im['im'])
@@ -229,7 +233,9 @@ class Viewer(object):
                                              frameon=False,
                                              loc='upper left'
                                              )
-        ax.add_artist(im['upper_left_text'])
+        artist = ax.add_artist(im['upper_left_text'])
+        artist.set_visible(im['show_text'])
+        im['artists'].append(artist)
 
         # Update upper right text
         fmt = self.upper_right_text(im['im'])
@@ -239,7 +245,9 @@ class Viewer(object):
                                               frameon=False,
                                               loc='upper right'
                                               )
-        ax.add_artist(im['upper_right_text'])
+        artist = ax.add_artist(im['upper_right_text'])
+        artist.set_visible(im['show_text'])
+        im['artists'].append(artist)
         im['modified'] = True
 
         if im['colorbar']:
@@ -511,6 +519,9 @@ class Viewer(object):
             self.viewport_advance(event.inaxes, 1)
         elif event.key == 'pagedown':
             self.viewport_advance(event.inaxes, -1)
+        elif event.key == 'H' or event.key == 'h':
+            # Hide display
+            self.toggle_hide(event.inaxes)
         elif event.key == 'W' or event.key == 'w':
             # Normalize window center/width using a probability histogram
             self.normalize_window(event.inaxes)
@@ -690,6 +701,16 @@ class Viewer(object):
         # for vp_idx in range(viewports):
         #    if vp_idx in self.viewport:
         #        print('leave', self.viewport[vp_idx]['next'])
+        self.update()
+
+    def toggle_hide(self, inaxes):
+        im = self.find_image_from_event(inaxes)
+        if im is None:
+            return
+        im['show_text'] = not im['show_text']
+        for artist in im['artists']:
+            artist.set_visible(im['show_text'])
+        im['modified'] = True
         self.update()
 
     def normalize_window(self, inaxes):
@@ -1100,6 +1121,8 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'input_order': im.input_order,
         'color': im.color,
         'modified': True,  # update()
+        'show_text': True,  # Show text on display
+        'artists': [],  # List of artists
         'slider': None,  # 4D slider
         'lower_left_text': None,  # AnchoredText object
         'lower_left_data': None,  # Tuple of present data

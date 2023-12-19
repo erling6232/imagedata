@@ -82,6 +82,7 @@ The following controls can be used to manipulate the viewer:
 * PgUp/PgDown: Page through datasets when there are more datasets than views.
 * Left mouse key pressed: adjust window/level of display.
 * Mouse over: will display 2D coordinate and signal intensity at mouse position.
+* 'h': Toggle hiding text on display.
 * 'w': Normalize window center/width based on image histogram.
 * 'q': Quit. Will end the show() method.
 

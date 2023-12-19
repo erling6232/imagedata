@@ -2768,8 +2768,7 @@ class Series(np.ndarray):
         else:
             return new_grid  # Return grid only
 
-
-    def calculate_clip_range(self, probs: Tuple, bins: int=None):
+    def calculate_clip_range(self, probs: Tuple, bins: int = None):
         assert len(probs) == 2, "Wrong format of histogram probabilities"
 
         # Calculate cumulative counts and bin edges of the image
@@ -2783,4 +2782,3 @@ class Series(np.ndarray):
         min_bin, max_bin = np.searchsorted(cumcounts, probs)
         # Get the intensity values at the min and max bins
         return bin_edges[min_bin], bin_edges[max_bin]
-

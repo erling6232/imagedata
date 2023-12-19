@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.3.0-rc4] - 2023-12-19
 * Viewer: Key press 'w' will normalize window level/width to displayed slice
   using a histogram normalization.
+* Viewer: Key press 'h' will toggle display of text on display.
 * Viewer: Display demographic and acquisition info in upper right and level corners.
 ### Changed
 * Support Python 3.12
