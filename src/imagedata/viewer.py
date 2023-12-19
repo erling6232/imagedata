@@ -10,6 +10,7 @@ from matplotlib.widgets import PolygonSelector
 from matplotlib.path import Path as MplPath
 import mpl_toolkits.axes_grid1
 import numpy as np
+from datetime import datetime
 
 from .series import Series
 
@@ -220,11 +221,18 @@ class Viewer(object):
                                                  )
         ax.add_artist(im['lower_left_text'])
 
+        # Update upper left text
+        fmt = self.upper_left_text(im['im'])
+        im['upper_left_text'] = AnchoredText(fmt,
+                                              prop=dict(size=6, color='white',
+                                                        backgroundcolor='black'),
+                                              frameon=False,
+                                              loc='upper left'
+                                              )
+        ax.add_artist(im['upper_left_text'])
+
         # Update upper right text
-        try:
-            fmt = '{}'.format(im['im'].seriesDescription)
-        except ValueError:
-            fmt = ''
+        fmt = self.upper_right_text(im['im'])
         im['upper_right_text'] = AnchoredText(fmt,
                                               prop=dict(size=6, color='white',
                                                         backgroundcolor='black'),
@@ -247,6 +255,79 @@ class Viewer(object):
         #    self.linkbutton = CheckButtons(self.rax, ['Link'], [link])
         #    self.linkclicked = self.linkbutton.on_clicked(self.toggle_button)
         return h
+
+    def pretty_datetime(self, my_date, my_time):
+        _date = _time = None
+        if my_date is not None:
+            _date = datetime.strptime(my_date, '%Y%m%d')
+        if my_time is not None:
+            try:
+                _time = datetime.strptime(my_time, '%H%M%S.%f')
+            except ValueError:
+                _time = datetime.strptime(my_time, '%H%M%S')
+        _date_fmt = ''
+        if _date is not None or _time is not None:
+            if _date is not None:
+                _date_fmt = '{} '.format(_date.strftime("%Y-%m-%d"))
+            else:
+                logger.debug('Cannot add date for \"{}\"'.format(my_date))
+            if _time is not None:
+                _date_fmt += _time.strftime("%H:%M:%S")
+            else:
+                logger.debug('Cannot add time for \"{}\"'.format(my_time))
+        return _date_fmt
+
+    def upper_left_text(self, im):
+        """Update upper left text
+        """
+
+        try:
+            pat_nam: str = '{}'.format(im.patientName)
+            while pat_nam[-1] == '^':
+                pat_nam = pat_nam[:-1]
+            pat_nam = pat_nam.replace('^', ', ')
+            fmt = '{}'.format(pat_nam)
+        except ValueError:
+            fmt = ''
+        try:
+            fmt += '\n{}'.format(im.patientID)
+        except ValueError:
+            pass
+        try:
+            _date_fmt = self.pretty_datetime(
+                im.getDicomAttribute('StudyDate'),
+                im.getDicomAttribute('StudyTime')
+            )
+            if len(_date_fmt) > 0:
+                fmt += '\n{}'.format(_date_fmt)
+        except Exception:
+            pass
+        return fmt
+
+    def upper_right_text(self, im):
+        """Update upper right text
+        """
+
+        try:
+            fmt = '{}. {}'.format(
+                im.seriesNumber,
+                im.seriesDescription
+            )
+        except ValueError:
+            fmt = ''
+        try:
+            _date_fmt = self.pretty_datetime(
+                im.getDicomAttribute('SeriesDate'),
+                im.getDicomAttribute('SeriesTime')
+            )
+            if len(_date_fmt) > 0:
+                fmt += '\n{}'.format(_date_fmt)
+        except Exception as e:
+            logger.debug('Cannot append _datefmt for \"{}\" and \"{}\"'.format(
+                im.getDicomAttribute('SeriesDate'),
+                im.getDicomAttribute('SeriesTime')))
+            raise
+        return fmt
 
     def connect_draw(self, roi=None, color='w', callback_quit=None):
         self.poly_color = color
@@ -662,9 +743,9 @@ class Viewer(object):
             dx = delta * (event.xdata - im['press'][0])
             dy = delta * (im['press'][1] - event.ydata)
             im['press'] = event.xdata, event.ydata
-            im['window'] = max(POSITIVE_EPS, im['window'] + dx)
+            im['window'] = max(POSITIVE_EPS, im['window'] + dy)
             assert im['window'] >= 0, "Window must be non-negative."
-            im['level'] = im['level'] + dy
+            im['level'] = im['level'] + dx
             im['vmin'] = im['level'] - im['window'] / 2
             im['vmax'] = im['level'] + im['window'] / 2
             im['vmin'], im['vmax'] = _check_vmin_vmax(im['vmin'], im['vmax'], im['norm'])
