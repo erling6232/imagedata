@@ -2,7 +2,7 @@
 
 import unittest
 import os.path
-from datetime import datetime
+from datetime import datetime, timezone
 import numpy as np
 import tempfile
 import argparse
@@ -53,7 +53,7 @@ class TestDicomTemplate(unittest.TestCase):
         # Provide sensible time tags
         for s in range(3):
             for t in range(2):
-                time_str = datetime.utcfromtimestamp(float(t)).strftime("%H%M%S.%f")
+                time_str = datetime.fromtimestamp(float(t), timezone.utc).strftime("%H%M%S.%f")
                 si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)
         si01.write(os.path.join(self.emptydir.name, 'empty_header_time'), formats=['dicom'])
 

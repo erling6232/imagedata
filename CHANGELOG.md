@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.0-rc4] - 2023-12-19
+### Changed
+* Support Python 3.12
+
 ## [v3.3.0-rc3] - 2023-12-18
 ### Added
 * Viewer: Display seriesDescription upper right.
