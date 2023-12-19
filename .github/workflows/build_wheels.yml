@@ -67,7 +67,7 @@ jobs:
           coverage run -m unittest discover tests -t .
       - name: Testing - without Cython
         run: |
-          find . -name '*.so' | xargs rm
+          # find . -name '*.so' | xargs rm
           # python3 -m pip install SimpleITK-SimpleElastix nipype
           coverage run -m unittest discover tests -t .
       - uses: actions/upload-artifact@v3
