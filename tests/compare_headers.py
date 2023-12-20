@@ -74,20 +74,20 @@ def compare_geometry_headers(self, hdr, newhdr):
 
 def compare_axes(self, axes, new_axes):
     self.assertEqual(len(axes), len(new_axes))
-    for axis, new_axis in zip(axes, new_axes):
-        self.assertEqual(type(axis), type(new_axis))
-        self.assertEqual(axis.name, new_axis.name)
-        if isinstance(axis, axis.VariableAxis):
-            np.testing.assert_array_equal(axis.values, new_axis.values)
-        elif isinstance(axis, axis.UniformLengthAxis):
-            self.assertEqual(axis.n, new_axis.n)
-            self.assertEqual(axis.start, new_axis.start)
-            self.assertEqual(axis.stop, new_axis.stop)
-            self.assertEqual(axis.step, new_axis.step)
-        elif isinstance(axis, axis.UniformAxis):
-            self.assertEqual(axis.start, new_axis.start)
-            self.assertEqual(axis.stop, new_axis.stop)
-            self.assertEqual(axis.step, new_axis.step)
+    for _axis, _new_axis in zip(axes, new_axes):
+        self.assertEqual(type(_axis), type(_new_axis))
+        self.assertEqual(_axis.name, _new_axis.name)
+        if isinstance(_axis, axis.VariableAxis):
+            np.testing.assert_array_equal(_axis.values, _new_axis.values)
+        elif isinstance(_axis, axis.UniformLengthAxis):
+            self.assertEqual(_axis.n, _new_axis.n)
+            self.assertEqual(_axis.start, _new_axis.start)
+            self.assertEqual(_axis.stop, _new_axis.stop)
+            self.assertEqual(_axis.step, _new_axis.step)
+        elif isinstance(_axis, axis.UniformAxis):
+            self.assertEqual(_axis.start, _new_axis.start)
+            self.assertEqual(_axis.stop, _new_axis.stop)
+            self.assertEqual(_axis.step, _new_axis.step)
 
 
 def compare_pydicom(self, orig, temp, uid=False):
