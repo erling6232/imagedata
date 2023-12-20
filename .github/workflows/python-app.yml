@@ -8,6 +8,8 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
+  release:
+    branches: [ "master" ]
 
 permissions:
   contents: read
@@ -57,3 +59,11 @@ jobs:
       with:
         name: code-coverage-report
         path: htmlcov
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.16.1
+      env:
+        # Skip 32-bit builds
+        # Disable building PyPy wheels on all platforms
+        # Skip all musllinux (manylinux only supported by itk-io)
+        CIBW_SKIP: "*-win32 *-manylinux_i686 pp* *-musllinux*"
+        NPY_NO_DEPRECATED_API: "NPY_1_7_API_VERSION"
