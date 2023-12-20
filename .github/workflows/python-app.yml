@@ -45,3 +45,15 @@ jobs:
         coverage report -m
         coverage xml
         coverage html
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        fail_ci_if_error: true
+        token: ${{ secrets.CODECOV_TOKEN }}
+        flags: unittests
+        verbose: false
+    - name: Archive code coverage html report
+      uses: actions/upload-artifact@v3
+      with:
+        name: code-coverage-report
+        path: htmlcov
