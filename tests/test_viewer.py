@@ -9,11 +9,9 @@ import tempfile
 import matplotlib
 import matplotlib.pyplot as plt
 
-from .context import imagedata
-from imagedata.series import Series
-from imagedata.viewer import Viewer, default_layout
-import imagedata.axis
-from .compare_headers import compare_axes
+# from .context import imagedata
+from src.imagedata.series import Series
+from src.imagedata.viewer import Viewer, default_layout
 
 
 class TestViewer(unittest.TestCase):

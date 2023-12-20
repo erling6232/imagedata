@@ -5,23 +5,22 @@ import os.path
 import numpy as np
 import argparse
 import tempfile
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 
 
 class TestDicomColor(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'dicom', '--serdes', '1'])
         self.opts_gray = parser.parse_args(['--of', 'dicom', '--serdes', '1',
                                             '--psopt', 'pnggray'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':

@@ -9,17 +9,16 @@ import numpy as np
 import tempfile
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 
 
 class TestDicomZipRead(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -59,7 +58,7 @@ class TestDicomZipRead(unittest.TestCase):
     def test_read_two_files2(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?*0[01]/Image_0002[01].dcm'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -79,7 +78,7 @@ class TestDicomZipRead(unittest.TestCase):
     def test_read_all_files(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -89,7 +88,7 @@ class TestDicomZipRead(unittest.TestCase):
 class TestDicomZipWrite(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -113,13 +112,13 @@ class TestDicomZipWrite(unittest.TestCase):
     def test_write_all_files(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'dicom.zip'), formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip'),
-                         imagedata.formats.INPUT_ORDER_TIME,
+                         formats.INPUT_ORDER_TIME,
                          self.opts)
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)

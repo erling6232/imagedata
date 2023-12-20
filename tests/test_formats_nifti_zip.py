@@ -9,17 +9,16 @@ import tempfile
 import numpy as np
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 
 
 class TestNiftiZipRead(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -59,7 +58,7 @@ class TestNiftiZipRead(unittest.TestCase):
     def test_read_single_directory(self):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -68,7 +67,7 @@ class TestNiftiZipRead(unittest.TestCase):
     def test_read_all_files(self):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -77,7 +76,7 @@ class TestNiftiZipRead(unittest.TestCase):
 class TestNiftiZipWrite(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:

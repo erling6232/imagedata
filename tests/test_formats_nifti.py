@@ -8,11 +8,10 @@ import logging
 import argparse
 import nibabel
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):
@@ -192,12 +191,12 @@ class TestReadNIfTIPlugin(unittest.TestCase):
 class Test3DNIfTIPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'nifti', '--serdes', '1'])
 
     def test_nifti_plugin(self):
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.nifti_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'nifti':
@@ -253,7 +252,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
                              'time_all',
                              'time_all_fl3d_dynamic_20190207140517_14.nii.gz')
             ],
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
@@ -274,7 +273,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_zipread_single_directory(self):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -283,7 +282,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_zipread_all_files(self):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -313,11 +312,11 @@ class Test3DNIfTIPlugin(unittest.TestCase):
 class Test4DNIfTIPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'nifti', '--input_shape', '8x30'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.nifti_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'nifti':
@@ -327,14 +326,14 @@ class Test4DNIfTIPlugin(unittest.TestCase):
     def test_write_4d_nifti_time(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
-        si1.sort_on = imagedata.formats.SORT_ON_SLICE
+        si1.sort_on = formats.SORT_ON_SLICE
         logging.debug("test_write_4d_nifti: si1.sort_on {}".format(
-            imagedata.formats.sort_on_to_str(si1.sort_on)))
+            formats.sort_on_to_str(si1.sort_on)))
         si1.output_dir = 'single'
         # si1.output_dir = 'multi'
         with tempfile.TemporaryDirectory() as d:
@@ -343,7 +342,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             # Read back the NIfTI data and verify that the header was modified
             si2 = Series(
                 d,
-                imagedata.formats.INPUT_ORDER_TIME,
+                formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
@@ -351,7 +350,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
     def test_write_4d_nifti_dwi(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'dwi'),
-            imagedata.formats.INPUT_ORDER_B,
+            formats.INPUT_ORDER_B,
             self.opts
         )
         self.assertEqual(si1.shape, (3, 30, 384, 312))
@@ -359,7 +358,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             si1.write(d, formats=['nifti'], opts=self.opts)
             # Read back the NIfTI data and verify
             si2 = Series(d,
-                         imagedata.formats.INPUT_ORDER_B,
+                         formats.INPUT_ORDER_B,
                          self.opts)
             self.assertEqual(si1.shape, si2.shape)
             np.testing.assert_array_almost_equal(si1.spacing, si2.spacing)

@@ -1,8 +1,8 @@
 import tempfile
 import unittest
 
-from .context import imagedata
-from imagedata import Study, Patient, Cohort
+# from .context import imagedata
+from src.imagedata import Study, Patient, Cohort
 
 
 class TestCollections(unittest.TestCase):

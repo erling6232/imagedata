@@ -10,11 +10,10 @@ import numpy as np
 import logging
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 from .compare_headers import compare_headers
 
 
@@ -32,14 +31,14 @@ def list_files(startpath):
 class TestFileArchiveItk(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['itk']
 
     def test_itk_plugin(self):
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.itk_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'itk':
@@ -85,7 +84,7 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha')],
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 3, 192, 152))
@@ -94,7 +93,7 @@ class TestFileArchiveItk(unittest.TestCase):
     def test_read_single_directory(self):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -143,7 +142,7 @@ class TestFileArchiveItk(unittest.TestCase):
 class TestWritePluginITKSlice(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -194,7 +193,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (3, 3, 192, 152))
@@ -203,10 +202,10 @@ class TestWritePluginITKSlice(unittest.TestCase):
         deep_si = copy.deepcopy(si)
         np.testing.assert_array_equal(si, deep_si)
 
-        si.sort_on = imagedata.formats.SORT_ON_SLICE
-        # si.sort_on = imagedata.formats.SORT_ON_TAG
+        si.sort_on = formats.SORT_ON_SLICE
+        # si.sort_on = formats.SORT_ON_TAG
         log.debug("test_write_4d_itk: si.sort_on {}".format(
-            imagedata.formats.sort_on_to_str(si.sort_on)))
+            formats.sort_on_to_str(si.sort_on)))
         si.output_dir = 'single'
         # si.output_dir = 'multi'
         with tempfile.TemporaryDirectory() as d:
@@ -216,7 +215,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
             # Read back the DICOM data and verify the header
             si2 = Series(
                 d,
-                imagedata.formats.INPUT_ORDER_TIME,
+                formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si.shape, si2.shape)
         compare_headers(self, si, si2, uid=False)
@@ -226,7 +225,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
 class TestWritePluginItkTag(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
         self.opts = parser.parse_args(['--of', 'itk', '--sort', 'tag'])
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['itk']
@@ -239,7 +238,7 @@ class TestWritePluginItkTag(unittest.TestCase):
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (3, 3, 192, 152))
@@ -265,9 +264,9 @@ class TestWritePluginItkTag(unittest.TestCase):
                 slice: si.getPositionForVoxel(np.array([slice, 0, 0])).reshape((3, 1))
             }
 
-        si.sort_on = imagedata.formats.SORT_ON_TAG
+        si.sort_on = formats.SORT_ON_TAG
         log.debug("test_write_4d_itk: hdr.sort_on {}".format(
-            imagedata.formats.sort_on_to_str(si.sort_on)))
+            formats.sort_on_to_str(si.sort_on)))
         si.output_dir = 'single'
         with tempfile.TemporaryDirectory() as d:
             si.write(d, self.opts)
@@ -275,7 +274,7 @@ class TestWritePluginItkTag(unittest.TestCase):
             # Read back the ITK data and verify that the header was modified
             si2 = Series(
                 d,
-                imagedata.formats.INPUT_ORDER_TIME,
+                formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual((3, 3, 192, 152), si2.shape)
         # np.testing.assert_array_equal(si, si2)

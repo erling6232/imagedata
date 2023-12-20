@@ -7,11 +7,10 @@ import numpy as np
 import logging
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 
 
 def list_files(startpath):
@@ -28,12 +27,12 @@ def list_files(startpath):
 class Test3DMatPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'mat', '--serdes', '1'])
 
     def test_mat_plugin(self):
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.mat_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'mat':
@@ -44,7 +43,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.input_format, 'mat')
         self.assertEqual(si1.dtype, np.uint16)
@@ -54,7 +53,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_read_2D(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -71,7 +70,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             [os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
              os.path.join('data', 'mat', 'time', 'Image_00000.mat')],
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
@@ -80,7 +79,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_read_single_directory(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -116,7 +115,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_zipread_single_directory(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -125,7 +124,7 @@ class Test3DMatPlugin(unittest.TestCase):
     def test_zipread_all_files(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -222,11 +221,11 @@ class Test3DMatPlugin(unittest.TestCase):
 class Test4DMatPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'mat'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.mat_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'mat':
@@ -237,7 +236,7 @@ class Test4DMatPlugin(unittest.TestCase):
     def test_write_4d_mat(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
@@ -247,7 +246,7 @@ class Test4DMatPlugin(unittest.TestCase):
             # Read back the MAT data and compare to original si1
             si2 = Series(
                 os.path.join(d, 'mat', 'Image_00000.mat'),
-                imagedata.formats.INPUT_ORDER_TIME,
+                formats.INPUT_ORDER_TIME,
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)

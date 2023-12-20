@@ -1,6 +1,6 @@
 import unittest
-from imagedata.series import Series
-from imagedata.transports import Transport
+from src.imagedata.series import Series
+from src.imagedata.transports import Transport
 
 
 class TestXNATTransport(unittest.TestCase):

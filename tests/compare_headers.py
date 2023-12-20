@@ -1,4 +1,4 @@
-import imagedata.axis
+import src.imagedata.axis as axis
 import numpy as np
 
 
@@ -77,14 +77,14 @@ def compare_axes(self, axes, new_axes):
     for axis, new_axis in zip(axes, new_axes):
         self.assertEqual(type(axis), type(new_axis))
         self.assertEqual(axis.name, new_axis.name)
-        if isinstance(axis, imagedata.axis.VariableAxis):
+        if isinstance(axis, axis.VariableAxis):
             np.testing.assert_array_equal(axis.values, new_axis.values)
-        elif isinstance(axis, imagedata.axis.UniformLengthAxis):
+        elif isinstance(axis, axis.UniformLengthAxis):
             self.assertEqual(axis.n, new_axis.n)
             self.assertEqual(axis.start, new_axis.start)
             self.assertEqual(axis.stop, new_axis.stop)
             self.assertEqual(axis.step, new_axis.step)
-        elif isinstance(axis, imagedata.axis.UniformAxis):
+        elif isinstance(axis, axis.UniformAxis):
             self.assertEqual(axis.start, new_axis.start)
             self.assertEqual(axis.stop, new_axis.stop)
             self.assertEqual(axis.step, new_axis.step)

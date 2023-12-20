@@ -6,11 +6,10 @@ import tempfile
 import numpy as np
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 from .compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
 
 
@@ -21,7 +20,7 @@ class ShouldHaveFailed(Exception):
 class TestItkTemplate(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts_template = parser.parse_args(['--of', 'itk',
                                                 '--template', 'data/dicom/time/time00/'])
@@ -31,7 +30,7 @@ class TestItkTemplate(unittest.TestCase):
                                                 '--template', 'data/dicom/time/time00/',
                                                 '--geometry', 'data/dicom/time/time00/'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'itk':

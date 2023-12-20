@@ -9,25 +9,24 @@ import logging
 import argparse
 import pydicom.filereader
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 from .compare_headers import compare_headers, compare_pydicom
 
 
 class TestDicomPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['dicom']
 
     def test_dicom_plugin(self):
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
@@ -83,7 +82,7 @@ class TestDicomPlugin(unittest.TestCase):
             'auto',
             self.opts)
         self.assertEqual('dicom', si1.input_format)
-        self.assertEqual(imagedata.formats.INPUT_ORDER_NONE, si1.input_order)
+        self.assertEqual(formats.INPUT_ORDER_NONE, si1.input_order)
         self.assertEqual((3, 192, 152), si1.shape)
         self.assertEqual(3, len(si1.axes))
         self.assertEqual(14, si1.seriesNumber)
@@ -94,7 +93,7 @@ class TestDicomPlugin(unittest.TestCase):
             'auto',
             self.opts)
         self.assertEqual('dicom', si1.input_format)
-        self.assertEqual(imagedata.formats.INPUT_ORDER_TIME, si1.input_order)
+        self.assertEqual(formats.INPUT_ORDER_TIME, si1.input_order)
         self.assertEqual((3, 3, 192, 152), si1.shape)
         self.assertEqual(4, len(si1.axes))
         self.assertEqual(14, si1.seriesNumber)
@@ -111,7 +110,7 @@ class TestDicomPlugin(unittest.TestCase):
     def test_read_dicom_4D(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -123,7 +122,7 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
-        with self.assertRaises(imagedata.formats.CannotSort) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 'b',
@@ -235,13 +234,13 @@ class TestDicomPlugin(unittest.TestCase):
     def test_copy_dicom_4D(self):
         si = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si.input_format)
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
         newsi = Series(si,
-                       imagedata.formats.INPUT_ORDER_TIME)
+                       formats.INPUT_ORDER_TIME)
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
@@ -278,7 +277,7 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_dicom_4D(self):
         si = Series(
             os.path.join('data', 'dicom', 'time_all'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si.input_format)
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
@@ -287,7 +286,7 @@ class TestDicomPlugin(unittest.TestCase):
             si.write(os.path.join(d, 'Image_%05d'),
                      formats=['dicom'], opts=self.opts)
             newsi = Series(d,
-                           imagedata.formats.INPUT_ORDER_TIME,
+                           formats.INPUT_ORDER_TIME,
                            self.opts)
         self.assertEqual('dicom', newsi.input_format)
         self.assertEqual(si.shape, newsi.shape)
@@ -300,7 +299,7 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_dicom_4D_no_opt(self):
         si = Series(
             os.path.join('data', 'dicom', 'time_all'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si.input_format)
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
@@ -309,7 +308,7 @@ class TestDicomPlugin(unittest.TestCase):
             si.write(os.path.join(d, 'Image_%05d'),
                      formats=['dicom'])
             newsi = Series(d,
-                           imagedata.formats.INPUT_ORDER_TIME)
+                           formats.INPUT_ORDER_TIME)
         self.assertEqual('dicom', newsi.input_format)
         self.assertEqual(si.shape, newsi.shape)
         np.testing.assert_array_equal(si, newsi)
@@ -418,13 +417,13 @@ class TestDicomPlugin(unittest.TestCase):
 class TestDicomZipPlugin(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['dicom']
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
@@ -447,7 +446,7 @@ class TestDicomZipPlugin(unittest.TestCase):
 class TestZipArchiveDicom(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -507,7 +506,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     def test_read_two_directories(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/time0[02]/'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -517,7 +516,7 @@ class TestZipArchiveDicom(unittest.TestCase):
     def test_read_all_files(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -527,7 +526,7 @@ class TestZipArchiveDicom(unittest.TestCase):
 class TestWriteZipArchiveDicom(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -588,7 +587,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     def test_read_two_directories(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/time0[02]/'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -598,7 +597,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     def test_read_all_files(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -606,7 +605,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_not_DWI")
     def test_read_dicom_not_DWI(self):
-        with self.assertRaises(imagedata.formats.CannotSort) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             d = Series(
                 os.path.join('data', 'dicom', 'time'),
                 'b'
@@ -614,7 +613,7 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_not_DWI_no_CSA")
     def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises(imagedata.formats.CannotSort) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             d = Series(
                 os.path.join('data', 'dicom', 'lena_color.dcm'),
                 'b'
@@ -624,13 +623,13 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
 class TestDicomSlicing(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
             self.opts.output_format = ['dicom']
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
@@ -670,7 +669,7 @@ class TestDicomSlicing(unittest.TestCase):
     def test_slice_time_z(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -687,7 +686,7 @@ class TestDicomSlicing(unittest.TestCase):
     def test_slice_ellipsis_first(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -705,7 +704,7 @@ class TestDicomSlicing(unittest.TestCase):
     def test_slice_ellipsis_last(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -723,7 +722,7 @@ class TestDicomSlicing(unittest.TestCase):
     def test_slice_ellipsis_middle(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
-            imagedata.formats.INPUT_ORDER_TIME,
+            formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)

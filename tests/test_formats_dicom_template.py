@@ -7,11 +7,10 @@ import numpy as np
 import tempfile
 import argparse
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+from src.imagedata.series import Series
 from .compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
 
 
@@ -22,7 +21,7 @@ class ShouldHaveFailed(Exception):
 class TestDicomTemplate(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'dicom'])
         self.opts_template = parser.parse_args(['--of', 'dicom',
@@ -36,7 +35,7 @@ class TestDicomTemplate(unittest.TestCase):
                                                 '--template', 'data/dicom/time/time00/',
                                                 '--geometry', 'data/dicom/time/time00/'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
@@ -240,7 +239,7 @@ class TestDicomTemplate(unittest.TestCase):
 class TestDicomGeometryTemplate(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args(['--of', 'dicom'])
         self.opts_template = parser.parse_args(['--of', 'dicom',
@@ -254,7 +253,7 @@ class TestDicomGeometryTemplate(unittest.TestCase):
                                                 '--template', 'data/dicom/time/time00/',
                                                 '--geometry', 'data/dicom/time/time00/'])
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
