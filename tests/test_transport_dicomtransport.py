@@ -11,12 +11,11 @@ from pynetdicom import (
     PYNETDICOM_IMPLEMENTATION_VERSION
 )
 
-from .context import imagedata
-import imagedata.cmdline
-import imagedata.readdata
-import imagedata.formats
-import imagedata.transports
-from imagedata.series import Series
+# from .context import imagedata
+import src.imagedata.cmdline as cmdline
+import src.imagedata.formats as formats
+import src.imagedata.transports as transports
+from src.imagedata.series import Series
 
 scpdir = None
 
@@ -24,7 +23,7 @@ scpdir = None
 class TestDicomTransport(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
-        imagedata.cmdline.add_argparse_options(parser)
+        cmdline.add_argparse_options(parser)
 
         self.opts = parser.parse_args([])
         if len(self.opts.output_format) < 1:
@@ -34,7 +33,7 @@ class TestDicomTransport(unittest.TestCase):
         if len(self.opts_calling_aet.output_format) < 1:
             self.opts_calling_aet.output_format = ['dicom']
 
-        plugins = imagedata.formats.get_plugins_list()
+        plugins = formats.get_plugins_list()
         self.dicom_plugin = None
         for pname, ptype, pclass in plugins:
             if ptype == 'dicom':
@@ -143,7 +142,7 @@ class TestDicomTransport(unittest.TestCase):
         stuInsUID = '1.2.3.4'
         serInsUID = '1.2.3.4.5'
         accno = '98765'
-        transport = imagedata.transports.Transport(
+        transport = transports.Transport(
             'dicom://localhost:11112/Temp')
         for root, dirs, files in transport.walk('{}/*cerebrum*'.format(patID)):
             print(dirs, files)
