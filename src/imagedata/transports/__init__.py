@@ -55,7 +55,7 @@ def Transport(
         except AttributeError:
             opts['password'] = None
         root = url_tuple.path
-    from imagedata import plugins
+    from .. import plugins
     if 'transport' in plugins:
         for pname, ptype, pclass in plugins['transport']:
             if scheme in pclass.schemes:

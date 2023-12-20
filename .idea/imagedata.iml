@@ -5,7 +5,7 @@
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv3.12" />
     </content>
-    <orderEntry type="jdk" jdkName="pycharm-311" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="pycharm-imagedata" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
