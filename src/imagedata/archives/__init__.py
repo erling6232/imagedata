@@ -31,7 +31,7 @@ def find_plugin(pfind, url, mode="r", opts=None):
     """Return plugin for given image archive type."""
     if opts is None:
         opts = {}
-    from imagedata import plugins
+    from .. import plugins
     if 'archive' in plugins:
         for pname, ptype, pclass in plugins['archive']:
             if ptype == pfind:
@@ -43,7 +43,7 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
     """Return plugin for given file type."""
     if opts is None:
         opts = {}
-    from imagedata import plugins
+    from .. import plugins
     if os.name == 'nt' and \
             fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without /x:, then re-attach drive letter
