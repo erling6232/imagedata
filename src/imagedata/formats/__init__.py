@@ -207,7 +207,7 @@ def get_size(obj, seen=None):
 
 
 def get_plugins_list():
-    from imagedata import plugins
+    from .. import plugins
     return plugins['format'] if 'format' in plugins else []
 
 
