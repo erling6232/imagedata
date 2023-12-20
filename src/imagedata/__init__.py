@@ -49,6 +49,7 @@ except TypeError:
     except KeyError:
         pass
 
+print('imagedata/__init__.py: _plugin {}, __package__: {}'.format(len(_plugins), __package__))
 if len(_plugins) == 0 and __package__ == 'src.imagedata':
     # We are running unittests
     from src.imagedata.archives.filesystemarchive import FilesystemArchive
