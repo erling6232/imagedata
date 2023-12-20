@@ -49,10 +49,8 @@ except TypeError:
     except KeyError:
         pass
 
-print('imagedata/__init__.py: _plugin {}, __package__: {}'.format(len(_plugins), __package__))
-if len(_plugins) == 0 and __package__ == 'src.imagedata':
-    # if len(_plugins) == 0:
-    # We are running unittests, fallback to known plugins
+if len(_plugins) == 0:
+    # Fallback to known built-in plugins
     from src.imagedata.archives.filesystemarchive import FilesystemArchive
     from src.imagedata.archives.zipfilearchive import ZipfileArchive
     plugins['archive'] = [
