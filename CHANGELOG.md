@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.1] - 2023-12-20
+* Corrected release scripts on github.
+
 ## [v3.3.0] - 2023-12-19
 * Ready for public distribution.
 
