@@ -1020,20 +1020,6 @@ def grid_from_roi(im: Series, vertices: dict, single: bool = False) -> Union[boo
     return Series(grid, input_order=input_order, template=im, geometry=im)
 
 
-def get_slice_axis(im):
-    try:
-        return im.find_axis('slice')
-    except ValueError:
-        return None
-
-
-def get_tag_axis(im):
-    try:
-        return im.find_axis(im.input_order)
-    except ValueError:
-        return None
-
-
 def get_level(si, level):
     if level is None:
         # First, attempt to get DICOM attribute
@@ -1113,8 +1099,8 @@ def build_info(im, colormap, norm, colorbar, window, level):
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
     if type(norm) is type:
         norm = norm(vmin=vmin, vmax=vmax)
-    tag_axis = get_tag_axis(im)
-    slice_axis = get_slice_axis(im)
+    tag_axis = im.get_tag_axis()
+    slice_axis = im.get_slice_axis()
 
     return {
         'im': im,  # Image Series instance
