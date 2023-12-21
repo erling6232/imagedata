@@ -2817,18 +2817,15 @@ class Series(np.ndarray):
         """
         import cv2 as cv
 
-        def _threshold(im, s, sl):
+        def _threshold(im):
             vertices = []
             ret, thresh = cv.threshold(im, 0.5, 1, cv.THRESH_BINARY)
             # method = cv.CHAIN_APPROX_SIMPLE
             method = cv.CHAIN_APPROX_TC89_L1
-            # contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
             contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, method)
             for contour in contours:
                 for vertex in contour:
                     for point in vertex:
-                        # p = np.array((sl, point[0], point[1]))  # , dtype=int)
-                        # v = self.getPositionForVoxel(p)
                         vertices.append((point[0], point[1]))
             return vertices
 
@@ -2839,18 +2836,18 @@ class Series(np.ndarray):
         vertices = {}
         if grid.axes[0].name == 'row':
             # 2D grid
-            points = _threshold(grid)
+            vertices[0] = _threshold(grid)
         elif grid.axes[0].name == 'slice':
             # 3D grid
             for _slice in range(grid.slices):
-                contour = _threshold(grid[_slice], _slice, grid.sliceLocations[_slice])
+                contour = _threshold(grid[_slice])
                 if len(contour) > 0:
                     vertices[_slice] = contour
         else:
             # 4D grid
                 for _tag in range(self.tags[0]):
                     for _slice in range(grid.slices):
-                        contour = _threshold(grid[_tag, _slice], _slice)
+                        contour = _threshold(grid[_tag, _slice])
                         if len(contour) > 0:
                             vertices[_tag, _slice] = contour
 
