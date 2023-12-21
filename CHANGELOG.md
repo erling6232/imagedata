@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.3.2] - 2023-12-21
+## [v3.3.3] - 2023-12-21
 ### Added
 * Series.get_roi() will now accept an existing Series grid as roi, in addition to a vertices dict.
 * Added Series.vertices_from_grid()
