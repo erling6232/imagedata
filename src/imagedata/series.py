@@ -2647,8 +2647,8 @@ class Series(np.ndarray):
             >>> mask, vertices = img.get_roi(vertices=True)
 
         Args:
-            roi: Predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice],
-                each is list of (x,y) pairs.
+            roi: Either predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice],
+                each is list of (x,y) pairs. Or a binary Series grid.
             color (str): Color of polygon ROI. Default: 'r'.
             follow: (bool) Copy ROI to next tag. Default: False.
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
