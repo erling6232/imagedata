@@ -907,6 +907,22 @@ class Series(np.ndarray):
                 return
         # raise ValueError("No slice axis object exist")
 
+    def get_slice_axis(self):
+        """Get the slice axis instance.
+        """
+        try:
+            return self.find_axis('slice')
+        except ValueError:
+            return None
+
+    def get_tag_axis(self):
+        """Get the tax axis instance.
+        """
+        try:
+            return self.find_axis(self.input_order)
+        except ValueError:
+            return None
+
     # @property
     # def DicomHeaderDict(self):
     #     """dict: DICOM header dictionary
@@ -2701,6 +2717,10 @@ class Series(np.ndarray):
                 fig = plt.figure()
             axes = default_layout(fig, len(images))
 
+        if roi is not None and issubclass(type(roi), Series):
+            # Convert roi mask to roi vertices
+            roi = self.vertices_from_grid(roi)
+
         try:
             self.viewer = Viewer(images, fig=fig, ax=axes, follow=follow,
                                  colormap=colormap, norm=norm, colorbar=colorbar,
@@ -2782,3 +2802,56 @@ class Series(np.ndarray):
         min_bin, max_bin = np.searchsorted(cumcounts, probs)
         # Get the intensity values at the min and max bins
         return bin_edges[min_bin], bin_edges[max_bin]
+
+    def vertices_from_grid(self, grid, align: bool = True) -> dict:
+        """Convert roi grid to roi vertices
+        Assume there is a single, connected roi in the grid
+        https://docs.opencv.org/4.x/d4/d73/tutorial_py_contours_begin.html
+
+        Args:
+            grid
+            align
+
+        Returns:
+            dict
+        """
+        import cv2 as cv
+
+        def _threshold(im, s, sl):
+            vertices = []
+            ret, thresh = cv.threshold(im, 0.5, 1, cv.THRESH_BINARY)
+            # method = cv.CHAIN_APPROX_SIMPLE
+            method = cv.CHAIN_APPROX_TC89_L1
+            # contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+            contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, method)
+            for contour in contours:
+                for vertex in contour:
+                    for point in vertex:
+                        # p = np.array((sl, point[0], point[1]))  # , dtype=int)
+                        # v = self.getPositionForVoxel(p)
+                        vertices.append((point[0], point[1]))
+            return vertices
+
+        # Ensure grid is aligned with image
+        if align:
+            grid = grid.align(self)
+
+        vertices = {}
+        if grid.axes[0].name == 'row':
+            # 2D grid
+            points = _threshold(grid)
+        elif grid.axes[0].name == 'slice':
+            # 3D grid
+            for _slice in range(grid.slices):
+                contour = _threshold(grid[_slice], _slice, grid.sliceLocations[_slice])
+                if len(contour) > 0:
+                    vertices[_slice] = contour
+        else:
+            # 4D grid
+                for _tag in range(self.tags[0]):
+                    for _slice in range(grid.slices):
+                        contour = _threshold(grid[_tag, _slice], _slice)
+                        if len(contour) > 0:
+                            vertices[_tag, _slice] = contour
+
+        return vertices
