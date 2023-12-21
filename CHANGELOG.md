@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.3.2-dev0] - 2023-12-21
+* Series.vertices_from_grid()
 ## [v3.3.1] - 2023-12-20
 * Corrected release scripts on github.
 
