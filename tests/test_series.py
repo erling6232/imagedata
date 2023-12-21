@@ -4,6 +4,7 @@
 import unittest
 import os.path
 import tempfile
+import pickle
 import numpy as np
 from numpy.random import default_rng
 import copy
@@ -15,6 +16,7 @@ from PIL import Image
 from src.imagedata.series import Series
 import src.imagedata.axis as axis
 import src.imagedata.formats as formats
+from src.imagedata.viewer import grid_from_roi
 from .compare_headers import compare_axes
 
 
@@ -655,6 +657,18 @@ class TestSeries(unittest.TestCase):
         si = Series(os.path.join('data', 'dicom', 'time'))
         mask = si < 10
         curve = np.sum(si, axis=(1, 2, 3), where=mask==True)
+
+    def test_vertices_from_3d_grid(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time01'))
+        with open(os.path.join('data', 'vertices', 'vertices3d.pickle'), 'rb') as f:
+            vertices = pickle.load(f)
+        grid = grid_from_roi(si, vertices, single=False)
+        new_vertices = grid.vertices_from_grid(grid, align=False)
+        new_grid = grid_from_roi(si, new_vertices, single=False)
+        # Accept 100 pixels mismatch
+        diff = np.absolute(new_grid.astype(float) - grid.astype(float))
+        s = np.sum(diff)
+        self.assertLess(s, 100, "Too many mismatch pixels")
 
 
 if __name__ == '__main__':
