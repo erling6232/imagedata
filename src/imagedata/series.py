@@ -656,17 +656,17 @@ class Series(np.ndarray):
             _level = np.float32((_min_value + _max_value) / 2)
         return _level, _width
 
-    def max(self, **kwargs):
-        if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
-            return np.array(255, dtype=np.uint8)
-        else:
-            return super(Series, self).min(**kwargs)
-
-    def min(self, **kwargs):
-        if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
-            return np.array(0, dtype=np.uint8)
-        else:
-            return super(Series, self).min(**kwargs)
+    # def max(self, **kwargs):
+    #     if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+    #         return np.array(255, dtype=np.uint8)
+    #     else:
+    #         return super(Series, self).min(**kwargs)
+    #
+    # def min(self, **kwargs):
+    #     if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+    #         return np.array(0, dtype=np.uint8)
+    #     else:
+    #         return super(Series, self).min(**kwargs)
 
     def write(self, url, opts=None, formats=None):
         """Write Series image
