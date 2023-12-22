@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.0-dev0] - 2023-12-22
+### Changed
+* RGB-image representation
+
 ## [v3.3.3] - 2023-12-21
 ### Added
 * Series.get_roi() will now accept an existing Series grid as roi, in addition to a vertices dict.

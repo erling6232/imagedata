@@ -162,9 +162,9 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
 
         _shape = si.shape
-        if hdr.color:
-            _shape = si.shape[:-1]
-            logger.debug('AbstractPlugin.read: color')
+        # if hdr.color:
+        #     _shape = si.shape[:-1]
+        #     logger.debug('AbstractPlugin.read: color')
         logger.debug('AbstractPlugin.read: _shape {}'.format(_shape))
         _ndim = len(_shape)
         nz = 1

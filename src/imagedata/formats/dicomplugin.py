@@ -321,18 +321,24 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 pixels = im.pixel_array
             if shape != pixels.shape:
-                # This happens only when images in a series have varying shape
-                # Place the pixels in the upper left corner of the matrix
-                assert len(shape) == len(pixels.shape), \
-                    "Shape of matrix ({}) differ from pixel shape ({})".format(
-                        shape, pixels.shape)
-                # Assume that pixels can be expanded to match si shape
-                si = np.zeros(shape, pixels.dtype)
-                roi = []
-                for d in pixels.shape:
-                    roi.append(slice(d))
-                roi = tuple(roi)
-                si[roi] = pixels
+                if pixels.shape[-1] == 3:
+                    # RGB image
+                    rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+                    si = pixels.copy().view(dtype=rgb_dtype).reshape(pixels.shape[:-1])
+                    # si = pixels
+                else:
+                    # This happens only when images in a series have varying shape
+                    # Place the pixels in the upper left corner of the matrix
+                    assert len(shape) == len(pixels.shape), \
+                        "Shape of matrix ({}) differ from pixel shape ({})".format(
+                            shape, pixels.shape)
+                    # Assume that pixels can be expanded to match si shape
+                    si = np.zeros(shape, pixels.dtype)
+                    roi = []
+                    for d in pixels.shape:
+                        roi.append(slice(d))
+                    roi = tuple(roi)
+                    si[roi] = pixels
             else:
                 si = pixels
         except UnboundLocalError:
@@ -472,9 +478,12 @@ class DICOMPlugin(AbstractPlugin):
                 (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
             matrix_dtype = float
         elif im.BitsAllocated == 8:
-            matrix_dtype = np.uint8
+            if hdr.color:
+                matrix_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+            else:
+                matrix_dtype = np.uint8
         logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
-        _color = 1 if hdr.color else 0
+        # _color = 1 if hdr.color else 0
 
         # Load DICOM image data
         logger.debug('DICOMPlugin.read: shape {}'.format(shape))
@@ -501,7 +510,8 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     idx = (idx, _slice)
                 # Simplify index when image is 3D, remove tag index
-                if si.ndim == 3 + _color:
+                # if si.ndim == 3 + _color:
+                if si.ndim == 3:
                     idx = idx[1:]
                 # Do not read file again
                 # with archive.open(member, mode='rb') as f:
@@ -768,13 +778,13 @@ class DICOMPlugin(AbstractPlugin):
         hdr.color = False
         if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
             hdr.color = True
-            shape = shape + (im.SamplesPerPixel,)
-            axes.append(
-                VariableAxis(
-                    'rgb',
-                    ['r', 'g', 'b']
-                )
-            )
+            # shape = shape + (im.SamplesPerPixel,)
+            # axes.append(
+            #     VariableAxis(
+            #         'rgb',
+            #         ['r', 'g', 'b']
+            #     )
+            # )
         hdr.axes = axes
         return sorted_headers, hdr, shape
 
@@ -836,8 +846,8 @@ class DICOMPlugin(AbstractPlugin):
             im = member
         else:
             try:
-                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
-            except pydicom.errors.InvalidDicomError:
+                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, force=True)
+            except pydicom.errors.InvalidDicomError as e:
                 return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
@@ -951,16 +961,10 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber = 0
 
-        _ndim = si.ndim
-        try:
-            if si.color:
-                _ndim -= 1
-        except AttributeError:
-            pass
         logger.debug('DICOMPlugin.write_3d_numpy: orig shape {}, slices {} len {}'.format(
-            si.shape, si.slices, _ndim))
-        assert _ndim == 2 or _ndim == 3, \
-            "write_3d_series: input dimension %d is not 2D/3D." % _ndim
+            si.shape, si.slices, si.ndim))
+        assert si.ndim == 2 or si.ndim == 3, \
+            "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
 
         self._calculate_rescale(si)
         logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
@@ -984,8 +988,8 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Either legacy CT/MR, or another modality
             ifile = 0
-            if _ndim < 3:
-                logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(_ndim))
+            if si.ndim < 3:
+                logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(si.ndim))
                 if self.keep_uid:
                     sop_ins_uid = si.SOPInstanceUIDs[(0, 0)]
                 else:
@@ -1055,14 +1059,8 @@ class DICOMPlugin(AbstractPlugin):
 
         self.instanceNumber = 0
 
-        _ndim = si.ndim
-        try:
-            if si.color:
-                _ndim -= 1
-        except AttributeError:
-            pass
-        logger.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, _ndim))
-        assert _ndim == 4, "write_4d_series: input dimension %d is not 4D." % _ndim
+        logger.debug('DICOMPlugin.write_4d_numpy: orig shape {}, len {}'.format(si.shape, si.ndim))
+        assert si.ndim == 4, "write_4d_series: input dimension %d is not 4D." % si.ndim
 
         steps = si.shape[0]
         self._calculate_rescale(si)
@@ -1452,7 +1450,23 @@ class DICOMPlugin(AbstractPlugin):
             {},
             file_meta=file_meta,
             preamble=b"\0" * 128)
+        ds.SOPClassUID = sop_class_uid
         ds.SOPInstanceUID = sop_ins_uid
+        ds.PatientName = 'NA'
+        ds.PatientID = 'NA'
+        ds.PatientBirthDate = '00000000'
+        ds.PatientSex = 'O'
+        ds.StudyDate = self.today
+        ds.StudyTime = '000000'
+        try:
+            ds.StudyInstanceUID = template.header.new_uid()
+            ds.SeriesInstanceUID = template.header.new_uid()
+        except Exception as e:
+            print(e)
+        ds.StudyID = '0'
+        ds.ReferringPhysicianName = 'NA'
+        ds.AccessionNumber = 'NA'
+        ds.Modality = 'SC'
         return ds
 
     def construct_dicom(self, filename, template, si, sop_ins_uid=None):
@@ -1554,6 +1568,13 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 raise TypeError('Cannot store {} itemsize {} without scaling'.format(
                     arr.dtype, arr.itemsize))
+        elif arr.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+            # RGB image
+            ds.PixelData = arr.tobytes()
+            ds[0x7fe0, 0x0010].VR = 'OB'
+            ds.BitsAllocated = 8
+            ds.BitsStored = 8
+            ds.HighBit = 7
         elif np.issubdtype(arr.dtype, np.bool_):
             # No scaling. Pack bits in 16-bit words
             ds.PixelData = arr.astype('uint16').tobytes()
@@ -1597,7 +1618,8 @@ class DICOMPlugin(AbstractPlugin):
         self.center = (ymax + ymin) / 2
         self.width = max(1, ymax - ymin)
         # y = ax + b,
-        if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_):
+        if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_) or \
+            arr.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
             # No need to rescale
             self.a = None
             self.b = None

@@ -259,6 +259,9 @@ class Series(np.ndarray):
         if out_no:
             info['outputs'] = out_no
 
+        if self.color:
+            return NotImplemented
+
         results = super(Series, self).__array_ufunc__(ufunc, method,
                                                       *args, **kwargs)
         # results = getattr(ufunc, method)(*inputs, **kwargs)
@@ -469,7 +472,7 @@ class Series(np.ndarray):
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
-                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column', 'color']:
+                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column']:
                     ret.input_order = INPUT_ORDER_NONE
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
@@ -642,12 +645,28 @@ class Series(np.ndarray):
                 _width = round(_width)
             if abs(_level) > 2:
                 _level = round(_level)
+        elif self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+            # RGB image
+            _level = 127
+            _width = 256
         else:
             _min_value = np.float32(np.nanmin(self))
             _max_value = np.float32(np.nanmax(self))
             _width = _max_value - _min_value
             _level = np.float32((_min_value + _max_value) / 2)
         return _level, _width
+
+    def max(self, **kwargs):
+        if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+            return np.array(255, dtype=np.uint8)
+        else:
+            return super(Series, self).min(**kwargs)
+
+    def min(self, **kwargs):
+        if self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+            return np.array(0, dtype=np.uint8)
+        else:
+            return super(Series, self).min(**kwargs)
 
     def write(self, url, opts=None, formats=None):
         """Write Series image
@@ -787,12 +806,9 @@ class Series(np.ndarray):
             row_axis = self.find_axis('row')
             return len(row_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 2:
+            if self.ndim < 2:
                 raise ValueError("{}D dataset has no rows".format(self.ndim))
-            return self.shape[-2 - _color]
+            return self.shape[-2]
 
     @property
     def columns(self):
@@ -805,12 +821,9 @@ class Series(np.ndarray):
             column_axis = self.find_axis('column')
             return len(column_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 1:
+            if self.ndim < 1:
                 raise ValueError("Dataset has no columns")
-            return self.shape[-1 - _color]
+            return self.shape[-1]
 
     @property
     def slices(self):
@@ -826,16 +839,13 @@ class Series(np.ndarray):
             #              self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 3:
+            if self.ndim < 3:
                 # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
                 # raise ValueError("{}D dataset has no slices".format(self.ndim))
                 return 1
             # logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
             #     self.ndim, self.shape, self.shape[-3 - _color]))
-            return self.shape[-3 - _color]
+            return self.shape[-3]
 
     @slices.setter
     def slices(self, nslices):
@@ -1023,31 +1033,37 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        _color = shape[-1] in [3, 4] and self.dtype == np.uint8
-        if _color:
-            _mono_shape = shape[:-1]
-            self.header.photometricInterpretation = 'RGB'
-        else:
-            _mono_shape = shape
-        _max_known_shape = min(3, len(_mono_shape))
+        # _color = shape[-1] in [3, 4] and self.dtype == np.uint8
+        # if _color:
+        #     _mono_shape = shape[:-1]
+        #     self.header.photometricInterpretation = 'RGB'
+        # else:
+        #     _mono_shape = shape
+        # _max_known_shape = min(3, len(_mono_shape))
+        _max_known_shape = min(3, len(shape))
         _labels = ['slice', 'row', 'column'][-_max_known_shape:]
-        if _color:
-            _labels.append('rgb')
+        # if _color:
+        #     _labels.append('rgb')
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
         i = 0
         for d in super(Series, self).shape:
-            if _labels[i] == 'rgb':
-                self.header.axes.append(
-                    VariableAxis('rgb', ['r', 'g', 'b'])
+            self.header.axes.append(
+                UniformLengthAxis(
+                    _labels[i], 0, d, 1
                 )
-            else:
-                self.header.axes.append(
-                    UniformLengthAxis(
-                        _labels[i], 0, d, 1
-                    )
-                )
+            )
+            # if _labels[i] == 'rgb':
+            #     self.header.axes.append(
+            #         VariableAxis('rgb', ['r', 'g', 'b'])
+            #     )
+            # else:
+            #     self.header.axes.append(
+            #         UniformLengthAxis(
+            #             _labels[i], 0, d, 1
+            #         )
+            #     )
             i += 1
         return self.header.axes
 
@@ -1814,16 +1830,18 @@ class Series(np.ndarray):
             ValueError: when color interpretation is not set
             TypeError: When color is not bool
         """
-        try:
-            if self.header.axes is not None and len(self.header.axes):
-                return self.header.axes[-1].name == 'rgb'
-        except AttributeError:
-            pass
-        raise ValueError("No Color Interpretation is set.")
+        rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+        # return self.dtype == rgb_dtype
+        # try:
+        #     if self.header.axes is not None and len(self.header.axes):
+        #         return self.header.axes[-1].name == 'rgb'
+        # except AttributeError:
+        #     pass
+        # raise ValueError("No Color Interpretation is set.")
 
     @color.setter
     def color(self, color):
-        raise ValueError("Do not set color. Set RGB axis.")
+        raise ValueError("Do not set color. Set dtype.")
 
     @property
     def photometricInterpretation(self):
@@ -2434,20 +2452,27 @@ class Series(np.ndarray):
                 raise ValueError('Unknow clip method: {}'.format(clip))
             norm = norm(vmin=vmin, vmax=vmax, clip=True)
         data = norm(self)
-        if self.dtype.kind == 'f':
-            rgb = Series(
-                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-                input_order=self.input_order,
-                geometry=self,
-                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-            )
-        else:
-            rgb = Series(
-                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-                input_order=self.input_order,
-                geometry=self,
-                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-            )
+        color_data = colormap(data, bytes=True)[..., :3],  # Strip off alpha color
+        rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+        rgb = Series(
+            color_data.copy().view(dtype=rgb_dtype).reshape(color_data.shape[:-1]),
+            input_order=self.input_order,
+            geometry=self
+        )
+        # if self.dtype.kind == 'f':
+        #     rgb = Series(
+        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
+        #         input_order=self.input_order,
+        #         geometry=self,
+        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+        #     )
+        # else:
+        #     rgb = Series(
+        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
+        #         input_order=self.input_order,
+        #         geometry=self,
+        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+        #     )
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.add_template(self.header)
@@ -2528,7 +2553,8 @@ class Series(np.ndarray):
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
         overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
-        overlay[..., 0] = mask_filter  # Red channel
+        # overlay[..., 0] = mask_filter  # Red channel
+        overlay['R'] = mask_filter  # Red channel
 
         if blend:
             fused = alpha * background + (1.0 - alpha) * overlay
@@ -2541,16 +2567,16 @@ class Series(np.ndarray):
         background = fused * 255
         background = background.astype(np.uint8)
 
-        if self.color:
-            new_axes = self.axes
-        else:
-            new_axes = self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+        # if self.color:
+        #     new_axes = self.axes
+        # else:
+        #     new_axes = self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
 
         rgb = Series(
             background,
             input_order=self.input_order,
             geometry=self,
-            axes=new_axes
+            axes=self.axes
         )
 
         rgb.header.photometricInterpretation = 'RGB'

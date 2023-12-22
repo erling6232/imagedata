@@ -110,6 +110,8 @@ class ITKPlugin(AbstractPlugin):
             logger.debug('ITKPlugin._read_image: RGB color')
             hdr.photometricInterpretation = 'RGB'
             hdr.color = True
+            rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+            img = img.copy().view(dtype=rgb_dtype).reshape(img.shape[:-1])
 
         return o, img
 
@@ -204,11 +206,11 @@ class ITKPlugin(AbstractPlugin):
         # Set tags
         axes = list()
         _actual_shape = si.shape
-        _color = False
-        if hdr.color:
-            _actual_shape = si.shape[:-1]
-            _color = True
-            logger.debug('ITKPlugin.read: color')
+        # _color = False
+        # if hdr.color:
+        #     _actual_shape = si.shape[:-1]
+        #     _color = True
+        #     logger.debug('ITKPlugin.read: color')
         _actual_ndim = len(_actual_shape)
         nt = nz = 1
         axes.append(UniformLengthAxis(
@@ -243,13 +245,13 @@ class ITKPlugin(AbstractPlugin):
         tags = {}
         for _slice in range(nz):
             tags[_slice] = np.array(times)
-        if _color:
-            axes.append(
-                VariableAxis(
-                    'rgb',
-                    ['r', 'g', 'b']
-                )
-            )
+        # if _color:
+        #     axes.append(
+        #         VariableAxis(
+        #             'rgb',
+        #             ['r', 'g', 'b']
+        #         )
+        #     )
         hdr.axes = axes
         hdr.tags = tags
 
