@@ -2468,6 +2468,9 @@ class Series(np.ndarray):
         Examples:
 
             >>> from imagedata import Series
+            >>> channel0 = Series(...)
+            >>> channel1 = Series(...)
+            >>> channel2 = Series(...)
             >>> T2 = Series(...)
             >>> T2_channels = T2.to_channels([channel0, channel1, channel2], ['0', '1', '2'])
 
