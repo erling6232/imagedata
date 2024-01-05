@@ -94,8 +94,9 @@ class MatPlugin(AbstractPlugin):
                 logger.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(
                     len(mdictlist)))
                 logger.debug('matplugin._read_image: Multiple variables in MAT file {}'.format(f))
-                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: '
-                                                    '{}'.format(f, names))
+                # raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: '
+                #                                     '{}'.format(f, names))
+                raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}'.format(f))
             name, shape, dtype = mdictlist[0]
             logger.debug('matplugin._read_image: name {} shape {} dtype {}'.format(
                 name, shape, dtype))

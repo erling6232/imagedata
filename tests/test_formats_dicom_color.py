@@ -50,6 +50,7 @@ class TestDicomColor(unittest.TestCase):
             si1.write(d, formats=['dicom'])
             si2 = Series(d)
             self.assertEqual('dicom', si2.input_format)
+        d = si1 - si2
         np.testing.assert_array_equal(si1, si2)
 
 

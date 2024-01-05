@@ -321,7 +321,7 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 pixels = im.pixel_array
             if shape != pixels.shape:
-                if pixels.shape[-1] == 3:
+                if im.PhotometricInterpretation == 'RGB':
                     # RGB image
                     rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
                     si = pixels.copy().view(dtype=rgb_dtype).reshape(pixels.shape[:-1])
@@ -846,7 +846,7 @@ class DICOMPlugin(AbstractPlugin):
             im = member
         else:
             try:
-                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels, force=True)
+                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
             except pydicom.errors.InvalidDicomError as e:
                 return
 
@@ -1613,10 +1613,20 @@ class DICOMPlugin(AbstractPlugin):
         # Window center/width
         # ymin = np.nanmin(arr).item()
         # ymax = np.nanmax(arr).item()
-        ymin = np.min(arr).item()
-        ymax = np.max(arr).item()
-        self.center = (ymax + ymin) / 2
-        self.width = max(1, ymax - ymin)
+        try:
+            ymin = np.min(arr).item()
+            ymax = np.max(arr).item()
+        except AttributeError:
+            ymin = np.min(arr)
+            ymax = np.max(arr)
+        if issubclass(type(ymin), tuple):
+            ymin = 0
+            ymax = 255
+            self.center = 127
+            self.width = 256
+        else:
+            self.center = (ymax + ymin) / 2
+            self.width = max(1, ymax - ymin)
         # y = ax + b,
         if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_) or \
             arr.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):

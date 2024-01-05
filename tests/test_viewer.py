@@ -35,7 +35,7 @@ class TestViewer(unittest.TestCase):
 
         _slice = rgb[1]
         voxel = _slice[1, 1]
-        self.assertEqual(1, len(voxel.axes))
+        self.assertEqual((0, 0, 0), voxel)
 
 
 if __name__ == '__main__':

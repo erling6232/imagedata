@@ -1081,14 +1081,21 @@ def build_info(im, colormap, norm, colorbar, window, level):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
     if colormap is None:
         colormap = 'Greys_r'
-    if colormap == 'Greys_r' and im.photometricInterpretation == 'MONOCHROME1':
-        colormap = 'Greys'
+    try:
+        if colormap == 'Greys_r' and im.photometricInterpretation == 'MONOCHROME1':
+            colormap = 'Greys'
+    except ValueError:
+        pass
     if np.issubdtype(im.dtype, np.floating):
         lut = 256
     elif np.issubdtype(im.dtype, np.complexfloating):
         lut = 256
         logger.warning('Displaying real part of complex values.')
         im = np.real(im)
+    elif im.color:
+        lut = 256
+        im_shape = im.shape + (3,)
+        im = im.view(dtype=np.uint8).reshape(im.shape + (3,))
     else:
         lut = (np.nanmax(im).item()) + 1
     if not issubclass(type(colormap), matplotlib.colors.Colormap):
@@ -1099,6 +1106,8 @@ def build_info(im, colormap, norm, colorbar, window, level):
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
     if type(norm) is type:
         norm = norm(vmin=vmin, vmax=vmax)
+    if im.color:
+        norm = None
     tag_axis = im.get_tag_axis()
     slice_axis = im.get_slice_axis()
 
