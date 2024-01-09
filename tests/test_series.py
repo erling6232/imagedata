@@ -451,7 +451,7 @@ class TestSeries(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si2 = Series(d)
-        self.assertNotEqual(si2.windowWidth, si1.windowWidth)
+        np.testing.assert_array_almost_equal(si2.windowWidth, si1.windowWidth, 4)
 
     def test_cross_talk_dicom_series_template(self):
         template = Series('data/dicom/time/time00')
