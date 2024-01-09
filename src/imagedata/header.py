@@ -87,8 +87,8 @@ class Header(object):
         # UID.
         # self.dicomTemplate = None
         self.dicomToDo = []
-        # self.windowCenter = 1
-        # self.windowWidth = 2
+        self.windowCenter = None
+        self.windowWidth = None
 
     def __repr__(self):
         return object.__repr__(self)
@@ -115,8 +115,8 @@ class Header(object):
         self.orientation = np.array([0, 0, 1, 0, 1, 0], dtype=np.float32)
         self.dicomTemplate = None
         self.imagePositions = {}
-        # self.windowCenter = 1
-        # self.windowWidth = 2
+        self.windowCenter = None
+        self.windowWidth = None
 
         if axes is None:
             return

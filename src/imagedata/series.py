@@ -213,10 +213,8 @@ class Series(np.ndarray):
         else:
             self.header = Header()
             self.header.set_default_values(self.axes)
-            if self.ndim > 0:
-                _level, _width = self.__calculate_window()
-                self.windowCenter = _level
-                self.windowWidth = _width
+            self.windowCenter = None
+            self.windowWidth = None
 
         # We do not need to return anything
 
@@ -267,10 +265,11 @@ class Series(np.ndarray):
                         for result, output in zip(results, outputs))
         if results and issubclass(type(results[0]), Series):
             results[0].header = self._unify_headers(inputs)
-            if results[0].header is not None:
-                _level, _width = results[0].__calculate_window()
-                results[0].header.windowCenter = _level
-                results[0].header.windowWidth = _width
+            try:
+                results[0].header.windowCenter = None
+                results[0].header.windowWidth = None
+            except AttributeError:
+                pass
 
         return results[0] if len(results) == 1 else results
 
@@ -329,10 +328,8 @@ class Series(np.ndarray):
                 return
             if not np.isscalar(results):
                 results.header = self._unify_headers(inputs)
-                if results.header is not None:
-                    _level, _width = results.__calculate_window()
-                    results.header.windowCenter = _level
-                    results.header.windowWidth = _width
+                results.header.windowCenter = None
+                results.header.windowWidth = None
                 results_dtype.append((field, results.dtype))
             else:
                 results_dtype.append((field, type(results)))
@@ -1945,12 +1942,13 @@ class Series(np.ndarray):
         """
         try:
             if self.header.windowCenter is None:
-                level = (np.float32(np.nanmax(self)) + np.float32(np.nanmin(self))) / 2
-                if np.isnan(level):
-                    level = 1
-                if abs(level) > 2:
-                    level = round(level)
-                self.header.windowCenter = level
+                self.header.windowCenter, self.header.windowWidth = self.__calculate_window()
+                # level = (np.float32(np.nanmax(self)) + np.float32(np.nanmin(self))) / 2
+                # if np.isnan(level):
+                #     level = 1
+                # if abs(level) > 2:
+                #     level = round(level)
+                # self.header.windowCenter = level
             return self.header.windowCenter
         except AttributeError:
             pass
@@ -1982,12 +1980,13 @@ class Series(np.ndarray):
         """
         try:
             if self.header.windowWidth is None:
-                window = np.float32(np.nanmax(self)) - np.float32(np.nanmin(self))
-                if np.isnan(window):
-                    window = 1
-                if abs(window) > 2:
-                    window = round(window)
-                self.header.windowWidth = window
+                self.header.windowCenter, self.header.windowWidth = self.__calculate_window()
+                # window = np.float32(np.nanmax(self)) - np.float32(np.nanmin(self))
+                # if np.isnan(window):
+                #     window = 1
+                # if abs(window) > 2:
+                #     window = round(window)
+                # self.header.windowWidth = window
             return self.header.windowWidth
         except AttributeError:
             pass
