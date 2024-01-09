@@ -242,9 +242,6 @@ def write(si, url, opts=None, formats=None):
         if out_opts['dtype'] != si.dtype:
             # write_si = si.astype(str_to_dtype(out_opts['dtype']))
             write_si = si.astype(out_opts['dtype'])
-    _color = 0
-    if write_si.color:
-        _color = 1
 
     # Verify there is one destination only
     # destinations = _get_sources(url, mode='w')
@@ -271,10 +268,10 @@ def write(si, url, opts=None, formats=None):
             destination = destinations[0]
             logger.debug('readdata.write: destination {}'.format(destination))
             try:
-                if write_si.ndim - _color == 4 and write_si.shape[0] > 1:
+                if write_si.ndim == 4 and write_si.shape[0] > 1:
                     # 4D data
                     writer.write_4d_numpy(write_si, destination, out_opts)
-                elif write_si.ndim - _color >= 2:
+                elif write_si.ndim >= 2:
                     # 2D-3D data
                     writer.write_3d_numpy(write_si, destination, out_opts)
                 else:

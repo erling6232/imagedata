@@ -127,7 +127,7 @@ class Header(object):
             axis = copy.copy(_axis)
             if axis.name == 'slice':
                 slices = len(axis)
-            elif axis.name not in {'row', 'column', 'rgb'}:
+            elif axis.name not in {'row', 'column'}:
                 tags = len(axis)
                 if axis.name == 'unknown':
                     axis.name = self.input_order
@@ -195,7 +195,7 @@ class Header(object):
             for axis in self.axes:
                 if axis.name == 'slice':
                     slices = len(axis)
-                elif axis.name not in {'row', 'column', 'rgb'}:
+                elif axis.name not in {'row', 'column'}:
                     tags = len(axis)
         return tags, slices
 

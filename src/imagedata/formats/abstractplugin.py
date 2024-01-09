@@ -162,9 +162,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
 
         _shape = si.shape
-        if hdr.color:
-            _shape = si.shape[:-1]
-            logger.debug('AbstractPlugin.read: color')
         logger.debug('AbstractPlugin.read: _shape {}'.format(_shape))
         _ndim = len(_shape)
         nz = 1
@@ -448,11 +445,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             ValueError: tags for dataset is not time tags
         """
 
-        # Color image?
         mindim = 2
-        if si.shape[-1] == 3:
-            mindim += 1
-
         while si.ndim > mindim:
             if si.shape[0] == 1:
                 si.shape = si.shape[1:]

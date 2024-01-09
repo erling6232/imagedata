@@ -24,6 +24,8 @@ from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, 
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
 from .header import Header
+# from ._methods import (max, nanmax, min, nanmin, __sub__, multiply,
+#                        __mul__, __imul__, __rmul__, __rmatmul__, __matmul__, __truediv__, rint)
 
 logger = logging.getLogger(__name__)
 
@@ -219,45 +221,30 @@ class Series(np.ndarray):
         # We do not need to return anything
 
     def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
-        # logger.debug('Series.__array_ufunc__ method: %s' % method)
         args = []
-        in_no = []
         if 'where' in kwargs:
             if issubclass(type(kwargs['where']), Series):
                 kwargs['where'] = kwargs['where'].view(np.ndarray)
-        # logger.debug('Series.__array_ufunc__ inputs: %s %d' % (
-        #    type(inputs), len(inputs)))
         for i, input_ in enumerate(inputs):
-            if isinstance(input_, Series):
-                in_no.append(i)
+            if issubclass(type(input_), np.ndarray) and input_.dtype.fields is not None:
+                # Delegate structured dtypes to __array_ufunc_struct__
+                return self.__array_ufunc_struct__(ufunc, method, *inputs, **kwargs)
+            if issubclass(type(input_), Series):
                 args.append(input_.view(np.ndarray))
-                # logger.debug('                       input %d: Series' % i)
-                # logger.debug('                       input %s: ' % type(input_))
-                # logger.debug('                       input spacing {} '.format(
-                #        input_.spacing))
             else:
                 args.append(input_)
 
         outputs = kwargs.pop('out', None)
-        out_no = []
-        # logger.debug('Series.__array_ufunc__ inputs: %d' % len(inputs))
         if outputs:
             out_args = []
             for j, output in enumerate(outputs):
-                if isinstance(output, Series):
-                    out_no.append(j)
+                if issubclass(type(output), Series):
                     out_args.append(output.view(np.ndarray))
                 else:
                     out_args.append(output)
             kwargs['out'] = tuple(out_args)
         else:
             outputs = (None,) * ufunc.nout
-
-        info = {}
-        if in_no:
-            info['inputs'] = in_no
-        if out_no:
-            info['outputs'] = out_no
 
         results = super(Series, self).__array_ufunc__(ufunc, method,
                                                       *args, **kwargs)
@@ -266,8 +253,8 @@ class Series(np.ndarray):
             return NotImplemented
 
         if method == 'at':
-            if isinstance(inputs[0], Series):
-                inputs[0].header = info
+            # if issubclass(type(inputs[0]), Series):
+            #     inputs[0].header = info
             return
 
         if ufunc.nout == 1:
@@ -278,9 +265,7 @@ class Series(np.ndarray):
         results = tuple((np.asarray(result).view(Series)
                          if output is None else output)
                         for result, output in zip(results, outputs))
-        # if results and isinstance(results[0], Series):
         if results and issubclass(type(results[0]), Series):
-            # logger.debug('Series.__array_ufunc__ add info to results:\n{}'.format(info))
             results[0].header = self._unify_headers(inputs)
             if results[0].header is not None:
                 _level, _width = results[0].__calculate_window()
@@ -288,6 +273,101 @@ class Series(np.ndarray):
                 results[0].header.windowWidth = _width
 
         return results[0] if len(results) == 1 else results
+
+    def __array_ufunc_struct__(self, ufunc, method, *inputs, **kwargs):
+        struct_dtype = None
+        field_names = None
+        if 'where' in kwargs:
+            if issubclass(type(kwargs['where']), Series):
+                kwargs['where'] = kwargs['where'].view(np.ndarray)
+        for i, input_ in enumerate(inputs):
+            if not (not issubclass(type(input_), np.ndarray) or not (
+                    input_.dtype.fields is not None)) and struct_dtype is None:
+                struct_dtype = input_.dtype
+                field_names = input_.dtype.names
+            if issubclass(type(input_), Series):
+                if input_.dtype.names != field_names:
+                    # Require same field names, not necessarily same datatypes
+                    raise IndexError('Structured dtype differ: {} vs {}'.format(
+                        field_names, input_.dtype.names
+                    ))
+
+        outputs = kwargs.pop('out', None)
+        if outputs:
+            out_args = []
+            for j, output in enumerate(outputs):
+                if output.dtype.fields is not None:
+                    raise IndexError('Output struct dtype not implemented')
+                if issubclass(type(output), Series):
+                    out_args.append(output.view(np.ndarray))
+                else:
+                    out_args.append(output)
+            kwargs['out'] = tuple(out_args)
+        else:
+            outputs = (None,) * ufunc.nout
+
+        _results = {}
+        # Assume each channel of dtype struct can be calculated independently
+        results_dtype = []
+        for field in field_names:
+            args = []
+            for input_ in inputs:
+                if issubclass(type(input_), Series):
+                    if input_.dtype.fields is not None:
+                        args.append(input_[field].view(np.ndarray))
+                    else:
+                        args.append(input_.view(np.ndarray))
+                else:
+                    args.append(input_)
+            # _results[_channel] = super(Series, self).__array_ufunc__(ufunc, method,
+            #                                                        *args, **kwargs)
+            results = self.__array_ufunc__(ufunc, method,
+                                           *args, **kwargs)
+            if results is NotImplemented:
+                return NotImplemented
+            if method == 'at':
+                return
+            if not np.isscalar(results):
+                results.header = self._unify_headers(inputs)
+                if results.header is not None:
+                    _level, _width = results.__calculate_window()
+                    results.header.windowCenter = _level
+                    results.header.windowWidth = _width
+                results_dtype.append((field, results.dtype))
+            else:
+                results_dtype.append((field, type(results)))
+            _results[field] = results
+        if ufunc.nout == 1:
+            if np.isscalar(results):
+                _list = []
+                for field in field_names:
+                    _list.append(_results[field])
+                return tuple(tuple(_list))
+        #         raise ValueError("ufunc on _results")
+        #         return results  # Do not pack scalar results as Series object
+        #     # results = (results,)
+        # else:
+        if ufunc.nout != 1:
+            raise ValueError('What to do with multiple color results?')
+        # results = _results['R'].to_channels(
+        results = self.to_channels(
+            [_results[field] for field in field_names],
+            field_names
+        )
+        return results if outputs[0] is None else outputs[0]
+        # results = tuple((result
+        #                  if output is None else output)
+        #                 for result, output in zip(results, outputs))
+        # return results[0] if len(results) == 1 else results
+        #
+        # if results and issubclass(type(results[0]), Series):
+        #     results[0].header = self._unify_headers(inputs)
+        #     if results[0].header is not None:
+        #         _level, _width = results[0].__calculate_window()
+        #         results[0].header.windowCenter = _level
+        #         results[0].header.windowWidth = _width
+        #
+        # return results[0] if len(results) == 1 else results
 
     @staticmethod
     def _unify_headers(inputs: tuple) -> Header:
@@ -366,7 +446,7 @@ class Series(np.ndarray):
         def _calculate_spec(obj, _items):
             _slicing = False
             _spec = {}
-            if isinstance(obj, Series):
+            if issubclass(type(obj), Series):
                 # Calculate slice range
                 try:
                     for _dim in range(obj.ndim):  # Loop over actual array shape
@@ -469,7 +549,7 @@ class Series(np.ndarray):
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
-                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column', 'color']:
+                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column']:
                     ret.input_order = INPUT_ORDER_NONE
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
@@ -478,6 +558,8 @@ class Series(np.ndarray):
             ret.seriesInstanceUID = new_uid
             # ret.setDicomAttribute('SeriesInstanceUID', ret.header.new_uid())
             ret.seriesInstanceUID = new_uid
+        elif isinstance(ret, np.void):
+            ret = tuple(ret)
         return ret
 
     def __get_sliceLocations(self, spec):
@@ -642,6 +724,19 @@ class Series(np.ndarray):
                 _width = round(_width)
             if abs(_level) > 2:
                 _level = round(_level)
+        elif self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+            # RGB image
+            _level = 127
+            _width = 256
+        elif self.dtype.fields is not None:
+            # Structured dtype
+            _min_value = np.inf
+            _max_value = -np.inf
+            for field in self.dtype.fields:
+                _min_value = min(_min_value, np.float32(np.nanmin(self[field])))
+                _max_value = max(_max_value, np.float32(np.nanmax(self[field])))
+            _width = _max_value - _min_value
+            _level = np.float32((_min_value + _max_value) / 2)
         else:
             _min_value = np.float32(np.nanmin(self))
             _max_value = np.float32(np.nanmax(self))
@@ -787,12 +882,9 @@ class Series(np.ndarray):
             row_axis = self.find_axis('row')
             return len(row_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 2:
+            if self.ndim < 2:
                 raise ValueError("{}D dataset has no rows".format(self.ndim))
-            return self.shape[-2 - _color]
+            return self.shape[-2]
 
     @property
     def columns(self):
@@ -805,12 +897,9 @@ class Series(np.ndarray):
             column_axis = self.find_axis('column')
             return len(column_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 1:
+            if self.ndim < 1:
                 raise ValueError("Dataset has no columns")
-            return self.shape[-1 - _color]
+            return self.shape[-1]
 
     @property
     def slices(self):
@@ -826,16 +915,13 @@ class Series(np.ndarray):
             #              self.ndim, slice_axis))
             return len(slice_axis)
         except ValueError:
-            _color = 0
-            if self.color:
-                _color = 1
-            if self.ndim - _color < 3:
+            if self.ndim < 3:
                 # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
                 # raise ValueError("{}D dataset has no slices".format(self.ndim))
                 return 1
             # logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
             #     self.ndim, self.shape, self.shape[-3 - _color]))
-            return self.shape[-3 - _color]
+            return self.shape[-3]
 
     @slices.setter
     def slices(self, nslices):
@@ -1023,31 +1109,28 @@ class Series(np.ndarray):
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
-        _color = shape[-1] in [3, 4] and self.dtype == np.uint8
-        if _color:
-            _mono_shape = shape[:-1]
-            self.header.photometricInterpretation = 'RGB'
-        else:
-            _mono_shape = shape
-        _max_known_shape = min(3, len(_mono_shape))
+        _max_known_shape = min(3, len(shape))
         _labels = ['slice', 'row', 'column'][-_max_known_shape:]
-        if _color:
-            _labels.append('rgb')
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
         i = 0
         for d in super(Series, self).shape:
-            if _labels[i] == 'rgb':
-                self.header.axes.append(
-                    VariableAxis('rgb', ['r', 'g', 'b'])
+            self.header.axes.append(
+                UniformLengthAxis(
+                    _labels[i], 0, d, 1
                 )
-            else:
-                self.header.axes.append(
-                    UniformLengthAxis(
-                        _labels[i], 0, d, 1
-                    )
-                )
+            )
+            # if _labels[i] == 'rgb':
+            #     self.header.axes.append(
+            #         VariableAxis('rgb', ['r', 'g', 'b'])
+            #     )
+            # else:
+            #     self.header.axes.append(
+            #         UniformLengthAxis(
+            #             _labels[i], 0, d, 1
+            #         )
+            #     )
             i += 1
         return self.header.axes
 
@@ -1814,16 +1897,18 @@ class Series(np.ndarray):
             ValueError: when color interpretation is not set
             TypeError: When color is not bool
         """
-        try:
-            if self.header.axes is not None and len(self.header.axes):
-                return self.header.axes[-1].name == 'rgb'
-        except AttributeError:
-            pass
-        raise ValueError("No Color Interpretation is set.")
+        return self.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+        # return self.dtype == rgb_dtype
+        # try:
+        #     if self.header.axes is not None and len(self.header.axes):
+        #         return self.header.axes[-1].name == 'rgb'
+        # except AttributeError:
+        #     pass
+        # raise ValueError("No Color Interpretation is set.")
 
     @color.setter
     def color(self, color):
-        raise ValueError("Do not set color. Set RGB axis.")
+        raise ValueError("Do not set color. Set dtype.")
 
     @property
     def photometricInterpretation(self):
@@ -2377,6 +2462,62 @@ class Series(np.ndarray):
 
         return imreg
 
+    def to_channels(self, channels, labels):
+        """Create a Series object with channeled data.
+
+        Examples:
+
+            >>> from imagedata import Series
+            >>> channel0 = Series(...)
+            >>> channel1 = Series(...)
+            >>> channel2 = Series(...)
+            >>> T2 = Series(...)
+            >>> T2_channels = T2.to_channels([channel0, channel1, channel2], ['0', '1', '2'])
+
+        Args:
+            channels (list): List of data for each channel.
+            labels (list): List of labels for each channel.
+
+        Returns:
+            Series: Channeled Series object
+        """
+
+        # if self.color:
+        #     return self
+        #
+        # import matplotlib.pyplot as plt
+        # import matplotlib.colors
+        # from .viewer import get_window_level
+
+        ch_shape = None
+        ch_dtype = []
+        for label, channel in zip(labels, channels):
+            if issubclass(type(channel), np.ndarray):
+                if ch_shape is None:
+                    ch_shape = channel.shape
+                if channel.shape != ch_shape:
+                    raise IndexError('Shape of channel {} differ: {} vs {}'.format(
+                        label, channel.shape, self.shape
+                    ))
+                ch_dtype.append(channel.dtype)
+            else:
+                ch_dtype.append(np.dtype(type(channel)))
+        if ch_shape is None:
+            ch_shape = (len(channels),)
+        dtype = np.dtype([(label, dt) for label, dt in zip(labels, ch_dtype)])
+        data = np.empty(ch_shape, dtype)
+        for label, channel in zip(labels, channels):
+            data[label][:] = channel
+        data = np.asarray(data).view(Series)
+        si = Series(
+            data,
+            input_order=self.input_order,
+            geometry=self
+        )
+        # si.header.photometricInterpretation = 'RGB'
+        si.header.add_template(self.header)
+        return si
+
     def to_rgb(self, colormap='Greys_r', lut=None, norm='linear',
                clip='window', probs=(0.01, 0.999)):
         """Create an RGB color image of self.
@@ -2411,6 +2552,8 @@ class Series(np.ndarray):
 
         if lut is None:
             lut = 256 if self.dtype.kind == 'f' else (np.nanmax(self).item()) + 1
+        if lut == 1:
+            lut = 2
         if isinstance(norm, str):
             if norm == 'linear':
                 norm = matplotlib.colors.Normalize
@@ -2434,20 +2577,27 @@ class Series(np.ndarray):
                 raise ValueError('Unknow clip method: {}'.format(clip))
             norm = norm(vmin=vmin, vmax=vmax, clip=True)
         data = norm(self)
-        if self.dtype.kind == 'f':
-            rgb = Series(
-                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-                input_order=self.input_order,
-                geometry=self,
-                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-            )
-        else:
-            rgb = Series(
-                colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-                input_order=self.input_order,
-                geometry=self,
-                axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-            )
+        color_data = colormap(data, bytes=True)[..., :3]  # Strip off alpha color
+        rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+        rgb = Series(
+            color_data.copy().view(dtype=rgb_dtype).reshape(color_data.shape[:-1]),
+            input_order=self.input_order,
+            geometry=self
+        )
+        # if self.dtype.kind == 'f':
+        #     rgb = Series(
+        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
+        #         input_order=self.input_order,
+        #         geometry=self,
+        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+        #     )
+        # else:
+        #     rgb = Series(
+        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
+        #         input_order=self.input_order,
+        #         geometry=self,
+        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
+        #     )
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.add_template(self.header)
@@ -2492,6 +2642,24 @@ class Series(np.ndarray):
 
         from scipy.ndimage import gaussian_filter
 
+        def _float_to_rgb_series(im):
+            im = np.rint(im)
+            im8 = np.empty(
+                im['R'].shape,
+                dtype=np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+            )
+            for _color in ['R', 'G', 'B']:
+                im8[_color] = np.rint(im[_color])
+            rgb = Series(
+                im8,
+                input_order=self.input_order,
+                geometry=self,
+                axes=self.axes
+            )
+            rgb.header.photometricInterpretation = 'RGB'
+            rgb.header.add_template(self.header)
+            return rgb
+
         if self.color:
             background = self / 255.  # [0, 1]
         else:
@@ -2500,15 +2668,15 @@ class Series(np.ndarray):
         if issubclass(type(mask), Series):
             if mask.color:
                 raise ValueError('Mask cannot be a color image')
-        if background.ndim == 3 and mask.ndim != 2:  # 2D case
+        if background.ndim == 2 and mask.ndim != 2:  # 2D case
             raise IndexError('Mask should be 2D')
-        elif background.ndim > 3 and mask.ndim != 3:  # >= 3D case
+        elif background.ndim > 2 and mask.ndim != 3:  # >= 3D case
             raise IndexError('Mask should be 3D')
         if mask.ndim == 2:
-            if mask.shape != background.shape[-3:-1]:
+            if mask.shape != background.shape[-2:]:
                 raise IndexError('Shape of mask does not match image')
         elif mask.ndim == 3:
-            if mask.shape != background.shape[-4:-1]:
+            if mask.shape != background.shape[-3:]:
                 raise IndexError('Shape of mask does not match image')
 
         # Now smooth the colors channel
@@ -2527,35 +2695,22 @@ class Series(np.ndarray):
                         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
-        overlay = np.zeros(mask.shape + (3,), dtype=np.float32)
-        overlay[..., 0] = mask_filter  # Red channel
+        overlay = np.zeros(mask.shape,
+                           dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
+        overlay['R'] = mask_filter  # Red channel
 
-        if blend:
-            fused = alpha * background + (1.0 - alpha) * overlay
-        else:
-            # Do alpha blending for each channel inside mask
-            fused = background + (1.0 - alpha) * overlay
-            fused /= fused.max()
-        fused = np.clip(fused, 0, 1)
+        # Do alpha blending for each channel inside mask
+        for _color in ['R', 'G', 'B']:
+            if blend:
+                fused = alpha * background[_color] + (1.0 - alpha) * overlay[_color]
+            else:
+                fused = background[_color] + (1.0 - alpha) * overlay[_color]
+                fused /= fused.max()
+            fused = np.clip(fused, 0, 1)
 
-        background = fused * 255
-        background = background.astype(np.uint8)
+            background[_color] = fused * 255
 
-        if self.color:
-            new_axes = self.axes
-        else:
-            new_axes = self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-
-        rgb = Series(
-            background,
-            input_order=self.input_order,
-            geometry=self,
-            axes=new_axes
-        )
-
-        rgb.header.photometricInterpretation = 'RGB'
-        rgb.header.add_template(self.header)
-        return rgb
+        return _float_to_rgb_series(background)
 
     def show(self, im2=None, fig=None, ax=None, colormap='Greys_r', norm='linear', colorbar=None,
              window=None, level=None, link=False):
@@ -2852,3 +3007,4 @@ class Series(np.ndarray):
                             vertices[_tag, _slice] = contour
 
         return vertices
+

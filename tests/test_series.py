@@ -529,16 +529,14 @@ class TestSeries(unittest.TestCase):
         rgb = si1.to_rgb()
         _slice = rgb[1]
         voxel = _slice[1, 1]
-        self.assertEqual(1, len(voxel.axes))
-        self.assertEqual('rgb', voxel.axes[0].name)
+        self.assertEqual(3, len(voxel))
 
     def test_get_rgb_voxel_np_rgb(self):
         si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
 
         _slice = si1[1]
         voxel = _slice[1, 1]
-        self.assertEqual(1, len(voxel.axes))
-        self.assertEqual('rgb', voxel.axes[0].name)
+        self.assertEqual(3, len(voxel))
 
     def test_get_rgb_voxel_np(self):
         si1 = Series(np.zeros((4,10,10), dtype=np.uint8))
@@ -546,54 +544,58 @@ class TestSeries(unittest.TestCase):
         rgb = si1.to_rgb()
         _slice = rgb[1]
         voxel = _slice[1, 1]
-        self.assertEqual(1, len(voxel.axes))
-        self.assertEqual('rgb', voxel.axes[0].name)
+        self.assertEqual(3, len(voxel))
 
     def test_fuse_mask_3d_bw_uint8(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))
         mask = np.zeros_like(si1, dtype=np.uint8)
         mask[2, 2:7, 2:7] = 1
         fused = si1.fuse_mask(mask)
-        self.assertEqual(4, fused.ndim)
-        np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
-        np.testing.assert_array_equal((234, 0, 0), fused[2, 3, 4])
+        self.assertEqual(3, fused.ndim)
+        self.assertEqual((0, 0, 0), fused[1, 7, 7])
+        self.assertEqual((234, 0, 0), fused[2, 3, 4])
+        # np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
+        # np.testing.assert_array_equal((234, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_bw_float(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))
         mask = np.zeros_like(si1, dtype=np.uint8)
         mask[2, 2:7, 2:7] = 1
         fused = si1.fuse_mask(mask)
-        self.assertEqual(4, fused.ndim)
+        self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
         np.testing.assert_array_equal((234, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_rgb_uint8(self):
-        si1 = Series(np.zeros((4,10,10,3), dtype=np.uint8))
-        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        si = Series(np.zeros((4,10,10), dtype=np.uint8))
+        si1 = si.to_rgb()
+        mask = np.zeros(si1.shape, dtype=np.uint8)
         mask[2, 3, 4] = 1
         fused = si1.fuse_mask(mask)
-        self.assertEqual(4, fused.ndim)
+        self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
         np.testing.assert_array_equal((255, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_rgb_float(self):
         si = Series(np.zeros((4,10,10), dtype=float))
         si1 = si.to_rgb()
-        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask = np.zeros(si1.shape, dtype=np.uint8)
         mask[2, 3, 4] = 1
         fused = si1.fuse_mask(mask)
-        self.assertEqual(4, fused.ndim)
+        self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
         np.testing.assert_array_equal((255, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_lena(self):
-        si1 = Series(Image.open(os.path.join('data', 'lena_color.jpg')))
-        mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        # si1 = Series(Image.open(os.path.join('data', 'lena_color.jpg')))
+        si1 = Series(os.path.join('data', 'dicom', 'lena_color.dcm'))
+        # mask = np.zeros(si1.shape[:-1], dtype=np.uint8)
+        mask = np.zeros(si1.shape, dtype=np.uint8)
         mask[100:200, 100:200] = 1
         fused = si1.fuse_mask(mask)
-        self.assertEqual(3, fused.ndim)
-        np.testing.assert_array_equal((197, 52, 61), fused[150, 150])
-        np.testing.assert_array_equal((177, 104, 83), fused[50, 50])
+        self.assertEqual(2, fused.ndim)
+        np.testing.assert_array_equal((197, 77, 91), fused[150, 150])
+        np.testing.assert_array_equal((178, 153, 123), fused[50, 50])
 
     def test_align_3d(self):
         reference = Series(

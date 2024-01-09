@@ -44,12 +44,13 @@ class TestDicomColor(unittest.TestCase):
             'none',
             self.opts)
         self.assertEqual('itk', si1.input_format)
-        self.assertEqual(si1.dtype, np.uint8)
-        self.assertEqual(si1.shape, (512, 512, 3))
+        self.assertEqual(si1.dtype, np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]))
+        self.assertEqual(si1.shape, (512, 512))
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si2 = Series(d)
             self.assertEqual('dicom', si2.input_format)
+        d = si1 - si2
         np.testing.assert_array_equal(si1, si2)
 
 
