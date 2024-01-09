@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.4.0-dev0] - 2023-12-22
+## [v3.4.0-dev0] - 2024-01-09
 ### Changed
-* RGB-image representation
+* RGB-image representation.
+  Use NumPy structured dtype to represent color data.
+  Simplify index calculations when color is not a dimension.
 
 ## [v3.3.3] - 2023-12-21
 ### Added
