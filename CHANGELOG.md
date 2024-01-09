@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.4.0-dev1] - 2024-01-09
-### Changed
-* Delay calculation of window center/width until values are requested.
+## [v3.4.0-rc0] - 2024-01-09
+* Release candidate rc0
 
 ## [v3.4.0-dev0] - 2024-01-09
 ### Changed
