@@ -970,8 +970,9 @@ class DICOMPlugin(AbstractPlugin):
         logger.info("Smallest pixel value in series: {}".format(self.smallestPixelValueInSeries))
         logger.info("Largest  pixel value in series: {}".format(self.largestPixelValueInSeries))
         if 'window' in opts and opts['window'] == 'original':
-            self.center = si.windowCenter
-            self.width = si.windowWidth
+            raise ValueError('No longer supported: opts["window"] is set')
+        self.center = si.windowCenter
+        self.width = si.windowWidth
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Set series instance UID when writing
