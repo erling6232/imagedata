@@ -156,9 +156,6 @@ class Series(np.ndarray):
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
 
-        # set the new 'input_order' attribute to the value passed
-        obj.header.input_order = hdr.input_order
-        obj.header.input_format = hdr.input_format
         # Copy attributes from hdr dict to newly created obj
         logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
         if axes is not None:
@@ -174,6 +171,11 @@ class Series(np.ndarray):
         # Store any template and geometry headers,
         obj.header.add_template(template)
         obj.header.add_geometry(geometry)
+        # set the new 'input_order' attribute to the value passed
+        obj.header.input_order = hdr.input_order
+        obj.header.input_format = hdr.input_format
+        obj.header.windowCenter = hdr.windowCenter
+        obj.header.windowWidth = hdr.windowWidth
         # Finally, we must return the newly created object
         return obj
 
@@ -522,10 +524,13 @@ class Series(np.ndarray):
                     # Select slice of imagePositions
                     sl = self.sliceLocations[start:stop:step]
                     todo.append(('sliceLocations', sl))
-                    ipp = self.__get_imagePositions(spec[i])
-                    todo.append(('imagePositions', None))  # Wipe existing positions
-                    if ipp is not None:
-                        todo.append(('imagePositions', ipp))
+                    try:
+                        ipp = self.__get_imagePositions(spec[i])
+                        todo.append(('imagePositions', None))  # Wipe existing positions
+                        if ipp is not None:
+                            todo.append(('imagePositions', ipp))
+                    except KeyError:
+                        pass
                 elif axis.name == input_order_to_dirname_str(self.input_order):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
@@ -2604,11 +2609,12 @@ class Series(np.ndarray):
 
     def fuse_mask(self, mask, alpha=0.7, blend=False,
                   colormap='Greys_r', lut=None, norm='linear',
-                  clip='window', probs=(0.01, 0.999)):
+                  clip='window', probs=(0.01, 0.999),
+                  maskmap='magma', maskrange=None):
 
         """Color fusion of mask
 
-        Create an RGB image of self, enhancing the mask area in red.
+        Create an RGB image of self, overlaying/enhancing the mask area.
 
         With ideas from Hauke Bartsch and Sathiesh Kaliyugarasan (2023).
 
@@ -2623,7 +2629,8 @@ class Series(np.ndarray):
             mask (Series or np.ndarray): Mask image
             alpha (float): Alpha blending for each channel. Default: 0.7
             blend (bool): Whether the self image will be blended using alpha. Default: False
-            colormap (str): Matplotlib colormap name. Defaults: 'Greys_r'.
+            colormap (str): Matplotlib colormap name for image. Defaults: 'Greys_r'.
+            maskmap (str): Matplotlib colormap name for mask. Defaults: 'magma'.
             lut (int): Number of rgb quantization levels.
                 Default: None, lut is calculated from the voxel values.
             norm (str or matplotlib.colors.Normalize): Normalization method. Either linear/log,
@@ -2633,6 +2640,7 @@ class Series(np.ndarray):
                 Default: 'window', clip data to window center and width.
                 'hist': clip data at histogram probabilities.
             probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
+            maskrange (tuple): Range of mask colormap. Defaults: None: Use full range of mask.
         Returns:
             Series: RGB Series object
         Raises:
@@ -2678,6 +2686,11 @@ class Series(np.ndarray):
             if mask.shape != background.shape[-3:]:
                 raise IndexError('Shape of mask does not match image')
 
+        if maskrange is None:
+            maskrange = (np.nanmin(mask), np.nanmax(mask))
+        if maskrange[0] == maskrange[1]:
+            maskrange = (maskrange[0], maskrange[0] + 1)
+
         # Now smooth the colors channel
         if mask.ndim == 2:
             mask_filter = np.zeros_like(mask, dtype=np.float32)
@@ -2694,9 +2707,12 @@ class Series(np.ndarray):
                         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
-        overlay = np.zeros(mask.shape,
-                           dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
-        overlay['R'] = mask_filter  # Red channel
+        overlay = Series(mask_filter).to_rgb(colormap=maskmap) / 255
+        # overlay = mask_filter.to_rgb(colormap=maskmap) / np.nanmax(mask_filter) / 3
+        # overlay = (mask/1.0).to_rgb(colormap=maskmap) / 255.#  / np.nanmax(mask)
+        # overlay = np.zeros(mask.shape,
+        #                    dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
+        # overlay['R'] = mask_filter  # Red channel
 
         # Do alpha blending for each channel inside mask
         for _color in ['R', 'G', 'B']:
