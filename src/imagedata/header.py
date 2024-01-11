@@ -22,7 +22,7 @@ header_tags = ['input_format',
                'SOPClassUID', 'SOPInstanceUIDs',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
-               'windowCenter', 'windowWidth',
+               # 'windowCenter', 'windowWidth',
                'dicomTemplate', 'dicomToDo',
                'tags',
                'input_sort']
@@ -98,6 +98,17 @@ class Header(object):
         for attr in header_tags + geometry_tags:
             items.append("{0!r}: {1!r}".format(attr, getattr(self, attr, "")))
         return "{" + ", ".join(items) + "}"
+
+    def __copy__(self):
+        obj = Header()
+        obj.set_default_values(self.axes)
+        obj.add_template(self)
+        obj.add_geometry(self)
+        obj.input_order = self.input_order
+        obj.input_format = self.input_format
+        obj.windowCenter = None
+        obj.windowWidth = None
+        return obj
 
     def new_uid(self) -> str:
         """Return the next available UID from the UID generator.
