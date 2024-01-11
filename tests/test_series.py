@@ -235,7 +235,11 @@ class TestSeries(unittest.TestCase):
         a = np.zeros_like(si)
         self.assertEqual(si.input_order, a.input_order)
         for i in range(si.ndim):
-            self.assertEqual(si.axes[i], a.axes[i])
+            self.assertEqual(si.axes[i].name, a.axes[i].name)
+            if isinstance(si.axes[i], axis.VariableAxis):
+                np.testing.assert_array_almost_equal(si.axes[i].values, a.axes[i].values, 4)
+            else:
+                self.assertEqual(si.axes[i].slice, a.axes[i].slice)
         np.testing.assert_array_equal(si.transformationMatrix, a.transformationMatrix)
         np.testing.assert_array_equal(si.spacing, a.spacing)
         a[:, :, 10:50, 10:50]  = 1
@@ -467,10 +471,10 @@ class TestSeries(unittest.TestCase):
 
     def test_cross_talk_series_template(self):
         template = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', template.input_format)
         template_window = template.windowWidth
         si = Series(np.zeros_like(template), template=template)
         si_window = si.windowWidth
-        self.assertEqual('dicom', si.input_format)
         si.windowWidth = 1
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
@@ -554,8 +558,6 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(3, fused.ndim)
         self.assertEqual((0, 0, 0), fused[1, 7, 7])
         self.assertEqual((234, 0, 0), fused[2, 3, 4])
-        # np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
-        # np.testing.assert_array_equal((234, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_bw_float(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))
@@ -596,6 +598,23 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(2, fused.ndim)
         np.testing.assert_array_equal((197, 77, 91), fused[150, 150])
         np.testing.assert_array_equal((178, 153, 123), fused[50, 50])
+
+    def test_fuse_mask_3d_variable(self):
+        si1 = Series(np.zeros((4,100,100), dtype=float))
+
+        N = 100
+        x = np.linspace(-3.0, 3.0, N)
+        y = np.linspace(-2.0, 2.0, N)
+        X, Y = np.meshgrid(x, y)
+        Z1 = np.exp(-X**2 - Y**2)
+        Z2 = np.exp(-(X * 10)**2 - (Y * 10)**2)
+        z = Z1 + 50 * Z2
+        mask = np.zeros_like(si1, dtype=np.float64)
+        mask[2, :100, :100] = z
+        fused = si1.fuse_mask(mask)
+        self.assertEqual(3, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 4), fused[1, 7, 7])
+        np.testing.assert_array_equal((52, 16, 139), fused[2, 45, 50])
 
     def test_align_3d(self):
         reference = Series(
