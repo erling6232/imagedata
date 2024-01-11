@@ -2649,6 +2649,14 @@ class Series(np.ndarray):
 
         from scipy.ndimage import gaussian_filter
 
+        def _is_binary_mask(mask):
+            if mask.dtype.kind == 'b':
+                return True
+            if mask.dtype.kind == 'i' or mask.dtype.kind == 'u':
+                if np.nanmin(mask) == 0 and np.nanmax(mask) == 1:
+                    return True
+            return False
+
         def _float_to_rgb_series(im):
             im = np.rint(im)
             im8 = np.empty(
@@ -2707,7 +2715,12 @@ class Series(np.ndarray):
                         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
-        overlay = Series(mask_filter).to_rgb(colormap=maskmap) / 255
+        if _is_binary_mask(mask):
+            overlay = np.zeros(mask.shape,
+                               dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
+            overlay['R'] = mask_filter  # Red channel
+        else:
+            overlay = Series(mask_filter).to_rgb(colormap=maskmap) / 255
         # overlay = mask_filter.to_rgb(colormap=maskmap) / np.nanmax(mask_filter) / 3
         # overlay = (mask/1.0).to_rgb(colormap=maskmap) / 255.#  / np.nanmax(mask)
         # overlay = np.zeros(mask.shape,
