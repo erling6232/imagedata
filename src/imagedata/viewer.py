@@ -3,6 +3,7 @@ import logging
 from typing import Union
 
 import matplotlib.colors
+import matplotlib.colorbar
 import matplotlib.pyplot as plt
 from matplotlib.offsetbox import AnchoredText
 from matplotlib.widgets import PolygonSelector
@@ -253,8 +254,18 @@ class Viewer(object):
         if im['colorbar']:
             divider = mpl_toolkits.axes_grid1.make_axes_locatable(ax)
             cax = divider.append_axes('right', size='5%', pad=0.05)
-            h.set_clim(vmin=im['vmin'], vmax=im['vmax'])
-            self.fig.colorbar(h, cax=cax)
+            # Create fake pcolormesh to create colorbar matching im['colorbar'] and im['norm']
+            _ = plt.colorbar(
+                cax.pcolormesh(
+                    np.array([[im['norm'].vmin, im['norm'].vmax]]),
+                    visible=False,
+                    cmap=im['colorbar'],
+                    vmin=im['norm'].vmin,
+                    vmax=im['norm'].vmax
+                ),
+                label=im['colormap_label'],
+                cax=cax
+            )
 
         ax.set_axis_off()
         # if im['slices'] == im2['slices']:
@@ -1079,6 +1090,16 @@ def build_info(im, colormap, norm, colorbar, window, level):
         return None
     if not issubclass(type(im), Series):
         raise ValueError('Cannot display image of type {}'.format(type(im)))
+
+    # im might be modified below (color version), hence, save present color presentation
+    im_color = im.color
+    im_colormap = copy.copy(im.colormap)
+    im_colormap_norm = copy.copy(im.colormap_norm)
+    try:
+        im_colormap_label = im.colormap_label
+    except ValueError:
+        im_colormap_label = None
+
     if colormap is None:
         colormap = 'Greys_r'
     try:
@@ -1094,27 +1115,32 @@ def build_info(im, colormap, norm, colorbar, window, level):
         im = np.real(im)
     elif im.color:
         lut = 256
-        im_shape = im.shape + (3,)
         im = im.view(dtype=np.uint8).reshape(im.shape + (3,))
     else:
         lut = (np.nanmax(im).item()) + 1
-    if not issubclass(type(colormap), matplotlib.colors.Colormap):
-        colormap = plt.get_cmap(colormap, lut)
-    colormap.set_bad(color='k')  # Important for log display of non-positive values
-    colormap.set_under(color='k')
-    colormap.set_over(color='w')
+    if im_colormap is None:
+        if not issubclass(type(colormap), matplotlib.colors.Colormap):
+            colormap = plt.get_cmap(colormap, lut)
+        colormap.set_bad(color='k')  # Important for log display of non-positive values
+        colormap.set_under(color='k')
+        colormap.set_over(color='w')
+    else:
+        colormap = im_colormap
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
-    if type(norm) is type:
-        norm = norm(vmin=vmin, vmax=vmax)
-    if im.color:
-        norm = None
+    if im_colormap_norm is None:
+        if type(norm) is type:
+            norm = norm(vmin=vmin, vmax=vmax)
+        if im_color:
+            norm = None
+    else:
+        norm = im_colormap_norm
     tag_axis = im.get_tag_axis()
     slice_axis = im.get_slice_axis()
 
     return {
         'im': im,  # Image Series instance
         'input_order': im.input_order,
-        'color': im.color,
+        'color': im_color,
         'modified': True,  # update()
         'show_text': True,  # Show text on display
         'artists': [],  # List of artists
@@ -1134,8 +1160,9 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'tag_axis': tag_axis,  # Axis instance of im
         'slice_axis': slice_axis,  # Axis instance of im
         'colormap': colormap,  # Colour map
-        'norm': norm,  # Normalization function
-        'colorbar': colorbar and not im.color,  # Display colorbar unless RGB image
+        'colormap_label': im_colormap_label,  # Colour map label
+        'norm': im_colormap_norm if im_color else norm,  # Normalization function
+        'colorbar': im_colormap,  # Display colorbar unless RGB image
         'window': window,  # Window center
         'level': level,  # Window level
         'vmin': vmin,  # Lower window value

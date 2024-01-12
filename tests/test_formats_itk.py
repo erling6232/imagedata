@@ -251,7 +251,7 @@ class TestWritePluginItkTag(unittest.TestCase):
         # log.debug("test_write_4d_itk: orientation", hdr.orientation)
 
         # Modify header
-        si.sliceLocations = (1, 2, 3)
+        si.sliceLocations = np.array((1, 2, 3))
         si.spacing = (3, 2, 1)
         for slice in range(si.shape[1]):
             si.imagePositions = {
