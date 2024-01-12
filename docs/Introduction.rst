@@ -49,7 +49,7 @@ a new series in an existing study.
 One particular property of **Series** is the **axes** property.
 **Axes** defines each dimension of the **Series** multi-dimensional array.
 This might be axes in the spatial domain, time domain, or some tag based domain.
-Example tag domains are 'r', 'g', 'b' for the color dimension of RGB images, or
+Example tag domains are
 the *b*-values of a diffusion weighted MRI acquisition.
 Slicing the **Series** array will also slice the **axes** property accordingly.
 

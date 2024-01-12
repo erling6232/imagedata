@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.0] - 2024-01-12
+### Changed
+* RGB-image representation.
+  Use NumPy structured dtype to represent color data.
+  Simplify index calculations when color is not a dimension.
+* fuse_mask(): Accept variable mask, rendered in a specified colormap.
+* fuse_mask(): Save color map for later viewing.
+* Viewer: Display color map when this exists.
+
 ## [v3.4.0-rc2] - 2024-01-12
 * fuse_mask(): Accept variable mask, rendered in a specified colormap.
 * fuse_mask(): Save color map for later viewing.
