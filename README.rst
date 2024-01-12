@@ -272,10 +272,10 @@ The command line program *image_data* can be used to convert between various ima
     :target: https://imagedata.readthedocs.io
 
 .. |buildstatus| image:: https://github.com/erling6232/imagedata/actions/workflows/ci.yml/badge.svg
-    :target: https://github.com/erling6232/imagedata/actions?query=branch%3Amaster
+    :target: https://github.com/erling6232/imagedata/workflows/python-app.yml/badge.svg?branch=master
     :alt: Build Status
 
-.. _buildstatus: https://github.com/erling6232/imagedata/actions
+.. _buildstatus: https://github.com/erling6232/imagedata/workflows/python-app.yml
 
 .. |coverage| image:: https://codecov.io/gh/erling6232/imagedata/branch/master/graph/badge.svg?token=GT9KZV2TWT
     :alt: Coverage
