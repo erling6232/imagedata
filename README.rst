@@ -298,4 +298,5 @@ The command line program *image_data* can be used to convert between various ima
    :alt: Supported Python Versions
 
 .. |downloads| image:: https://img.shields.io/pypi/dm/imagedata?color=blue
+   :target: https://pypistats.org/packages/imagedata
    :alt: PyPI Downloads
