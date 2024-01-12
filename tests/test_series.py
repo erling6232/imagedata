@@ -557,7 +557,7 @@ class TestSeries(unittest.TestCase):
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
         self.assertEqual((0, 0, 0), fused[1, 7, 7])
-        self.assertEqual((234, 0, 0), fused[2, 3, 4])
+        self.assertEqual((58, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_bw_float(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))
@@ -566,7 +566,7 @@ class TestSeries(unittest.TestCase):
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
-        np.testing.assert_array_equal((234, 0, 0), fused[2, 3, 4])
+        np.testing.assert_array_equal((58, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_rgb_uint8(self):
         si = Series(np.zeros((4,10,10), dtype=np.uint8))
@@ -576,7 +576,7 @@ class TestSeries(unittest.TestCase):
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
-        np.testing.assert_array_equal((255, 0, 0), fused[2, 3, 4])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_3d_rgb_float(self):
         si = Series(np.zeros((4,10,10), dtype=float))
@@ -586,7 +586,7 @@ class TestSeries(unittest.TestCase):
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 0), fused[1, 7, 7])
-        np.testing.assert_array_equal((255, 0, 0), fused[2, 3, 4])
+        np.testing.assert_array_equal((5, 0, 0), fused[2, 3, 4])
 
     def test_fuse_mask_lena(self):
         # si1 = Series(Image.open(os.path.join('data', 'lena_color.jpg')))
@@ -596,8 +596,8 @@ class TestSeries(unittest.TestCase):
         mask[100:200, 100:200] = 1
         fused = si1.fuse_mask(mask)
         self.assertEqual(2, fused.ndim)
-        np.testing.assert_array_equal((197, 77, 91), fused[150, 150])
-        np.testing.assert_array_equal((178, 153, 123), fused[50, 50])
+        np.testing.assert_array_equal((255, 68, 80), fused[150, 150])
+        np.testing.assert_array_equal((231, 136, 108), fused[50, 50])
 
     def test_fuse_mask_3d_variable(self):
         si1 = Series(np.zeros((4,100,100), dtype=float))
@@ -613,8 +613,8 @@ class TestSeries(unittest.TestCase):
         mask[2, :100, :100] = z
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
-        np.testing.assert_array_equal((0, 0, 4), fused[1, 7, 7])
-        np.testing.assert_array_equal((52, 16, 139), fused[2, 45, 50])
+        np.testing.assert_array_equal((0, 0, 1), fused[1, 7, 7])
+        np.testing.assert_array_equal((16, 5, 31), fused[2, 45, 50])
 
     def test_align_3d(self):
         reference = Series(

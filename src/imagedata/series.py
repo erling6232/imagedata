@@ -2809,7 +2809,10 @@ class Series(np.ndarray):
         if overlay_colormap is not None:
             img.colormap = copy.copy(overlay_colormap)
             img.colormap_norm = copy.copy(overlay_norm)
-            img.colormap_label = mask.seriesDescription
+            try:
+                img.colormap_label = mask.seriesDescription
+            except ValueError:
+                pass
         return img
 
     def show(self, im2=None, fig=None, ax=None, colormap='Greys_r', norm='linear', colorbar=None,
