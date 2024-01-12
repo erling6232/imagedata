@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.0-dev2] - 2024-01-12
+* fuse_mask(): Accept variable mask, rendered in a specified colormap.
+* fuse_mask(): Save color map for later viewing.
+* Viewer: Display color map when this exists.
+
 ## [v3.4.0-rc0] - 2024-01-09
 * Release candidate rc0
 
