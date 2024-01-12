@@ -1913,6 +1913,69 @@ class Series(np.ndarray):
         raise ValueError("Do not set color. Set dtype.")
 
     @property
+    def colormap(self):
+        try:
+            if self.header.colormap is not None:
+                return self.header.colormap
+        except AttributeError:
+            pass
+        return None
+
+    @colormap.setter
+    def colormap(self, map):
+        if map is None:
+            self.header.colormap = None
+            return
+        try:
+            self.header.colormap = map
+        except AttributeError:
+            raise TypeError("Given colormap is not usable")
+
+    @property
+    def colormap_norm(self):
+        try:
+            if self.header.colormap_norm is not None:
+                return self.header.colormap_norm
+        except AttributeError:
+            pass
+        return None
+
+    @colormap_norm.setter
+    def colormap_norm(self, norm):
+        if norm is None:
+            self.header.colormap_norm = None
+            return
+        try:
+            self.header.colormap_norm = norm
+        except AttributeError:
+            raise TypeError("Given colormap_norm is not usable")
+
+    @property
+    def colormap_label(self):
+        """str: Colormap label
+
+        Raises:
+            ValueError: when colormap label is not set
+            TypeError: When colormap label is not printable
+        """
+        try:
+            if self.header.colormap_label is not None:
+                return self.header.colormap_label
+        except AttributeError:
+            pass
+        raise ValueError("No Colormap Label is set.")
+
+    @colormap_label.setter
+    def colormap_label(self, string):
+        if string is None:
+            self.header.colormap_label = None
+            return
+        try:
+            self.header.colormap_label = str(string)
+        except AttributeError:
+            raise TypeError("Given colormap_label is not printable")
+
+    @property
     def photometricInterpretation(self):
         """str: Photometric Interpretation.
 
@@ -1935,7 +1998,7 @@ class Series(np.ndarray):
         try:
             self.header.photometricInterpretation = str(string)
         except AttributeError:
-            raise TypeError("Given phometric interpretation is not printable")
+            raise TypeError("Given photometric interpretation is not printable")
 
     @property
     def windowCenter(self):
@@ -2605,6 +2668,12 @@ class Series(np.ndarray):
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.add_template(self.header)
+        # rgb.header.colormap = mpl.colorbar.ColorbarBase(
+        #
+        # )
+        rgb.header.colormap = copy.copy(colormap)
+        rgb.header.colormap_norm = copy.copy(norm)
+        rgb.header.color = True
         return rgb
 
     def fuse_mask(self, mask, alpha=0.7, blend=False,
@@ -2653,8 +2722,7 @@ class Series(np.ndarray):
             if mask.dtype.kind == 'b':
                 return True
             if mask.dtype.kind == 'i' or mask.dtype.kind == 'u':
-                if np.nanmin(mask) == 0 and np.nanmax(mask) == 1:
-                    return True
+                return np.nanmin(mask) == 0 and np.nanmax(mask) <= 1
             return False
 
         def _float_to_rgb_series(im):
@@ -2709,36 +2777,40 @@ class Series(np.ndarray):
             # Smooth for each slice independently
             mask_filter = np.zeros_like(mask, dtype=np.float32)
             for _slice in range(mask.shape[0]):
-                _max_in_slice = np.nanmax(mask[_slice])
-                if _max_in_slice > 0:
-                    mask_filter[_slice] = \
-                        mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
+                # _max_in_slice = np.nanmax(mask[_slice])
+                # if _max_in_slice > 0:
+                #     mask_filter[_slice] = \
+                #         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
+                mask_filter[_slice] = mask[_slice].astype(np.float32)
                 mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
 
         if _is_binary_mask(mask):
-            overlay = np.zeros(mask.shape,
-                               dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
+            overlay = Series(np.zeros(mask.shape,
+                                      dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)])
+                                      )
+                             )
             overlay['R'] = mask_filter  # Red channel
+            overlay_colormap = None
         else:
-            overlay = Series(mask_filter).to_rgb(colormap=maskmap) / 255
-        # overlay = mask_filter.to_rgb(colormap=maskmap) / np.nanmax(mask_filter) / 3
-        # overlay = (mask/1.0).to_rgb(colormap=maskmap) / 255.#  / np.nanmax(mask)
-        # overlay = np.zeros(mask.shape,
-        #                    dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)]))
-        # overlay['R'] = mask_filter  # Red channel
-
-        # Do alpha blending for each channel inside mask
+            overlay = Series(mask_filter).to_rgb(colormap=maskmap)  # / 255
+            overlay_norm = overlay.colormap_norm
+            overlay_colormap = overlay.colormap
+            overlay = overlay / 255
+        img = np.empty_like(overlay)
         for _color in ['R', 'G', 'B']:
             if blend:
-                fused = alpha * background[_color] + (1.0 - alpha) * overlay[_color]
+                img[_color] = (1.0 - alpha) * overlay[_color] + alpha * background[_color]
             else:
-                fused = background[_color] + (1.0 - alpha) * overlay[_color]
-                fused /= fused.max()
-            fused = np.clip(fused, 0, 1)
+                img[_color] = (1.0 - alpha) * overlay[_color] + background[_color]
+            img[_color] = np.clip(img[_color], 0, 1)
+            img[_color] *= 255
 
-            background[_color] = fused * 255
-
-        return _float_to_rgb_series(background)
+        img = _float_to_rgb_series(img)
+        if overlay_colormap is not None:
+            img.colormap = copy.copy(overlay_colormap)
+            img.colormap_norm = copy.copy(overlay_norm)
+            img.colormap_label = mask.seriesDescription
+        return img
 
     def show(self, im2=None, fig=None, ax=None, colormap='Greys_r', norm='linear', colorbar=None,
              window=None, level=None, link=False):
