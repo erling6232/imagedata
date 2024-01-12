@@ -24,7 +24,7 @@ header_tags = ['input_format',
                'patientName', 'patientID', 'patientBirthDate',
                # 'windowCenter', 'windowWidth',
                'dicomTemplate', 'dicomToDo',
-               'tags',
+               'tags', 'colormap', 'colormap_norm', 'colormap_label',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
                  'sliceLocations',
