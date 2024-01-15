@@ -43,6 +43,7 @@ the `to_rgb()` method:
 
 Test 0
 :ref:`<test 0>APIReferenceSeries`
+:meth:`imagedata.Series.to_rgb`
 
 Test D
 :ref:`DICOMAttributes`
