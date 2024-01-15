@@ -2709,7 +2709,7 @@ class Series(np.ndarray):
                 Default: 'window', clip data to window center and width.
                 'hist': clip data at histogram probabilities.
             probs (tuple): Minimum and maximum probabilities when clipping using histogram method.
-            maskrange (tuple): Range of mask colormap. Defaults: None: Use full range of mask.
+            maskrange (tuple): Range of mask colormap. Defaults: None: Use full mask range.
         Returns:
             Series: RGB Series object
         Raises:
@@ -2769,11 +2769,13 @@ class Series(np.ndarray):
 
         # Now smooth the colors channel
         if mask.ndim == 2:
-            mask_filter = np.zeros_like(mask, dtype=np.float32)
-            if np.nanmax(mask) > 0:
-                mask_filter = mask.astype(np.float32) / np.nanmax(mask)  # [0, 1]
-            mask_filter = gaussian_filter(mask_filter, sigma=1.5)
-        else:
+            # mask_filter = np.zeros_like(mask, dtype=np.float32)
+            # if np.nanmax(mask) > 0:
+            #     mask_filter = mask.astype(np.float32) / np.nanmax(mask)  # [0, 1]
+            mask_filter = mask.astype(np.float32)
+            if _is_binary_mask(mask):
+                mask_filter = gaussian_filter(mask_filter, sigma=1.5)
+        elif mask.ndim == 3:
             # Smooth for each slice independently
             mask_filter = np.zeros_like(mask, dtype=np.float32)
             for _slice in range(mask.shape[0]):
@@ -2782,7 +2784,10 @@ class Series(np.ndarray):
                 #     mask_filter[_slice] = \
                 #         mask[_slice].astype(np.float32) / _max_in_slice  # [0, 1]
                 mask_filter[_slice] = mask[_slice].astype(np.float32)
-                mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
+                if _is_binary_mask(mask):
+                    mask_filter[_slice] = gaussian_filter(mask_filter[_slice], sigma=1.5)
+        else:
+            raise ValueError('Cannot fuse mask of dimension {}'.format(mask.ndim))
 
         if _is_binary_mask(mask):
             overlay = Series(np.zeros(mask.shape,
@@ -2792,7 +2797,10 @@ class Series(np.ndarray):
             overlay['R'] = mask_filter  # Red channel
             overlay_colormap = None
         else:
-            overlay = Series(mask_filter).to_rgb(colormap=maskmap)  # / 255
+            overlay = Series(mask_filter)
+            overlay.windowCenter = (maskrange[0] + maskrange[1]) / 2.
+            overlay.windowWidth = abs(np.float64(maskrange[1]) - np.float64(maskrange[0]))
+            overlay = overlay.to_rgb(colormap=maskmap)
             overlay_norm = overlay.colormap_norm
             overlay_colormap = overlay.colormap
             overlay = overlay / 255
