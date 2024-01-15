@@ -10,6 +10,7 @@ User Guide
   Tutorial
   Collections
   Notebook
+  Colors
   Introduction
   Input_output
   Sorting

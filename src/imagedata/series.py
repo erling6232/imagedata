@@ -2685,6 +2685,8 @@ class Series(np.ndarray):
 
         Create an RGB image of self, overlaying/enhancing the mask area.
 
+        When the mask is binary, it is gaussian filtered to disperse edges.
+
         With ideas from Hauke Bartsch and Sathiesh Kaliyugarasan (2023).
 
         Examples:
