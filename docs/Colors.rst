@@ -49,6 +49,9 @@ Test D
 
 Test S
 :ref:`APIReferenceSeries`
+:ref:`apireferenceseries:series class`
+:ref:`Series Class`
+
 
 Test S0
 :ref:`APIReferenceSeries:Series`
@@ -66,7 +69,10 @@ Test N0
 :ref:`APIReferenceSeries:imagedata.Series.to_rgb`
 
 Test N1
-:ref:`APIReferenceSeries.html#imagedata.Series.to_rgb`
+:ref:`APIReferenceSeries.html:imagedata.Series.to_rgb`
+
+imagedata.Series.to_rgb
+APIReferenceSeries.html#imagedata.Series.to_rgb
 
 .. code-block:: python
 
