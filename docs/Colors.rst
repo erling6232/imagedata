@@ -105,7 +105,6 @@ The fuse_mask result with and without blending is shown in :numref:`fuse_mask_bl
    :name: fuse_mask_blend_figure
 
    Example results of :meth:`imagedata.Series.fuse_mask`.
-
    Original image: upper left; variable "perfusion mask": upper right;
    fused image without blending: lower left; fused image with blending: lower right.
 
