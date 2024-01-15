@@ -57,7 +57,7 @@ Test S
 :ref:`APIReferenceSeries`
 
 Test S0
-:ref:`APIReferenceSeries#imagedata.Series.to_rgb`
+:ref:`APIReferenceSeries:imagedata.Series.to_rgb`
 
 .. code-block:: python
 
