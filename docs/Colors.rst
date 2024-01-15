@@ -107,6 +107,7 @@ The fuse_mask result with and without blending is shown in Figure :numref:`fuse_
 .. _fuse_mask_blend_image:
 
 .. figure:: fuse_mask_blend.png
-Original image: upper left; variable mask (`perfusion mask`): upper right;
-fused image without blending: lower left; fused image with blending: lower right.
+
+   Original image: upper left; variable mask (`perfusion mask`): upper right;
+   fused image without blending: lower left; fused image with blending: lower right.
 

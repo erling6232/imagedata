@@ -72,6 +72,8 @@ The plugin architecture is depicted in the Figure :numref:`plugin_architecture_f
 
 .. figure:: Plugin_Architecture.png
 
+   Plugin Architecture
+
 Series Class
 =============
 
