@@ -44,12 +44,6 @@ the `to_rgb()` method:
 Test 0
 :ref:`<test 0>APIReferenceSeries`
 
-Test 1
-:ref:`<test 1>APIReferenceSeries#imagedata.Series.to_rgb`
-
-Test 2
-:ref:`<test 2>APIReferenceSeries.html#imagedata.Series.to_rgb`
-
 Test D
 :ref:`DICOMAttributes`
 
@@ -67,6 +61,9 @@ Test T
 
 Test S1
 :ref:`APIReferenceSeries:imagedata.Series.to_rgb`
+
+Test N0
+:ref:`imagedata.Series.to_rgb`
 
 .. code-block:: python
 
