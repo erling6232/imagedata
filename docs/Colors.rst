@@ -56,6 +56,9 @@ Test D
 Test S
 :ref:`APIReferenceSeries`
 
+Test S0
+:ref:`APIReferenceSeries#imagedata.Series.to_rgb`
+
 .. code-block:: python
 
     rgb = s.to_rgb()
