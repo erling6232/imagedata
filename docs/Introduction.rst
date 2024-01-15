@@ -67,7 +67,7 @@ The addressing of a source or destination follows a url specification, *e.g.*:
 * file:///zipfile.zip/time : Access a folder in a local zip file
 * dicom://server:104/AETITLE : Access a DICOM server on port 104 with given application entity title.
 
-The plugin architecture is depicted in the Figure :numref:`plugin_architecture_figure`:
+The plugin architecture is depicted in :numref:`plugin_architecture_figure`:
 
 
 .. figure:: Plugin_Architecture.png
