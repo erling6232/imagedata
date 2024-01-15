@@ -41,9 +41,14 @@ Let's start by creating some random data:
 This `s` Series with shape (3, 128, 128) can be converted into an RGB image using
 the `to_rgb()` method:
 
-:ref:`APIReferenceSeries#imagedata.Series.to_rgb`
+Test 0
+:ref:`<test 0>APIReferenceSeries`
 
-:ref:`APIReferenceSeries.html#imagedata.Series.to_rgb`
+Test 1
+:ref:`<test 1>APIReferenceSeries#imagedata.Series.to_rgb`
+
+Test 2
+:ref:`<test 2>APIReferenceSeries.html#imagedata.Series.to_rgb`
 
 .. code-block:: python
 
