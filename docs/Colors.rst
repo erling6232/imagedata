@@ -104,9 +104,8 @@ the mask is show at (1-alpha).
 
 The fuse_mask result with and without blending is shown in Figure :numref:`fuse_mask_blend_image`:
 
-.. _fuse_mask_blend_image:
-
 .. figure:: fuse_mask_blend.png
+   :name: fuse_mask_blend_image
 
    Original image: upper left; variable mask (`perfusion mask`): upper right;
    fused image without blending: lower left; fused image with blending: lower right.

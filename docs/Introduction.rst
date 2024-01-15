@@ -29,8 +29,9 @@ image series using a simple viewer.
 Design
 =============
 
-The **Series** class is subclassed from **numpy.ndarray**, and as such inherits the methods
-of ndarray. Examples are the **shape** and **dtype** attributes.
+The :class:`imagedata.Series` class is subclassed from **numpy.ndarray**,
+and as such inherits the methods of ndarray.
+Examples are the **shape** and **dtype** attributes.
 In addition, Series objects add selected attributes, like
 **spacing**, **sliceLocations**, **patientName**, **studyInstanceUID**.
 DICOM reading and writing depends on the *pydicom* and *pynetdicom* libraries.
@@ -68,9 +69,9 @@ The addressing of a source or destination follows a url specification, *e.g.*:
 
 The plugin architecture is depicted in the Figure :numref:`plugin_architecture_figure`:
 
-.. _plugin_architecture_figure:
 
 .. figure:: Plugin_Architecture.png
+   :name: plugin_architecture_figure
 
    Plugin Architecture
 
