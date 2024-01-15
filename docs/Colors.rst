@@ -41,18 +41,23 @@ Let's start by creating some random data:
 This `s` Series with shape (3, 128, 128) can be converted into an RGB image using
 the `to_rgb()` method:
 
+:ref:`APIReferenceSeries#imagedata.Series.to_rgb`
+
+:ref:`APIReferenceSeries.html#imagedata.Series.to_rgb`
+
 .. code-block:: python
 
     rgb = s.to_rgb()
 
-Although `rgb` is now a color Series, it will appear as a gray-scale image
-when shown,
+Although `rgb` is a color Series, it will appear as a gray-scale image
+when displayed,
 because all R, G and B color components are identical.
 
 The `rgb` Series will still have shape (3, 128, 128).
-However, the `rgb.dtype` will now be a structured RGB dtype.
+However, the `rgb.dtype` will be a structured RGB dtype.
 Also, the `s` intensities are scaled to the RGB range of 0..255 for each
 color component.
+The original intensities of `s` are not maintained in `rgb`.
 
 Saving and Loading Color Series
 -------------------------------
@@ -76,7 +81,7 @@ Fuse Series and Mask
 
 The `Series.fuse_mask()` method will fuse an original series with a mask.
 
-The mask can be binary or variable::
+The mask can be binary or variable:
 
   * A binary mask will be gaussian filtered to disperse the edges, and
     overlayed on the original series in red color.
