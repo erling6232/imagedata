@@ -50,7 +50,7 @@ Test D
 Test S
 :ref:`APIReferenceSeries`
 :ref:`apireferenceseries:series class`
-:ref:`Series Class`
+:ref:`apireferenceseries:series class`
 
 
 Test S0
@@ -70,6 +70,11 @@ Test N0
 
 Test N1
 :ref:`APIReferenceSeries.html:imagedata.Series.to_rgb`
+
+:ref:`src.imagedata.series.Series.to_rgb`
+
+:ref:`source/src.imagedata.html#src.imagedata.series.Series.to_rgb`
+
 
 imagedata.Series.to_rgb
 APIReferenceSeries.html#imagedata.Series.to_rgb
