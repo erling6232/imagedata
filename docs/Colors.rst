@@ -102,9 +102,11 @@ By default, fuse_mask() will not blend the original series.
 When using `blend=True`, the original series intensity will be reduced to alpha, while
 the mask is show at (1-alpha).
 
-The fuse_mask result with and without blending is shown in this Figure:
+The fuse_mask result with and without blending is shown in Figure :numref:`fuse_mask_blend_image`:
 
-.. image:: fuse_mask_blend.png
+.. _fuse_mask_blend_image:
+
+.. figure:: fuse_mask_blend.png
 Original image: upper left; variable mask (`perfusion mask`): upper right;
 fused image without blending: lower left; fused image with blending: lower right.
 
