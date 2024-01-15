@@ -53,6 +53,9 @@ Test 2
 Test D
 :ref:`DICOMAttributes`
 
+Test S
+:ref:`APIReferenceSeries`
+
 .. code-block:: python
 
     rgb = s.to_rgb()
