@@ -39,46 +39,10 @@ Let's start by creating some random data:
     s = Series(rng.standard_normal(3*128*128).reshape((3,128,128)))
 
 This `s` Series with shape (3, 128, 128) can be converted into an RGB image using
-the `to_rgb()` method:
-
-Test 0
-:ref:`<test 0>APIReferenceSeries`
+the
 :meth:`imagedata.Series.to_rgb`
+method:
 
-Test D
-:ref:`DICOMAttributes`
-
-Test S
-:ref:`APIReferenceSeries`
-:ref:`apireferenceseries:series class`
-:ref:`apireferenceseries:series class`
-
-
-Test S0
-:ref:`APIReferenceSeries:Series`
-
-Test S.
-:ref:`APIReferenceSeries:Series.to_rgb`
-
-Test T
-:ref:`APIReferenceSeries:to_rgb`
-
-Test S1
-:ref:`APIReferenceSeries:imagedata.Series.to_rgb`
-
-Test N0
-:ref:`APIReferenceSeries:imagedata.Series.to_rgb`
-
-Test N1
-:ref:`APIReferenceSeries.html:imagedata.Series.to_rgb`
-
-:ref:`src.imagedata.series.Series.to_rgb`
-
-:ref:`source/src.imagedata.html#src.imagedata.series.Series.to_rgb`
-
-
-imagedata.Series.to_rgb
-APIReferenceSeries.html#imagedata.Series.to_rgb
 
 .. code-block:: python
 
@@ -114,7 +78,9 @@ while RGB data has a photometricInterpretation 'RGB'.
 Fuse Series and Mask
 --------------------
 
-The `Series.fuse_mask()` method will fuse an original series with a mask.
+The
+:meth:`imagedata.Series.fuse_mask`
+method will fuse an original series with a mask.
 
 The mask can be binary or variable:
 
