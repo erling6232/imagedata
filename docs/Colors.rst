@@ -50,6 +50,9 @@ Test 1
 Test 2
 :ref:`<test 2>APIReferenceSeries.html#imagedata.Series.to_rgb`
 
+Test D
+:ref:`DICOMAttributes`
+
 .. code-block:: python
 
     rgb = s.to_rgb()
