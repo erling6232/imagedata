@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.1-rc0] - 2024-01-15
+### Changed
+* Series.fuse_mask(): Corrected scaling of mask range to colors.
+
 ## [v3.4.0] - 2024-01-12
 ### Changed
 * RGB-image representation.
