@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# import nose.tools
 import unittest
 import os.path
 import tempfile
@@ -8,9 +7,7 @@ import pickle
 import numpy as np
 from numpy.random import default_rng
 import copy
-# import logging
 import pydicom.datadict
-from PIL import Image
 
 # from .context import imagedata
 from src.imagedata.series import Series
@@ -614,7 +611,26 @@ class TestSeries(unittest.TestCase):
         fused = si1.fuse_mask(mask)
         self.assertEqual(3, fused.ndim)
         np.testing.assert_array_equal((0, 0, 1), fused[1, 7, 7])
-        np.testing.assert_array_equal((16, 5, 31), fused[2, 45, 50])
+        np.testing.assert_array_equal((3, 2, 9), fused[2, 45, 50])
+        np.testing.assert_array_equal((75, 76, 57), fused[2, 50, 50])
+
+    def test_fuse_mask_3d_variable_maskrange(self):
+        si1 = Series(np.zeros((4,100,100), dtype=float))
+
+        N = 100
+        x = np.linspace(-3.0, 3.0, N)
+        y = np.linspace(-2.0, 2.0, N)
+        X, Y = np.meshgrid(x, y)
+        Z1 = np.exp(-X**2 - Y**2)
+        Z2 = np.exp(-(X * 10)**2 - (Y * 10)**2)
+        z = Z1 + 50 * Z2
+        mask = np.zeros_like(si1, dtype=np.float64)
+        mask[2, :100, :100] = z
+        fused = si1.fuse_mask(mask, maskrange=(20, 44))
+        self.assertEqual(3, fused.ndim)
+        np.testing.assert_array_equal((0, 0, 1), fused[1, 7, 7])
+        np.testing.assert_array_equal((0, 0, 1), fused[2, 45, 50])
+        np.testing.assert_array_equal((75, 76, 57), fused[2, 50, 50])
 
     def test_align_3d(self):
         reference = Series(
