@@ -135,6 +135,7 @@ class Viewer(object):
                     ))
             elif vp['next'] is None:
                 vp['ax'].cla()
+                vp['ax'].set_axis_off()
             # Update present image in viewport
             try:
                 im = self.im[vp['present']]
@@ -678,38 +679,58 @@ class Viewer(object):
         self.update()
 
     def viewport_advance(self, inaxes, increment):
+        def _copy_viewport(src):
+            dst = {}
+            for row in range(self.rows):
+                for column in range(self.columns):
+                    vp_idx = row * self.columns + column
+                    dst[vp_idx] = {}
+                    for key in src[vp_idx].keys():
+                        print('_copy_viewport [{}][{}]'.format(vp_idx, key))
+                        # dst[vp_idx][key] = copy.copy(src[vp_idx][key])
+                        dst[vp_idx][key] = src[vp_idx][key]
+            return dst
+
         viewports = len(self.viewport.keys())
         images = len(self.im)
-        for vp_idx in range(viewports):
-           if vp_idx in self.viewport:
-               print('enter vp_idx {} im {}'.format(vp_idx, self.viewport[vp_idx]['next']))
-        print('viewport_advance: viewports {} images {}'.format(viewports, images))
+        # for vp_idx in range(viewports):
+        #    if vp_idx in self.viewport:
+        #        print('enter vp_idx {} im {}'.format(vp_idx, self.viewport[vp_idx]['next']))
+        # print('viewport_advance: viewports {} images {}'.format(viewports, images))
         # Move rows up or down, adding new series at last row
         if increment > 0:
             row_range = range(self.rows)
         else:
             row_range = range(self.rows - 1, -1, -1)
+        new_viewport = _copy_viewport(self.viewport)
         for row in row_range:
+            empty_row = True
             for column in range(self.columns):
                 vp_idx = row * self.columns + column
                 try:
-                    self.viewport[vp_idx]['next'] = self.viewport[vp_idx + increment]['present']
+                    new_viewport[vp_idx]['next'] = new_viewport[vp_idx + increment]['present']
+                    empty_row = False
                 except KeyError:
-                    if self.viewport[vp_idx]['present'] is None:
-                        self.viewport[vp_idx]['next'] = None
+                    if new_viewport[vp_idx]['present'] is None:
+                        new_viewport[vp_idx]['next'] = None
                     else:
-                        next_im = self.viewport[vp_idx]['present'] + increment
+                        next_im = new_viewport[vp_idx]['present'] + increment
                         if 0 <= next_im < images:
-                            self.viewport[vp_idx]['next'] = next_im
+                            new_viewport[vp_idx]['next'] = next_im
+                            empty_row = False
                         else:
-                            self.viewport[vp_idx]['next'] = None
-                            self.viewport[vp_idx]['ax'].cla()
-                self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['h'] = None
+                            new_viewport[vp_idx]['next'] = None
+                            # new_viewport[vp_idx]['ax'].cla()
+                new_viewport[vp_idx]['present'] = None
+                new_viewport[vp_idx]['h'] = None
+            print('empty_row', empty_row)
+            if not empty_row:
+                # Actually accept this viewport advance
+                self.viewport = _copy_viewport(new_viewport)
         # im['modified'] = True
-        for vp_idx in range(viewports):
-           if vp_idx in self.viewport:
-               print('leave', self.viewport[vp_idx]['next'])
+        # for vp_idx in range(viewports):
+        #    if vp_idx in self.viewport:
+        #        print('leave', self.viewport[vp_idx]['next'])
         self.update()
 
     def toggle_hide(self, inaxes):
