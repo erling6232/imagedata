@@ -1,3 +1,4 @@
+# import numbers
 import copy
 import logging
 from typing import Union
@@ -156,9 +157,7 @@ class Viewer(object):
                     im['lower_left_text'].txt.set_text(fmt.format(im['idx']))
                     im['lower_left_data'] = im['idx']
             else:
-                fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-                window = int(im['window'])
-                level = int(im['level'])
+                fmt, window, level = pretty_window_level(im)
                 if im['lower_left_text'] is not None:
                     if im['lower_left_data'] != (window, level, im['idx']):
                         im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
@@ -212,9 +211,7 @@ class Viewer(object):
                                                  loc='lower left'
                                                  )
         else:
-            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-            window = int(im['window'])
-            level = int(im['level'])
+            fmt, window, level = pretty_window_level(im)
             im['lower_left_data'] = (window, level, im['idx'])
             im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
                                                  prop=dict(size=6, color='white',
@@ -300,52 +297,55 @@ class Viewer(object):
         """Update upper left text
         """
 
-        try:
-            pat_nam: str = '{}'.format(im.patientName)
+        data = {}
+        for attr in ['patientName', 'patientID']:
+            try:
+                data[attr] = getattr(im, attr, '')
+            except ValueError:
+                data[attr] = ''
+        for attr in ['StudyDate', 'StudyTime']:
+            try:
+                data[attr] = im.getDicomAttribute(attr)
+            except Exception:
+                data[attr] = ''
+        _date_fmt = self.pretty_datetime(data['StudyDate'], data['StudyTime'])
+
+        fmt = ''
+        if data['patientName']:
+            pat_nam: str = '{}'.format(data['patientName'])
             while pat_nam[-1] == '^':
                 pat_nam = pat_nam[:-1]
             pat_nam = pat_nam.replace('^', ', ')
-            fmt = '{}'.format(pat_nam)
-        except ValueError:
-            fmt = ''
-        try:
-            fmt += '\n{}'.format(im.patientID)
-        except ValueError:
-            pass
-        try:
-            _date_fmt = self.pretty_datetime(
-                im.getDicomAttribute('StudyDate'),
-                im.getDicomAttribute('StudyTime')
-            )
-            if len(_date_fmt) > 0:
-                fmt += '\n{}'.format(_date_fmt)
-        except Exception:
-            pass
+            fmt = pat_nam
+        if data['patientID']:
+            fmt += '\n{}'.format(data['patientID'])
+        if len(_date_fmt) > 0:
+            fmt += '\n{}'.format(_date_fmt)
         return fmt
 
     def upper_right_text(self, im):
         """Update upper right text
         """
 
-        try:
-            fmt = '{}. {}'.format(
-                im.seriesNumber,
-                im.seriesDescription
-            )
-        except ValueError:
-            fmt = ''
-        try:
-            _date_fmt = self.pretty_datetime(
-                im.getDicomAttribute('SeriesDate'),
-                im.getDicomAttribute('SeriesTime')
-            )
-            if len(_date_fmt) > 0:
-                fmt += '\n{}'.format(_date_fmt)
-        except Exception:
-            logger.debug('Cannot append _datefmt for \"{}\" and \"{}\"'.format(
-                im.getDicomAttribute('SeriesDate'),
-                im.getDicomAttribute('SeriesTime')))
-            raise
+        data = {}
+        for attr in ['seriesNumber', 'seriesDescription']:
+            try:
+                data[attr] = getattr(im, attr, '')
+            except ValueError:
+                data[attr] = ''
+        for attr in ['SeriesDate', 'SeriesTime']:
+            try:
+                data[attr] = im.getDicomAttribute(attr)
+            except Exception:
+                data[attr] = ''
+        _date_fmt = self.pretty_datetime(data['SeriesDate'], data['SeriesTime'])
+
+        fmt = ''
+        if data['seriesNumber']:
+            fmt = '{}. '.format(data['seriesNumber'])
+        fmt += data['seriesDescription']
+        if len(_date_fmt) > 0:
+            fmt += '\n{}'.format(_date_fmt)
         return fmt
 
     def connect_draw(self, roi=None, color='w', callback_quit=None):
@@ -1182,3 +1182,16 @@ def pretty_tag_value(im):
         return '{}'.format(im['im'].tags[0][tag])
     else:
         return '{}'.format(im['im'].tags[0][tag])
+
+
+def pretty_window_level(im):
+    si, window, level = im['im'], im['window'], im['level']
+    if si.dtype.kind in ('i', 'u'):
+        fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+        window = int(window)
+        level = int(level)
+    else:
+        fmt = 'SL: {0:d}\nW: {1:.2f} C: {2:.2f}'
+        window = np.around(window, 2)
+        level = np.around(level, 2)
+    return fmt, window, level

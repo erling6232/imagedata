@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.2-dev0] - 2024-01-16
+### Changed
+* Viewer: Display image text even when some attributes are missing.
+* Viewer: Better presentation of window center/width when they are floats.
+
 ## [v3.4.1] - 2024-01-15
 ### Changed
 * Series.fuse_mask(): Corrected scaling of mask range to colors.
