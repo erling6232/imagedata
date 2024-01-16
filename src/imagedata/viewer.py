@@ -113,15 +113,19 @@ class Viewer(object):
                     self.viewport[vp_idx] = None
                     axes[row, column].set_axis_off()
                 vp_idx += 1
+        self.rows = rows
+        self.columns = columns
 
     def update(self):
         # For each viewport
         for vp_idx in self.viewport:
             vp = self.viewport[vp_idx]
             if vp is None:
+                # Clear ax
                 continue
             if vp['next'] != vp['present']:
                 # We want to show another image in this viewport
+                vp['ax'].cla()
                 if vp['next'] in self.im:
                     vp['h'] = self.show(vp['ax'], self.im[vp['next']])
                     vp['present'] = vp['next']
@@ -129,8 +133,13 @@ class Viewer(object):
                     raise IndexError("Series {} should be viewed, but does not exist".format(
                         vp['next']
                     ))
+            elif vp['next'] is None:
+                vp['ax'].cla()
             # Update present image in viewport
-            im = self.im[vp['present']]
+            try:
+                im = self.im[vp['present']]
+            except KeyError:
+                continue
             if not im['modified']:
                 continue
             if im['tag_axis'] is not None:
@@ -527,9 +536,9 @@ class Viewer(object):
         elif event.key == 'right':
             self.advance_data(event.inaxes, 1)
         elif event.key == 'pageup':
-            self.viewport_advance(event.inaxes, 1)
+            self.viewport_advance(event.inaxes, - self.columns)
         elif event.key == 'pagedown':
-            self.viewport_advance(event.inaxes, -1)
+            self.viewport_advance(event.inaxes, self.columns)
         elif event.key == 'H' or event.key == 'h':
             # Hide display
             self.toggle_hide(event.inaxes)
@@ -670,48 +679,37 @@ class Viewer(object):
 
     def viewport_advance(self, inaxes, increment):
         viewports = len(self.viewport.keys())
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('enter', self.viewport[vp_idx]['next'])
         images = len(self.im)
-        # print('viewport_advance: viewports {}'.format(viewports))
-        vp_idx = 0
-        if increment == 1:
-            if self.viewport[viewports - 1] is None:
-                return
-            next_im = self.viewport[viewports - 1]['present'] + increment
-            if next_im >= images:
-                return  # Don't move outside range of series
-            # Drop first series, move other series forward
-            for vp_idx in range(viewports - 1):
-                # print('increment vp_idx: {}'.format(vp_idx))
-                self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx + 1]['present']
-                self.viewport[vp_idx]['h'] = None
-            # Append new series when available
-            self.viewport[viewports - 1]['next'] = next_im
-            self.viewport[viewports - 1]['present'] = None
-            self.viewport[viewports - 1]['h'] = None
-        elif increment == -1:
-            next_im = self.viewport[0]['present'] + increment
-            if next_im < 0:
-                return  # Don't move in-front of first image
-            # Move other series backwards
-            for vp_idx in range(viewports - 1, 0, -1):
-                # print('decrement vp_idx: {}'.format(vp_idx))
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx - 1]['present']
-                self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['h'] = None
-            # Insert new series at front when available
-            self.viewport[0]['next'] = next_im
-            self.viewport[0]['present'] = None
-            self.viewport[0]['h'] = None
+        for vp_idx in range(viewports):
+           if vp_idx in self.viewport:
+               print('enter vp_idx {} im {}'.format(vp_idx, self.viewport[vp_idx]['next']))
+        print('viewport_advance: viewports {} images {}'.format(viewports, images))
+        # Move rows up or down, adding new series at last row
+        if increment > 0:
+            row_range = range(self.rows)
         else:
-            raise ValueError('Increment shall be +/-1')
+            row_range = range(self.rows - 1, -1, -1)
+        for row in row_range:
+            for column in range(self.columns):
+                vp_idx = row * self.columns + column
+                try:
+                    self.viewport[vp_idx]['next'] = self.viewport[vp_idx + increment]['present']
+                except KeyError:
+                    if self.viewport[vp_idx]['present'] is None:
+                        self.viewport[vp_idx]['next'] = None
+                    else:
+                        next_im = self.viewport[vp_idx]['present'] + increment
+                        if 0 <= next_im < images:
+                            self.viewport[vp_idx]['next'] = next_im
+                        else:
+                            self.viewport[vp_idx]['next'] = None
+                            self.viewport[vp_idx]['ax'].cla()
+                self.viewport[vp_idx]['present'] = None
+                self.viewport[vp_idx]['h'] = None
         # im['modified'] = True
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('leave', self.viewport[vp_idx]['next'])
+        for vp_idx in range(viewports):
+           if vp_idx in self.viewport:
+               print('leave', self.viewport[vp_idx]['next'])
         self.update()
 
     def toggle_hide(self, inaxes):

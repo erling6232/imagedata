@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * Viewer: Display image text even when some attributes are missing.
 * Viewer: Better presentation of window center/width when they are floats.
+* Viewer: Reimplemented PageDown/PageUp to scroll one row at a time.
 
 ## [v3.4.1] - 2024-01-15
 ### Changed

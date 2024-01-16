@@ -2862,6 +2862,16 @@ class Series(np.ndarray):
         import matplotlib.pyplot as plt
         import matplotlib as mpl
 
+        def _get_ax(ax):
+            try:
+                _ax = ax[0][0]
+            except (TypeError, IndexError):
+                try:
+                    _ax = ax[0]
+                except (TypeError, IndexError):
+                    _ax = ax
+            return _ax
+
         notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
@@ -2875,15 +2885,10 @@ class Series(np.ndarray):
 
         # Create or connect to canvas
         if ax is not None:
-            try:
-                _ax = ax[0][0]
-            except (TypeError, IndexError):
-                try:
-                    _ax = ax[0]
-                except (TypeError, IndexError):
-                    _ax = ax
+            _ax = _get_ax(ax)
             fig = _ax.get_figure()
-            axes = np.array(_ax).reshape((1, 1))
+            # axes = np.array(_ax).reshape((1, 1))
+            axes = ax
         else:
             if fig is None:
                 fig = plt.figure()
