@@ -9,8 +9,8 @@ User Guide
   Installation
   Tutorial
   Collections
-  Notebook
   Viewing
+  Notebook
   Colors
   Introduction
   Input_output

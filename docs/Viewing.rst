@@ -18,8 +18,9 @@ View multiple series
 --------------------
 
 This example will view 4 series in 4 viewports.
-The `link` parameter will link the scrolling of these series, such that they all
-show the same slice.
+The ``link=True`` parameter links the scrolling of these series,
+such that they all show the same slice (assuming that the series have
+the same shape).
 The viewer will decide the layout of viewports depending on the number of series.
 
 .. code-block:: python
@@ -43,13 +44,18 @@ Draw region of interest (ROI)
 """""""""""""""""""""""""""""
 
 The :meth:`imagedata.Series.get_roi` method will let the user draw a ROI outline as a polygon.
-The returned mask will be one (1) inside the ROI, and zero (0) elsewhere.
+The returned mask will have the same shape, and be one (1) inside the ROI, and zero (0) elsewhere.
 
 .. code-block:: python
 
    mask = a.get_roi()
 
-The vertices of the ROI polygon can be retrieve by:
+The ROI polygon can be adjusted using the mouse:
+
+  * Move a polygon vertex using left mouse key
+  * Move the polygon outline using shift key and left mouse key
+
+The vertices of the ROI polygon can be retrieved by:
 
 .. code-block:: python
 
@@ -61,7 +67,9 @@ These vertices can be used to present the user with an existing ROI, allowing mo
 
    mask, vertices = a.get_roi(roi=vertices, vertices=True)
 
-Alternatively, an existing binary ROI mask can be used as input:
+Alternatively, an existing binary ROI mask can be used as input.
+The binary ROI will be converted to a list of vertices.
+Depending on the input data, the polygon may differ somewhat from the expected result!
 
 .. code-block:: python
 
@@ -73,6 +81,8 @@ Special 4D applications
 Normally,
 the :meth:`imagedata.Series.get_roi` method
 will draw a 3D mask on a 4D series.
+The user can step through the 4D series, modifying the mask at any tag step.
+The final 3D mask will be returned.
 
 In a time-resolved series with patient motion, it may be useful to follow an organ from time point
 to time point.
