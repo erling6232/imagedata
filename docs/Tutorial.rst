@@ -80,6 +80,9 @@ The following controls can be used to manipulate the viewer:
 * Array up/down: scroll through the slices of a volume.
 * Array left/right: step through the 4th dimension of a 4D dataset.
 * PgUp/PgDown: Page through datasets when there are more datasets than views.
+* Ctrl+Home/Ctrl+End: Advance view to first/last dataset.
+* Ctrl+Array left/right: Advance view one step back/forward.
+* Ctrl+Array up/down: Advance view one row back/forward.
 * Left mouse key pressed: adjust window/level of display.
 * Mouse over: will display 2D coordinate and signal intensity at mouse position.
 * 'h': Toggle hiding text on display.

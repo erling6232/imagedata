@@ -78,6 +78,7 @@ class Viewer(object):
         self.paste_buffer = None
         self.callback_onselect = onselect
         self.viewport = {}
+        self.viewport_idx = None
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
 
@@ -100,21 +101,12 @@ class Viewer(object):
                 raise ValueError('Cannot set default viewport')
         except AttributeError:
             rows = columns = 1
-        vp_idx = 0
-        for row in range(rows):
-            for column in range(columns):
-                if vp_idx in self.im:
-                    self.viewport[vp_idx] = {
-                        'ax': axes[row, column],
-                        'present': None,
-                        'next': vp_idx,
-                        'h': None}
-                else:
-                    self.viewport[vp_idx] = None
-                    axes[row, column].set_axis_off()
-                vp_idx += 1
+
         self.rows = rows
         self.columns = columns
+
+        # Setup initial view
+        self.viewport_set(0)
 
     def update(self):
         # For each viewport
@@ -537,9 +529,21 @@ class Viewer(object):
         elif event.key == 'right':
             self.advance_data(event.inaxes, 1)
         elif event.key == 'pageup':
-            self.viewport_advance(event.inaxes, - self.columns)
+            self.viewport_advance(-self.rows * self.columns)
         elif event.key == 'pagedown':
-            self.viewport_advance(event.inaxes, self.columns)
+            self.viewport_advance(self.rows * self.columns)
+        elif event.key == 'ctrl+home':
+            self.viewport_set(0)
+        elif event.key == 'ctrl+end':
+            self.viewport_set(len(self.im) - self.rows * self.columns)
+        elif event.key == 'ctrl+left':
+            self.viewport_advance(-1)
+        elif event.key == 'ctrl+right':
+            self.viewport_advance(1)
+        elif event.key == 'ctrl+up':
+            self.viewport_advance(-self.columns)
+        elif event.key == 'ctrl+down':
+            self.viewport_advance(self.columns)
         elif event.key == 'H' or event.key == 'h':
             # Hide display
             self.toggle_hide(event.inaxes)
@@ -678,69 +682,54 @@ class Viewer(object):
         #    self.im2['idx'] = min(max(self.im2['idx'] + increment, 0), self.im2['slices']-1)
         self.update()
 
-    def viewport_advance(self, inaxes, increment):
-        def _copy_viewport(src):
-            dst = {}
-            for row in range(self.rows):
-                for column in range(self.columns):
-                    vp_idx = row * self.columns + column
-                    dst[vp_idx] = {}
-                    for key in src[vp_idx].keys():
-                        print('_copy_viewport [{}][{}]'.format(vp_idx, key))
-                        # dst[vp_idx][key] = copy.copy(src[vp_idx][key])
-                        dst[vp_idx][key] = src[vp_idx][key]
-            return dst
+    def viewport_advance(self, increment):
+        """Advance viewport by given increment
+        """
 
-        viewports = len(self.viewport.keys())
+        self.viewport_set(self.viewport_idx + increment)
+
+    def viewport_set(self, position):
+        """Set viewport to image position
+        """
+
         images = len(self.im)
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('enter vp_idx {} im {}'.format(vp_idx, self.viewport[vp_idx]['next']))
-        # print('viewport_advance: viewports {} images {}'.format(viewports, images))
-        # Move rows up or down, adding new series at last row
-        if increment > 0:
-            row_range = range(self.rows)
-        else:
-            row_range = range(self.rows - 1, -1, -1)
-        new_viewport = _copy_viewport(self.viewport)
-        for row in row_range:
-            empty_row = True
+        # Position must be in range 0:images-(rows*columns)
+        vp_idx = min(position, images - self.rows * self.columns - 1)
+        vp_idx = max(vp_idx, 0)
+        if vp_idx == self.viewport_idx:
+            # No change
+            return
+        # print('viewport_set: old idx {}, new idx {}'.format(self.viewport_idx, position))
+        self.viewport_idx = vp_idx
+        new_viewport = {}
+        for row in range(self.rows):
             for column in range(self.columns):
-                vp_idx = row * self.columns + column
-                try:
-                    new_viewport[vp_idx]['next'] = new_viewport[vp_idx + increment]['present']
-                    empty_row = False
-                except KeyError:
-                    if new_viewport[vp_idx]['present'] is None:
-                        new_viewport[vp_idx]['next'] = None
-                    else:
-                        next_im = new_viewport[vp_idx]['present'] + increment
-                        if 0 <= next_im < images:
-                            new_viewport[vp_idx]['next'] = next_im
-                            empty_row = False
-                        else:
-                            new_viewport[vp_idx]['next'] = None
-                            # new_viewport[vp_idx]['ax'].cla()
-                new_viewport[vp_idx]['present'] = None
-                new_viewport[vp_idx]['h'] = None
-            print('empty_row', empty_row)
-            if not empty_row:
-                # Actually accept this viewport advance
-                self.viewport = _copy_viewport(new_viewport)
-        # im['modified'] = True
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('leave', self.viewport[vp_idx]['next'])
+                if vp_idx in self.im:
+                    new_viewport[vp_idx] = {
+                        'ax': self.ax[row, column],
+                        'present': None,
+                        'next': vp_idx,
+                        'h': None
+                    }
+                else:
+                    new_viewport[vp_idx] = None
+                    self.ax[row, column].set_axis_off()
+                vp_idx += 1
+        self.viewport = new_viewport
         self.update()
 
     def toggle_hide(self, inaxes):
-        im = self.find_image_from_event(inaxes)
-        if im is None:
-            return
-        im['show_text'] = not im['show_text']
-        for artist in im['artists']:
-            artist.set_visible(im['show_text'])
-        im['modified'] = True
+        """Toggle the display of text on images
+        """
+
+        # im = self.find_image_from_event(inaxes)
+        # if im is None:
+        #     return
+        for im in self.im:
+            self.im[im]['show_text'] = not self.im[im]['show_text']
+            for artist in self.im[im]['artists']:
+                artist.set_visible(self.im[im]['show_text'])
+            self.im[im]['modified'] = True
         self.update()
 
     def normalize_window(self, inaxes):
@@ -828,7 +817,8 @@ class Viewer(object):
         # On motion, modify window and level, and update display
         im = self.find_image_from_event(event.inaxes)
         if im is not None and im['press'] is not None:
-            delta = (im['vmax'] - im['vmin']) / 100
+            # delta = (im['vmax'] - im['vmin']) / 100
+            delta = (im['im'].max() - im['im'].min()) / 100
             dx = delta * (event.xdata - im['press'][0])
             dy = delta * (im['press'][1] - event.ydata)
             im['press'] = event.xdata, event.ydata
@@ -1047,6 +1037,8 @@ def grid_from_roi(im: Series, vertices: dict, single: bool = False) -> Union[boo
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
         input_order = 'none'
+    if im.ndim == 2:
+        grid = grid.reshape((ny, nx))
     return Series(grid, input_order=input_order, template=im, geometry=im)
 
 
