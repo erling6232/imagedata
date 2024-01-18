@@ -1,3 +1,4 @@
+# import numbers
 import copy
 import logging
 from typing import Union
@@ -77,6 +78,7 @@ class Viewer(object):
         self.paste_buffer = None
         self.callback_onselect = onselect
         self.viewport = {}
+        self.viewport_idx = None
         self.set_default_viewport(self.ax)  # Set wanted viewport
         self.update()  # Update view to achieve wanted viewport
 
@@ -99,28 +101,23 @@ class Viewer(object):
                 raise ValueError('Cannot set default viewport')
         except AttributeError:
             rows = columns = 1
-        vp_idx = 0
-        for row in range(rows):
-            for column in range(columns):
-                if vp_idx in self.im:
-                    self.viewport[vp_idx] = {
-                        'ax': axes[row, column],
-                        'present': None,
-                        'next': vp_idx,
-                        'h': None}
-                else:
-                    self.viewport[vp_idx] = None
-                    axes[row, column].set_axis_off()
-                vp_idx += 1
+
+        self.rows = rows
+        self.columns = columns
+
+        # Setup initial view
+        self.viewport_set(0)
 
     def update(self):
         # For each viewport
         for vp_idx in self.viewport:
             vp = self.viewport[vp_idx]
             if vp is None:
+                # Clear ax
                 continue
             if vp['next'] != vp['present']:
                 # We want to show another image in this viewport
+                vp['ax'].cla()
                 if vp['next'] in self.im:
                     vp['h'] = self.show(vp['ax'], self.im[vp['next']])
                     vp['present'] = vp['next']
@@ -128,8 +125,14 @@ class Viewer(object):
                     raise IndexError("Series {} should be viewed, but does not exist".format(
                         vp['next']
                     ))
+            elif vp['next'] is None:
+                vp['ax'].cla()
+                vp['ax'].set_axis_off()
             # Update present image in viewport
-            im = self.im[vp['present']]
+            try:
+                im = self.im[vp['present']]
+            except KeyError:
+                continue
             if not im['modified']:
                 continue
             if im['tag_axis'] is not None:
@@ -156,9 +159,7 @@ class Viewer(object):
                     im['lower_left_text'].txt.set_text(fmt.format(im['idx']))
                     im['lower_left_data'] = im['idx']
             else:
-                fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-                window = int(im['window'])
-                level = int(im['level'])
+                fmt, window, level = pretty_window_level(im)
                 if im['lower_left_text'] is not None:
                     if im['lower_left_data'] != (window, level, im['idx']):
                         im['lower_left_text'].txt.set_text(fmt.format(im['idx'], window, level))
@@ -212,9 +213,7 @@ class Viewer(object):
                                                  loc='lower left'
                                                  )
         else:
-            fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
-            window = int(im['window'])
-            level = int(im['level'])
+            fmt, window, level = pretty_window_level(im)
             im['lower_left_data'] = (window, level, im['idx'])
             im['lower_left_text'] = AnchoredText(fmt.format(im['idx'], window, level),
                                                  prop=dict(size=6, color='white',
@@ -300,52 +299,55 @@ class Viewer(object):
         """Update upper left text
         """
 
-        try:
-            pat_nam: str = '{}'.format(im.patientName)
+        data = {}
+        for attr in ['patientName', 'patientID']:
+            try:
+                data[attr] = getattr(im, attr, '')
+            except ValueError:
+                data[attr] = ''
+        for attr in ['StudyDate', 'StudyTime']:
+            try:
+                data[attr] = im.getDicomAttribute(attr)
+            except Exception:
+                data[attr] = ''
+        _date_fmt = self.pretty_datetime(data['StudyDate'], data['StudyTime'])
+
+        fmt = ''
+        if data['patientName']:
+            pat_nam: str = '{}'.format(data['patientName'])
             while pat_nam[-1] == '^':
                 pat_nam = pat_nam[:-1]
             pat_nam = pat_nam.replace('^', ', ')
-            fmt = '{}'.format(pat_nam)
-        except ValueError:
-            fmt = ''
-        try:
-            fmt += '\n{}'.format(im.patientID)
-        except ValueError:
-            pass
-        try:
-            _date_fmt = self.pretty_datetime(
-                im.getDicomAttribute('StudyDate'),
-                im.getDicomAttribute('StudyTime')
-            )
-            if len(_date_fmt) > 0:
-                fmt += '\n{}'.format(_date_fmt)
-        except Exception:
-            pass
+            fmt = pat_nam
+        if data['patientID']:
+            fmt += '\n{}'.format(data['patientID'])
+        if len(_date_fmt) > 0:
+            fmt += '\n{}'.format(_date_fmt)
         return fmt
 
     def upper_right_text(self, im):
         """Update upper right text
         """
 
-        try:
-            fmt = '{}. {}'.format(
-                im.seriesNumber,
-                im.seriesDescription
-            )
-        except ValueError:
-            fmt = ''
-        try:
-            _date_fmt = self.pretty_datetime(
-                im.getDicomAttribute('SeriesDate'),
-                im.getDicomAttribute('SeriesTime')
-            )
-            if len(_date_fmt) > 0:
-                fmt += '\n{}'.format(_date_fmt)
-        except Exception:
-            logger.debug('Cannot append _datefmt for \"{}\" and \"{}\"'.format(
-                im.getDicomAttribute('SeriesDate'),
-                im.getDicomAttribute('SeriesTime')))
-            raise
+        data = {}
+        for attr in ['seriesNumber', 'seriesDescription']:
+            try:
+                data[attr] = getattr(im, attr, '')
+            except ValueError:
+                data[attr] = ''
+        for attr in ['SeriesDate', 'SeriesTime']:
+            try:
+                data[attr] = im.getDicomAttribute(attr)
+            except Exception:
+                data[attr] = ''
+        _date_fmt = self.pretty_datetime(data['SeriesDate'], data['SeriesTime'])
+
+        fmt = ''
+        if data['seriesNumber']:
+            fmt = '{}. '.format(data['seriesNumber'])
+        fmt += data['seriesDescription']
+        if len(_date_fmt) > 0:
+            fmt += '\n{}'.format(_date_fmt)
         return fmt
 
     def connect_draw(self, roi=None, color='w', callback_quit=None):
@@ -527,9 +529,21 @@ class Viewer(object):
         elif event.key == 'right':
             self.advance_data(event.inaxes, 1)
         elif event.key == 'pageup':
-            self.viewport_advance(event.inaxes, 1)
+            self.viewport_advance(-self.rows * self.columns)
         elif event.key == 'pagedown':
-            self.viewport_advance(event.inaxes, -1)
+            self.viewport_advance(self.rows * self.columns)
+        elif event.key == 'ctrl+home':
+            self.viewport_set(0)
+        elif event.key == 'ctrl+end':
+            self.viewport_set(len(self.im) - self.rows * self.columns)
+        elif event.key == 'ctrl+left':
+            self.viewport_advance(-1)
+        elif event.key == 'ctrl+right':
+            self.viewport_advance(1)
+        elif event.key == 'ctrl+up':
+            self.viewport_advance(-self.columns)
+        elif event.key == 'ctrl+down':
+            self.viewport_advance(self.columns)
         elif event.key == 'H' or event.key == 'h':
             # Hide display
             self.toggle_hide(event.inaxes)
@@ -668,60 +682,54 @@ class Viewer(object):
         #    self.im2['idx'] = min(max(self.im2['idx'] + increment, 0), self.im2['slices']-1)
         self.update()
 
-    def viewport_advance(self, inaxes, increment):
-        viewports = len(self.viewport.keys())
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('enter', self.viewport[vp_idx]['next'])
+    def viewport_advance(self, increment):
+        """Advance viewport by given increment
+        """
+
+        self.viewport_set(self.viewport_idx + increment)
+
+    def viewport_set(self, position):
+        """Set viewport to image position
+        """
+
         images = len(self.im)
-        # print('viewport_advance: viewports {}'.format(viewports))
-        vp_idx = 0
-        if increment == 1:
-            if self.viewport[viewports - 1] is None:
-                return
-            next_im = self.viewport[viewports - 1]['present'] + increment
-            if next_im >= images:
-                return  # Don't move outside range of series
-            # Drop first series, move other series forward
-            for vp_idx in range(viewports - 1):
-                # print('increment vp_idx: {}'.format(vp_idx))
-                self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx + 1]['present']
-                self.viewport[vp_idx]['h'] = None
-            # Append new series when available
-            self.viewport[viewports - 1]['next'] = next_im
-            self.viewport[viewports - 1]['present'] = None
-            self.viewport[viewports - 1]['h'] = None
-        elif increment == -1:
-            next_im = self.viewport[0]['present'] + increment
-            if next_im < 0:
-                return  # Don't move in-front of first image
-            # Move other series backwards
-            for vp_idx in range(viewports - 1, 0, -1):
-                # print('decrement vp_idx: {}'.format(vp_idx))
-                self.viewport[vp_idx]['next'] = self.viewport[vp_idx - 1]['present']
-                self.viewport[vp_idx]['present'] = None
-                self.viewport[vp_idx]['h'] = None
-            # Insert new series at front when available
-            self.viewport[0]['next'] = next_im
-            self.viewport[0]['present'] = None
-            self.viewport[0]['h'] = None
-        else:
-            raise ValueError('Increment shall be +/-1')
-        # im['modified'] = True
-        # for vp_idx in range(viewports):
-        #    if vp_idx in self.viewport:
-        #        print('leave', self.viewport[vp_idx]['next'])
+        # Position must be in range 0:images-(rows*columns)
+        vp_idx = min(position, images - self.rows * self.columns - 1)
+        vp_idx = max(vp_idx, 0)
+        if vp_idx == self.viewport_idx:
+            # No change
+            return
+        # print('viewport_set: old idx {}, new idx {}'.format(self.viewport_idx, position))
+        self.viewport_idx = vp_idx
+        new_viewport = {}
+        for row in range(self.rows):
+            for column in range(self.columns):
+                if vp_idx in self.im:
+                    new_viewport[vp_idx] = {
+                        'ax': self.ax[row, column],
+                        'present': None,
+                        'next': vp_idx,
+                        'h': None
+                    }
+                else:
+                    new_viewport[vp_idx] = None
+                    self.ax[row, column].set_axis_off()
+                vp_idx += 1
+        self.viewport = new_viewport
         self.update()
 
     def toggle_hide(self, inaxes):
-        im = self.find_image_from_event(inaxes)
-        if im is None:
-            return
-        im['show_text'] = not im['show_text']
-        for artist in im['artists']:
-            artist.set_visible(im['show_text'])
-        im['modified'] = True
+        """Toggle the display of text on images
+        """
+
+        # im = self.find_image_from_event(inaxes)
+        # if im is None:
+        #     return
+        for im in self.im:
+            self.im[im]['show_text'] = not self.im[im]['show_text']
+            for artist in self.im[im]['artists']:
+                artist.set_visible(self.im[im]['show_text'])
+            self.im[im]['modified'] = True
         self.update()
 
     def normalize_window(self, inaxes):
@@ -809,7 +817,8 @@ class Viewer(object):
         # On motion, modify window and level, and update display
         im = self.find_image_from_event(event.inaxes)
         if im is not None and im['press'] is not None:
-            delta = (im['vmax'] - im['vmin']) / 100
+            # delta = (im['vmax'] - im['vmin']) / 100
+            delta = (im['im'].max() - im['im'].min()) / 100
             dx = delta * (event.xdata - im['press'][0])
             dy = delta * (im['press'][1] - event.ydata)
             im['press'] = event.xdata, event.ydata
@@ -1028,6 +1037,8 @@ def grid_from_roi(im: Series, vertices: dict, single: bool = False) -> Union[boo
             points = np.vstack((x, y)).T
             grid[idx] = path.contains_points(points).reshape((ny, nx))
         input_order = 'none'
+    if im.ndim == 2:
+        grid = grid.reshape((ny, nx))
     return Series(grid, input_order=input_order, template=im, geometry=im)
 
 
@@ -1182,3 +1193,16 @@ def pretty_tag_value(im):
         return '{}'.format(im['im'].tags[0][tag])
     else:
         return '{}'.format(im['im'].tags[0][tag])
+
+
+def pretty_window_level(im):
+    si, window, level = im['im'], im['window'], im['level']
+    if si.dtype.kind in ('i', 'u'):
+        fmt = 'SL: {0:d}\nW: {1:d} C: {2:d}'
+        window = int(window)
+        level = int(level)
+    else:
+        fmt = 'SL: {0:d}\nW: {1:.2f} C: {2:.2f}'
+        window = np.around(window, 2)
+        level = np.around(level, 2)
+    return fmt, window, level

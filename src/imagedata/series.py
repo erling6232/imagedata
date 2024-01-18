@@ -2862,6 +2862,16 @@ class Series(np.ndarray):
         import matplotlib.pyplot as plt
         import matplotlib as mpl
 
+        def _get_ax(ax):
+            try:
+                _ax = ax[0][0]
+            except (TypeError, IndexError):
+                try:
+                    _ax = ax[0]
+                except (TypeError, IndexError):
+                    _ax = ax
+            return _ax
+
         notebook = mpl.get_backend()[-5:] == 'nbagg'
 
         # im2 can be single image or list of images
@@ -2875,15 +2885,10 @@ class Series(np.ndarray):
 
         # Create or connect to canvas
         if ax is not None:
-            try:
-                _ax = ax[0][0]
-            except (TypeError, IndexError):
-                try:
-                    _ax = ax[0]
-                except (TypeError, IndexError):
-                    _ax = ax
+            _ax = _get_ax(ax)
             fig = _ax.get_figure()
-            axes = np.array(_ax).reshape((1, 1))
+            # axes = np.array(_ax).reshape((1, 1))
+            axes = ax
         else:
             if fig is None:
                 fig = plt.figure()
@@ -2942,7 +2947,8 @@ class Series(np.ndarray):
         Returns:
             If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
                 - grid mask: Series object with voxel=1 inside ROI.
-                  Series object with shape (nz,ny,nx) from original image,
+                  Series object with shape (nz,ny,nx) (3D or more) or
+                  (ny, nx) (2D) from original image,
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
 
@@ -3024,7 +3030,9 @@ class Series(np.ndarray):
             If vertices: tuple of grid mask and vertices_dict. Otherwise, grid mask only.
                 - grid mask: Series object with voxel=1 inside ROI.
                   Series object with shape (nz,ny,nx) from original image,
-                  dtype ubyte. Voxel inside ROI is 1, 0 outside.
+                  dtype ubyte. If original image is 2D, the mask
+                  will be shape (ny,nx) from original image.
+                  Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
 
         Raises:
@@ -3046,7 +3054,10 @@ class Series(np.ndarray):
             if follow:
                 new_grid = np.zeros_like(self, dtype=np.ubyte)
             else:
-                new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
+                if self.ndim == 2:
+                    new_grid = np.zeros((self.rows, self.columns), dtype=np.ubyte)
+                else:
+                    new_grid = np.zeros((self.slices, self.rows, self.columns), dtype=np.ubyte)
             new_grid = Series(new_grid, input_order=input_order, template=self, geometry=self)
         new_grid.seriesDescription = 'ROI'
         new_grid.windowCenter = .5
