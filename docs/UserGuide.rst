@@ -10,6 +10,7 @@ User Guide
   Tutorial
   Collections
   Notebook
+  Viewing
   Colors
   Introduction
   Input_output

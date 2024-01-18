@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.2-dev1] - 2024-01-18
+### Added
+* Added documentation on viewing.
+
 ## [v3.4.2-dev0] - 2024-01-18
 ### Changed
 * Series.get_roi_mask(): Return 2D mask when original images is 2D.
