@@ -72,3 +72,10 @@ def find_mimetype_plugin(mimetype, url, mode="r", opts=None):
             # Fall-through to fail with ArchivePluginNotFound
             pass
     raise ArchivePluginNotFound("Plugin for MIME type {} not found.".format(mimetype))
+
+
+def get_archiver_list():
+    from .. import plugins
+    return plugins['archive'] if 'archive' in plugins else []
+
+

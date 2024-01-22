@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.3] - 2024-01-22
+* Added get_transporter_list() to imagedata.transports.
+* Added get_archiver_list() to imagedata.archives.
+
 ## [v3.4.2] - 2024-01-18
 * Release 3.4.2
 

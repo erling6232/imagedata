@@ -31,6 +31,11 @@ class FunctionNotSupported(Exception):
     pass
 
 
+def get_transporter_list():
+    from .. import plugins
+    return plugins['transport'] if 'transport' in plugins else []
+
+
 def Transport(
         scheme,
         netloc=None,
