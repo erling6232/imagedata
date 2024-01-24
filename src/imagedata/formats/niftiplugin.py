@@ -6,6 +6,7 @@
 import os.path
 import tempfile
 import logging
+import mimetypes
 import math
 import nibabel
 import nibabel.data
@@ -15,6 +16,7 @@ import numpy as np
 from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
+from ..transports.filetransport import FileTransport
 
 # import nitransforms
 NIFTI_INTENT_NONE = 0
@@ -26,6 +28,9 @@ NIFTI_XFORM_MNI_152 = 4
 NIFTI_XFORM_TEMPLATE_OTHER = 5
 
 logger = logging.getLogger(__name__)
+
+mimetypes.add_type('image/nii', '.nii')
+mimetypes.add_type('image/nii', '.nii.gz')
 
 
 class NiftiPlugin(AbstractPlugin):
@@ -329,22 +334,7 @@ class NiftiPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
-        if si.color:
-            raise WriteNotImplemented(
-                "Writing color Nifti images not implemented.")
-
-        logger.debug('NiftiPlugin.write_3d_numpy: destination {}'.format(destination))
-        archive = destination['archive']
-        filename_template = 'Image.nii.gz'
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
-
-        img = self._save_dicom_to_nifti(si)
-        try:
-            filename = filename_template % 0
-        except TypeError:
-            filename = filename_template
-        self.write_numpy_nifti(img, archive, filename)
+        self.write_numpy_nifti(si, destination, opts)
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as Nifti file
@@ -359,32 +349,39 @@ class NiftiPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        self.write_numpy_nifti(si, destination, opts)
+
+    def write_numpy_nifti(self, si, destination, opts):
+        """Write nifti data to file
+
+        Args:
+            si (imagedata.Series): Series array
+            destination: dict of archive and filenames
+            opts: Output options (dict)
+        """
+
         if si.color:
             raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
-        logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
+        img = self._save_dicom_to_nifti(si)
         archive = destination['archive']
+        root: str = archive.root()
+        if issubclass(type(archive.transport), FileTransport):
+            if root.endswith('.nii.gz') or root.endswith('.nii'):
+                # Short-cut for local files
+                img.to_filename(root)
+                return
+
+        # Write NIfTI object through transport plugin
         filename_template = 'Image.nii.gz'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
-
-        img = self._save_dicom_to_nifti(si)
         try:
             filename = filename_template % 0
         except TypeError:
             filename = filename_template
-        self.write_numpy_nifti(img, archive, filename)
-
-    @staticmethod
-    def write_numpy_nifti(img, archive, filename):
-        """Write nifti data to file
-
-        Args:
-            img: Nifti1Image
-            archive: archive object
-            filename: file name, possibly without extentsion
-        """
 
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.nii.gz'
