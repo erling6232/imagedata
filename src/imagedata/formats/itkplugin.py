@@ -6,14 +6,19 @@
 import os.path
 import logging
 import tempfile
+import mimetypes
 import itk
 import numpy as np
 from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, \
     SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
 from ..axis import UniformLengthAxis, VariableAxis
 from .abstractplugin import AbstractPlugin
+from ..transports.filetransport import FileTransport
 
 logger = logging.getLogger(__name__)
+
+mimetypes.add_type('application/x-itk-data', '.mha')
+mimetypes.add_type('application/x-itk-data', '.mhd')
 
 
 class ImageTypeError(Exception):
@@ -280,6 +285,7 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
+        root: str = archive.root()
         filename_template = 'Image_%05d.mha'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
@@ -289,34 +295,22 @@ class ITKPlugin(AbstractPlugin):
         self.spacing = si.spacing
         self.imagePositions = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
-        # self.orientation          = si.orientation
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
         logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
-        # if si.ndim == 2:
-        #    si.shape = (1,) + si.shape
-        # if si.ndim == 3:
-        #    si.shape = (1,) + si.shape
-        # assert si.ndim == 4, "write_3d_series: input dimension %d is not 3D." % (si.ndim-1)
-        # if si.shape[0] != 1:
-        #    raise ValueError("Attempt to write 4D image ({}) using write_3d_numpy".format(
-        #        si.shape))
         assert si.ndim == 2 or si.ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
-        # slices = si.shape[1]
-        # if slices != si.slices:
-        #    raise ValueError("write_3d_series: slices of dicom template ({}) differ "
-        #        "from input array ({}).".format(si.slices, slices))
-
-        # if not os.path.isdir(directory_name):
-        #    os.makedirs(directory_name)
         try:
             filename = filename_template % 0
         except TypeError:
             filename = filename_template
-        # filename = os.path.join(directory_name, filename)
-        self.write_numpy_itk(si, archive, filename)
+        if issubclass(type(archive.transport), FileTransport):
+            if root.endswith('.mha'):
+                # Short-cut for local files
+                self.write_numpy_itk(si, archive, None)
+        else:
+            self.write_numpy_itk(si, archive, filename)
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as ITK files
@@ -350,7 +344,6 @@ class ITKPlugin(AbstractPlugin):
         self.spacing = si.spacing
         self.imagePositions = si.imagePositions
         self.transformationMatrix = si.transformationMatrix
-        # self.orientation          = si.orientation
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
@@ -359,9 +352,6 @@ class ITKPlugin(AbstractPlugin):
         if 'output_sort' in opts:
             self.output_sort = opts['output_sort']
 
-        # Should we allow to write 3D volume?
-        # if si.ndim == 3:
-        #    si.shape = (1,) + si.shape
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
@@ -380,20 +370,15 @@ class ITKPlugin(AbstractPlugin):
                 "write_4d_series: slices of dicom template ({}) differ "
                 "from input array ({}).".format(si.slices, slices))
 
-        # if not os.path.isdir(directory_name):
-        #    os.makedirs(directory_name)
-
         logger.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
             si[0, 0, 0, 0]))
         if self.output_sort == SORT_ON_TAG:
             for _slice in range(slices):
                 filename = filename_template % _slice
-                # filename = os.path.join(directory_name, filename)
                 self.write_numpy_itk(si[:, _slice, ...], archive, filename)
         else:  # default: SORT_ON_SLICE:
             for tag in range(steps):
                 filename = filename_template % tag
-                # filename = os.path.join(directory_name, filename)
                 self.write_numpy_itk(si[tag, ...], archive, filename)
 
     def write_numpy_itk(self, si, archive, filename):
@@ -410,7 +395,8 @@ class ITKPlugin(AbstractPlugin):
 
             si: numpy 3D array [slice,row,column]
             archive: archive object
-            filename: file name, possibly without extentsion
+            filename: file name, possibly without extentsion.
+                      If None, write to local archive.root().
         """
 
         if si.ndim != 2 and si.ndim != 3:
@@ -436,6 +422,11 @@ class ITKPlugin(AbstractPlugin):
         image = self.get_image_from_numpy(image)
 
         logger.debug("write_numpy_itk: imagetype {} filename {}".format(from_image_type, filename))
+
+        if filename is None:
+            root: str = archive.root()
+            itk.imwrite(image, root)
+            return
 
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.mha'
