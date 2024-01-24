@@ -145,6 +145,18 @@ class Test3DMatPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
+    def test_write_single_file_not_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'test.mat')
+            a.write(
+                filename,
+                formats=['mat']
+            )
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
+
     # @unittest.skip("skipping test_write_single_directory")
     def test_write_single_directory(self):
         si1 = Series(
