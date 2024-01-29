@@ -3,7 +3,7 @@
 Defines generic functions.
 """
 
-# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod
 
@@ -36,6 +36,11 @@ class Member(object):
 
 class AbstractArchive(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata archive plugins.
+
+    Standard plugins provide support for local filesystem and zip archives.
+
+    The archive plugins access actual data through a Transport plugin.
+
     Plugins must be a subclass of AbstractPlugin and
     must define the attributes set in __init__() and
     the following methods:
@@ -222,6 +227,23 @@ class AbstractArchive(object, metaclass=ABCMeta):
             member: file member.
         Returns:
             whether member is a single file (bool)
+        """
+        pass
+
+    @abstractmethod
+    def exists(self, member):
+        """Determine whether the named path exists.
+
+        Args:
+            member: member name.
+        Returns:
+            whether member exists (bool)
+        """
+        pass
+
+    @abstractmethod
+    def root(self):
+        """Get transport root name.
         """
         pass
 
