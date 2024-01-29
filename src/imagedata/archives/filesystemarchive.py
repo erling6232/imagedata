@@ -13,7 +13,7 @@ from abc import ABC
 
 from .abstractarchive import AbstractArchive, Member
 from . import FileAlreadyExistsError
-from ..transports import Transport, RootDoesNotExist, RootIsNotDirectory
+from ..transports import Transport, RootIsNotDirectory
 
 logger = logging.getLogger(__name__)
 
@@ -133,9 +133,6 @@ class FilesystemArchive(AbstractArchive, ABC):
                 root=url_tuple.path,
                 mode=mode,
                 read_directory_only=read_directory_only)
-        except RootDoesNotExist:
-            # Mode='r': location does not exist
-            raise
         except RootIsNotDirectory:
             # Mode='r': Retry with parent directory
             parent, _ = os.path.split(url_tuple.path)
@@ -367,6 +364,21 @@ class FilesystemArchive(AbstractArchive, ABC):
             whether named file is a single file (bool)
         """
         return self.__transport.isfile(member.filename)
+
+    def exists(self, member):
+        """Determine whether the named path exists.
+
+        Args:
+            member: member name.
+        Returns:
+            whether member exists (bool)
+        """
+        return self.__transport.exists(member.filename)
+
+    def root(self):
+        """Get transport root name.
+        """
+        return self.__transport.root()
 
     def __enter__(self):
         """Enter context manager.
