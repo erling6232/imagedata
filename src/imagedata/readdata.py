@@ -366,6 +366,8 @@ def _get_archive(url, mode='r', opts=None):
         mimetype,
         url,
         mode,
+        # read_directory_only=mode[0] == 'r',
+        read_directory_only=False,
         opts=opts)
     logger.debug('readdata._get_archive: _mimetypes %s' % mimetype)
     logger.debug('readdata._get_archive: archive %s' % archive.name)
