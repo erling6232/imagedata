@@ -81,7 +81,7 @@ class TestFiletransport(unittest.TestCase):
             _ = transports.filetransport.FileTransport(
                 root='data/nonexist',
                 mode='r', read_directory_only=False)
-        except transports.RootDoesNotExist:
+        except FileNotFoundError:
             pass
 
     # @unittest.skip("test_open_new")
