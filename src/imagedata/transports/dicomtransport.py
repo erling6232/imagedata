@@ -192,6 +192,16 @@ class DicomTransport(AbstractTransport):
         """
         raise FunctionNotSupported('Accessing the DICOM server is not supported.')
 
+    def exists(self, path):
+        """Determine whether the named path exists.
+        """
+        raise FunctionNotSupported('Accessing the DICOM server is not supported.')
+
+    def root(self):
+        """Get transport root name.
+        """
+        raise FunctionNotSupported('Accessing the DICOM server is not supported.')
+
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
