@@ -124,7 +124,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             # netloc = urldict.path
             # netloc: where is zipfile
             # self.__path: zipfile name
-            if urldict.scheme == 'xnat':
+            try:
                 netloc = urldict.netloc + self.__path
                 # self.__path = urldict.path
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
@@ -135,16 +135,17 @@ class ZipfileArchive(AbstractArchive, ABC):
                     root=urldict.path,
                     mode=mode,
                     read_directory_only=read_directory_only)
-            else:
-                # netloc, self.__path = os.path.split(urldict.path)
-                netloc, self.__path = os.path.split(self.__path)
-                logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
-                             (urldict.scheme, netloc))
-                self.__transport = Transport(
-                    urldict.scheme,
-                    root=netloc,
-                    mode=mode,
-                    read_directory_only=read_directory_only)
+            except Exception as e:
+                raise
+                # # netloc, self.__path = os.path.split(urldict.path)
+                # netloc, self.__path = os.path.split(self.__path)
+                # logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
+                #              (urldict.scheme, netloc))
+                # self.__transport = Transport(
+                #     urldict.scheme,
+                #     root=netloc,
+                #     mode=mode,
+                #     read_directory_only=read_directory_only)
         self.__mode = mode
         self.__files = {}
 
@@ -424,6 +425,21 @@ class ZipfileArchive(AbstractArchive, ABC):
             whether named file is a single file (bool)
         """
         return member.filename in self.__files and self._filehandle_in_files(member)
+
+    def exists(self, member):
+        """Determine whether the named path exists.
+
+        Args:
+            member: member name.
+        Returns:
+            whether member exists (bool)
+        """
+        return member.filename in self.__files
+
+    def root(self):
+        """Get transport root name.
+        """
+        return self.__transport.root()
 
     def __enter__(self):
         """Enter context manager.
