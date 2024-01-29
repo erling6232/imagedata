@@ -46,7 +46,7 @@ class TestArchiveFile(unittest.TestCase):
                 '*',
                 'unknown',
                 'r')
-        except transports.RootIsNotDirectory:
+        except FileNotFoundError:
             pass
 
     # @unittest.skip("skipping test_read_one_file")
