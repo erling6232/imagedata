@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.4-dev0] - 2024-01-24
+* ITKPlugin, MatPlugin and NiftiPlugin: when writing to a local file with proper
+  file extension (.mat, .nii.gz or .nii), bypass transport plugin to
+  create file in given directory.
+
 ## [v3.4.3] - 2024-01-22
 * Added get_transporter_list() to imagedata.transports.
 * Added get_archiver_list() to imagedata.archives.
