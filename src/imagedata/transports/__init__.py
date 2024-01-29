@@ -23,10 +23,6 @@ class RootIsNotDirectory(Exception):
     pass
 
 
-class RootDoesNotExist(Exception):
-    pass
-
-
 class FunctionNotSupported(Exception):
     pass
 
