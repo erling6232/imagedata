@@ -737,6 +737,26 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
+class TestDicomPlugin(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1:
+            self.opts.output_format = ['dicom']
+
+    def test_user_defined_sort(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            't',
+            opts={
+                't': 'InstanceNumber'
+            })
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['dicom'])
+
+
 if __name__ == '__main__':
     unittest.main()
     # logging.basicConfig(level=logging.DEBUG)
