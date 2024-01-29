@@ -8,7 +8,7 @@ import os.path
 import io
 import logging
 from .abstracttransport import AbstractTransport
-from . import RootIsNotDirectory, RootDoesNotExist
+from . import RootIsNotDirectory
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class FileTransport(AbstractTransport):
 
     Raises:
         RootIsNotDirectory: when the root is not a directory when read_directory_only is True.
-        RootDoesNotExist: Specified root does not exist.
+        FileNotFoundError: Specified root does not exist.
         AssertionError: When root is None.
     """
 
@@ -50,8 +50,8 @@ class FileTransport(AbstractTransport):
             logger.debug("FileTransport __init__ RootIsNotDirectory")
             raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
-            logger.debug("FileTransport __init__ RootDoesNotExist")
-            raise RootDoesNotExist("Root ({}) does not exist".format(root))
+            logger.debug("FileTransport __init__ FileNotFoundError")
+            raise FileNotFoundError("Root ({}) does not exist".format(root))
         self.__root = root
         self.__mode = mode
 
@@ -101,6 +101,16 @@ class FileTransport(AbstractTransport):
         """
         return os.path.isfile(os.path.join(self.__root, path))
 
+    def exists(self, path):
+        """Determine whether the named path exists.
+        """
+        return os.path.exists(os.path.join(self.__root, path))
+
+    def root(self):
+        """Get transport root name.
+        """
+        return self.__root
+
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
 
@@ -109,7 +119,11 @@ class FileTransport(AbstractTransport):
             mode (str): Open mode, can be 'r', 'w', 'x' or 'a'
         """
         logger.debug("FileTransport open: {} ({})".format(path, mode))
-        filename = os.path.join(self.__root, path)
+        root = self.__root
+        if os.path.isfile(root):
+            filename = root
+        else:
+            filename = os.path.join(root, path)
         if mode[0] in ['w', 'x', 'a']:
             os.makedirs(os.path.dirname(filename), exist_ok=True)
         logger.debug("FileTransport open: {} ({})".format(filename, mode))
