@@ -1,7 +1,7 @@
 """Read/Write image files using ITK
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import logging
@@ -14,6 +14,7 @@ from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotI
 from ..axis import UniformLengthAxis, VariableAxis
 from .abstractplugin import AbstractPlugin
 from ..transports.filetransport import FileTransport
+from ..archives.filesystemarchive import FilesystemArchive
 
 logger = logging.getLogger(__name__)
 
@@ -305,10 +306,15 @@ class ITKPlugin(AbstractPlugin):
             filename = filename_template % 0
         except TypeError:
             filename = filename_template
-        if issubclass(type(archive.transport), FileTransport):
+        if issubclass(type(archive.transport), FileTransport) and \
+            issubclass(type(archive), FilesystemArchive):
             if root.endswith('.mha'):
                 # Short-cut for local files
-                self.write_numpy_itk(si, archive, None)
+                self.write_numpy_itk(si, archive, None, local=True)
+            elif filename.endswith('.mha'):
+                self.write_numpy_itk(si, archive, filename, local=True)
+            else:
+                self.write_numpy_itk(si, archive, filename)
         else:
             self.write_numpy_itk(si, archive, filename)
 
@@ -381,7 +387,7 @@ class ITKPlugin(AbstractPlugin):
                 filename = filename_template % tag
                 self.write_numpy_itk(si[tag, ...], archive, filename)
 
-    def write_numpy_itk(self, si, archive, filename):
+    def write_numpy_itk(self, si, archive, filename, local=False):
         """Write single volume to file
 
         Args:
@@ -423,8 +429,10 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug("write_numpy_itk: imagetype {} filename {}".format(from_image_type, filename))
 
-        if filename is None:
+        if local:
             root: str = archive.root()
+            if filename is not None:
+                root = os.path.join(root, filename)
             itk.imwrite(image, root)
             return
 
