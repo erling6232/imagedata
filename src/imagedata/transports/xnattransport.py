@@ -13,6 +13,7 @@ import tempfile
 import urllib
 import xnat
 from .abstracttransport import AbstractTransport
+from . import FunctionNotSupported
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ class XnatTransport(AbstractTransport):
     version = "2.0.0"
     url = "www.helse-bergen.no"
     schemes = ["xnat"]
+    mimetype = "application/zip"  # Determines archive plugin
 
     def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts=None):
         super(XnatTransport, self).__init__(self.name, self.description,
@@ -200,7 +202,17 @@ class XnatTransport(AbstractTransport):
     def isfile(self, path):
         """Return True if path is an existing regular file.
         """
-        pass
+        raise FunctionNotSupported('Accessing the XNAT server is not supported.')
+
+    def exists(self, path):
+        """Return True if the named path exists.
+        """
+        raise FunctionNotSupported('Accessing the XNAT server is not supported.')
+
+    def root(self):
+        """Get transport root name.
+        """
+        raise FunctionNotSupported('Accessing the XNAT server is not supported.')
 
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
