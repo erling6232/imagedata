@@ -8,6 +8,7 @@ import sys
 import logging
 import traceback
 import warnings
+import mimetypes
 import math
 from datetime import date, datetime, timedelta, timezone
 import numpy as np
@@ -36,6 +37,8 @@ try:
 except AttributeError:
     # pydicom < 2.3
     pydicom.config.enforce_valid_values = True
+
+mimetypes.add_type('application/dicom', '.ima')
 
 
 class FilesGivenForMultipleURLs(Exception):
