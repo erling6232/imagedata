@@ -49,7 +49,7 @@ class TestArchiveZip(unittest.TestCase):
                 'unknown',
                 'r')
             archive.close()
-        except transports.RootDoesNotExist:
+        except FileNotFoundError:
             pass
 
     # @unittest.skip("skipping test_new_archive")
