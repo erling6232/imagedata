@@ -24,6 +24,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
     """
 
     plugin_type = 'transport'
+    mimetype = "*"  # Determines archive plugin
 
     def __init__(self, name, description, authors, version, url, schemes):
         object.__init__(self)
@@ -97,6 +98,18 @@ class AbstractTransport(object, metaclass=ABCMeta):
     @abstractmethod
     def isfile(self, path):
         """Return True if path is an existing regular file.
+        """
+        pass
+
+    @abstractmethod
+    def exists(self, path):
+        """Determine whether the named path exists.
+        """
+        pass
+
+    @abstractmethod
+    def root(self):
+        """Get transport root name.
         """
         pass
 
