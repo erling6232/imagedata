@@ -57,11 +57,11 @@ jobs:
 #        verbose: false
 #      env:
 #        token: ${{ secrets.CODECOV_TOKEN }}
-    - name: Archive code coverage html report
-      uses: actions/upload-artifact@v4
-      with:
-        name: code-coverage-report
-        path: htmlcov
+#    - name: Archive code coverage html report
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: code-coverage-report
+#        path: htmlcov
 
   build_wheel:
     name: Build wheel and source distribution
