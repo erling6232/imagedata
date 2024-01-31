@@ -14,6 +14,8 @@ from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, \
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..transports.filetransport import FileTransport
+from ..archives.abstractarchive import AbstractArchive
+from ..archives.filesystemarchive import FilesystemArchive
 
 logger = logging.getLogger(__name__)
 
@@ -252,23 +254,35 @@ class MatPlugin(AbstractPlugin):
         self._write_numpy_to_mat(img, destination, opts)
 
     def _write_numpy_to_mat(self, img, destination, opts):
-        archive = destination['archive']
-        root: str = archive.root()
-        if issubclass(type(archive.transport), FileTransport):
-            if root.endswith('.mat'):
-                # Short-cut for local files
-                scipy.io.savemat(root, {'A': img})
-                return
-
+        archive: AbstractArchive = destination['archive']
+        root: str = archive.root
         filename_template = 'Image_%05d.mat'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
+            if archive.base is not None:
+                root = os.path.join(root, archive.base)
+        elif archive.base is not None:
+            filename_template = archive.base
         try:
             filename = filename_template % 0
         except TypeError:
             filename = filename_template
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.mat'
+
+        if issubclass(type(archive.transport), FileTransport) and \
+            issubclass(type(archive), FilesystemArchive):
+            if root.endswith('.mat'):
+                # Short-cut for local files
+                os.makedirs(os.path.dirname(root), exist_ok=True)
+                scipy.io.savemat(root, {'A': img})
+                return
+            elif filename.endswith('.mat'):
+                # Short-cut for local files
+                os.makedirs(root, exist_ok=True)
+                scipy.io.savemat(os.path.join(root, filename), {'A': img})
+                return
+
         with archive.open(filename, 'wb') as f:
             logger.debug("_write_numpy_to_mat: Calling savemat")
             scipy.io.savemat(f, {'A': img})
