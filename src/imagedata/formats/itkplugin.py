@@ -13,6 +13,7 @@ from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotI
     SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
 from ..axis import UniformLengthAxis, VariableAxis
 from .abstractplugin import AbstractPlugin
+from ..archives.abstractarchive import AbstractArchive
 from ..transports.filetransport import FileTransport
 from ..archives.filesystemarchive import FilesystemArchive
 
@@ -285,11 +286,13 @@ class ITKPlugin(AbstractPlugin):
                 "Writing color ITK images not implemented.")
 
         logger.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
-        archive = destination['archive']
-        root: str = archive.root()
-        filename_template = 'Image_%05d.mha'
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
+        archive: AbstractArchive = destination['archive']
+        if archive.base is None or len(archive.base) < 1:
+            filename_template = 'Image_%05d.mha'
+            if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
+                filename_template = destination['files'][0]
+        else:
+            filename_template = archive.base
 
         self.shape = si.shape
         self.slices = si.slices
@@ -306,17 +309,7 @@ class ITKPlugin(AbstractPlugin):
             filename = filename_template % 0
         except TypeError:
             filename = filename_template
-        if issubclass(type(archive.transport), FileTransport) and \
-            issubclass(type(archive), FilesystemArchive):
-            if root.endswith('.mha'):
-                # Short-cut for local files
-                self.write_numpy_itk(si, archive, None, local=True)
-            elif filename.endswith('.mha'):
-                self.write_numpy_itk(si, archive, filename, local=True)
-            else:
-                self.write_numpy_itk(si, archive, filename)
-        else:
-            self.write_numpy_itk(si, archive, filename)
+        self.write_numpy_itk(si, archive, filename)
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D numpy image as ITK files
@@ -340,10 +333,15 @@ class ITKPlugin(AbstractPlugin):
                 "Writing color ITK images not implemented.")
 
         logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
-        archive = destination['archive']
+        archive: AbstractArchive = destination['archive']
         filename_template = 'Image_%05d.mha'
+        root = None
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
+            if archive.base is not None:
+                filename_template = os.path.join(archive.base, filename_template)
+        elif archive.base is not None:
+            filename_template = archive.base
 
         self.shape = si.shape
         self.slices = si.slices
@@ -387,7 +385,7 @@ class ITKPlugin(AbstractPlugin):
                 filename = filename_template % tag
                 self.write_numpy_itk(si[tag, ...], archive, filename)
 
-    def write_numpy_itk(self, si, archive, filename, local=False):
+    def write_numpy_itk(self, si, archive, filename):
         """Write single volume to file
 
         Args:
@@ -402,7 +400,6 @@ class ITKPlugin(AbstractPlugin):
             si: numpy 3D array [slice,row,column]
             archive: archive object
             filename: file name, possibly without extentsion.
-                      If None, write to local archive.root().
         """
 
         if si.ndim != 2 and si.ndim != 3:
@@ -429,12 +426,19 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug("write_numpy_itk: imagetype {} filename {}".format(from_image_type, filename))
 
-        if local:
-            root: str = archive.root()
-            if filename is not None:
-                root = os.path.join(root, filename)
-            itk.imwrite(image, root)
-            return
+        root: str = archive.root
+        if issubclass(type(archive.transport), FileTransport) and \
+                issubclass(type(archive), FilesystemArchive):
+            if root.endswith('.mha'):
+                # Short-cut for local files
+                os.makedirs(os.path.dirname(root), exist_ok=True)
+                itk.imwrite(image, root)
+                return
+            elif filename.endswith('.mha'):
+                # Short-cut for local files
+                os.makedirs(root, exist_ok=True)
+                itk.imwrite(image, os.path.join(root, filename))
+                return
 
         if len(os.path.splitext(filename)[1]) == 0:
             filename = filename + '.mha'
