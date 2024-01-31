@@ -563,8 +563,13 @@ class DICOMPlugin(AbstractPlugin):
             archive = source['archive']
             scan_files = source['files']
             logger.debug("DICOMPlugin.get_dicom_files: archive: {}".format(archive))
-            # if scan_files is None or len(scan_files) == 0:
-            #     scan_files = ['*']
+            if scan_files is None or len(scan_files) == 0:
+                if archive.base is not None:
+                    scan_files = [archive.base]
+                else:
+                    scan_files = ['*']
+            elif archive.base is not None:
+                raise ValueError('When is archive.base with source[files]')
             logger.debug("get_dicom_files: source: {} {}".format(type(source), source))
             logger.debug("get_dicom_files: scan_files: {}".format(scan_files))
             for path in archive.getnames(scan_files):
@@ -1423,7 +1428,9 @@ class DICOMPlugin(AbstractPlugin):
             archive.transport.store(ds)
         else:
             # Store dicom set ds as file
-            with archive.open(fn, 'wb') as f:
+            with archive.open(
+                    os.path.join(archive.path, fn),
+                    'wb') as f:
                 ds.save_as(f, write_like_original=False)
 
     def construct_basic_dicom(self, template=None, filename='NA', sop_ins_uid=None):
