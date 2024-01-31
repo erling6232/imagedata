@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.4.4-dev0] - 2024-01-24
+## [v3.4.4-rc0] - 2024-01-31
 * ITKPlugin, MatPlugin and NiftiPlugin: when writing to a local file with proper
   file extension (.mat, .nii.gz or .nii), bypass transport plugin to
   create file in given directory.
