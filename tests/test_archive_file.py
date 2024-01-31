@@ -65,13 +65,13 @@ class TestArchiveFile(unittest.TestCase):
                 '*',
                 d,
                 'w')
-            with archive.open('test.txt', 'w') as f:
+            with archive.open(os.path.join(d, 'test.txt'), 'w') as f:
                 f.write(b'Hello world!')
             read_archive = archives.find_mimetype_plugin(
                 '*',
                 d,
                 'r')
-            with read_archive.open('test.txt', 'r') as f:
+            with read_archive.open(os.path.join(d, 'test.txt'), 'r') as f:
                 contents = f.read()
         self.assertEqual(contents, b'Hello world!')
 

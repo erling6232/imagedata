@@ -73,7 +73,7 @@ class Test3DMatPlugin(unittest.TestCase):
             formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual(si1.dtype, np.uint16)
-        self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
+        self.assertEqual(si1.shape, (3, 3, 192, 152))
 
     # @unittest.skip("skipping test_read_single_directory")
     def test_read_single_directory(self):

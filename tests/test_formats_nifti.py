@@ -254,8 +254,8 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             ],
             formats.INPUT_ORDER_TIME,
             self.opts)
-        self.assertEqual(si1.dtype, np.int16)
-        self.assertEqual(si1.shape, (2, 3, 3, 192, 152))
+        self.assertEqual(np.int16, si1.dtype)
+        self.assertEqual((3, 3, 192, 152), si1.shape)
 
     # @unittest.skip("skipping test_zipread_single_file")
     def test_zipread_single_file(self):

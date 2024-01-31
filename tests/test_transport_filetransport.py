@@ -44,14 +44,13 @@ class TestFiletransport(unittest.TestCase):
     def test_isfile(self):
         tree = transports.filetransport.FileTransport(
             root='data', mode='r', read_directory_only=False)
-        self.assertEqual(tree.isfile('dicom/lena_color.dcm'), True)
-        self.assertEqual(tree.isfile('dicom/time'), False)
+        self.assertEqual(tree.isfile('data/dicom/lena_color.dcm'), True)
+        self.assertEqual(tree.isfile('data/dicom/time'), False)
 
-    # @unittest.skip("test_readfile")
     def test_readfile(self):
         tree = transports.filetransport.FileTransport(
             root='data', mode='r', read_directory_only=False)
-        f = tree.open('text.txt')
+        f = tree.open('data/text.txt')
         contents = f.read()
         self.assertEqual(len(contents),
                          408347 if os.name == 'nt' else 13)
@@ -72,7 +71,7 @@ class TestFiletransport(unittest.TestCase):
             _ = transports.filetransport.FileTransport(
                 root='data/nonexist',
                 mode='r', read_directory_only=True)
-        except transports.RootIsNotDirectory:
+        except FileNotFoundError:
             pass
 
     # @unittest.skip("test_open_nonexist")
@@ -99,14 +98,14 @@ class TestFiletransport(unittest.TestCase):
             tree = transports.filetransport.FileTransport(
                 root=d,
                 mode='w', read_directory_only=False)
-            f = tree.open('test.txt', mode='w')
+            f = tree.open(os.path.join(d, 'test.txt'), mode='w')
             f.write(b'Hello world!')
             f.close()
 
             _ = transports.filetransport.FileTransport(
                 root=d,
                 mode='r', read_directory_only=False)
-            f = tree.open('test.txt')
+            f = tree.open(os.path.join(d, 'test.txt'))
             contents = f.read()
             f.close()
         self.assertEqual(contents, b'Hello world!')
