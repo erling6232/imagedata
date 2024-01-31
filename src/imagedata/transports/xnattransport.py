@@ -1,8 +1,9 @@
 """Read/write files in xnat database
 """
 
-# Copyright (c) 2021-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2021-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+from typing import Union
 import os
 import os.path
 import io
@@ -10,7 +11,7 @@ import fnmatch
 import logging
 import shutil
 import tempfile
-import urllib
+import urllib.parse
 import xnat
 from .abstracttransport import AbstractTransport
 from . import FunctionNotSupported
@@ -22,15 +23,35 @@ class XnatTransport(AbstractTransport):
     """Read/write files in xnat database.
     """
 
-    name = "xnat"
-    description = "Read and write files in xnat database."
-    authors = "Erling Andersen"
-    version = "2.0.0"
-    url = "www.helse-bergen.no"
-    schemes = ["xnat"]
-    mimetype = "application/zip"  # Determines archive plugin
+    name: str = "xnat"
+    description: str = "Read and write files in xnat database."
+    authors: str = "Erling Andersen"
+    version: str = "2.0.0"
+    url: str = "www.helse-bergen.no"
+    schemes: list[str] = ["xnat"]
+    mimetype: str = "application/zip"  # Determines archive plugin
+    read_directory_only: bool = None
+    opts: Union[dict | None] = None
+    netloc: str = None
+    __root: str = None
+    __mode: str = None
+    __local: bool = False
+    __must_upload: bool = False
+    __tmpdir: Union[str | None] = None
+    __session: xnat.XNATSession = None
+    __project: xnat.session.XNATSession = None
+    __subject = None
+    __experiment = None
+    __scan = None
+    __tmpdir = None
+    __must_upload: bool = False
 
-    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts=None):
+    def __init__(self,
+                 netloc: Union[str | None] = None,
+                 root: Union[str | None] = None,
+                 mode: str = 'r',
+                 read_directory_only: bool = False,
+                 opts: Union[dict | None] = None):
         super(XnatTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         if opts is None:
@@ -74,17 +95,17 @@ class XnatTransport(AbstractTransport):
         self.__session = xnat.connect('https://' + self.netloc, **kwargs)
         logger.debug("XnatTransport __init__ session: {}".format(self.__session))
         self.__project = self.__session.projects[project] if project is not None else None
-        self.root = '/' + project
+        self.__root = '/' + project
         logger.debug("XnatTransport __init__ project: {}".format(self.__project))
 
         self.__subject = self.__project.subjects[subject] if subject is not None else None
         if subject is not None:
-            self.root += '/' + subject
+            self.__root += '/' + subject
             logger.debug("Subject: {}".format(self.__subject.label))
         self.__experiment = self.__subject.experiments[experiment]\
             if experiment is not None else None
         if experiment is not None:
-            self.root += '/' + experiment
+            self.__root += '/' + experiment
             logger.debug("Experiment: {}".format(experiment))
         if mode == 'r':
             self.__scan = None
@@ -96,7 +117,7 @@ class XnatTransport(AbstractTransport):
         else:
             self.__scan = None
         if scan is not None:
-            self.root += '/' + scan
+            self.__root += '/' + scan
             logger.debug("Scan: {}".format(scan))
 
     def close(self):
@@ -122,8 +143,8 @@ class XnatTransport(AbstractTransport):
         - tuples of (root, dirs, files)
         """
         if len(top) < 1 or top[0] != '/':
-            # Add self.root to relative tree top
-            top = self.root + '/' + top
+            # Add self.__root to relative tree top
+            top = self.__root + '/' + top
         url_tuple = urllib.parse.urlsplit(top)
         url = url_tuple.path.split('/')
         subject_search = url[2] if len(url) >= 3 else None
@@ -207,12 +228,7 @@ class XnatTransport(AbstractTransport):
     def exists(self, path):
         """Return True if the named path exists.
         """
-        raise FunctionNotSupported('Accessing the XNAT server is not supported.')
-
-    def root(self):
-        """Get transport root name.
-        """
-        raise FunctionNotSupported('Accessing the XNAT server is not supported.')
+        return False
 
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
@@ -260,8 +276,8 @@ class XnatTransport(AbstractTransport):
             description (str): Preferably a one-line string describing the object
         """
         if path[0] != '/':
-            # Add self.root to relative path
-            path = self.root + '/' + path
+            # Add self.__root to relative path
+            path = self.__root + '/' + path
         url_tuple = urllib.parse.urlsplit(path)
         url = url_tuple.path.split('/')
         if len(url) < 2:
