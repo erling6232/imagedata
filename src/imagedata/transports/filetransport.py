@@ -1,8 +1,9 @@
 """Read/Write local files
 """
 
-# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+from typing import Union
 import os
 import os.path
 import io
@@ -32,26 +33,42 @@ class FileTransport(AbstractTransport):
         AssertionError: When root is None.
     """
 
-    name = "file"
-    description = "Read and write local files."
-    authors = "Erling Andersen"
-    version = "1.1.0"
-    url = "www.helse-bergen.no"
-    schemes = ["file"]
+    name: str = "file"
+    description: str = "Read and write local files."
+    authors: str = "Erling Andersen"
+    version: str = "1.1.0"
+    url: str = "www.helse-bergen.no"
+    schemes: list[str] = ["file"]
+    __root: str = None
+    __mode: str = None
+    __basename: str = None
+    netloc: str = None
+    opts: dict = None
+    path: str = None
 
-    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts=None):
+    def __init__(self,
+                 netloc: Union[str | None] = None,
+                 root: Union[str | None] = None,
+                 mode: str = 'r',
+                 read_directory_only: bool = False,
+                 opts: Union[dict | None] = None):
         super(FileTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         self.netloc = netloc
         self.opts = opts
+        self.path = root
         logger.debug("FileTransport __init__ root: {} ({})".format(root, mode))
         assert root is not None, "Root should not be None"
-        if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
-            logger.debug("FileTransport __init__ RootIsNotDirectory")
-            raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
+        # if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
+        #     logger.debug("FileTransport __init__ RootIsNotDirectory")
+        #     raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
             logger.debug("FileTransport __init__ FileNotFoundError")
             raise FileNotFoundError("Root ({}) does not exist".format(root))
+        if mode[0] == 'w' and not os.path.exists(root) and \
+                os.path.exists(os.path.dirname(root)):
+            self.__basename = os.path.basename(root)
+            root = os.path.dirname(root)
         self.__root = root
         self.__mode = mode
 
@@ -84,11 +101,13 @@ class FileTransport(AbstractTransport):
         Returns:
             tuples of (root, dirs, files)
         """
-        for root, dirs, files in os.walk(self._get_path(top)):
-            local_root = root
-            if local_root.startswith(self.__root):
-                local_root = root[len(self.__root) + 1:]  # Strip off root
-            yield local_root, dirs, files
+        # for root, dirs, files in os.walk(self._get_path(top)):
+        #     local_root = root
+        #     if local_root.startswith(self.__root):
+        #         local_root = root[len(self.__root) + 1:]  # Strip off root
+        #     yield local_root, dirs, files
+        for root, dirs, files in os.walk(top):
+            yield root, dirs, files
 
     def isfile(self, path):
         """Check whether path refers to an existing regular file.
@@ -99,19 +118,14 @@ class FileTransport(AbstractTransport):
         Returns:
             Existense of regular file (bool)
         """
-        return os.path.isfile(os.path.join(self.__root, path))
+        return os.path.isfile(path)
 
     def exists(self, path):
         """Determine whether the named path exists.
         """
-        return os.path.exists(os.path.join(self.__root, path))
+        return os.path.exists(path)
 
-    def root(self):
-        """Get transport root name.
-        """
-        return self.__root
-
-    def open(self, path, mode='r'):
+    def open(self, path: str, mode: str = 'r') -> io.IOBase:
         """Extract a member from the archive as a file-like object.
 
         Args:
@@ -119,15 +133,10 @@ class FileTransport(AbstractTransport):
             mode (str): Open mode, can be 'r', 'w', 'x' or 'a'
         """
         logger.debug("FileTransport open: {} ({})".format(path, mode))
-        root = self.__root
-        if os.path.isfile(root):
-            filename = root
-        else:
-            filename = os.path.join(root, path)
         if mode[0] in ['w', 'x', 'a']:
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-        logger.debug("FileTransport open: {} ({})".format(filename, mode))
-        return io.FileIO(filename, mode)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        logger.debug("FileTransport open: {} ({})".format(path, mode))
+        return io.FileIO(path, mode)
 
     def info(self, path) -> str:
         """Return info describing the object
