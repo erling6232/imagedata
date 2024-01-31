@@ -145,7 +145,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def basename(self, filehandle):
+    def basename(self, filehandle: Member):
         """Basename of file.
 
         Examples:
@@ -159,7 +159,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def open(self, member, mode='rb'):
+    def open(self, member: Member, mode: str='rb'):
         """Open file.
 
         Args:
@@ -241,9 +241,23 @@ class AbstractArchive(object, metaclass=ABCMeta):
         """
         pass
 
-    @abstractmethod
-    def root(self):
-        """Get transport root name.
+    @property
+    def root(self) -> str:
+        """Archive root name.
+        """
+        pass
+
+    @property
+    def base(self) -> str:
+        """Archive base.
+        """
+        pass
+
+    @property
+    def path(self) -> str:
+        """Archive path.
+
+        Typically, this will be a combination of archive root and base.
         """
         pass
 
