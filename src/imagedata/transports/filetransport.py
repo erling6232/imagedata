@@ -3,7 +3,7 @@
 
 # Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from typing import Optional
+from typing import List, Optional
 import os
 import os.path
 import io
@@ -38,7 +38,7 @@ class FileTransport(AbstractTransport):
     authors: str = "Erling Andersen"
     version: str = "1.1.0"
     url: str = "www.helse-bergen.no"
-    schemes: list[str] = ["file"]
+    schemes: List[str] = ["file"]
     __root: str = None
     __mode: str = None
     __basename: str = None
