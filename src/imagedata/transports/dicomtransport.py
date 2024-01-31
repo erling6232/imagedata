@@ -1,8 +1,9 @@
 """Transfer DICOM images to and from DICOM Storage SCP
 """
 
-# Copyright (c) 2019-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2019-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+from typing import Union
 import platform
 import urllib
 import logging
@@ -68,7 +69,12 @@ class DicomTransport(AbstractTransport):
 
     __catalog = {}
 
-    def __init__(self, netloc=None, root=None, mode='r', read_directory_only=False, opts=None):
+    def __init__(self,
+                 netloc: Union[str | None] = None,
+                 root: Union[str | None] = None,
+                 mode: str = 'r',
+                 read_directory_only: bool = False,
+                 opts: Union[dict | None] = None):
         super(DicomTransport, self).__init__(self.name, self.description,
                                              self.authors, self.version, self.url, self.schemes)
         if opts is None:
@@ -195,12 +201,7 @@ class DicomTransport(AbstractTransport):
     def exists(self, path):
         """Determine whether the named path exists.
         """
-        raise FunctionNotSupported('Accessing the DICOM server is not supported.')
-
-    def root(self):
-        """Get transport root name.
-        """
-        raise FunctionNotSupported('Accessing the DICOM server is not supported.')
+        return False
 
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
