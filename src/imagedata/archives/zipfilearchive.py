@@ -229,7 +229,7 @@ class ZipfileArchive(AbstractArchive, ABC):
                 raise FileNotFoundError('No such file: {}'.format(wanted_files))
             return filelist
 
-    def basename(self, filehandle):
+    def basename(self, filehandle: Member):
         """Basename of file.
 
         Examples:
@@ -258,7 +258,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         prefix = self._longest_prefix(self.__files.keys(), fname)
         return prefix in self.__files
 
-    def open(self, member, mode='rb'):
+    def open(self, member: Member, mode: str='rb'):
         """Open file.
 
         Extract the member object to local file space.
@@ -436,10 +436,23 @@ class ZipfileArchive(AbstractArchive, ABC):
         """
         return member.filename in self.__files
 
-    def root(self):
-        """Get transport root name.
+    @property
+    def root(self) -> str:
+        """Archive root name.
         """
-        return self.__transport.root()
+        return os.path.pathsep
+
+    @property
+    def base(self) -> str:
+        """Archive base name.
+        """
+        return None
+
+    @property
+    def path(self) -> str:
+        """Archive path.
+        """
+        return ''
 
     def __enter__(self):
         """Enter context manager.
