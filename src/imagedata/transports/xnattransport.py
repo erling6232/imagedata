@@ -3,7 +3,7 @@
 
 # Copyright (c) 2021-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from typing import Union
+from typing import Optional
 import os
 import os.path
 import io
@@ -31,13 +31,13 @@ class XnatTransport(AbstractTransport):
     schemes: list[str] = ["xnat"]
     mimetype: str = "application/zip"  # Determines archive plugin
     read_directory_only: bool = None
-    opts: Union[dict | None] = None
+    opts: [dict] = None
     netloc: str = None
     __root: str = None
     __mode: str = None
     __local: bool = False
     __must_upload: bool = False
-    __tmpdir: Union[str | None] = None
+    __tmpdir: [str] = None
     __session: xnat.XNATSession = None
     __project: xnat.session.XNATSession = None
     __subject = None
@@ -47,11 +47,11 @@ class XnatTransport(AbstractTransport):
     __must_upload: bool = False
 
     def __init__(self,
-                 netloc: Union[str | None] = None,
-                 root: Union[str | None] = None,
-                 mode: str = 'r',
-                 read_directory_only: bool = False,
-                 opts: Union[dict | None] = None):
+                 netloc: Optional[str] = None,
+                 root: Optional[str] = None,
+                 mode: Optional[str] = 'r',
+                 read_directory_only: Optional[bool] = False,
+                 opts: Optional[dict] = None):
         super(XnatTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         if opts is None:

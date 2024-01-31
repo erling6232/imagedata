@@ -3,7 +3,7 @@
 
 # Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from typing import Union
+from typing import Optional
 import os
 import os.path
 import io
@@ -47,11 +47,11 @@ class FileTransport(AbstractTransport):
     path: str = None
 
     def __init__(self,
-                 netloc: Union[str | None] = None,
-                 root: Union[str | None] = None,
-                 mode: str = 'r',
-                 read_directory_only: bool = False,
-                 opts: Union[dict | None] = None):
+                 netloc: Optional[str] = None,
+                 root: Optional[str] = None,
+                 mode: Optional[str] = 'r',
+                 read_directory_only: Optional[bool] = False,
+                 opts: Optional[dict] = None):
         super(FileTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         self.netloc = netloc

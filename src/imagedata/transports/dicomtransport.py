@@ -3,7 +3,7 @@
 
 # Copyright (c) 2019-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from typing import Union
+from typing import Optional
 import platform
 import urllib
 import logging
@@ -70,11 +70,11 @@ class DicomTransport(AbstractTransport):
     __catalog = {}
 
     def __init__(self,
-                 netloc: Union[str | None] = None,
-                 root: Union[str | None] = None,
-                 mode: str = 'r',
-                 read_directory_only: bool = False,
-                 opts: Union[dict | None] = None):
+                 netloc: Optional[str] = None,
+                 root: Optional[str] = None,
+                 mode: Optional[str] = 'r',
+                 read_directory_only: Optional[bool] = False,
+                 opts: Optional[dict] = None):
         super(DicomTransport, self).__init__(self.name, self.description,
                                              self.authors, self.version, self.url, self.schemes)
         if opts is None:
