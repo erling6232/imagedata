@@ -3,7 +3,7 @@
 
 # Copyright (c) 2021-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-from typing import Optional
+from typing import List, Optional
 import os
 import os.path
 import io
@@ -28,7 +28,7 @@ class XnatTransport(AbstractTransport):
     authors: str = "Erling Andersen"
     version: str = "2.0.0"
     url: str = "www.helse-bergen.no"
-    schemes: list[str] = ["xnat"]
+    schemes: List[str] = ["xnat"]
     mimetype: str = "application/zip"  # Determines archive plugin
     read_directory_only: bool = None
     opts: [dict] = None
