@@ -6,7 +6,7 @@ Defines generic functions.
 # Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
-from typing import Union
+from typing import List, Union
 import io
 
 
@@ -29,14 +29,14 @@ class AbstractTransport(object, metaclass=ABCMeta):
     mimetype = "*"  # Determines archive plugin
 
     def __init__(self, name: str, description: str, authors: str, version: str, url: str,
-                 schemes: Union[list[str] | None]):
+                 schemes: Union[List[str] | None]):
         object.__init__(self)
         self.__name: str = name
         self.__description: str = description
         self.__authors: str = authors
         self.__version: str = version
         self.__url: str = url
-        self.__schemes: Union[list[str] | None] = schemes
+        self.__schemes: Union[List[str] | None] = schemes
 
     @property
     def name(self) -> str:
@@ -81,7 +81,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__url
 
     @property
-    def schemes(self) -> Union[list[str] | None]:
+    def schemes(self) -> Union[List[str] | None]:
         """List of transport schemes supported by this plugin.
 
         List of strings.
