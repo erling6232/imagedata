@@ -4,13 +4,14 @@ Defines generic functions.
 """
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
-# Copyright (c) 2017-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2017-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
 import logging
 import numpy as np
 from . import NotImageError, shape_to_str, INPUT_ORDER_TIME
 from ..header import Header
+from ..archives.abstractarchive import AbstractArchive
 
 logger = logging.getLogger(__name__)
 
@@ -115,8 +116,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         image_list = list()
         for source in sources:
             logger.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
-            archive = source['archive']
+            archive: AbstractArchive = source['archive']
+            root: str = archive.root
             scan_files = source['files']
+            if scan_files is None or len(scan_files) == 0:
+                if archive.base is not None:
+                    scan_files = [archive.base]
+                else:
+                    scan_files = ['*']
+            elif archive.base is not None:
+                raise ValueError('When is archive.base with source[files]')
             # if scan_files is None or len(scan_files) == 0:
             #     scan_files = archive.getnames()
             # logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
