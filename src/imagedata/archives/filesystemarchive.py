@@ -251,7 +251,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             filename = member
         else:
             filename = member.filename
-        return self.__transport.open(filename, mode)
+        return self.__transport.open(os.path.join(self.root, filename), mode)
 
     def getmembers(self, files=None):
         """Get the members of the archive.
