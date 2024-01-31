@@ -6,6 +6,8 @@ Defines generic functions.
 # Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
+from typing import Union
+import io
 
 
 class NoOtherInstance(Exception):
@@ -26,17 +28,18 @@ class AbstractTransport(object, metaclass=ABCMeta):
     plugin_type = 'transport'
     mimetype = "*"  # Determines archive plugin
 
-    def __init__(self, name, description, authors, version, url, schemes):
+    def __init__(self, name: str, description: str, authors: str, version: str, url: str,
+                 schemes: Union[list[str] | None]):
         object.__init__(self)
-        self.__name = name
-        self.__description = description
-        self.__authors = authors
-        self.__version = version
-        self.__url = url
-        self.__schemes = schemes
+        self.__name: str = name
+        self.__description: str = description
+        self.__authors: str = authors
+        self.__version: str = version
+        self.__url: str = url
+        self.__schemes: Union[list[str] | None] = schemes
 
     @property
-    def name(self):
+    def name(self) -> str:
         """Plugin name
 
         Single word string describing the image format.
@@ -45,7 +48,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__name
 
     @property
-    def description(self):
+    def description(self) -> str:
         """Plugin description
 
         Single line string describing the transport method.
@@ -53,7 +56,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__description
 
     @property
-    def authors(self):
+    def authors(self) -> str:
         """Plugin authors
 
         Multi-line string naming the author(s) of the plugin.
@@ -61,7 +64,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__authors
 
     @property
-    def version(self):
+    def version(self) -> str:
         """Plugin version
 
         String giving the plugin version.
@@ -70,7 +73,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__version
 
     @property
-    def url(self):
+    def url(self) -> str:
         """Plugin URL
 
         URL string to the site of the plugin or the author(s).
@@ -78,7 +81,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__url
 
     @property
-    def schemes(self):
+    def schemes(self) -> Union[list[str] | None]:
         """List of transport schemes supported by this plugin.
 
         List of strings.
@@ -86,7 +89,7 @@ class AbstractTransport(object, metaclass=ABCMeta):
         return self.__schemes
 
     @abstractmethod
-    def walk(self, top):
+    def walk(self, top: str):
         """Generate the file names in a directory tree by walking the tree.
         Input:
         - top: starting point for walk (str)
@@ -96,25 +99,19 @@ class AbstractTransport(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def isfile(self, path):
+    def isfile(self, path: str) -> bool:
         """Return True if path is an existing regular file.
         """
         pass
 
     @abstractmethod
-    def exists(self, path):
+    def exists(self, path: str) -> bool:
         """Determine whether the named path exists.
         """
         pass
 
     @abstractmethod
-    def root(self):
-        """Get transport root name.
-        """
-        pass
-
-    @abstractmethod
-    def open(self, path, mode='r'):
+    def open(self, path: str, mode: str = 'r') -> io.IOBase:
         """Extract a member from the archive as a file-like object.
         """
         pass
