@@ -1,7 +1,7 @@
 """Read/Write Nifti-1 files
 """
 
-# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
 import tempfile
@@ -17,6 +17,8 @@ from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..transports.filetransport import FileTransport
+from ..archives.abstractarchive import AbstractArchive
+from ..archives.filesystemarchive import FilesystemArchive
 
 # import nitransforms
 NIFTI_INTENT_NONE = 0
@@ -364,20 +366,16 @@ class NiftiPlugin(AbstractPlugin):
             raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
-        logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
-        img = self._save_dicom_to_nifti(si)
-        archive = destination['archive']
-        root: str = archive.root()
-        if issubclass(type(archive.transport), FileTransport):
-            if root.endswith('.nii.gz') or root.endswith('.nii'):
-                # Short-cut for local files
-                img.to_filename(root)
-                return
-
         # Write NIfTI object through transport plugin
+        archive: AbstractArchive = destination['archive']
+        root: str = archive.root
         filename_template = 'Image.nii.gz'
         if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
             filename_template = destination['files'][0]
+            if archive.base is not None:
+                root = os.path.join(root, archive.base)
+        elif archive.base is not None:
+            filename_template = archive.base
         try:
             filename = filename_template % 0
         except TypeError:
@@ -389,6 +387,21 @@ class NiftiPlugin(AbstractPlugin):
         if filename.endswith('.nii.gz'):
             ext = '.nii.gz'
         logger.debug('write_numpy_nifti: ext %s' % ext)
+
+        logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
+        img = self._save_dicom_to_nifti(si)
+        if issubclass(type(archive.transport), FileTransport) and \
+            issubclass(type(archive), FilesystemArchive):
+            if root.endswith('.nii.gz') or root.endswith('.nii'):
+                # Short-cut for local files
+                os.makedirs(os.path.dirname(root), exist_ok=True)
+                img.to_filename(root)
+                return
+            elif filename.endswith('.nii.gz') or filename.endswith('.nii'):
+                # Short-cut for local files
+                os.makedirs(root, exist_ok=True)
+                img.to_filename(os.path.join(root, filename))
+                return
 
         f = tempfile.NamedTemporaryFile(
             suffix=ext, delete=False)
