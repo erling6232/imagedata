@@ -43,10 +43,10 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
             fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without /x:, then re-attach drive letter
         urldict = urllib.parse.urlsplit(url[2:], scheme="file")
-        _path = url[:2] + urldict.path
+        # _path = url[:2] + urldict.path
     else:
         urldict = urllib.parse.urlsplit(url, scheme="file")
-        _path = urldict.path if len(urldict.path) > 0 else urldict.netloc
+        # _path = urldict.path if len(urldict.path) > 0 else urldict.netloc
     # if urldict.scheme == 'xnat':
     #     mimetype = 'application/zip'
     # if mimetype is None:
@@ -88,5 +88,3 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
 def get_archiver_list():
     from .. import plugins
     return plugins['archive'] if 'archive' in plugins else []
-
-
