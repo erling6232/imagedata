@@ -117,7 +117,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         for source in sources:
             logger.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
             archive: AbstractArchive = source['archive']
-            root: str = archive.root
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
                 if archive.base is not None:
