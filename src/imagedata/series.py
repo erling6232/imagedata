@@ -2793,7 +2793,11 @@ class Series(np.ndarray):
 
         if _is_binary_mask(mask):
             overlay = Series(np.zeros(mask.shape,
-                                      dtype=np.dtype([('R', np.float32), ('G', np.float32), ('B', np.float32)])
+                                      dtype=np.dtype([
+                                          ('R', np.float32),
+                                          ('G', np.float32),
+                                          ('B', np.float32)
+                                      ])
                                       )
                              )
             overlay['R'] = mask_filter  # Red channel
@@ -2920,8 +2924,8 @@ class Series(np.ndarray):
             >>> mask, vertices = img.get_roi(vertices=True)
 
         Args:
-            roi: Either predefined vertices (optional). Dict of slices, index as [tag,slice] or [slice],
-                each is list of (x,y) pairs. Or a binary Series grid.
+            roi: Either predefined vertices (optional). Dict of slices, index as [tag,slice] or
+                [slice], each is list of (x,y) pairs. Or a binary Series grid.
             color (str): Color of polygon ROI. Default: 'r'.
             follow: (bool) Copy ROI to next tag. Default: False.
             vertices (bool): Return both grid mask and dictionary of vertices. Default: False.
@@ -3124,11 +3128,10 @@ class Series(np.ndarray):
                     vertices[_slice] = contour
         else:
             # 4D grid
-                for _tag in range(self.tags[0]):
-                    for _slice in range(grid.slices):
-                        contour = _threshold(grid[_tag, _slice])
-                        if len(contour) > 0:
-                            vertices[_tag, _slice] = contour
+            for _tag in range(self.tags[0]):
+                for _slice in range(grid.slices):
+                    contour = _threshold(grid[_tag, _slice])
+                    if len(contour) > 0:
+                        vertices[_tag, _slice] = contour
 
         return vertices
-
