@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.4.4-dev3] - 2024-02-02
+* Format plugins: Improved file name generation.
+
 ## [v3.4.4-rc2] - 2024-01-31
 * FilesystemArchive.open(): Corrected behavior, adding root path.
 
