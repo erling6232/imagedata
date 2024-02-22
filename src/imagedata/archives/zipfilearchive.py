@@ -1,8 +1,9 @@
 """Read/Write files from a zipfile
 """
 
-# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+from typing import Tuple, Union
 import os
 import os.path
 import shutil
@@ -43,29 +44,41 @@ class WriteFileIO(io.FileIO):
             member: member of the zip archive
             local_file: local temporary file
         """
-        super(WriteFileIO, self).__init__(local_file.name, mode='wb')
+
+        if isinstance(local_file, str):
+            super(WriteFileIO, self).__init__(local_file, mode='wb')
+        else:
+            super(WriteFileIO, self).__init__(local_file.name, mode='wb')
         self.__archive = archive
         self.__filename = member.filename
         self.__local_file = local_file
+
+    @property
+    def local_file(self):
+        return self.__local_file
 
     def close(self):
         """Close file, copy it to archive, then delete local file."""
         logger.debug("ZipfileArchive.WriteFileIO.close:")
         ret = super(WriteFileIO, self).close()
-        self.__local_file.close()
-        logger.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
-                     (self.__local_file.name, self.__filename))
-        self.__archive.write(self.__local_file.name, self.__filename)
-        logger.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
-                     self.__local_file.name)
-        os.remove(self.__local_file.name)
+        if isinstance(self.__local_file, str):
+            self.__archive.write(self.__local_file, self.__filename)
+            os.remove(self.__local_file)
+        else:
+            self.__local_file.close()
+            logger.debug("ZipfileArchive.WriteFileIO.close: zip %s as %s" %
+                         (self.__local_file.name, self.__filename))
+            self.__archive.write(self.__local_file.name, self.__filename)
+            logger.debug("ZipfileArchive.WriteFileIO.close: remove %s" %
+                         self.__local_file.name)
+            os.remove(self.__local_file.name)
         return ret
 
     def __enter__(self):
         """Enter context manager.
         """
-        logger.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
-                     (self.__filename, self.__local_file.name))
+        # logger.debug("ZipfileArchive.WriteFileIO __enter__: %s %s" %
+        #              (self.__filename, self.__local_file.name))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -87,7 +100,7 @@ class ZipfileArchive(AbstractArchive, ABC):
     mimetypes = ['application/zip', 'application/x-zip-compressed']
 
     # Internal data
-    # self.__transport: file transport object.
+    # self.transport: file transport object.
     # self.__fp: zip file object in transport object
     # self.__archive: ZipFile object.
     # self.__path: path to the zip file using given transport.
@@ -115,7 +128,7 @@ class ZipfileArchive(AbstractArchive, ABC):
             urldict = urllib.parse.urlsplit(url, scheme="file")
             self.__path = urldict.path if len(urldict.path) > 0 else urldict.netloc
         if transport is not None:
-            self.__transport = transport
+            self.transport = transport
         elif url is None:
             raise ValueError('url not given')
         else:
@@ -126,31 +139,21 @@ class ZipfileArchive(AbstractArchive, ABC):
             # self.__path: zipfile name
             try:
                 netloc = urldict.netloc + self.__path
-                # self.__path = urldict.path
                 logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
                              (urldict.scheme, netloc))
-                self.__transport = Transport(
+                self.transport = Transport(
                     urldict.scheme,
                     netloc=urldict.netloc,
                     root=urldict.path,
                     mode=mode,
                     read_directory_only=read_directory_only)
-            except Exception as e:
+            except Exception:
                 raise
-                # # netloc, self.__path = os.path.split(urldict.path)
-                # netloc, self.__path = os.path.split(self.__path)
-                # logger.debug('ZipfileArchive.__init__: scheme: %s, netloc: %s' %
-                #              (urldict.scheme, netloc))
-                # self.__transport = Transport(
-                #     urldict.scheme,
-                #     root=netloc,
-                #     mode=mode,
-                #     read_directory_only=read_directory_only)
         self.__mode = mode
         self.__files = {}
 
         logger.debug("ZipfileArchive path: {}".format(self.__path))
-        self.__fp = self.__transport.open(
+        self.__fp = self.transport.open(
             self.__path, mode=self.__mode + "b")
         logger.debug("ZipfileArchive self.__fp: {}".format(type(self.__fp)))
         logger.debug("ZipfileArchive open zipfile mode %s" % self.__mode)
@@ -164,27 +167,18 @@ class ZipfileArchive(AbstractArchive, ABC):
             self.__archive, self.__tmpdir))
         # Get filelist in self.__files
         for fname in self.__archive.namelist():
-            # norm_fname = os.path.normpath(fname)
             try:
-                _is_dir = self.__archive.getinfo(fname).is_dir()  # Works with Python >= 3.6
+                _is_dir = self.__archive.getinfo(fname).is_dir()
             except AttributeError:
                 _is_dir = fname[-1] == '/'
             except Exception as e:
                 logger.error('ZipfileArchive: {}'.format(e))
                 raise
             if not _is_dir:
-                # member = {'unpacked': False, 'name': norm_fname, 'fh': None}
-                # self.__files[norm_fname] = member
                 self.__files[fname] = Member(fname,
                                              info={'unpacked': False}
                                              )
         # logger.debug("ZipFile self.__files: {}".format(self.__files))
-
-    @property
-    def transport(self):
-        """Underlying transport plugin
-        """
-        return self.__transport
 
     def use_query(self):
         """Does the plugin need the ?query part of the url?"""
@@ -258,7 +252,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         prefix = self._longest_prefix(self.__files.keys(), fname)
         return prefix in self.__files
 
-    def open(self, member: Member, mode: str='rb'):
+    def open(self, member: Member, mode: str = 'rb'):
         """Open file.
 
         Extract the member object to local file space.
@@ -292,7 +286,11 @@ class ZipfileArchive(AbstractArchive, ABC):
                 raise PermissionError(
                     'Cannot write on an archive opened for read')
             # Open local file for write
-            local_file = tempfile.NamedTemporaryFile(delete=False)
+            suffix = None
+            ext = member.filename.find('.')
+            if ext >= 0:
+                suffix = member.filename[ext:]
+            local_file = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
             logger.debug('ZipfileArchive.open: mode %s file %s' % (
                 mode, local_file))
             fh = WriteFileIO(self.__archive, member, local_file)
@@ -356,6 +354,54 @@ class ZipfileArchive(AbstractArchive, ABC):
                 raise FileNotFoundError('No such file: %s' % files)
             return filelist
 
+    def construct_filename(self,
+                           tag: Union[Tuple, None],
+                           query: str = None,
+                           ) -> str:
+        """Construct a filename with given scheme.
+
+        Args:
+            tag: a tuple giving the present position of the filename (tuple).
+            query: from url query (str).
+        Returns:
+            A filename compatible with the given archive (str).
+        """
+        if query is None:
+            query = self.fallback
+        # ext = self._get_extension(query)
+        if tag is None:
+            tag = (0,)
+            if self.level:
+                tag = tuple(0 for _ in range(self.level))
+        if '%' in query:
+            query = query % tag
+        else:
+            query = query.format(*tag)
+        return query
+
+    def new_local_file(self,
+                       filename: str) -> Member:
+        """Create new local file.
+
+        Args:
+            filename: Preferred filename (str)
+        Returns:
+            member object (Member). The local_file property has the local filename.
+        """
+        member = Member(filename)
+        if self._filehandle_in_files(member):
+            raise FileExistsError('File {} already exists')
+        # member.fh = tempfile.NamedTemporaryFile(delete=False)
+        # member.local_file = member.fh.name
+        suffix = None
+        ext = filename.find('.')
+        if ext >= 0:
+            suffix = filename[ext:]
+        member.fh, member.local_file = tempfile.mkstemp(suffix=suffix)
+        member.info['unpacked'] = True
+        self.__files[member.filename] = member
+        return WriteFileIO(self.__archive, member, member.local_file)
+
     def to_localfile(self, member):
         """Access a member object through a local file.
 
@@ -413,7 +459,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         self.__fp.close()
         shutil.rmtree(self.__tmpdir)
         logger.debug('ZipfileArchive.close: {}'.format(self.__tmpdir))
-        self.__transport.close()
+        self.transport.close()
 
     def is_file(self, member):
         """Determine whether the named file is a single file.
@@ -440,7 +486,7 @@ class ZipfileArchive(AbstractArchive, ABC):
     def root(self) -> str:
         """Archive root name.
         """
-        return os.path.pathsep
+        return os.path.sep
 
     @property
     def base(self) -> str:
@@ -458,7 +504,7 @@ class ZipfileArchive(AbstractArchive, ABC):
         """Enter context manager.
         """
         logger.debug("ZipfileArchive __enter__: {} mode {}".format(
-            type(self.__transport), self.__mode))
+            type(self.transport), self.__mode))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
