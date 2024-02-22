@@ -9,7 +9,6 @@ import os.path
 import io
 import logging
 from .abstracttransport import AbstractTransport
-from . import RootIsNotDirectory
 
 logger = logging.getLogger(__name__)
 
