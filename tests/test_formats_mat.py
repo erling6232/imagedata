@@ -140,7 +140,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(d + '?Image%05d.mat', formats=['mat'])
+            si1.write(os.path.join(d, 'Image00000.mat'), formats=['mat'])
             si2 = Series(os.path.join(d, 'Image00000.mat'))
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
@@ -176,7 +176,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat?Image_%05d'), formats=['mat'], opts=self.opts)
+            si1.write(os.path.join(d, 'mat', 'Image_00000.mat'), formats=['mat'], opts=self.opts)
             si2 = Series(os.path.join(d, 'mat', 'Image_00000.mat'))
 
     # @unittest.skip("skipping test_write_3d_mat_no_opt")
@@ -186,7 +186,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat?Image_%05d'), formats=['mat'])
+            si1.write(os.path.join(d, 'mat', 'Image_%05d.mat'), formats=['mat'])
 
     # @unittest.skip("skipping test_read_3d_mat")
     def test_write_3d_mat(self):
@@ -199,7 +199,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         logging.debug('test_write_3d_mat: si1.tags {}'.format(si1.tags))
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat?Image_%05d'), formats=['mat'], opts=self.opts)
+            si1.write(os.path.join(d, 'mat', 'Image_00000.mat'), formats=['mat'], opts=self.opts)
             logging.debug('test_write_3d_mat: si1 {} {} {}'.format(si1.dtype, si1.min(), si1.max()))
             logging.debug('test_write_3d_mat: si1.shape {}, si1.slices {}'.format(si1.shape, si1.slices))
 
@@ -227,7 +227,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         s3 = si1 - si2
         with tempfile.TemporaryDirectory() as d:
-            s3.write(os.path.join(d, 'diff?Image_%05d.mat'), formats=['mat'], opts=self.opts)
+            s3.write(os.path.join(d, 'diff', 'Image_%05d.mat'), formats=['mat'], opts=self.opts)
 
 
 class Test4DMatPlugin(unittest.TestCase):
@@ -253,7 +253,7 @@ class Test4DMatPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat?Image_%05d'), formats=['mat'], opts=self.opts)
+            si1.write(os.path.join(d, 'mat', 'Image_00000.mat'), formats=['mat'], opts=self.opts)
 
             # Read back the MAT data and compare to original si1
             si2 = Series(

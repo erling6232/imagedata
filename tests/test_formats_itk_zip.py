@@ -94,7 +94,7 @@ class TestItkZipWrite(unittest.TestCase):
             os.path.join('data', 'itk', 'time.zip?time/Image_00000.mha'))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'itk.zip'), formats=['itk'])
-            si2 = Series(os.path.join(d, 'itk.zip?Image_00000.mha'))
+            si2 = Series(os.path.join(d, 'itk.zip?Image.mha'))
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
