@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import sys
@@ -25,6 +25,7 @@ from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order
     INPUT_ORDER_AUTO
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
+from ..archives.abstractarchive import AbstractArchive
 from ..header import Header
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,7 @@ class DICOMPlugin(AbstractPlugin):
     authors = "Erling Andersen"
     version = "1.3.0"
     url = "www.helse-bergen.no"
+    extensions = [".dcm", ".ima"]
 
     root = "2.16.578.1.37.1.1.4"
     smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8', 'int16')
@@ -855,7 +857,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             try:
                 im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
-            except pydicom.errors.InvalidDicomError as e:
+            except pydicom.errors.InvalidDicomError:
                 return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
@@ -959,12 +961,12 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug('DICOMPlugin.write_3d_numpy: destination {}'.format(destination))
         archive = destination['archive']
-        filename_template = 'Image_%05d.dcm'
-        logger.debug('DICOMPlugin.write_3d_numpy: destination files {}'.format(
-            destination['files']))
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
-        logger.debug('DICOMPlugin.write_3d_numpy: filename_template={}'.format(filename_template))
+        archive.set_member_naming_scheme(
+            fallback='Image_{:05d}.dcm',
+            level=max(0, si.ndim-2),
+            default_extension='.dcm',
+            extensions=self.extensions
+        )
         self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
 
         self.instanceNumber = 0
@@ -993,21 +995,16 @@ class DICOMPlugin(AbstractPlugin):
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
                 pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedCTImageStorage':
             # Write Enhanced CT/MR
-            self.write_enhanced(si, archive, filename_template)
+            self.write_enhanced(si, destination)
         else:
             # Either legacy CT/MR, or another modality
-            ifile = 0
             if si.ndim < 3:
                 logger.debug('DICOMPlugin.write_3d_numpy: write 2D ({})'.format(si.ndim))
                 if self.keep_uid:
                     sop_ins_uid = si.SOPInstanceUIDs[(0, 0)]
                 else:
                     sop_ins_uid = si.header.new_uid()
-                try:
-                    filename = filename_template % 0
-                except TypeError:
-                    filename = filename_template
-                self.write_slice('none', 0, 0, si, archive, filename, ifile,
+                self.write_slice('none', None, si, destination, 0,
                                  sop_ins_uid=sop_ins_uid)
             else:
                 logger.debug('DICOMPlugin.write_3d_numpy: write 3D slices {}'.format(si.slices))
@@ -1017,18 +1014,12 @@ class DICOMPlugin(AbstractPlugin):
                     else:
                         sop_ins_uid = si.header.new_uid()
                     try:
-                        # Interpret parameter substitution in filename_template
-                        filename = filename_template % _slice
-                    except TypeError:
-                        filename = filename_template + "_{}".format(_slice)
-                    try:
-                        self.write_slice('none', 0, _slice, si[_slice], archive, filename, ifile,
+                        self.write_slice('none', (_slice,), si[_slice], destination, _slice,
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
                         raise
-                    ifile += 1
 
     def write_4d_numpy(self, si, destination, opts):
         """Write 4D Series image as DICOM files
@@ -1053,9 +1044,6 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug('DICOMPlugin.write_4d_numpy: destination {}'.format(destination))
         archive = destination['archive']
-        filename_template = 'Image_%05d.dcm'
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
         self.keep_uid = False if 'keep_uid' not in opts else opts['keep_uid']
 
         # Defaults
@@ -1089,65 +1077,83 @@ class DICOMPlugin(AbstractPlugin):
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
                 pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedCTImageStorage':
             # Write Enhanced CT/MR
-            self.write_enhanced(si, archive, filename_template)
-        else:
-            # Either legacy CT/MR, or another modality
-            if self.output_sort == SORT_ON_SLICE:
-                ifile = 0
+            self.write_enhanced(si, destination)
+            return
+
+        # Either legacy CT/MR, or another modality
+        if self.output_sort == SORT_ON_SLICE:
+            if self.output_dir == 'single':
+                archive.set_member_naming_scheme(
+                    fallback='Image_{:05d}.dcm',
+                    level=1,
+                    default_extension='.dcm',
+                    extensions=self.extensions
+                )
+            else:  # self.output_dir == 'multi'
                 digits = len("{}".format(steps))
-                for tag in range(steps):
-                    for _slice in range(si.slices):
-                        if self.keep_uid:
-                            sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
-                        else:
-                            sop_ins_uid = si.header.new_uid()
-                        if self.output_dir == 'single':
-                            # Interpret parameter substitution in filename_template
-                            filename = filename_template % ifile
-                        else:  # self.output_dir == 'multi'
-                            dirn = "{0}{1:0{2}}".format(
-                                input_order_to_dirname_str(si.input_order),
-                                tag, digits)
-                            if _slice == 0:
-                                # Restart file number in each subdirectory
-                                ifile = 0
-                            filename = os.path.join(dirn,
-                                                    filename_template % ifile)
-                        try:
-                            self.write_slice(si.input_order, tag, _slice, si[tag, _slice],
-                                             archive, filename, ifile, sop_ins_uid=sop_ins_uid)
-                        except Exception as e:
-                            print('DICOMPlugin.write_slice Exception: {}'.format(e))
-                            traceback.print_exc(file=sys.stdout)
-                            raise
-                        ifile += 1
-            else:  # self.output_sort == SORT_ON_TAG:
-                ifile = 0
-                digits = len("{}".format(si.slices))
+                dirn = "{0}{{0:0{1}}}".format(
+                    input_order_to_dirname_str(si.input_order),
+                    digits)
+                archive.set_member_naming_scheme(
+                    fallback=os.path.join(dirn, 'Image_{:05d}.dcm'),
+                    level=max(0, si.ndim-2),
+                    default_extension='.dcm',
+                    extensions=self.extensions
+                )
+            ifile = 0
+            for tag in range(steps):
                 for _slice in range(si.slices):
-                    for tag in range(steps):
-                        if self.keep_uid:
-                            sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
-                        else:
-                            sop_ins_uid = si.header.new_uid()
-                        if self.output_dir == 'single':
-                            # Interpret parameter substitution in filename_template
-                            filename = filename_template % ifile
-                        else:  # self.output_dir == 'multi'
-                            dirn = "slice{0:0{1}}".format(_slice, digits)
-                            if tag == 0:
-                                # Restart file number in each subdirectory
-                                ifile = 0
-                            filename = os.path.join(dirn,
-                                                    filename_template % ifile)
-                        try:
-                            self.write_slice(si.input_order, tag, _slice, si[tag, _slice],
-                                             archive, filename, ifile, sop_ins_uid=sop_ins_uid)
-                        except Exception as e:
-                            print('DICOMPlugin.write_slice Exception: {}'.format(e))
-                            traceback.print_exc(file=sys.stdout)
-                            raise
-                        ifile += 1
+                    if self.keep_uid:
+                        sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                    else:
+                        sop_ins_uid = si.header.new_uid()
+                    if self.output_dir == 'multi' and _slice == 0:
+                        # Restart file number in each subdirectory
+                        ifile = 0
+                    try:
+                        self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
+                                         destination, ifile, sop_ins_uid=sop_ins_uid)
+                    except Exception as e:
+                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
+                        traceback.print_exc(file=sys.stdout)
+                        raise
+                    ifile += 1
+        else:  # self.output_sort == SORT_ON_TAG:
+            if self.output_dir == 'single':
+                archive.set_member_naming_scheme(
+                    fallback='Image_{:05d}.dcm',
+                    level=1,
+                    default_extension='.dcm',
+                    extensions=self.extensions
+                )
+            else:  # self.output_dir == 'multi'
+                digits = len("{}".format(si.slices))
+                dirn = "slice{{0:0{0}}}".format(
+                    digits)
+                archive.set_member_naming_scheme(
+                    fallback=os.path.join(dirn, 'Image_{:05d}.dcm'),
+                    level=max(0, si.ndim-2),
+                    default_extension='.dcm',
+                    extensions=self.extensions
+                )
+            ifile = 0
+            for _slice in range(si.slices):
+                for tag in range(steps):
+                    if self.keep_uid:
+                        sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                    else:
+                        sop_ins_uid = si.header.new_uid()
+                    if self.output_dir == 'multi' and tag == 0:
+                        # Restart file number in each subdirectory
+                        ifile = 0
+                    try:
+                        self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
+                                         destination, ifile, sop_ins_uid=sop_ins_uid)
+                    except Exception as e:
+                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
+                        traceback.print_exc(file=sys.stdout)
+                        raise
+                    ifile += 1
 
     def write_enhanced(self, si, archive, filename_template, opts):
         """Write enhanced CT/MR object to DICOM file
@@ -1282,7 +1288,7 @@ class DICOMPlugin(AbstractPlugin):
         raise ValueError("write_enhanced: to be implemented")
 
     # noinspection PyPep8Naming,PyArgumentList
-    def write_slice(self, input_order, tag, slice, si, archive, filename, ifile,
+    def write_slice(self, input_order, tag, si, destination, ifile,
                     sop_ins_uid=None):
         """Write single slice to DICOM file
 
@@ -1290,7 +1296,6 @@ class DICOMPlugin(AbstractPlugin):
             self: DICOMPlugin instance
             input_order: input order
             tag: tag index
-            slice: slice index
             si: Series instance, including these attributes:
             -   slices
             -   sliceLocations
@@ -1306,11 +1311,25 @@ class DICOMPlugin(AbstractPlugin):
             -   imagePositions
             -   photometricInterpretation
 
-            archive: archive object
-            filename: file name, possible without '.dcm' extension
+            destination: destination object
             ifile: instance number in series
         """
 
+        archive: AbstractArchive = destination['archive']
+        query = None
+        # if destination['files'] is not None and len(destination['files']):
+        if destination['files'] and len(destination['files']):
+            query = destination['files'][0]
+        if self.output_dir == 'single':
+            filename = archive.construct_filename(
+                tag=(ifile,),
+                query=query
+            )
+        else:
+            filename = archive.construct_filename(
+                tag=tag,
+                query=query
+            )
         logger.debug("write_slice {} {}".format(filename, self.serInsUid))
 
         # try:
@@ -1340,7 +1359,10 @@ class DICOMPlugin(AbstractPlugin):
             ds.SliceLocation = pydicom.valuerep.format_number_as_ds(float(si.sliceLocations[0]))
         except (AttributeError, ValueError):
             # Dont know the SliceLocation, so will set this to be the slice index
-            ds.SliceLocation = slice
+            if tag is None:
+                ds.SliceLocation = 0
+            else:
+                ds.SliceLocation = tag[-1]
         try:
             dz, dy, dx = si.spacing
         except ValueError:
@@ -1392,7 +1414,7 @@ class DICOMPlugin(AbstractPlugin):
 
         # Add DICOM To Do items to present slice
         for _attr, _value, _slice, _tag in si.header.dicomToDo:
-            _this_slice = True if _slice is None else _slice == slice
+            _this_slice = True if _slice is None else _slice == tag[-1]
             _this_tag = True if _tag is None else _tag == tag
             if _this_slice and _this_tag:
                 # Set Dicom Attribute
@@ -1418,19 +1440,13 @@ class DICOMPlugin(AbstractPlugin):
         # si will always have only the present tag
         self._set_dicom_tag(ds, input_order, si.tags[0][0])
 
-        if len(os.path.splitext(filename)[1]) > 0:
-            fn = filename
-        else:
-            fn = filename + '.dcm'
-        logger.debug("write_slice: filename {}".format(fn))
+        logger.debug("write_slice: filename {}".format(filename))
         if archive.transport.name == 'dicom':
             # Store dicom set ds directly
             archive.transport.store(ds)
         else:
             # Store dicom set ds as file
-            with archive.open(
-                    os.path.join(archive.path, fn),
-                    'wb') as f:
+            with archive.open(filename, 'wb') as f:
                 ds.save_as(f, write_like_original=False)
 
     def construct_basic_dicom(self, template=None, filename='NA', sop_ins_uid=None):
@@ -1639,8 +1655,9 @@ class DICOMPlugin(AbstractPlugin):
             self.center = (ymax + ymin) / 2
             self.width = max(1, ymax - ymin)
         # y = ax + b,
-        if arr.dtype in self.smallint or np.issubdtype(arr.dtype, np.bool_) or \
-            arr.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
+        if arr.dtype in self.smallint or \
+                np.issubdtype(arr.dtype, np.bool_) or \
+                arr.dtype == np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]):
             # No need to rescale
             self.a = None
             self.b = None
