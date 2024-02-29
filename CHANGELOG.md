@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.0] - 2024-02-29
+* Modified file name generation to allow user to specify single file output when the format plugin support this.
+
 ## [v3.5.0-rc1] - 2024-02-29
 * Release candidate 1
 
