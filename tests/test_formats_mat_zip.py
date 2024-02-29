@@ -85,7 +85,7 @@ class TestMatZipWrite(unittest.TestCase):
             os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat.zip'), formats=['mat'])
-            si2 = Series(os.path.join(d, 'mat.zip?Image_00000.mat'))
+            si2 = Series(os.path.join(d, 'mat.zip?Image.mat'))
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 

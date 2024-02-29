@@ -277,12 +277,18 @@ class Viewer(object):
     def pretty_datetime(self, my_date, my_time):
         _date = _time = None
         if my_date is not None:
-            _date = datetime.strptime(my_date, '%Y%m%d')
+            try:
+                _date = datetime.strptime(my_date, '%Y%m%d')
+            except ValueError:
+                pass
         if my_time is not None:
             try:
                 _time = datetime.strptime(my_time, '%H%M%S.%f')
             except ValueError:
-                _time = datetime.strptime(my_time, '%H%M%S')
+                try:
+                    _time = datetime.strptime(my_time, '%H%M%S')
+                except ValueError:
+                    pass
         _date_fmt = ''
         if _date is not None or _time is not None:
             if _date is not None:

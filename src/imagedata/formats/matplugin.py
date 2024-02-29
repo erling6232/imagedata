@@ -1,9 +1,8 @@
 """Read/Write Matlab-compatible MAT files
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os.path
 import logging
 import numpy as np
 import mimetypes
@@ -13,9 +12,7 @@ from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, \
     shape_to_str, sort_on_to_str, SORT_ON_SLICE
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
-from ..transports.filetransport import FileTransport
 from ..archives.abstractarchive import AbstractArchive
-from ..archives.filesystemarchive import FilesystemArchive
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +54,7 @@ class MatPlugin(AbstractPlugin):
     authors = "Erling Andersen"
     version = "1.0.0"
     url = "www.helse-bergen.no"
+    extensions = [".mat"]
 
     def __init__(self):
         super(MatPlugin, self).__init__(self.name, self.description,
@@ -255,33 +253,19 @@ class MatPlugin(AbstractPlugin):
 
     def _write_numpy_to_mat(self, img, destination, opts):
         archive: AbstractArchive = destination['archive']
-        root: str = archive.root
-        filename_template = 'Image_%05d.mat'
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
-            if archive.base is not None:
-                root = os.path.join(root, archive.base)
-        elif archive.base is not None:
-            filename_template = archive.base
-        try:
-            filename = filename_template % 0
-        except TypeError:
-            filename = filename_template
-        if len(os.path.splitext(filename)[1]) == 0:
-            filename = filename + '.mat'
-
-        if issubclass(type(archive.transport), FileTransport) and \
-            issubclass(type(archive), FilesystemArchive):
-            if root.endswith('.mat'):
-                # Short-cut for local files
-                os.makedirs(os.path.dirname(root), exist_ok=True)
-                scipy.io.savemat(root, {'A': img})
-                return
-            elif filename.endswith('.mat'):
-                # Short-cut for local files
-                os.makedirs(root, exist_ok=True)
-                scipy.io.savemat(os.path.join(root, filename), {'A': img})
-                return
+        archive.set_member_naming_scheme(
+            fallback='Image.mat',
+            level=0,
+            default_extension='.mat',
+            extensions=self.extensions
+        )
+        query = None
+        if destination['files'] is not None and len(destination['files']):
+            query = destination['files'][0]
+        filename = archive.construct_filename(
+            tag=None,
+            query=query
+        )
 
         with archive.open(filename, 'wb') as f:
             logger.debug("_write_numpy_to_mat: Calling savemat")

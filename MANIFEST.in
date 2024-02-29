@@ -3,6 +3,7 @@ include *.rst
 include *.md
 include *.bib
 include *.yml
+recursive-include data *.pickle
 
 # Include the license file
 include LICENSE.txt

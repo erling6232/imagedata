@@ -5,7 +5,9 @@ Defines generic functions.
 
 # Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+from typing import List, Tuple, Union
 from abc import ABCMeta, abstractmethod
+import os.path
 
 
 class NoOtherInstance(Exception):
@@ -32,6 +34,20 @@ class Member(object):
             self.info = info
         self.fh = fh
         self.local_file = local_file
+
+    @property
+    def name(self):
+        return self.filename
+
+    def __enter__(self):
+        """Enter context manager.
+        """
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Leave context manager:
+        """
+        pass
 
 
 class AbstractArchive(object, metaclass=ABCMeta):
@@ -70,6 +86,10 @@ class AbstractArchive(object, metaclass=ABCMeta):
         self.__url = url
         self.__mimetypes = _mimetypes
         self.__transport = None
+        self.level = None
+        self.default_extension = None
+        self.extensions = None
+        self.fallback = None
 
     @abstractmethod
     def use_query(self):
@@ -124,6 +144,10 @@ class AbstractArchive(object, metaclass=ABCMeta):
         """
         return self.__transport
 
+    @transport.setter
+    def transport(self, transport):
+        self.__transport = transport
+
     @property
     def mimetypes(self):
         """MIME types supported by this plugin.
@@ -159,7 +183,7 @@ class AbstractArchive(object, metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def open(self, member: Member, mode: str='rb'):
+    def open(self, member: Member, mode: str = 'rb'):
         """Open file.
 
         Args:
@@ -179,6 +203,51 @@ class AbstractArchive(object, metaclass=ABCMeta):
         Returns:
             The members of the archive as a list of Filehandles.
                 The list has the same order as the members of the archive.
+        """
+        pass
+
+    def set_member_naming_scheme(self,
+                                 fallback: str,
+                                 level: tuple = None,
+                                 default_extension: str = None,
+                                 extensions: List[str] = None):
+        """Set member naming scheme.
+
+        Args:
+            fallback: default filename (str).
+            level:
+            default_extension: default extension (str).
+            extensions:
+        """
+        self.fallback = fallback
+        self.level = level
+        self.default_extension = default_extension
+        self.extensions = extensions
+
+    @abstractmethod
+    def construct_filename(self,
+                           tag: Union[Tuple, None],
+                           query: str = None,
+                           ) -> str:
+        """Construct a filename with given scheme.
+
+        Args:
+            tag: a tuple giving the present position of the filename (tuple).
+            query: from url query (str).
+        Returns:
+            A filename compatible with the given archive (str).
+        """
+        pass
+
+    @abstractmethod
+    def new_local_file(self,
+                       filename: str) -> Member:
+        """Create new local file.
+
+        Args:
+            filename: Preferred filename (str)
+        Returns:
+            member object (Member). The local_file property has the local filename.
         """
         pass
 
@@ -272,6 +341,14 @@ class AbstractArchive(object, metaclass=ABCMeta):
         """Leave context manager, cleaning up any open files.
         """
         pass
+
+    @staticmethod
+    def _get_extension(filename):
+        root, ext = os.path.splitext(filename)
+        if ext == ".gz":  # Special case for .nii.gz filenames
+            if os.path.splitext(root)[1] == ".nii":
+                ext = ".nii.gz"
+        return ext if len(ext) else None
 
 
 # class ArchiveCollection(AbstractArchive):

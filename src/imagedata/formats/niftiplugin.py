@@ -3,8 +3,6 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os.path
-import tempfile
 import logging
 import mimetypes
 import math
@@ -16,9 +14,7 @@ import numpy as np
 from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
-from ..transports.filetransport import FileTransport
 from ..archives.abstractarchive import AbstractArchive
-from ..archives.filesystemarchive import FilesystemArchive
 
 # import nitransforms
 NIFTI_INTENT_NONE = 0
@@ -44,6 +40,7 @@ class NiftiPlugin(AbstractPlugin):
     authors = "Erling Andersen"
     version = "2.0.0"
     url = "www.helse-bergen.no"
+    extensions = [".nii", ".nii.gz"]
 
     """
     data - getter and setter - NumPy array
@@ -366,51 +363,84 @@ class NiftiPlugin(AbstractPlugin):
             raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
 
-        # Write NIfTI object through transport plugin
-        archive: AbstractArchive = destination['archive']
-        root: str = archive.root
-        filename_template = 'Image.nii.gz'
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
-            if archive.base is not None:
-                root = os.path.join(root, archive.base)
-        elif archive.base is not None:
-            filename_template = archive.base
-        try:
-            filename = filename_template % 0
-        except TypeError:
-            filename = filename_template
-
-        if len(os.path.splitext(filename)[1]) == 0:
-            filename = filename + '.nii.gz'
-        ext = os.path.splitext(filename)[1]
-        if filename.endswith('.nii.gz'):
-            ext = '.nii.gz'
-        logger.debug('write_numpy_nifti: ext %s' % ext)
-
-        logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
         img = self._save_dicom_to_nifti(si)
-        if issubclass(type(archive.transport), FileTransport) and \
-            issubclass(type(archive), FilesystemArchive):
-            if root.endswith('.nii.gz') or root.endswith('.nii'):
-                # Short-cut for local files
-                os.makedirs(os.path.dirname(root), exist_ok=True)
-                img.to_filename(root)
-                return
-            elif filename.endswith('.nii.gz') or filename.endswith('.nii'):
-                # Short-cut for local files
-                os.makedirs(root, exist_ok=True)
-                img.to_filename(os.path.join(root, filename))
-                return
 
-        f = tempfile.NamedTemporaryFile(
-            suffix=ext, delete=False)
-        logger.debug('write_numpy_nifti: write local file %s' % f.name)
-        img.to_filename(f.name)
-        f.close()
-        logger.debug('write_numpy_nifti: copy to file %s' % filename)
-        _ = archive.add_localfile(f.name, filename)
-        os.unlink(f.name)
+        archive: AbstractArchive = destination['archive']
+        archive.set_member_naming_scheme(
+            fallback='Image.nii.gz',
+            level=0,
+            default_extension='.nii.gz',
+            extensions=self.extensions
+        )
+        query = None
+        if destination['files'] is not None and len(destination['files']):
+            query = destination['files'][0]
+        filename = archive.construct_filename(
+            tag=None,
+            query=query
+        )
+        with archive.new_local_file(filename) as f:
+            logger.debug('write_numpy_nifti: write local file %s' % f.local_file)
+            img.to_filename(f.local_file)
+
+    # def write_numpy_nifti(self, si, destination, opts):
+    #     """Write nifti data to file
+    #
+    #     Args:
+    #         si (imagedata.Series): Series array
+    #         destination: dict of archive and filenames
+    #         opts: Output options (dict)
+    #     """
+    #
+    #     if si.color:
+    #         raise WriteNotImplemented(
+    #             "Writing color Nifti images not implemented.")
+    #
+    #     # Write NIfTI object through transport plugin
+    #     archive: AbstractArchive = destination['archive']
+    #     root: str = archive.root
+    #     filename_template = 'Image.nii.gz'
+    #     if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
+    #         filename_template = destination['files'][0]
+    #         if archive.base is not None:
+    #             root = os.path.join(root, archive.base)
+    #     elif archive.base is not None:
+    #         filename_template = archive.base
+    #     try:
+    #         filename = filename_template % 0
+    #     except TypeError:
+    #         filename = filename_template
+    #
+    #     if len(os.path.splitext(filename)[1]) == 0:
+    #         filename = filename + '.nii.gz'
+    #     ext = os.path.splitext(filename)[1]
+    #     if filename.endswith('.nii.gz'):
+    #         ext = '.nii.gz'
+    #     logger.debug('write_numpy_nifti: ext %s' % ext)
+    #
+    #     logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
+    #     img = self._save_dicom_to_nifti(si)
+    #     if issubclass(type(archive.transport), FileTransport) and \
+    #         issubclass(type(archive), FilesystemArchive):
+    #         if root.endswith('.nii.gz') or root.endswith('.nii'):
+    #             # Short-cut for local files
+    #             os.makedirs(os.path.dirname(root), exist_ok=True)
+    #             img.to_filename(root)
+    #             return
+    #         elif filename.endswith('.nii.gz') or filename.endswith('.nii'):
+    #             # Short-cut for local files
+    #             os.makedirs(root, exist_ok=True)
+    #             img.to_filename(os.path.join(root, filename))
+    #             return
+    #
+    #     f = tempfile.NamedTemporaryFile(
+    #         suffix=ext, delete=False)
+    #     logger.debug('write_numpy_nifti: write local file %s' % f.name)
+    #     img.to_filename(f.name)
+    #     f.close()
+    #     logger.debug('write_numpy_nifti: copy to file %s' % filename)
+    #     _ = archive.add_localfile(f.name, filename)
+    #     os.unlink(f.name)
 
     def _save_dicom_to_nifti(self, si: Series) -> nibabel.Nifti1Image:
         """Convert DICOM to Nifti

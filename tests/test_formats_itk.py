@@ -73,7 +73,7 @@ class TestFileArchiveItk(unittest.TestCase):
         self.assertEqual(si1.shape, (3, 192, 152))
         si2 = si1[0, ...]
         with tempfile.TemporaryDirectory() as d:
-            si2.write(os.path.join(d, '?Image.mha'), formats=['itk'])
+            si2.write(os.path.join(d, 'Image.mha'), formats=['itk'])
             si3 = Series(d)
         self.assertEqual(si2.dtype, si3.dtype)
         self.assertEqual(si2.shape, si3.shape)

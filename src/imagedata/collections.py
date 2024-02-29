@@ -309,7 +309,7 @@ class Study(SortedDict):
             _series = self[_seriesInstanceUID]
             try:
                 series_str = '{}-{}'.format(_series.seriesNumber, _series.seriesDescription)
-            except TypeError:
+            except (TypeError, ValueError):
                 series_str = _seriesInstanceUID
             _url = "{}/{}".format(
                 url,
@@ -481,13 +481,13 @@ class Patient(SortedDict):
                 study_str = datetime.combine(
                     _study.studyDate, _study.studyTime
                 ).strftime('%Y%m%d-%H%M%S')
-            except TypeError:
+            except (TypeError, ValueError):
                 study_str = _studyInstanceUID
             for _seriesInstanceUID in _study:
                 _series = _study[_seriesInstanceUID]
                 try:
                     series_str = '{}-{}'.format(_series.seriesNumber, _series.seriesDescription)
-                except TypeError:
+                except (TypeError, ValueError):
                     series_str = _seriesInstanceUID
                 _url = "{}/{}/{}".format(
                     url,
@@ -638,7 +638,7 @@ class Cohort(SortedDict):
                     study_str = datetime.combine(
                         _study.studyDate, _study.studyTime
                     ).strftime('%Y%m%d-%H%M%S')
-                except TypeError:
+                except (TypeError, ValueError):
                     study_str = _studyInstanceUID
                 for _seriesInstanceUID in _study:
                     _series = _study[_seriesInstanceUID]
@@ -646,7 +646,7 @@ class Cohort(SortedDict):
                         series_str = '{}-{}'.format(
                             _series.seriesNumber, _series.seriesDescription
                         )
-                    except TypeError:
+                    except (TypeError, ValueError):
                         series_str = _seriesInstanceUID
                     _url = "{}/{}/{}/{}".format(
                         url,

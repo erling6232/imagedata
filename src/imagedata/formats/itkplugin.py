@@ -3,19 +3,15 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os.path
 import logging
-import tempfile
 import mimetypes
 import itk
 import numpy as np
 from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, \
     SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
-from ..axis import UniformLengthAxis, VariableAxis
+from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive
-from ..transports.filetransport import FileTransport
-from ..archives.filesystemarchive import FilesystemArchive
 
 logger = logging.getLogger(__name__)
 
@@ -44,8 +40,9 @@ class ITKPlugin(AbstractPlugin):
     name = "itk"
     description = "Read and write ITK files."
     authors = "Erling Andersen"
-    version = "1.1.0"
+    version = "2.0.0"
     url = "www.helse-bergen.no"
+    extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff"]
 
     def __init__(self, name=None, description=None,
                  authors=None, version=None, url=None):
@@ -287,12 +284,12 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
         archive: AbstractArchive = destination['archive']
-        if archive.base is None or len(archive.base) < 1:
-            filename_template = 'Image_%05d.mha'
-            if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-                filename_template = destination['files'][0]
-        else:
-            filename_template = archive.base
+        archive.set_member_naming_scheme(
+            fallback='Image.mha',
+            level=max(0, si.ndim-3),
+            default_extension='.mha',
+            extensions=self.extensions
+        )
 
         self.shape = si.shape
         self.slices = si.slices
@@ -305,10 +302,14 @@ class ITKPlugin(AbstractPlugin):
         logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
         assert si.ndim == 2 or si.ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
-        try:
-            filename = filename_template % 0
-        except TypeError:
-            filename = filename_template
+
+        query = None
+        if destination['files'] is not None and len(destination['files']):
+            query = destination['files'][0]
+        filename = archive.construct_filename(
+            tag=None,
+            query=query
+        )
         self.write_numpy_itk(si, archive, filename)
 
     def write_4d_numpy(self, si, destination, opts):
@@ -334,14 +335,15 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
         archive: AbstractArchive = destination['archive']
-        filename_template = 'Image_%05d.mha'
-        root = None
-        if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-            filename_template = destination['files'][0]
-            if archive.base is not None:
-                filename_template = os.path.join(archive.base, filename_template)
-        elif archive.base is not None:
-            filename_template = archive.base
+        archive.set_member_naming_scheme(
+            fallback='Image_{:05d}.mha',
+            level=max(0, si.ndim-3),
+            default_extension='.mha',
+            extensions=self.extensions
+        )
+        query = None
+        if destination['files'] is not None and len(destination['files']):
+            query = destination['files'][0]
 
         self.shape = si.shape
         self.slices = si.slices
@@ -378,11 +380,11 @@ class ITKPlugin(AbstractPlugin):
             si[0, 0, 0, 0]))
         if self.output_sort == SORT_ON_TAG:
             for _slice in range(slices):
-                filename = filename_template % _slice
+                filename = archive.construct_filename(tag=(_slice,), query=query)
                 self.write_numpy_itk(si[:, _slice, ...], archive, filename)
         else:  # default: SORT_ON_SLICE:
             for tag in range(steps):
-                filename = filename_template % tag
+                filename = archive.construct_filename(tag=(tag,), query=query)
                 self.write_numpy_itk(si[tag, ...], archive, filename)
 
     def write_numpy_itk(self, si, archive, filename):
@@ -399,7 +401,7 @@ class ITKPlugin(AbstractPlugin):
 
             si: numpy 3D array [slice,row,column]
             archive: archive object
-            filename: file name, possibly without extentsion.
+            filename: file name
         """
 
         if si.ndim != 2 and si.ndim != 3:
@@ -426,35 +428,10 @@ class ITKPlugin(AbstractPlugin):
 
         logger.debug("write_numpy_itk: imagetype {} filename {}".format(from_image_type, filename))
 
-        root: str = archive.root
-        if issubclass(type(archive.transport), FileTransport) and \
-                issubclass(type(archive), FilesystemArchive):
-            if root.endswith('.mha'):
-                # Short-cut for local files
-                os.makedirs(os.path.dirname(root), exist_ok=True)
-                itk.imwrite(image, root)
-                return
-            elif filename.endswith('.mha'):
-                # Short-cut for local files
-                os.makedirs(root, exist_ok=True)
-                itk.imwrite(image, os.path.join(root, filename))
-                return
-
-        if len(os.path.splitext(filename)[1]) == 0:
-            filename = filename + '.mha'
-        ext = os.path.splitext(filename)[1]
-        logger.debug('write_numpy_itk: ext %s' % ext)
-
-        f = tempfile.NamedTemporaryFile(
-            suffix=ext, delete=False)
-        logger.debug('write_numpy_itk: write local file %s' % f.name)
-        itk.imwrite(image, f.name)
-        f.close()
-        logger.debug('write_numpy_itk: written local file %s' % f)
-        logger.debug('write_numpy_itk: copy to archive %s as %s' % (
-            archive, filename))
-        archive.add_localfile(f.name, filename)
-        os.unlink(f.name)
+        with archive.new_local_file(filename) as f:
+            logger.debug('write_numpy_itk: write local file %s' % f.local_file)
+            itk.imwrite(image, f.local_file)
+            logger.debug('write_numpy_itk: written local file %s' % f.local_file)
 
     @staticmethod
     def _orientation_from_vnl_matrix(direction):
