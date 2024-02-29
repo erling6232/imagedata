@@ -302,6 +302,17 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             if not os.path.isfile(filename):
                 raise AssertionError('File does not exist: {}'.format(filename))
 
+    def test_write_single_file_in_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            a.write(
+                d,
+                formats=['nifti']
+            )
+            expect_filename = os.path.join(d, 'Image.nii.gz')
+            if not os.path.isfile(expect_filename):
+                raise AssertionError('File does not exist: {}'.format(expect_filename))
+
     # @unittest.skip("skipping test_read_3d_nifti_no_opt")
     # noinspection PyArgumentList
     def test_read_3d_nifti_no_opt(self):
