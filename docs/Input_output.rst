@@ -20,8 +20,9 @@ When reading a directory, every file inside will be scanned and combined into a 
 See :ref:`Sorting <Sorting>` for details on sorting images.
 
 Write:
-    When writing, the provided path name will be taken as a (new) directory, and images file(s)
-    are added to that directory.
+    When writing, the provided path name will be tried as a directory name.
+    Depending on the output format, a new directory is created (typically DICOM), or
+    a file name is generated.
 
 ZIP file
 ----------

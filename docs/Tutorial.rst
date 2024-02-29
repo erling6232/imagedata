@@ -130,7 +130,7 @@ Saving data
 
     a.write('my_dir')
 
-The write() method will save the given series in a new folder.
+The write() method will save the given series in a new file or folder.
 With no additional information, the series will be saved in the
 same format (DICOM, Nifti, ...) as the input data.
 You can specify a different image format, e.g.:

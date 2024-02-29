@@ -157,19 +157,17 @@ original Series instance as a template for DICOM header information.
         print('\nPreparing for MCFLIRT ...')
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp)
-            tmp_fixed = p / 'fixed'
-            tmp_moving = p / 'moving'
+            fixed_file = p / 'fixed.nii.gz'
+            moving_file = p / 'moving.nii.gz'
             tmp_out = p / 'out.nii.gz'
-            moving.write(tmp_moving, formats=['nifti'])
-            moving_file = list(tmp_moving.glob('*'))[0]
+            moving.write(moving_file, formats=['nifti'])
 
             print('MCFLIRT running ...')
 
             mcflt = fsl.MCFLIRT()
             mcflt.inputs.in_file = str(moving_file)
             if issubclass(type(ref), Series):
-                ref.write(tmp_fixed, formats=['nifti'])
-                fixed_file = list(tmp_fixed.glob('*'))[0]
+                ref.write(fixed_file, formats=['nifti'])
                 mcflt.inputs.ref_file = str(fixed_file)
             else:
                 mcflt.inputs.ref_vol = ref
