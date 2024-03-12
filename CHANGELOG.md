@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.1-dev0] - 2024-03-12
 * Prepare for NumPy 2.0.
+* Depend on SciPy 1.13.0.
 * Drop support for Python 3.8.
 
 ## [v3.5.0] - 2024-02-29
