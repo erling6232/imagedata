@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.1-dev0] - 2024-03-12
+## [v3.5.1-dev0] - 2024-04-05
 * Prepare for NumPy 2.0.
 * Depend on SciPy 1.13.0.
 * Drop support for Python 3.8.
+
+## [v3.5.1-dev0] - 2024-03-15
 
 ## [v3.5.0] - 2024-02-29
 * Modified file name generation to allow user to specify single file output when the format plugin support this.
