@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import math
 import os.path
@@ -157,7 +155,8 @@ class TestDicomPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(d, formats=['dicom'], opts={'keep_uid': True})
+            si1.write(os.path.join(d, 'Image_00000.dcm'),
+                      formats=['dicom'], opts={'keep_uid': True})
 
             # Use pydicom as truth to verify that written copy is identical to original
             orig = pydicom.filereader.dcmread(
@@ -256,7 +255,8 @@ class TestDicomPlugin(unittest.TestCase):
         )
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image.dcm'.format(d), formats=['dicom'])
+            si1.write(os.path.join(d, 'Image.dcm'),
+                      formats=['dicom'])
             si2 = Series(d)
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
@@ -267,7 +267,8 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d), formats=['dicom'])
+            si1.write(os.path.join(d, 'Image%05d.dcm'),
+                      formats=['dicom'])
             si2 = Series(d)
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
@@ -316,6 +317,40 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
+    def test_write_dicom_4D_multi_slice(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual('dicom', si.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_SLICE
+            })
+            newsi = Series(d, formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', newsi.input_format)
+        self.assertEqual(si.shape, newsi.shape)
+        np.testing.assert_array_equal(si, newsi)
+        compare_headers(self, si, newsi)
+
+    def test_write_dicom_4D_multi_tag(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual('dicom', si.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_TAG
+            })
+            newsi = Series(d, formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', newsi.input_format)
+        self.assertEqual(si.shape, newsi.shape)
+        np.testing.assert_array_equal(si, newsi)
+        compare_headers(self, si, newsi)
+
     def test_write_float(self):
         si = Series(np.arange(8*8*8).reshape((8, 8, 8)))
         si.seriesNumber = 100
@@ -356,7 +391,7 @@ class TestDicomPlugin(unittest.TestCase):
                     si1.SOPInstanceUIDs[(_tag, _slice)]
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d),
+            si1.write(os.path.join(d, 'Image%05d.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': True})
             si2 = Series(d)
@@ -393,7 +428,7 @@ class TestDicomPlugin(unittest.TestCase):
                 si1_sopinsuid[_slice][_tag] =\
                     si1.SOPInstanceUIDs[(_tag, _slice)]
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d),
+            si1.write(os.path.join(d, 'Image%05d.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': False})
             si2 = Series(d)
@@ -737,7 +772,7 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDicomPlugin(unittest.TestCase):
+class TestDicomPluginSortCriteria(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         cmdline.add_argparse_options(parser)

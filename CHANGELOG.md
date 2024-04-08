@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.1-rc0] - 2024-04-08
+### Fixed
+* Corrected behaviour when writing 4D DICOM with output_dir == 'multi'.
+
 ## [v3.5.0] - 2024-02-29
 * Modified file name generation to allow user to specify single file output when the format plugin support this.
 
