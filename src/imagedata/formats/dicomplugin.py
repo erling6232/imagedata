@@ -1121,7 +1121,7 @@ class DICOMPlugin(AbstractPlugin):
         else:  # self.output_sort == SORT_ON_TAG:
             if self.output_dir == 'single':
                 archive.set_member_naming_scheme(
-                    fallback='Image_{:05d}.dcm',
+                    fallback=self.input_order + '_{:05d}.dcm',
                     level=1,
                     default_extension='.dcm',
                     extensions=self.extensions
@@ -1131,7 +1131,7 @@ class DICOMPlugin(AbstractPlugin):
                 dirn = "slice{{0:0{0}}}".format(
                     digits)
                 archive.set_member_naming_scheme(
-                    fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
+                    fallback=os.path.join(dirn, 'Slice_{1:05d}.dcm'),
                     level=max(0, si.ndim-2),
                     default_extension='.dcm',
                     extensions=self.extensions
