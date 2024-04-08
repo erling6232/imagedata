@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import math
 import os.path
@@ -35,6 +33,7 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
+        ea
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
             'none',
