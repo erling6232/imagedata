@@ -317,6 +317,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
     def test_write_dicom_4D_multi_slice(self):
+        ea
         si = Series(
             os.path.join('data', 'dicom', 'time_all'),
             formats.INPUT_ORDER_TIME,
