@@ -112,7 +112,6 @@ class TestDicomTransport(unittest.TestCase):
 
     # @unittest.skip("skipping test_transport_single_image")
     def test_transport_single_image(self):
-        ea
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
