@@ -316,14 +316,34 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
 
-    def test_write_dicom_4D_multi(self):
+    def test_write_dicom_4D_multi_slice(self):
         si = Series(
             os.path.join('data', 'dicom', 'time_all'),
             formats.INPUT_ORDER_TIME,
             self.opts)
         self.assertEqual('dicom', si.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, opts={'output_dir': 'multi'})
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_SLICE
+            })
+            newsi = Series(d, formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', newsi.input_format)
+        self.assertEqual(si.shape, newsi.shape)
+        np.testing.assert_array_equal(si, newsi)
+        compare_headers(self, si, newsi)
+
+    def test_write_dicom_4D_multi_tag(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual('dicom', si.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_TAG
+            })
             newsi = Series(d, formats.INPUT_ORDER_TIME)
         self.assertEqual('dicom', newsi.input_format)
         self.assertEqual(si.shape, newsi.shape)
