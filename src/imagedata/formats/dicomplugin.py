@@ -1095,7 +1095,7 @@ class DICOMPlugin(AbstractPlugin):
                     input_order_to_dirname_str(si.input_order),
                     digits)
                 archive.set_member_naming_scheme(
-                    fallback=os.path.join(dirn, 'Image_{:05d}.dcm'),
+                    fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
                     level=max(0, si.ndim-2),
                     default_extension='.dcm',
                     extensions=self.extensions
@@ -1131,7 +1131,7 @@ class DICOMPlugin(AbstractPlugin):
                 dirn = "slice{{0:0{0}}}".format(
                     digits)
                 archive.set_member_naming_scheme(
-                    fallback=os.path.join(dirn, 'Image_{:05d}.dcm'),
+                    fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
                     level=max(0, si.ndim-2),
                     default_extension='.dcm',
                     extensions=self.extensions
