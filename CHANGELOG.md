@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.1-rc0] - 2024-04-08
+## [v3.5.1-rc1] - 2024-04-08
 ### Fixed
 * Corrected behaviour when writing 4D DICOM with output_dir == 'multi'.
 
