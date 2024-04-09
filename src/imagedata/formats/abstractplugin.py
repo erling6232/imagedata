@@ -9,7 +9,7 @@ Defines generic functions.
 from abc import ABCMeta, abstractmethod  # , abstractproperty
 import logging
 import numpy as np
-from . import NotImageError, shape_to_str, INPUT_ORDER_TIME
+from . import NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
 from ..header import Header
 from ..archives.abstractarchive import AbstractArchive
 
@@ -159,9 +159,10 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
-            # logger.debug('AbstractPlugin.read: img {} si {} {}'.format(
-            #     img.shape, si.shape, si.dtype))
-            si[i] = img
+            if 'input_sort' in opts and opts['input_sort'] == SORT_ON_TAG:
+                si[:,i] = img
+            else:
+                si[i] = img
             i += 1
         logger.debug('AbstractPlugin.read: si {}'.format(si.shape))
 
