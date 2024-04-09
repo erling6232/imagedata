@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.1] - 2024-04-09
+### Added
+* AbstractPlugin: Honor the input_sort option.
+### Fixed
+* Corrected behaviour when writing 4D DICOM with output_dir == 'multi'.
+
 ## [v3.5.1-rc3] - 2024-04-09
 ### Added
 * AbstractPlugin: Honor the input_sort option.
