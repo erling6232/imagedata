@@ -1121,7 +1121,7 @@ class DICOMPlugin(AbstractPlugin):
         else:  # self.output_sort == SORT_ON_TAG:
             if self.output_dir == 'single':
                 archive.set_member_naming_scheme(
-                    fallback=self.input_order + '_{:05d}.dcm',
+                    fallback=self.input_order + '_{1:05d}.dcm',
                     level=1,
                     default_extension='.dcm',
                     extensions=self.extensions
