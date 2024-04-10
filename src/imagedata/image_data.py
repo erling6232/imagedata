@@ -334,6 +334,24 @@ def show():
     return 0
 
 
+def _reduce(cohort):
+    """Reduce cohort level to the lowest level.
+    """
+    if len(cohort) > 1:
+        return cohort
+    patientID = cohort.keys()[0]
+    patient = cohort[patientID]
+    if len(patient) > 1:
+        return patient
+    studyInsUID = patient.keys()[0]
+    study = patient[studyInsUID]
+    if len(study) > 1:
+        return study
+    seriesInsUID = study.keys()[0]
+    series = study[seriesInsUID]
+    return series
+
+
 def conversion():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
@@ -350,7 +368,7 @@ def conversion():
     #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
-        si = Cohort(args.in_dirs, opts=args)
+        cohort = Cohort(args.in_dirs, opts=args)
         # si = Series(args.in_dirs, args.input_order, args)
     except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
@@ -358,7 +376,9 @@ def conversion():
         traceback.print_exc(file=sys.stdout)
         return 1
 
-    si.write(args.out_name, opts=args)
+    selection = _reduce(cohort)
+
+    selection.write(args.out_name, opts=args)
     return 0
 
 
