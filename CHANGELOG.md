@@ -7,9 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.3] - 2024-04-10
+### Fixed
+* NiftiPlugin and ITKPlugin: create output directory before writing local files.
+* Header: set default sort_on=SORT_ON_SLICE.
+
+### Added
+* conversion: write cohort data at the lowest level possible.
+
 ## [v3.5.2] - 2024-04-09
 ### Fixed
 * Corrected file name generation when writing 4D DICOM using SORT_ON_TAG.
+
 ## [v3.5.1] - 2024-04-09
 ### Added
 * AbstractPlugin: Honor the input_sort option.
