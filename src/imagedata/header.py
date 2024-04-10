@@ -8,7 +8,7 @@ import numpy as np
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
-from .formats import INPUT_ORDER_NONE
+from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE
 from .formats.dicomlib.uid import get_uid
 from .axis import UniformAxis, UniformLengthAxis, VariableAxis
 
@@ -77,6 +77,7 @@ class Header(object):
                 setattr(self, attr, None)
             except AttributeError:
                 pass
+        self.input_sort = SORT_ON_SLICE
         self.__uid_generator = get_uid()
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
