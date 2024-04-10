@@ -83,10 +83,6 @@ class Header(object):
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
         self.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
-        # pydicom.datadict.DicomDictionary
-        # from pydicom.uid import UID
-        # UID.
-        # self.dicomTemplate = None
         self.dicomToDo = []
         self.windowCenter = None
         self.windowWidth = None
