@@ -3,6 +3,7 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
 import logging
 import mimetypes
 import math
@@ -381,6 +382,7 @@ class NiftiPlugin(AbstractPlugin):
         )
         with archive.new_local_file(filename) as f:
             logger.debug('write_numpy_nifti: write local file %s' % f.local_file)
+            os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             img.to_filename(f.local_file)
 
     # def write_numpy_nifti(self, si, destination, opts):

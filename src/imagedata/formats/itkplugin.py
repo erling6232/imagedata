@@ -3,6 +3,7 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
 import logging
 import mimetypes
 import itk
@@ -430,6 +431,7 @@ class ITKPlugin(AbstractPlugin):
 
         with archive.new_local_file(filename) as f:
             logger.debug('write_numpy_itk: write local file %s' % f.local_file)
+            os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             itk.imwrite(image, f.local_file)
             logger.debug('write_numpy_itk: written local file %s' % f.local_file)
 
