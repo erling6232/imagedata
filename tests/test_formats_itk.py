@@ -14,6 +14,7 @@ import argparse
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
+from src.imagedata.collections import Cohort
 from .compare_headers import compare_headers
 
 
@@ -148,6 +149,11 @@ class TestFileArchiveItk(unittest.TestCase):
             si2 = Series(d)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
+
+    def test_write_cohort(self):
+        cohort = Cohort('data/dicom/cohort.zip')
+        with tempfile.TemporaryDirectory() as d:
+            cohort.write(d, formats=['itk'])
 
 
 class TestWritePluginITKSlice(unittest.TestCase):

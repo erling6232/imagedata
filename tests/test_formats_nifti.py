@@ -12,6 +12,7 @@ import nibabel
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
+from src.imagedata.collections import Cohort
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):
@@ -398,6 +399,11 @@ class TestNIfTIPluginWrite(unittest.TestCase):
         self.assertEqual(si1.shape, (3, 320, 220))
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
+
+    def test_write_cohort(self):
+        cohort = Cohort('data/dicom/cohort.zip')
+        with tempfile.TemporaryDirectory() as d:
+            cohort.write(d, formats=['nifti'])
 
 
 if __name__ == '__main__':

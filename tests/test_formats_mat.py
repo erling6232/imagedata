@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -11,6 +9,7 @@ import argparse
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
+from src.imagedata.collections import Cohort
 
 
 def list_files(startpath):
@@ -262,6 +261,11 @@ class Test4DMatPlugin(unittest.TestCase):
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
+
+    def test_write_cohort(self):
+        cohort = Cohort('data/dicom/cohort.zip')
+        with tempfile.TemporaryDirectory() as d:
+            cohort.write(d, formats=['mat'])
 
 
 if __name__ == '__main__':
