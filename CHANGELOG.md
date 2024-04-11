@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.1-dev0] - 2024-04-05
+## [v3.5.4-dev0] - 2024-04-11
 * Prepare for NumPy 2.0.
-* Depend on SciPy 1.13.0.
+* Depend on pandas 2.2.2+
+* Depend on SciPy 1.13.0+
 * Depend on pydicom 2 only. Will need to verify new `pixels` backend in pydicom 3.
 * Drop support for Python 3.8.
 
