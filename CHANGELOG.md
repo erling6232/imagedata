@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.4] - 2024-04-25
+### Added
+* Added option `input_acquisition` to Series to select a particular Acquisiton Number in a CT series.
+* Added command line option --input_acquisition to select a particular Acquisition Number.
+
 ## [v3.5.3] - 2024-04-10
 ### Fixed
 * NiftiPlugin and ITKPlugin: create output directory before writing local files.
