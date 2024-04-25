@@ -136,6 +136,9 @@ def add_argparse_options(parser):
     parser.add_argument('--input_serinsuid',
                         help="Only read images with specified Series Instance UID",
                         default=None)
+    parser.add_argument('--input_acquisition',
+                        help="Only read images with specified Acquisition Number",
+                        default=None)
     parser.add_argument('--input_echo',
                         help="Only read images with specified Echo Number",
                         default=None)

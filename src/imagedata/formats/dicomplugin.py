@@ -866,6 +866,9 @@ class DICOMPlugin(AbstractPlugin):
         if 'input_echo' in opts and opts['input_echo']:
             if int(im.EchoNumbers) != int(opts['input_echo']):
                 return
+        if 'input_acquisition' in opts and opts['input_acquisition']:
+            if int(im.AcquisitionNumber) != int(opts['input_acquisition']):
+                return
 
         try:
             sloc = float(im.SliceLocation)
