@@ -339,15 +339,24 @@ def _reduce(cohort):
     """
     if len(cohort) > 1:
         return cohort
-    patientID = cohort.keys()[0]
+    try:
+        patientID = cohort.keys()[0]
+    except IndexError:
+        raise IndexError('No patient in cohort')
     patient = cohort[patientID]
     if len(patient) > 1:
         return patient
-    studyInsUID = patient.keys()[0]
+    try:
+        studyInsUID = patient.keys()[0]
+    except IndexError:
+        raise IndexError('No study for patient')
     study = patient[studyInsUID]
     if len(study) > 1:
         return study
-    seriesInsUID = study.keys()[0]
+    try:
+        seriesInsUID = study.keys()[0]
+    except IndexError:
+        raise IndexError('No series in study')
     series = study[seriesInsUID]
     return series
 
