@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-rc0] - 2024-04-26
+### Fixed
+* DicomPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
+  across a volume.
+* imagedata._reduce(): Protect for empty lists.
+
 ## [v3.5.4] - 2024-04-25
 ### Added
 * Added option `input_acquisition` to Series to select a particular Acquisiton Number in a CT series.
