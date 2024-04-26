@@ -600,6 +600,8 @@ class DICOMPlugin(AbstractPlugin):
             for uid in image_dict:
                 try:
                     sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+                except UnevenSlicesError as e:
+                    raise CannotSort('{}'.format(e))
                 except Exception as e:
                     print('WARNING: Skipping {}: {}'.format(uid, e))
                     pass
@@ -667,7 +669,7 @@ class DICOMPlugin(AbstractPlugin):
         if 'accept_duplicate_tag' in opts and \
                 opts['accept_duplicate_tag'] == 'True':
             accept_duplicate_tag = True
-        if min(count) != max(count) and accept_uneven_slices:
+        if min(count) != max(count) and not accept_uneven_slices:
             logger.error("sort_images: tags per slice: {}".format(count))
             raise UnevenSlicesError("Different number of images in each slice.")
 
