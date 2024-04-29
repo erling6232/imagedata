@@ -427,6 +427,8 @@ class DICOMPlugin(AbstractPlugin):
         try:
             image_dict, hdr, shape = self.get_dicom_files(sources, input_order, opts,
                                                           skip_pixels=skip_pixels)
+        except UnevenSlicesError as e:
+            raise CannotSort('{}'.format(e))
         except Exception as e:
             logger.debug(
                 'DICOMPlugin.read_files: exception get_dicom_files: {} {}'.format(
@@ -504,8 +506,8 @@ class DICOMPlugin(AbstractPlugin):
                 tgs = hdr.tags[_slice]
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
-                        'AcceptDuplicateTag' in opts and \
-                        opts['AcceptDuplicateTag'] == 'True':
+                        'accept_duplicate_tag' in opts and \
+                        opts['accept_duplicate_tag'] == 'True':
                     while _done[idx]:
                         idx += 1
                 _done[idx] = True
@@ -671,7 +673,9 @@ class DICOMPlugin(AbstractPlugin):
             accept_duplicate_tag = True
         if min(count) != max(count) and not accept_uneven_slices:
             logger.error("sort_images: tags per slice: {}".format(count))
-            raise UnevenSlicesError("Different number of images in each slice.")
+            raise UnevenSlicesError(
+                "Different number of images in each slice. Tags per slice:\n{}".format(count)
+            )
 
         if input_order == INPUT_ORDER_AUTO:
             input_order = self.auto_sort(header_dict, opts)
