@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.5-rc0] - 2024-04-26
 ### Fixed
-* DicomPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
+* DICOMPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
   across a volume.
+* DICOMPlugin.get_dicom_files(): Raise exception CannotSort when sort_images()
+  raises UnevenSlicesError.
 * imagedata._reduce(): Protect for empty lists.
 
 ## [v3.5.4] - 2024-04-25
