@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-rc1] - 2024-04-29
+### Added
+* Series: Added parameter `input_format` to specify a particular input format.
+* test_formats_dicom: Added unittest for input_format.
+
+### Fixed
+* DICOMPlugin.read: Raise CannotSort exception when UnevenSlicesError is raised internally.
+
 ## [v3.5.5-rc0] - 2024-04-26
 ### Fixed
 * DICOMPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ

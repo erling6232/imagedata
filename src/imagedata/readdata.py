@@ -32,13 +32,14 @@ class UnknownOptionType(Exception):
 logger = logging.getLogger(__name__)
 
 
-def read(urls, order=None, opts=None):
+def read(urls, order=None, opts=None, input_format=None):
     """Read image data, calling appropriate transport, archive and format plugins
 
     Args:
         urls: list of urls or url to read (list of str, or str)
         order: determine how to sort the images (default: auto-detect)
         opts: input options (argparse.Namespace or dict)
+        input_format: specify a particular input format (default: auto-detect)
 
     Returns:
         tuple of
@@ -102,7 +103,7 @@ def read(urls, order=None, opts=None):
         # _add_dicom_geometry(pre_hdr, geom_hdr)
 
     # Call reader plugins in turn to read the image data
-    plugins = sorted_plugins_dicom_first(get_plugins_list())
+    plugins = sorted_plugins_dicom_first(get_plugins_list(), input_format)
     logger.debug("readdata.read plugins length {}".format(len(plugins)))
     summary = 'Summary of read plugins:'
     for pname, ptype, pclass in plugins:
@@ -296,8 +297,12 @@ def write(si, url, opts=None, formats=None):
     # destination['archive'].close()
 
 
-def sorted_plugins_dicom_first(plugins):
+def sorted_plugins_dicom_first(plugins, input_format):
     """Sort plugins such that any Nifti plugin is used early."""
+    if input_format is not None:
+        for pname, ptype, pclass in plugins:
+            if ptype == input_format:
+                return [(pname, ptype, pclass)]
     for pname, ptype, pclass in plugins:
         if ptype == 'nifti':
             plugins.remove((pname, ptype, pclass))
