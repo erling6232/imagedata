@@ -67,6 +67,7 @@ class Series(np.ndarray):
         opts (argparse.Namespace or dict): Dict of input options,
             mostly for format specific plugins.
 
+        input_format (str): Specify a particular input format. Default: None (auto-detect).
         shape (tuple of ints): Specifying shape of input data.
         dtype (numpy.dtype): Numpy data type. Default: float.
         template (Series, array_like or URL): Input data to use as template for DICOM header.
@@ -87,8 +88,8 @@ class Series(np.ndarray):
     viewer = None
     latest_roi_parameters = None
 
-    def __new__(cls, data, input_order='auto',
-                opts=None, shape=(0,), dtype=float, buffer=None, offset=0,
+    def __new__(cls, data, input_order='auto', opts=None,
+                input_format=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None, axes=None):
 
@@ -151,7 +152,7 @@ class Series(np.ndarray):
             return obj
 
         # Read input, hdr is dict of attributes
-        hdr, si = r_read(urls, input_order, opts)
+        hdr, si = r_read(urls, input_order, opts, input_format)
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
