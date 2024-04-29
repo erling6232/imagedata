@@ -31,6 +31,37 @@ class TestDicomPlugin(unittest.TestCase):
                 self.dicom_plugin = pclass
         self.assertIsNotNone(self.dicom_plugin)
 
+    def test_dicom_plugin_only(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            input_format='dicom'
+        )
+
+    def test_cannot_sort_dicom(self):
+        def _read_series():
+            newsi = Series(self.d)
+
+        si = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as self.d:
+            # Duplicate image file
+            si.write(os.path.join(self.d, '0'), formats=['dicom'])
+            si.write(os.path.join(self.d, '1'), formats=['dicom'])
+            self.assertRaises(formats.CannotSort, _read_series)
+
+    def test_without_dicom_plugin(self):
+        def _read_series():
+            si1 = Series(
+                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+                'none',
+                input_format='mat'
+            )
+        self.assertRaises(formats.UnknownInputError, _read_series)
+
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
         si1 = Series(
