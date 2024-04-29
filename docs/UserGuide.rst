@@ -16,6 +16,7 @@ User Guide
   Input_output
   Sorting
   DICOMAttributes
+  Options
   CommandLine
   Examples
   Plugins
