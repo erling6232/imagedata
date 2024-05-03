@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-dev5] - 2024-05-03
+### Added
+* Add EchoNumbers and AcquisitionNumber to Header.
+
 ## [v3.5.5-rc1] - 2024-04-29
 ### Added
 * Series: Added parameter `input_format` to specify a particular input format.
