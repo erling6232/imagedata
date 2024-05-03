@@ -150,6 +150,7 @@ class DICOMPlugin(AbstractPlugin):
             'seriesDate', 'seriesTime', 'seriesNumber', 'seriesDescription',
             'imageType', 'accessionNumber',
             'modality', 'laterality',
+            'echoNumbers', 'acquisitionNumber',
             'protocolName', 'bodyPartExamined', 'patientPosition',
             'windowCenter', 'windowWidth',
             'SOPClassUID'
