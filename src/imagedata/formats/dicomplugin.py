@@ -867,7 +867,9 @@ class DICOMPlugin(AbstractPlugin):
                 return
 
         if 'input_serinsuid' in opts and opts['input_serinsuid']:
-            if im.SeriesInstanceUID != opts['input_serinsuid']:
+            if im.SeriesInstanceUID == opts['input_serinsuid']:
+                pass
+            else:
                 return
         if 'input_echo' in opts and opts['input_echo']:
             if int(im.EchoNumbers) == int(opts['input_echo']):
