@@ -82,7 +82,7 @@ class Series(np.ndarray):
     name = "Series"
     description = "Image series"
     authors = "Erling Andersen"
-    version = "1.2.0"
+    version = "1.3.0"
     url = "www.helse-bergen.no"
 
     viewer = None
@@ -91,7 +91,11 @@ class Series(np.ndarray):
     def __new__(cls, data, input_order='auto', opts=None,
                 input_format=None, shape=(0,), dtype=float, buffer=None, offset=0,
                 strides=None, order=None,
-                template=None, geometry=None, axes=None):
+                template=None, geometry=None, axes=None,
+                **kwargs):
+
+        for key, value in kwargs.items():
+            opts[key] = value
 
         if issubclass(type(template), Series):
             template = template.header
