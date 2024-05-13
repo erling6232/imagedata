@@ -217,7 +217,7 @@ class Study(SortedDict):
         'referringPhysiciansName'
     ]
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
         super(Study, self).__init__()
         for _attr in self._attributes:
             setattr(self, _attr, None)
@@ -231,6 +231,8 @@ class Study(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -358,7 +360,7 @@ class Patient(SortedDict):
                    'patientIdentityRemoved', 'deidentificationMethod'
                    ]
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
 
         super(Patient, self).__init__()
         for _attr in self._attributes:
@@ -373,6 +375,8 @@ class Patient(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -534,7 +538,7 @@ class Cohort(SortedDict):
 
     _attributes = []
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
 
         super(Cohort, self).__init__()
         self.data = data
@@ -550,6 +554,8 @@ class Cohort(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']

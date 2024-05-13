@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-dev6] - 2024-05-13
+* Cohort, Patient, Study and Series: accept options as kwargs.
+
 ## [v3.5.5-dev5] - 2024-05-03
 ### Added
 * Add EchoNumbers and AcquisitionNumber to Header.
