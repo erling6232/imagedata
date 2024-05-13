@@ -248,9 +248,7 @@ class Study(SortedDict):
             # Assume data is URL
             try:
                 _series_dict = _sort_in_series(data, _in_opts)
-            except Exception as e:
-                print(e)
-                print('data: {}'.format(type(data)))
+            except Exception:
                 raise
 
         for _seriesInstanceUID in _series_dict:
