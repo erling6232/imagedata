@@ -4,14 +4,18 @@ Options
 =================
 
 Some plugins accept options which modify the plugin behaviour.
-These options can be provided by adding them to the opts= dictionary
-on the Series() read, *e.g.*:
+These options can be provided by adding them to the opts dictionary
+on the Series() read. The can also be given as **kwargs on the object
+instantiation. *E.g.*:
 
 .. code-block:: python
 
   from imagedata import Series
   a = Series('in_dir', opts={'accept_duplicate_tag': True})
+  b = Series('in_dir', accept_duplicate_tag=True)
 
+
+Options can be given to the Cohort(), Patient(), Study() and Series() objects.
 
 The following plugin options are known at the time of writing:
 
