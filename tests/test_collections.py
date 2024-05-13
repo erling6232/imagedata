@@ -3,6 +3,7 @@ import unittest
 
 # from .context import imagedata
 from src.imagedata import Study, Patient, Cohort
+from src.imagedata.formats import UnknownInputError
 
 
 class TestCollections(unittest.TestCase):
@@ -29,6 +30,19 @@ class TestCollections(unittest.TestCase):
         study = Study('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
         with tempfile.TemporaryDirectory() as d:
             study.write(d)
+
+    def test_kwargs(self):
+        def _read_study():
+            si2 = Study(
+                'data/dicom/time/time00/Image_00020.dcm',
+                input_format='dicom',
+                input_echo=2)
+
+        si1 = Study(
+            'data/dicom/time/time00/Image_00020.dcm',
+            input_format='dicom',
+            input_echo=1)
+        self.assertRaises(UnknownInputError, _read_study)
 
     def test_read_patient(self):
         patient = Patient('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')

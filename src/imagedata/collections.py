@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .series import Series
 from .readdata import read as r_read
+from .formats import UnknownInputError
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +73,11 @@ def _sort_in_series(_data, _opts):
         # Read input, hdr is dict of attributes
         _opts['separate_series'] = True
         _hdr, _si = r_read(_data, order='auto', opts=_opts)
+        if len(_hdr) < 1:
+            raise UnknownInputError('No input data found.')
 
         for _uid in _hdr:
-            _series = Series(_si[_uid])
+            _series = Series(_si[_uid], opts=_opts)
             _series.header = _hdr[_uid]
             _series_dict[_series.seriesInstanceUID] = _series
     else:
