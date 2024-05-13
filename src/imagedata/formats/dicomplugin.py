@@ -867,17 +867,20 @@ class DICOMPlugin(AbstractPlugin):
             except pydicom.errors.InvalidDicomError:
                 return
 
-        if 'input_serinsuid' in opts and opts['input_serinsuid']:
+        # if 'input_serinsuid' in opts and opts['input_serinsuid']:
+        if 'input_serinsuid' in opts:
             if im.SeriesInstanceUID == opts['input_serinsuid']:
                 pass
             else:
                 return
+        # if 'input_echo' in opts:
         if 'input_echo' in opts and opts['input_echo']:
             if int(im.EchoNumbers) == int(opts['input_echo']):
                 pass
             else:
                 return
-        if 'input_acquisition' in opts and opts['input_acquisition']:
+        # if 'input_acquisition' in opts and opts['input_acquisition']:
+        if 'input_acquisition' in opts:
             if int(im.AcquisitionNumber) == int(opts['input_acquisition']):
                 pass
             else:
