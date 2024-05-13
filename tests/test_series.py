@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -39,6 +37,15 @@ class TestSeries(unittest.TestCase):
             'data/dicom/time/time00/Image_00020.dcm')
         mi = si.max()
         self.assertEqual(type(mi), np.uint16)
+
+    def test_kwargs(self):
+        si1 = Series(
+            'data/dicom/time/time00/Image_00020.dcm',
+            input_echo=1)
+        si2 = Series(
+            'data/dicom/time/time00/Image_00020.dcm',
+            input_echo=2)
+        pass
 
     def test_get_keyword(self):
         si1 = Series(

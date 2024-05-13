@@ -94,6 +94,8 @@ class Series(np.ndarray):
                 template=None, geometry=None, axes=None,
                 **kwargs):
 
+        if opts is None:
+            opts = {}
         for key, value in kwargs.items():
             opts[key] = value
 
