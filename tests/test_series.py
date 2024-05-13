@@ -39,13 +39,17 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(type(mi), np.uint16)
 
     def test_kwargs(self):
+        def _read_series():
+            si2 = Series(
+                'data/dicom/time/time00/Image_00020.dcm',
+                input_format='dicom',
+                input_echo=2)
+
         si1 = Series(
             'data/dicom/time/time00/Image_00020.dcm',
+            input_format='dicom',
             input_echo=1)
-        si2 = Series(
-            'data/dicom/time/time00/Image_00020.dcm',
-            input_echo=2)
-        pass
+        self.assertRaises(formats.UnknownInputError, _read_series)
 
     def test_get_keyword(self):
         si1 = Series(
