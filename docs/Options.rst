@@ -31,6 +31,11 @@ The following plugin options are known at the time of writing:
 |read                     |accept_duplicate_tag     |bool |Accept series where tag|
 |                         |                         |     |is duplicated          |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |select_thickness         |str  |Select "thin" or       |
+|                         |                         |     |"thick" series.        |
+|                         |                         |     |Used for some CT       |
+|                         |                         |     |acquisitions.          |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |headers_only             |bool |Skip pixel data        |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |correct_acq              |bool |Correct acquisition    |

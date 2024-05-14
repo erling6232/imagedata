@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.5-dev7] - 2024-05-13
+## [v3.5.5-dev8] - 2024-05-14
+* DICOMPlugin: multiple acquisition numbers and slice thicknesses are resolved by
+  keeping the thin slices only. Option `select_thickness` is used to select 'thin'
+  slices (default), or 'thick' slices.
 * Cohort, Patient, Study and Series: accept options as kwargs.
 
 ## [v3.5.5-dev5] - 2024-05-03
