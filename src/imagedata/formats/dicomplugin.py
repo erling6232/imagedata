@@ -150,6 +150,7 @@ class DICOMPlugin(AbstractPlugin):
             'seriesDate', 'seriesTime', 'seriesNumber', 'seriesDescription',
             'imageType', 'accessionNumber',
             'modality', 'laterality',
+            'echoNumbers', 'acquisitionNumber',
             'protocolName', 'bodyPartExamined', 'patientPosition',
             'windowCenter', 'windowWidth',
             'SOPClassUID'
@@ -648,6 +649,57 @@ class DICOMPlugin(AbstractPlugin):
                     headers[s].append((tg, member_name, ds))
             return headers
 
+        def _verify_acquisition(header_dict):
+            # Verify one acquisition only
+            count = {}
+            thicknesses = []
+            for sloc in sorted(header_dict):
+                for member, fname, ds in header_dict[sloc]:
+                    try:
+                        acqnum = ds[0x00200012].value
+                    except KeyError:
+                        return
+                    if acqnum not in count:
+                        count[acqnum] = 0
+                    count[acqnum] += 1
+                    try:
+                        thickness = ds.SliceThickness
+                    except KeyError:
+                        return
+                    if thickness not in thicknesses:
+                        thicknesses.append(thickness)
+            logger.debug("sort_images: acqnum: {}".format(count))
+            logger.debug("sort_images: thicknesses: {}".format(thicknesses))
+            if len(thicknesses) < 2:
+                # All acquisitions are same slice thickness. Accept.
+                return
+            if len(count) > 1:
+                logger.debug(
+                    'Multiple acquisition numbers and slice thickness, must sort: {}'.format(count)
+                )
+                # Keep selcted slice thickness only
+                select = 'thin'
+                if 'select_thickness' in opts:
+                    if opts['select_thickness'] in ['thin', 'thick']:
+                        select = opts['select_thickness']
+                    else:
+                        raise ValueError('Unknown select_thickness option: {}'.format(
+                            opts['select_thickness']
+                        ))
+                selected_thickness = min(thicknesses)
+                if select == 'thick':
+                    selected_thickness = max(thicknesses)
+                for sloc in sorted(header_dict):
+                    for tag in reversed(range(len(header_dict[sloc]))):
+                        member, fname, ds = header_dict[sloc][tag]
+                        if ds.SliceThickness != selected_thickness:
+                            # Drop this item
+                            del header_dict[sloc][tag]
+                    if len(header_dict[sloc]) == 0:
+                        del header_dict[sloc]
+            # Re-verify
+            _verify_acquisition(header_dict)
+
         hdr = Header()
         hdr.input_format = 'dicom'
         # hdr.input_order = input_order
@@ -655,9 +707,13 @@ class DICOMPlugin(AbstractPlugin):
         # hdr.slices = len(sliceLocations)
         hdr.sliceLocations = np.array(sliceLocations)
 
-        # Verify same number of images for each slice
         if len(header_dict) == 0:
             raise ValueError("No DICOM images found.")
+
+        # Verify one acquisition only
+        _verify_acquisition(header_dict)
+
+        # Verify same number of images for each slice
         count = np.zeros(len(header_dict), dtype=int)
         islice = 0
         for sloc in sorted(header_dict):
@@ -866,14 +922,20 @@ class DICOMPlugin(AbstractPlugin):
             except pydicom.errors.InvalidDicomError:
                 return
 
-        if 'input_serinsuid' in opts and opts['input_serinsuid']:
-            if im.SeriesInstanceUID != opts['input_serinsuid']:
+        if 'input_serinsuid' in opts and opts['input_serinsuid'] is not None:
+            if im.SeriesInstanceUID == opts['input_serinsuid']:
+                pass
+            else:
                 return
-        if 'input_echo' in opts and opts['input_echo']:
-            if int(im.EchoNumbers) != int(opts['input_echo']):
+        if 'input_echo' in opts and opts['input_echo'] is not None:
+            if int(im.EchoNumbers) == int(opts['input_echo']):
+                pass
+            else:
                 return
-        if 'input_acquisition' in opts and opts['input_acquisition']:
-            if int(im.AcquisitionNumber) != int(opts['input_acquisition']):
+        if 'input_acquisition' in opts and opts['input_acquisition'] is not None:
+            if int(im.AcquisitionNumber) == int(opts['input_acquisition']):
+                pass
+            else:
                 return
 
         try:

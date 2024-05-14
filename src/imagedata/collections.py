@@ -16,6 +16,7 @@ from pathlib import Path
 
 from .series import Series
 from .readdata import read as r_read
+from .formats import UnknownInputError
 
 logger = logging.getLogger(__name__)
 
@@ -72,9 +73,11 @@ def _sort_in_series(_data, _opts):
         # Read input, hdr is dict of attributes
         _opts['separate_series'] = True
         _hdr, _si = r_read(_data, order='auto', opts=_opts)
+        if len(_hdr) < 1:
+            raise UnknownInputError('No input data found.')
 
         for _uid in _hdr:
-            _series = Series(_si[_uid])
+            _series = Series(_si[_uid], opts=_opts)
             _series.header = _hdr[_uid]
             _series_dict[_series.seriesInstanceUID] = _series
     else:
@@ -217,7 +220,7 @@ class Study(SortedDict):
         'referringPhysiciansName'
     ]
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
         super(Study, self).__init__()
         for _attr in self._attributes:
             setattr(self, _attr, None)
@@ -231,6 +234,8 @@ class Study(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -243,9 +248,7 @@ class Study(SortedDict):
             # Assume data is URL
             try:
                 _series_dict = _sort_in_series(data, _in_opts)
-            except Exception as e:
-                print(e)
-                print('data: {}'.format(type(data)))
+            except Exception:
                 raise
 
         for _seriesInstanceUID in _series_dict:
@@ -358,7 +361,7 @@ class Patient(SortedDict):
                    'patientIdentityRemoved', 'deidentificationMethod'
                    ]
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
 
         super(Patient, self).__init__()
         for _attr in self._attributes:
@@ -373,6 +376,8 @@ class Patient(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -534,7 +539,7 @@ class Cohort(SortedDict):
 
     _attributes = []
 
-    def __init__(self, data, opts=None):
+    def __init__(self, data, opts=None, **kwargs):
 
         super(Cohort, self).__init__()
         self.data = data
@@ -550,6 +555,8 @@ class Cohort(SortedDict):
         else:
             raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                         opts))
+        for key, value in kwargs.items():
+            _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']

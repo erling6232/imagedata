@@ -75,6 +75,9 @@ def read(urls, order=None, opts=None, input_format=None):
         raise UnknownOptionType('Unknown opts type ({}): {}'.format(type(opts),
                                                                     opts))
 
+    if input_format is None and 'input_format' in in_opts:
+        input_format = in_opts['input_format']
+
     # Let the calling party override a default input order
     input_order = INPUT_ORDER_NONE
     if 'input_order' in in_opts:
