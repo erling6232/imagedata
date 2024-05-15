@@ -1856,7 +1856,10 @@ class DICOMPlugin(AbstractPlugin):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", category=UserWarning)
                     import nibabel.nicom.csareader as csa
-                csa_head = csa.get_csa_header(im)
+                try:
+                    csa_head = csa.get_csa_header(im)
+                except csa.CSAReadError:
+                    raise CannotSort("Unable to extract b value from header.")
                 try:
                     value = csa.get_b_value(csa_head)
                 except TypeError:
