@@ -7,18 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.5-dev9] - 2024-05-15
+## [v3.5.5-rc3] - 2024-05-15
 ### Fixed
 * DICOMPlugin: Raise exception CannotSort when CSA header cannot be read.
 
-## [v3.5.5-dev8] - 2024-05-14
+## [v3.5.5-rc2] - 2024-05-14
+### Added
 * DICOMPlugin: multiple acquisition numbers and slice thicknesses are resolved by
   keeping the thin slices only. Option `select_thickness` is used to select 'thin'
   slices (default), or 'thick' slices.
 * Cohort, Patient, Study and Series: accept options as kwargs.
-
-## [v3.5.5-dev5] - 2024-05-03
-### Added
 * Add EchoNumbers and AcquisitionNumber to Header.
 
 ## [v3.5.5-rc1] - 2024-04-29
@@ -31,8 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.5-rc0] - 2024-04-26
 ### Fixed
-* DicomPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
+* DICOMPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
   across a volume.
+* DICOMPlugin.get_dicom_files(): Raise exception CannotSort when sort_images()
+  raises UnevenSlicesError.
 * imagedata._reduce(): Protect for empty lists.
 
 ## [v3.5.4] - 2024-04-25
