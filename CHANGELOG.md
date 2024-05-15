@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-rc3] - 2024-05-15
+### Fixed
+* DICOMPlugin: Raise exception CannotSort when CSA header cannot be read.
+
 ## [v3.5.5-rc2] - 2024-05-14
 ### Added
 * DICOMPlugin: multiple acquisition numbers and slice thicknesses are resolved by
