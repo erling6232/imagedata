@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5-rc4] - 2024-05-22
+### Added
+* DICOMPlugin: Option `skip_broken_series` to bypass broken series in a study.
+  Otherwise, an exception is raised.
+
 ## [v3.5.5-rc3] - 2024-05-15
 ### Fixed
 * DICOMPlugin: Raise exception CannotSort when CSA header cannot be read.
