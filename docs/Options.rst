@@ -25,6 +25,10 @@ The following plugin options are known at the time of writing:
 +=========================+=========================+=====+=======================+
 |**DICOMPlugin**                                                                  |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |skip_broken_series       |bool |Skip broken series     |
+|                         |                         |     |in a study.            |
+|                         |                         |     |Do not break.          |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_uneven_slices     |bool |Accept series with     |
 |                         |                         |     |uneven number of slices|
 +-------------------------+-------------------------+-----+-----------------------+
