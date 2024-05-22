@@ -27,7 +27,7 @@ The following plugin options are known at the time of writing:
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |skip_broken_series       |bool |Skip broken series     |
 |                         |                         |     |in a study.            |
-|                         |                         |     |Do not break.          |
+|                         |                         |     |Do not raise exception.|
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_uneven_slices     |bool |Accept series with     |
 |                         |                         |     |uneven number of slices|
