@@ -604,7 +604,7 @@ class DICOMPlugin(AbstractPlugin):
                 try:
                     sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
                 except UnevenSlicesError as e:
-                    raise CannotSort('{}'.format(e))
+                    raise CannotSort('UID: {}: {}'.format(uid, e))
                 except Exception as e:
                     print('WARNING: Skipping {}: {}'.format(uid, e))
                     pass
