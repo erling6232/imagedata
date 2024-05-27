@@ -23,6 +23,13 @@ The following plugin options are known at the time of writing:
 | Plugin                  | DICOM                   |Type | Usage                 |
 |                         | Attribute Name          |     |                       |
 +=========================+=========================+=====+=======================+
+|**Collections**                                                                  |
++-------------------------+-------------------------+-----+-----------------------+
+|read                     |strict_values            |bool |Require study          |
+|                         |                         |     |attributes to match in |
+|                         |                         |     |each series/study.     |
+|                         |                         |     |Default: True          |
++-------------------------+-------------------------+-----+-----------------------+
 |**DICOMPlugin**                                                                  |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |skip_broken_series       |bool |Skip broken series     |
