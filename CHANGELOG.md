@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.5.5] - 2024-05-28
+### Fixed
+* Added `strict_values` to Options documentation for Study/Patient/Cohort classes.
+
 ## [v3.5.5-rc4] - 2024-05-22
 ### Added
 * DICOMPlugin: Option `skip_broken_series` to bypass broken series in a study.
