@@ -1,8 +1,9 @@
+import os.path
 import tempfile
 import unittest
 
 # from .context import imagedata
-from src.imagedata import Study, Patient, Cohort
+from src.imagedata import Series, Study, Patient, Cohort
 from src.imagedata.formats import UnknownInputError
 
 
@@ -43,6 +44,21 @@ class TestStudy(unittest.TestCase):
             input_format='dicom',
             input_echo=1)
         self.assertRaises(UnknownInputError, _read_study)
+
+    def test_two_acqnum(self):
+        si = Series(
+            # 'data/dicom/time/time00/Image_00020.dcm',
+            'data/dicom/time/time00',
+            input_format = 'dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.setDicomAttribute('AcquisitionNumber', 1)
+            si.write(os.path.join(d, '1'))
+            si.setDicomAttribute('AcquisitionNumber', 2)
+            si.setDicomAttribute('SliceThickness', 4)
+            si.write(os.path.join(d, '2'), opts={'keep_uid': True})
+            study = Study(d, input_format='dicom', select_thickness=None)
+        pass
 
 
 class TestPatient(unittest.TestCase):
