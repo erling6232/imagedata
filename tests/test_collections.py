@@ -6,7 +6,7 @@ from src.imagedata import Study, Patient, Cohort
 from src.imagedata.formats import UnknownInputError
 
 
-class TestCollections(unittest.TestCase):
+class TestStudy(unittest.TestCase):
 
     def test_read_study(self):
         # study = Study('data/dicom')
@@ -44,6 +44,9 @@ class TestCollections(unittest.TestCase):
             input_echo=1)
         self.assertRaises(UnknownInputError, _read_study)
 
+
+class TestPatient(unittest.TestCase):
+
     def test_read_patient(self):
         patient = Patient('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
 
@@ -59,6 +62,9 @@ class TestCollections(unittest.TestCase):
         patient = Patient('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
         with tempfile.TemporaryDirectory() as d:
             patient.write(d)
+
+
+class TestCohort(unittest.TestCase):
 
     def test_read_cohort(self):
         cohort = Cohort('data/dicom/cohort.zip')
