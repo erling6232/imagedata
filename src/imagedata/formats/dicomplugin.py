@@ -555,7 +555,7 @@ class DICOMPlugin(AbstractPlugin):
             opts: options (dict)
             skip_pixels: Do not read pixel data (default: False)
         Returns:
-            Tuple of
+            List of tuples of
                 - sorted_headers: dict where sliceLocations are keys
                 - hdr: Header
                 - shape: tuple
@@ -602,7 +602,8 @@ class DICOMPlugin(AbstractPlugin):
             sorted_list = []
             for uid in image_dict:
                 try:
-                    sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+                    # sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
+                    sorted_list += self.sort_images(image_dict[uid], input_order, opts)
                 except UnevenSlicesError as e:
                     if 'skip_broken_series' in opts and opts['skip_broken_series']:
                         print('WARNING: Skipping {}: {}'.format(uid, e))
@@ -612,7 +613,7 @@ class DICOMPlugin(AbstractPlugin):
                 except Exception as e:
                     print('WARNING: Skipping {}: {}'.format(uid, e))
                     pass
-            return sorted_list, None, None
+            return [sorted_list, None, None]
         else:
             return self.sort_images(image_dict, input_order, opts)
 
@@ -625,7 +626,7 @@ class DICOMPlugin(AbstractPlugin):
             input_order: determine how to sort the input images
             opts: options (dict)
         Returns:
-            Tuple of
+            List of tuples of
                 - hdr
                     - input_format
                     - input_order
@@ -684,12 +685,17 @@ class DICOMPlugin(AbstractPlugin):
                 # Keep selcted slice thickness only
                 select = 'thin'
                 if 'select_thickness' in opts:
-                    if opts['select_thickness'] in ['thin', 'thick']:
+                    if opts['select_thickness'] is None:
+                        select = 'all'
+                    elif opts['select_thickness'] in ['thin', 'thick']:
                         select = opts['select_thickness']
                     else:
                         raise ValueError('Unknown select_thickness option: {}'.format(
                             opts['select_thickness']
                         ))
+                if select == 'all':
+                    # _split_acquisitions(header_dict)
+                    return
                 selected_thickness = min(thicknesses)
                 if select == 'thick':
                     selected_thickness = max(thicknesses)
@@ -703,6 +709,15 @@ class DICOMPlugin(AbstractPlugin):
                         del header_dict[sloc]
             # Re-verify
             _verify_acquisition(header_dict)
+
+        def _split_acquisitions(header_dict):
+            for sloc in sorted(header_dict):
+                for tag in range(len(header_dict[sloc])):
+                    member, fname, ds = header_dict[sloc][tag]
+                    try:
+                        acqnum = ds[0x00200012].value
+                    except KeyError:
+                        return
 
         hdr = Header()
         hdr.input_format = 'dicom'
@@ -862,7 +877,7 @@ class DICOMPlugin(AbstractPlugin):
             #     )
             # )
         hdr.axes = axes
-        return sorted_headers, hdr, shape
+        return [sorted_headers, hdr, shape]
 
     def auto_sort(self, header_dict, opts):
         def _single_slice_over_time(tags):
