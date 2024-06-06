@@ -189,7 +189,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             hdr.update(pre_hdr)
 
         logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
-        return hdr, si
+        return {0: hdr}, {0: si}
 
     def _need_local_file(self):
         """Do the plugin need access to local files?
