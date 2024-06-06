@@ -108,6 +108,8 @@ class MatPlugin(AbstractPlugin):
             logger.debug('matplugin._read_image variable {}'.format(name))
             si = self._reorder_to_dicom(mdict[name])
             logger.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
+        except MultipleVariablesInMatlabFile:
+            raise
         except NotImageError:
             raise NotImageError('{} does not look like a MAT file'.format(f))
         return info, si
