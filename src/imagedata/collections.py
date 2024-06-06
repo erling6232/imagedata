@@ -71,7 +71,6 @@ def _sort_in_series(_data, _opts):
     elif issubclass(type(_data), str) or issubclass(type(_data), Path):
         # _data is URL
         # Read input, hdr is dict of attributes
-        _opts['separate_series'] = True
         _hdr, _si = r_read(_data, order='auto', opts=_opts)
         if len(_hdr) < 1:
             raise UnknownInputError('No input data found.')
