@@ -51,13 +51,17 @@ mimetypes.add_type('application/dicom', '.ima')
 
 SeriesUID = namedtuple('SeriesUID', 'patientID, studyInstanceUID, seriesInstanceUID, ' +
                        'acquisitionNumber, echoNumber', defaults=(None, None))
+# Type definitions
+SourceList = list[dict]
+ObjectList = list[tuple[AbstractArchive, Member]]
+DatasetDict = defaultdict[SeriesUID, list[Dataset]]
+SortedDatasetList = defaultdict[float, list[Dataset]]
+SortedDatasetDict = defaultdict[SeriesUID, SortedDatasetList]
+SortedHeaderDict = dict[SeriesUID, Header]
+PixelDict = dict[SeriesUID, np.ndarray]
 
 
 class DoNotIncludeFile(Exception):
-    pass
-
-
-class FilesGivenForMultipleURLs(Exception):
     pass
 
 
@@ -120,27 +124,533 @@ class DICOMPlugin(AbstractPlugin):
         self.output_dir = None
         self.seriesTime = None
 
-    def getOriginForSlice(self, dictionary, slice):
-        """Get origin of given slice.
+    # def read(self, sources: list[dict], pre_hdr: Header, input_order: str , opts: dict) ->(
+    def read(self, sources: SourceList, pre_hdr: Header, input_order: str , opts: dict) ->(
+            tuple[SortedHeaderDict, PixelDict]):
+        """Read image data
 
         Args:
             self: DICOMPlugin instance
-            dictionary: image dictionary
-            slice: slice number (int)
+            sources: list of sources to image data
+            pre_hdr: Pre-filled header dict. Can be None
+            input_order: sort order
+            opts: input options (dict)
         Returns:
-            z,y,x: coordinate for origin of given slice (np.array)
+            Tuple of
+                - hdr: Header
+                    - input_format
+                    - input_order
+                    - slices
+                    - sliceLocations
+                    - dicomTemplate
+                    - keep_uid
+                    - tags
+                    - seriesNumber
+                    - seriesDescription
+                    - imageType
+                    - spacing
+                    - orientation
+                    - imagePositions
+                - si[tag,slice,rows,columns]: multi-dimensional numpy array
         """
 
-        origin = self.getDicomAttribute(dictionary, tag_for_keyword("ImagePositionPatient"), slice)
-        if origin is not None:
-            x = float(origin[0])
-            y = float(origin[1])
-            z = float(origin[2])
-            return np.array([z, y, x])
-        return None
+        self.input_order = input_order
+
+        skip_pixels = False
+        if 'headers_only' in opts and opts['headers_only']:
+            skip_pixels = True
+
+        # Read DICOM headers
+        logger.debug('DICOMPlugin.read: sources %s' % sources)
+        # pydicom.config.debug(True)
+        # object_list: list[tuple[AbstractArchive, Member]]
+        object_list: ObjectList
+        object_list = self._get_dicom_files(sources)
+
+        # dataset_dict: defaultdict[SeriesUID, list[Dataset]]
+        dataset_dict: DatasetDict
+        dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
+
+        # sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]]
+        sorted_dataset_dict: SortedDatasetDict
+        sorting: dict[str]
+        sorted_dataset_dict, sorting = self._sort_datasets(dataset_dict, input_order, opts)
+
+        # sorted_header_dict: dict[SeriesUID, Header]
+        sorted_header_dict: SortedHeaderDict
+        sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
+
+        # pixel_dict: dict[SeriesUID, np.ndarray]
+        pixel_dict: PixelDict
+        pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
+                                                  opts, skip_pixels)
+
+        if 'correct_acq' in opts and opts['correct_acq']:
+            for seriesUID in sorted_dataset_dict:
+                pixel_dict[seriesUID] = self._correct_acqtimes_for_dynamic_series(
+                    sorted_header_dict[seriesUID], pixel_dict[seriesUID]
+                )
+
+        return sorted_header_dict, pixel_dict
+
+    def _get_dicom_files(self,
+                         sources: SourceList
+                         ) -> ObjectList:
+        """Get DICOM objects.
+
+        Args:
+            self: DICOMPlugin instance
+            sources: list of sources to image data
+        Returns:
+            List of tuples of
+                - archive
+                - member
+        """
+        logger.debug("DICOMPlugin._get_dicom_files: sources: {} {}".format(
+            type(sources), sources))
+
+        object_list: ObjectList
+        object_list = []
+        for source in sources:
+            archive = source['archive']
+            scan_files = source['files']
+            logger.debug("DICOMPlugin._get_dicom_files: archive: {}".format(archive))
+            if scan_files is None or len(scan_files) == 0:
+                if archive.base is not None:
+                    scan_files = [archive.base]
+                else:
+                    scan_files = ['*']
+            elif archive.base is not None:
+                raise ValueError('When is archive.base with source[files]')
+            logger.debug("DICOMPlugin._get_dicom_files: source: {} {}".format(type(source), source))
+            logger.debug("DICOMPlugin._get_dicom_files: scan_files: {}".format(scan_files))
+            for path in archive.getnames(scan_files):
+                logger.debug("DICOMPlugin._get_dicom_files: member: {}".format(path))
+                if os.path.basename(path) == "DICOMDIR":
+                    continue
+                member = archive.getmembers([path, ])
+                if len(member) != 1:
+                    raise IndexError('Should not be multiple files for a filename')
+                member = member[0]
+                object_list.append((archive, member))
+        return object_list
+
+    def _catalog_on_instance_uid(self,
+                                 object_list: ObjectList,
+                                 opts: dict = None,
+                                 skip_pixels: bool = False) \
+            -> DatasetDict:
+        """Sort files on Series Instance UID
+
+        Args:
+            self: DICOMPlugin instance
+            object_list: List of (archive, member) tuples
+            opts: input options (dict)
+            skip_pixels: Do not read pixel data (default: False)
+        Returns:
+            Dict of List of Dataset
+        """
+
+        logger.debug('DICOMPlugin._catalog_on_instance_uid:')
+
+        dataset_dict: DatasetDict
+        dataset_dict = defaultdict(list)
+        last_message = ''
+        for archive, member in object_list:
+            try:
+                with archive.open(member, mode='rb') as f:
+                    logger.debug(
+                        'DICOMPlugin._catalog_on_instance_uid: process_member {}'.format(
+                            member))
+                    self._extract_member(dataset_dict, f, opts, skip_pixels=skip_pixels)
+            except DoNotIncludeFile as e:
+                last_message = '{}'.format(e)
+            except Exception as e:
+                logger.debug('DICOMPlugin._catalog_on_instance_uid: Exception {}'.format(e))
+                # raise
+        if len(object_list) > 0 and len(dataset_dict) < 1:
+            raise NotImageError(last_message)
+        return dataset_dict
+
+    def _extract_member(self,
+                        image_list: DatasetDict,
+                        member: Union[Dataset, Member, str],
+                        opts: dict = None,
+                        skip_pixels: bool = False):
+        im: Dataset
+        if issubclass(type(member), Dataset):
+            im = member
+        else:
+            try:
+                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
+            except pydicom.errors.InvalidDicomError as e:
+                raise DoNotIncludeFile('Invalid Dicom Error: {}'.format(e))
+
+        if 'input_serinsuid' in opts and opts['input_serinsuid'] is not None:
+            if im.SeriesInstanceUID != opts['input_serinsuid']:
+                raise DoNotIncludeFile('Series Instance UID not selected')
+        if 'input_echo' in opts and opts['input_echo'] is not None:
+            if int(im.EchoNumbers) != int(opts['input_echo']):
+                raise DoNotIncludeFile('Echo Number not selected')
+        if 'input_acquisition' in opts and opts['input_acquisition'] is not None:
+            if int(im.AcquisitionNumber) != int(opts['input_acquisition']):
+                raise DoNotIncludeFile('Acquisition Number not selected')
+
+        # Catalog images with ref as key
+        acquisition_number = echo_number = None
+        series_instance_uid = im.SeriesInstanceUID
+        if 'ignore_series_uid' in opts and opts['ignore_series_uid']:
+            series_instance_uid = None
+        if 'split_acquisitions' in opts and opts['split_acquisitions']:
+            acquisition_number = im.AcquisitionNumber
+        if 'split_echo_numbers' in opts and opts['split_echo_numbers']:
+            echo_number = im.EchoNumbers
+        ref = SeriesUID(im.PatientID, im.StudyInstanceUID, series_instance_uid,
+                        acquisition_number, echo_number)
+        image_list[ref].append(im)
+
+    def _sort_datasets(self,
+                       image_dict: DatasetDict,
+                       input_order: str,
+                       opts: dict = None
+                       ) -> (SortedDatasetDict, dict[str]):
+
+        def _get_sloc(ds: Dataset) -> float:
+            try:
+                return float(ds.SliceLocation)
+            except AttributeError:
+                logger.debug('DICOMPlugin._process_member: Calculate SliceLocation')
+                try:
+                    return self._calculate_slice_location(ds)
+                except ValueError:
+                    pass
+            logger.debug('DICOMPlugin._process_member: {} SliceLocation {}'.format(ds, sloc))
+            return 0.0
+
+        # Sort datasets on sloc
+        sorted_dataset_dict: SortedDatasetDict
+        sorted_dataset_dict = defaultdict(lambda: defaultdict(list))
+        sorting = {}
+        for seriesUID in image_dict:
+            sorting[seriesUID] = 'none'
+            dataset_dict = image_dict[seriesUID]
+            dataset: Dataset
+            for dataset in dataset_dict:
+                logger.debug('DICOMPlugin._process_image_members: process_member {}'.format(
+                    dataset))
+                sloc = _get_sloc(dataset)
+
+                # Catalog images with seriesUID and sloc as key
+                sorted_dataset_dict[seriesUID][sloc].append(dataset)
+            # Determine (automatic) sorting
+            sorting[seriesUID] = self._determine_sorting(sorted_dataset_dict[seriesUID], input_order, opts)
+            # Sort the dataset on selected key for each sloc
+            for sloc in sorted_dataset_dict[seriesUID].keys():
+                sorted_dataset_dict[seriesUID][sloc].sort(
+                    key=partial(self._get_tag, input_order=sorting[seriesUID], opts=opts)
+                )
+        return sorted_dataset_dict, sorting
+
+    def _determine_sorting(self,
+                           sorted_dataset_dict: SortedDatasetList,
+                           input_order: str,
+                           opts: dict = None) -> str:
+
+
+        def _single_slice_over_time(tags):
+            """If time and slice both varies, the time stamps address slices of a single volume
+            """
+            count_time = {}
+            count_sloc = {}
+            for time, sloc in tags:
+                if time not in count_time:
+                    count_time[time] = 0
+                if sloc not in count_sloc:
+                    count_sloc[sloc] = 0
+                count_time[time] += 1
+                count_sloc[sloc] += 1
+            max_time = max(count_time.values())
+            max_sloc = max(count_sloc.values())
+            return max_time == 1 and max_sloc == 1
+
+        if input_order != 'auto':
+            return input_order
+        extended_tags = {}
+        found_tags = {}
+        for sloc in sorted_dataset_dict.keys():
+            for im in sorted_dataset_dict[sloc]:
+                for order in ['time', 'b', 'fa', 'te']:
+                    try:
+                        tag = self._get_tag(im, order, opts)
+                        if tag is None:
+                            continue
+                        if order not in found_tags:
+                            found_tags[order] = []
+                            extended_tags[order] = []
+                        if tag not in found_tags[order]:
+                            found_tags[order].append(tag)
+                            extended_tags[order].append((tag, sloc))
+                    except (KeyError, TypeError, CannotSort):
+                        pass
+
+        # Determine how to sort
+        actual_order = None
+        for order in found_tags:
+            if len(found_tags[order]) > 1:
+                if actual_order == 'time' and order in ['b', 'te']:
+                    # DWI images will typically have varying time.
+                    # Let b values override time stamps.
+                    actual_order = order
+                elif actual_order is None:
+                    actual_order = order
+                else:
+                    raise CannotSort('Cannot auto-sort: {}'.format(extended_tags))
+        if actual_order is None:
+            actual_order = INPUT_ORDER_NONE
+        elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
+            actual_order = INPUT_ORDER_NONE
+        return actual_order
+
+    def _get_headers(self,
+                     sorted_dataset_dict: SortedDatasetDict,
+                     input_order: dict[str],
+                     opts: dict = None
+                     ) -> SortedHeaderDict:
+        """Get DICOM headers"""
+
+        def _verify_consistent_slices(series: SortedDatasetList) -> Counter:
+            # Verify same number of images for each slice
+            slice_count = Counter()
+            for islice, sloc in enumerate(series):
+                slice_count[islice] = len(series[sloc])
+            logger.debug("sort_images: tags per slice: {}".format(slice_count))
+            accept_uneven_slices = False
+            if 'accept_uneven_slices' in opts and \
+                    opts['accept_uneven_slices'] == 'True':
+                accept_uneven_slices = True
+            min_slice_count = min(slice_count.values())
+            max_slice_count = max(slice_count.values())
+            if min_slice_count != max_slice_count and not accept_uneven_slices:
+                logger.error("sort_images: tags per slice: {}".format(slice_count))
+                raise UnevenSlicesError(
+                    "Different number of images in each slice. Tags per slice:\n{}".format(slice_count)
+                )
+            return slice_count
+
+        def _extract_all_tags(hdr: Header,
+                              series: SortedDatasetList,
+                              input_order: str,
+                              slice_count: Counter
+                              ) -> None:
+            accept_duplicate_tag = False
+            if 'accept_duplicate_tag' in opts and \
+                    opts['accept_duplicate_tag'] == 'True':
+                accept_duplicate_tag = True
+            tag_list = defaultdict(list)
+            for islice, sloc in enumerate(sorted(series)):
+                i = 0
+                for im in series[sloc]:
+                    try:
+                        tag = self._get_tag(im, input_order, opts)
+                    except KeyError:
+                        if input_order == INPUT_ORDER_FAULTY:
+                            tag = i
+                        else:
+                            raise CannotSort('Tag not found in dataset')
+                    except CannotSort:
+                        raise
+                    except Exception:
+                        raise
+                    if tag is None:
+                        raise CannotSort("Tag {} not found in data".format(input_order))
+                    if tag not in tag_list[islice] or accept_duplicate_tag:
+                        tag_list[islice].append(tag)
+                    else:
+                        raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                    i += 1
+            for islice in tag_list.keys():
+                tag_list[islice] = sorted(tag_list[islice])
+            # Sort images based on position in tag_list
+            sorted_headers = {}
+            SOPInstanceUIDs = {}
+            last_im = None
+            # Allow for variable sized slices
+            frames = None
+            rows = columns = 0
+            i = 0
+            for islice, sloc in enumerate(sorted(series)):
+                # Pre-fill sorted_headers
+                sorted_headers[islice] = [False for _ in range(slice_count[islice])]
+                for im in series[sloc]:
+                    if input_order == INPUT_ORDER_FAULTY:
+                        tag = i
+                    else:
+                        try:
+                            tag = self._get_tag(im, input_order, opts)
+                        except CannotSort:
+                            raise
+                    idx = tag_list[islice].index(tag)
+                    if sorted_headers[islice][idx]:
+                        # Duplicate tag
+                        if accept_duplicate_tag:
+                            while sorted_headers[islice][idx]:
+                                idx += 1
+                        else:
+                            print("WARNING: Duplicate tag", tag)
+                    sorted_headers[islice][idx] = (tag, im)
+                    SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
+                    rows = max(rows, im.Rows)
+                    columns = max(columns, im.Columns)
+                    if 'NumberOfFrames' in im:
+                        frames = im.NumberOfFrames
+                    last_im = im
+                    i += 1
+            self.DicomHeaderDict = sorted_headers
+            hdr.dicomTemplate = series[next(iter(series))][0]
+            hdr.SOPInstanceUIDs = SOPInstanceUIDs
+            hdr.tags = {}
+            for _slice in tag_list.keys():
+                hdr.tags[_slice] = np.array(tag_list[_slice])
+            nz = len(series)
+            if frames is not None and frames > 1:
+                nz = frames
+            hdr.spacing = self.__get_voxel_spacing(sorted_headers)
+            ipp = self.getDicomAttribute(self.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
+            if ipp is not None:
+                ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
+            else:
+                ipp = np.array([0, 0, 0])
+            axes = list()
+            if len(tag_list[0]) > 1:
+                axes.append(
+                    VariableAxis(
+                        input_order_to_dirname_str(input_order),
+                        tag_list[0])
+                )
+            axes.append(UniformLengthAxis('slice', ipp[0], nz, hdr.spacing[0]))
+            axes.append(UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1]))
+            axes.append(UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2]))
+            hdr.color = False
+            if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
+                hdr.color = True
+            hdr.axes = axes
+            self._extract_dicom_attributes(series, hdr)
+
+        sorted_header_dict: SortedHeaderDict
+        sorted_header_dict = dict()
+        for seriesUID in sorted_dataset_dict:
+            series_dataset: SortedDatasetList
+            series_dataset = sorted_dataset_dict[seriesUID]
+            hdr = Header()
+            hdr.input_format = 'dicom'
+            hdr.input_order = input_order[seriesUID]
+            sliceLocations = sorted(series_dataset.keys())
+            # hdr.slices = len(sliceLocations)
+            hdr.sliceLocations = np.array(sliceLocations)
+
+            if len(series_dataset) == 0:
+                raise ValueError("No DICOM images found.")
+
+            slice_count = _verify_consistent_slices(series_dataset)
+            _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count)
+            sorted_header_dict[seriesUID] = hdr
+        return sorted_header_dict
+
+    def _construct_pixel_arrays(self,
+                                sorted_dataset_dict: SortedDatasetDict,
+                                sorted_header_dict: SortedHeaderDict,
+                                opts: dict = None,
+                                skip_pixels: bool = False
+                                ) -> PixelDict:
+
+        pixel_dict: PixelDict
+        pixel_dict = {}
+        for seriesUID in sorted_dataset_dict:
+            dataset_dict: SortedDatasetList
+            dataset_dict = sorted_dataset_dict[seriesUID]
+            header: Header
+            header = sorted_header_dict[seriesUID]
+            setattr(header, 'keep_uid', True)
+            if skip_pixels:
+                si = None
+            else:
+                # Extract pixel data
+                si = self._construct_pixel_array(
+                    dataset_dict, header, header.shape, opts=opts)
+
+            pixel_dict[seriesUID] = si
+        return pixel_dict
+
+    def _construct_pixel_array(self,
+                               image_dict: SortedDatasetList,
+                               hdr: Header,
+                               shape: tuple,
+                               opts: dict = None
+                               ) -> np.ndarray:
+        opts = {} if opts is None else opts
+        # Look-up first image to determine pixel type
+        im: Dataset = image_dict[next(iter(image_dict))][0]
+        hdr.photometricInterpretation = 'MONOCHROME2'
+        if 'PhotometricInterpretation' in im:
+            hdr.photometricInterpretation = im.PhotometricInterpretation
+        matrix_dtype = np.uint16
+        if 'PixelRepresentation' in im:
+            if im.PixelRepresentation == 1:
+                matrix_dtype = np.int16
+        if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
+                (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
+            matrix_dtype = float
+        elif im.BitsAllocated == 8:
+            if hdr.color:
+                matrix_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
+            else:
+                matrix_dtype = np.uint8
+        logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
+
+        # Load DICOM image data
+        logger.debug('DICOMPlugin.read: shape {}'.format(shape))
+        si = np.zeros(shape, matrix_dtype)
+
+        for _slice, sloc in enumerate(sorted(image_dict)):
+            _done = [False for x in range(len(image_dict[sloc]))]
+            for im in image_dict[sloc]:
+                tag = self._get_tag(im, hdr.input_order, opts)
+                tgs = hdr.tags[_slice]
+                idx = np.where(tgs == tag)[0][0]
+                if _done[idx] and \
+                        'accept_duplicate_tag' in opts and \
+                        opts['accept_duplicate_tag'] == 'True':
+                    while _done[idx]:
+                        idx += 1
+                _done[idx] = True
+                if 'NumberOfFrames' in im:
+                    if im.NumberOfFrames == 1:
+                        idx = (idx, _slice)
+                else:
+                    idx = (idx, _slice)
+                # Simplify index when image is 3D, remove tag index
+                if si.ndim == 3:
+                    idx = idx[1:]
+                try:
+                    im.decompress()
+                except NotImplementedError as e:
+                    logger.error("Cannot decompress pixel data: {}".format(e))
+                    raise
+                try:
+                    si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
+                except Exception as e:
+                    logger.warning("Cannot read pixel data: {}".format(e))
+                    raise
+                del im
+
+        # Simplify shape
+        self._reduce_shape(si, hdr.axes)
+        logger.debug('DICOMPlugin_read_files.construct_pixel_array: si {}'.format(si.shape))
+
+        return si
 
     def _extract_dicom_attributes(self,
-                                  series: defaultdict[float, list[Dataset]],
+                                  series: SortedDatasetList,
                                   hdr: Header
                                   ) -> None:
         """Extract DICOM attributes
@@ -220,6 +730,25 @@ class DICOMPlugin(AbstractPlugin):
                 dz = 1.0
         return np.array([dz, dy, dx])
 
+    def getOriginForSlice(self, dictionary, slice):
+        """Get origin of given slice.
+
+        Args:
+            self: DICOMPlugin instance
+            dictionary: image dictionary
+            slice: slice number (int)
+        Returns:
+            z,y,x: coordinate for origin of given slice (np.array)
+        """
+
+        origin = self.getDicomAttribute(dictionary, tag_for_keyword("ImagePositionPatient"), slice)
+        if origin is not None:
+            x = float(origin[0])
+            y = float(origin[1])
+            z = float(origin[2])
+            return np.array([z, y, x])
+        return None
+
     # noinspection PyPep8Naming
     def setDicomAttribute(self, dictionary, tag, value):
         """Set a given DICOM attribute to the provided value.
@@ -271,81 +800,6 @@ class DICOMPlugin(AbstractPlugin):
             for _slice in dictionary:
                 for tg, im in dictionary[_slice]:
                     im.remove_private_tags()
-
-    def read(self, sources: list[dict], pre_hdr: Header, input_order: str , opts: dict) ->(
-            list[tuple[Header, np.ndarray]]):
-        """Read image data
-
-        Args:
-            self: DICOMPlugin instance
-            sources: list of sources to image data
-            pre_hdr: Pre-filled header dict. Can be None
-            input_order: sort order
-            opts: input options (dict)
-        Returns:
-            Tuple of
-                - hdr: Header
-                    - input_format
-                    - input_order
-                    - slices
-                    - sliceLocations
-                    - dicomTemplate
-                    - keep_uid
-                    - tags
-                    - seriesNumber
-                    - seriesDescription
-                    - imageType
-                    - spacing
-                    - orientation
-                    - imagePositions
-                - si[tag,slice,rows,columns]: multi-dimensional numpy array
-        """
-
-        self.input_order = input_order
-
-        skip_pixels = False
-        if 'headers_only' in opts and opts['headers_only']:
-            skip_pixels = True
-
-        # Read DICOM headers
-        logger.debug('DICOMPlugin.read: sources %s' % sources)
-        # pydicom.config.debug(True)
-        object_list: list[tuple[AbstractArchive, Member]]
-        object_list = self._get_dicom_files(sources, input_order, opts, skip_pixels)
-        dataset_dict: defaultdict[SeriesUID, list[Dataset]]
-        dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
-        sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]]
-        sorting: dict[str]
-        sorted_dataset_dict, sorting = self._sort_datasets(dataset_dict, input_order, opts)
-        sorted_header_dict: dict[SeriesUID, Header]
-        sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
-        pixel_dict: dict[SeriesUID, np.ndarray]
-        pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
-                                                  opts, skip_pixels)
-
-        # try:
-        #     hdr, si = self.read_files(sources, input_order, opts, skip_pixels=skip_pixels)
-        # except CannotSort:
-        #     raise
-        # except Exception as e:
-        #     logger.debug('DICOMPlugin.read: exception\n%s' % e)
-        #     raise NotImageError('{}'.format(e))
-        # # pydicom.config.debug(False)
-        #
-        # # logger.debug("SOPClassUID: {}".format(
-        # #     self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("SOPClassUID"))))
-        # # logger.debug("TransferSyntaxUID: {}".format(
-        # #     self.getDicomAttribute(hdr.DicomHeaderDict, tag_for_keyword("TransferSyntaxUID"))))
-        #
-        # if 'correct_acq' in opts and opts['correct_acq']:
-        #     si = self.correct_acqtimes_for_dynamic_series(hdr, si)
-
-        # # Add any DICOM template
-        # if pre_hdr is not None:
-        #     for seriesUID in sorted_header_dict:
-        #         sorted_header_dict[seriesUID].update(pre_hdr)
-
-        return sorted_header_dict, pixel_dict
 
     @staticmethod
     def _get_pixels_with_shape(im, shape):
@@ -451,85 +905,11 @@ class DICOMPlugin(AbstractPlugin):
 
         pass
 
-    def _catalog_on_instance_uid(self,
-                                 object_list: list[tuple[AbstractArchive, Member]],
-                                 opts: dict = None,
-                                 skip_pixels: bool = False) \
-            -> defaultdict[SeriesUID, list[Dataset]]:
-        """Sort files on Series Instance UID
-
-        Args:
-            self: DICOMPlugin instance
-            object_list:
-            opts: input options (dict)
-            skip_pixels: Do not read pixel data (default: False)
-        Returns:
-            Dict of List of Dataset
-        """
-
-        logger.debug('DICOMPlugin._catalog_on_instance_uid:')
-
-        dataset_dict: defaultdict[SeriesUID, list[Dataset]]
-        dataset_dict = defaultdict(list)
-        last_message = ''
-        for archive, member in object_list:
-            try:
-                with archive.open(member, mode='rb') as f:
-                    logger.debug(
-                        'DICOMPlugin._catalog_on_instance_uid: process_member {}'.format(
-                        member))
-                    self._extract_member(dataset_dict, f, opts, skip_pixels=skip_pixels)
-            except DoNotIncludeFile as e:
-                last_message = '{}'.format(e)
-            except Exception as e:
-                logger.debug('DICOMPlugin._catalog_on_instance_uid: Exception {}'.format(e))
-                # raise
-        if len(object_list) > 0 and len(dataset_dict) < 1:
-            raise NotImageError(last_message)
-        return dataset_dict
-
-    def _extract_member(self,
-                        image_list: defaultdict[SeriesUID, list[Dataset]],
-                        member: Union[Dataset, Member, str],
-                        opts: dict = None,
-                        skip_pixels: bool = False):
-        im: Dataset
-        if issubclass(type(member), Dataset):
-            im = member
-        else:
-            try:
-                im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
-            except pydicom.errors.InvalidDicomError as e:
-                raise DoNotIncludeFile('Invalid Dicom Error: {}'.format(e))
-
-        if 'input_serinsuid' in opts and opts['input_serinsuid'] is not None:
-            if im.SeriesInstanceUID != opts['input_serinsuid']:
-                raise DoNotIncludeFile('Series Instance UID not selected')
-        if 'input_echo' in opts and opts['input_echo'] is not None:
-            if int(im.EchoNumbers) != int(opts['input_echo']):
-                raise DoNotIncludeFile('Echo Number not selected')
-        if 'input_acquisition' in opts and opts['input_acquisition'] is not None:
-            if int(im.AcquisitionNumber) != int(opts['input_acquisition']):
-                raise DoNotIncludeFile('Acquisition Number not selected')
-
-        # Catalog images with ref as key
-        acquisition_number = echo_number = None
-        series_instance_uid = im.SeriesInstanceUID
-        if 'ignore_series_uid' in opts and opts['ignore_series_uid']:
-            series_instance_uid = None
-        if 'split_acquisitions' in opts and opts['split_acquisitions']:
-            acquisition_number = im.AcquisitionNumber
-        if 'split_echo_numbers' in opts and opts['split_echo_numbers']:
-            echo_number = im.EchoNumbers
-        ref = SeriesUID(im.PatientID, im.StudyInstanceUID, series_instance_uid,
-                        acquisition_number, echo_number)
-        image_list[ref].append(im)
-
     def _process_image_members(self,
-                               image_dict: defaultdict[SeriesUID, list[Dataset]],
+                               image_dict: DatasetDict,
                                opts: dict = None,
-                               skip_pixels: bool = False) \
-            -> dict[SeriesUID, dict[float, list[Dataset]]]:
+                               skip_pixels: bool = False
+                               ) -> SortedDatasetDict:
         """Sort files on Series Instance UID
 
         Args:
@@ -547,7 +927,7 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug('DICOMPlugin._process_image_members:')
 
-        sorted_dataset_dict: dict[SeriesUID, dict[float, list[Dataset]]]
+        sorted_dataset_dict: SortedDatasetDict
         sorted_dataset_dict = {}
         # Sort datasets on sloc
         for seriesUID in image_dict:
@@ -564,767 +944,7 @@ class DICOMPlugin(AbstractPlugin):
 
         return sorted_dataset_dict
 
-    def _get_headers(self,
-                     sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]],
-                     input_order: dict[str],
-                     opts: dict = None
-                     ) -> dict[SeriesUID, Header]:
-        """Get DICOM headers"""
-
-        def _verify_consistent_slices(series: defaultdict[float, list[Dataset]]) -> Counter:
-            # Verify same number of images for each slice
-            slice_count = Counter()
-            for islice, sloc in enumerate(series):
-                slice_count[islice] = len(series[sloc])
-            logger.debug("sort_images: tags per slice: {}".format(slice_count))
-            accept_uneven_slices = False
-            if 'accept_uneven_slices' in opts and \
-                    opts['accept_uneven_slices'] == 'True':
-                accept_uneven_slices = True
-            min_slice_count = min(slice_count.values())
-            max_slice_count = max(slice_count.values())
-            if min_slice_count != max_slice_count and not accept_uneven_slices:
-                logger.error("sort_images: tags per slice: {}".format(slice_count))
-                raise UnevenSlicesError(
-                    "Different number of images in each slice. Tags per slice:\n{}".format(slice_count)
-                )
-            return slice_count
-
-        def _extract_all_tags(hdr: Header,
-                              series: defaultdict[float, list[Dataset]],
-                              input_order: str,
-                              slice_count: Counter
-                              ) -> None:
-            accept_duplicate_tag = False
-            if 'accept_duplicate_tag' in opts and \
-                    opts['accept_duplicate_tag'] == 'True':
-                accept_duplicate_tag = True
-            tag_list = defaultdict(list)
-            # for islice, sloc in enumerate(sorted(series)):
-            for islice, sloc in enumerate(sorted(series)):
-                i = 0
-                for im in series[sloc]:
-                    try:
-                        tag = self._get_tag(im, input_order, opts)
-                    except KeyError:
-                        if input_order == INPUT_ORDER_FAULTY:
-                            tag = i
-                        else:
-                            raise CannotSort('Tag not found in dataset')
-                    except CannotSort:
-                        raise
-                    except Exception:
-                        raise
-                    if tag is None:
-                        raise CannotSort("Tag {} not found in data".format(input_order))
-                    if tag not in tag_list[islice] or accept_duplicate_tag:
-                        tag_list[islice].append(tag)
-                    else:
-                        raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
-                    i += 1
-            for islice in tag_list.keys():
-                tag_list[islice] = sorted(tag_list[islice])
-            # Sort images based on position in tag_list
-            sorted_headers = {}
-            SOPInstanceUIDs = {}
-            last_im = None
-            # Allow for variable sized slices
-            frames = None
-            rows = columns = 0
-            i = 0
-            for islice, sloc in enumerate(sorted(series)):
-                # Pre-fill sorted_headers
-                sorted_headers[islice] = [False for _ in range(slice_count[islice])]
-                for im in series[sloc]:
-                    if input_order == INPUT_ORDER_FAULTY:
-                        tag = i
-                    else:
-                        try:
-                            tag = self._get_tag(im, input_order, opts)
-                        except CannotSort:
-                            raise
-                    idx = tag_list[islice].index(tag)
-                    if sorted_headers[islice][idx]:
-                        # Duplicate tag
-                        if accept_duplicate_tag:
-                            while sorted_headers[islice][idx]:
-                                idx += 1
-                        else:
-                            print("WARNING: Duplicate tag", tag)
-                    # sorted_headers[islice].insert(idx, (tag, (archive,filename), image))
-                    # noinspection PyTypeChecker
-                    sorted_headers[islice][idx] = (tag, im)
-                    SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
-                    rows = max(rows, im.Rows)
-                    columns = max(columns, im.Columns)
-                    if 'NumberOfFrames' in im:
-                        frames = im.NumberOfFrames
-                    last_im = im
-                    i += 1
-            # hdr.DicomHeaderDict = _copy_headers(sorted_headers)
-            self.DicomHeaderDict = sorted_headers
-            hdr.dicomTemplate = series[next(iter(series))][0]
-            hdr.SOPInstanceUIDs = SOPInstanceUIDs
-            # hdr.seriesInstanceUID = self.getDicomAttribute(self.DicomHeaderDict, 'SeriesInstanceUID')
-            # hdr.SOPClassUID = self.getDicomAttribute(self.DicomHeaderDict, 'SOPClassUID')
-            hdr.tags = {}
-            for _slice in tag_list.keys():
-                hdr.tags[_slice] = np.array(tag_list[_slice])
-            nz = len(series)
-            if frames is not None and frames > 1:
-                nz = frames
-            if len(tag_list[0]) > 1:
-                shape = (len(tag_list[0]), nz, rows, columns)
-            else:
-                shape = (nz, rows, columns)
-            hdr.spacing = self.__get_voxel_spacing(sorted_headers)
-            ipp = self.getDicomAttribute(self.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
-            if ipp is not None:
-                ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
-            else:
-                ipp = np.array([0, 0, 0])
-            axes = list()
-            if len(tag_list[0]) > 1:
-                axes.append(
-                    VariableAxis(
-                        input_order_to_dirname_str(input_order),
-                        tag_list[0])
-                )
-            axes.append(UniformLengthAxis(
-                'slice',
-                ipp[0],
-                nz,
-                hdr.spacing[0]))
-            axes.append(UniformLengthAxis(
-                'row',
-                ipp[1],
-                rows,
-                hdr.spacing[1]))
-            axes.append(UniformLengthAxis(
-                'column',
-                ipp[2],
-                columns,
-                hdr.spacing[2]))
-            hdr.color = False
-            if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
-                hdr.color = True
-            hdr.axes = axes
-            self._extract_dicom_attributes(series, hdr)
-
-        sorted_header_dict: dict[SeriesUID, Header]
-        sorted_header_dict = dict()
-        for seriesUID in sorted_dataset_dict:
-            series_dataset: defaultdict[float, list[Dataset]]
-            series_dataset = sorted_dataset_dict[seriesUID]
-            hdr = Header()
-            hdr.input_format = 'dicom'
-            hdr.input_order = input_order[seriesUID]
-            sliceLocations = sorted(series_dataset.keys())
-            # hdr.slices = len(sliceLocations)
-            hdr.sliceLocations = np.array(sliceLocations)
-
-            if len(series_dataset) == 0:
-                raise ValueError("No DICOM images found.")
-
-            slice_count = _verify_consistent_slices(series_dataset)
-            _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count)
-            sorted_header_dict[seriesUID] = hdr
-        return sorted_header_dict
-
-    def _construct_pixel_arrays(self,
-                                sorted_dataset_dict: dict[SeriesUID, dict[float, list[Dataset]]],
-                                sorted_header_dict: dict[SeriesUID, Header],
-                                opts: dict = None,
-                                skip_pixels: bool = False)\
-            -> dict[SeriesUID, np.ndarray]:
-
-        pixel_dict: dict[SeriesUID, np.ndarray]
-        pixel_dict = {}
-        for seriesUID in sorted_dataset_dict:
-            dataset_dict = sorted_dataset_dict[seriesUID]
-            header: Header
-            header = sorted_header_dict[seriesUID]
-            setattr(header, 'keep_uid', True)
-            if skip_pixels:
-                si = None
-            else:
-                # Extract pixel data
-                si = self._construct_pixel_array(
-                    dataset_dict, header, header.shape, opts=opts)
-
-            pixel_dict[seriesUID] = si
-        return pixel_dict
-
-    def _construct_pixel_array(self,
-                               image_dict: defaultdict[float, list[Dataset]],
-                               hdr: Header,
-                               shape: tuple,
-                               opts: dict = None
-                               ) -> np.ndarray:
-        opts = {} if opts is None else opts
-        # Look-up first image to determine pixel type
-        # tag, member_name, im = hdr.DicomHeaderDict[0][0]
-        im: Dataset = image_dict[next(iter(image_dict))][0]
-        # print('read: im 0: refcount {}'.format(sys.getrefcount(im)))
-        hdr.photometricInterpretation = 'MONOCHROME2'
-        if 'PhotometricInterpretation' in im:
-            hdr.photometricInterpretation = im.PhotometricInterpretation
-        matrix_dtype = np.uint16
-        if 'PixelRepresentation' in im:
-            if im.PixelRepresentation == 1:
-                matrix_dtype = np.int16
-        if 'RescaleSlope' in im and 'RescaleIntercept' in im and \
-                (abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4):
-            matrix_dtype = float
-        elif im.BitsAllocated == 8:
-            if hdr.color:
-                matrix_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
-            else:
-                matrix_dtype = np.uint8
-        logger.debug("DICOMPlugin.read: matrix_dtype %s" % matrix_dtype)
-        # _color = 1 if hdr.color else 0
-
-        # Load DICOM image data
-        logger.debug('DICOMPlugin.read: shape {}'.format(shape))
-        si = np.zeros(shape, matrix_dtype)
-
-        for _slice, sloc in enumerate(sorted(image_dict)):
-            # noinspection PyUnusedLocal
-            # _done = [False for x in range(len(hdr.DicomHeaderDict[_slice]))]
-            _done = [False for x in range(len(image_dict[sloc]))]
-            # for tag, member_name, im in hdr.DicomHeaderDict[_slice]:
-            for im in image_dict[sloc]:
-                tag = self._get_tag(im, hdr.input_order, opts)
-                # print('read: im 1: refcount {}'.format(sys.getrefcount(im)))
-                tgs = hdr.tags[_slice]
-                idx = np.where(tgs == tag)[0][0]
-                if _done[idx] and \
-                        'accept_duplicate_tag' in opts and \
-                        opts['accept_duplicate_tag'] == 'True':
-                    while _done[idx]:
-                        idx += 1
-                _done[idx] = True
-                if 'NumberOfFrames' in im:
-                    if im.NumberOfFrames == 1:
-                        idx = (idx, _slice)
-                else:
-                    idx = (idx, _slice)
-                # Simplify index when image is 3D, remove tag index
-                # if si.ndim == 3 + _color:
-                if si.ndim == 3:
-                    idx = idx[1:]
-                # Do not read file again
-                # with archive.open(member, mode='rb') as f:
-                #     if issubclass(type(f), Dataset):
-                #         im = f
-                #     else:
-                #         im = pydicom.filereader.dcmread(f)
-                try:
-                    im.decompress()
-                except NotImplementedError as e:
-                    logger.error("Cannot decompress pixel data: {}".format(e))
-                    raise
-                try:
-                    si[idx] = self._get_pixels_with_shape(im, si[idx].shape)
-                except Exception as e:
-                    logger.warning("Cannot read pixel data: {}".format(e))
-                    # raise Exception(member_name) from e
-                    raise
-                del im
-
-        # Simplify shape
-        self._reduce_shape(si, hdr.axes)
-        logger.debug('DICOMPlugin_read_files.construct_pixel_array: si {}'.format(si.shape))
-
-        return si
-
-    def _get_dicom_files(self,
-                         sources: list[dict],
-                         input_order: str,
-                         opts: dict = None,
-                         skip_pixels: bool = False) -> list[tuple[AbstractArchive, Member]]:
-        """Get DICOM objects.
-
-        Args:
-            self: DICOMPlugin instance
-            sources: list of sources to image data
-            input_order: Determine how to sort the input images
-            opts: options (dict)
-            skip_pixels: Do not read pixel data (default: False)
-        Returns:
-            List of tuples of
-                - sorted_headers: dict where sliceLocations are keys
-                - hdr: Header
-                - shape: tuple
-        """
-        logger.debug("DICOMPlugin._get_dicom_files: sources: {} {}".format(
-            type(sources), sources))
-
-        object_list: list[tuple[AbstractArchive, Member]]
-        object_list = []
-        for source in sources:
-            archive = source['archive']
-            scan_files = source['files']
-            logger.debug("DICOMPlugin._get_dicom_files: archive: {}".format(archive))
-            if scan_files is None or len(scan_files) == 0:
-                if archive.base is not None:
-                    scan_files = [archive.base]
-                else:
-                    scan_files = ['*']
-            elif archive.base is not None:
-                raise ValueError('When is archive.base with source[files]')
-            logger.debug("DICOMPlugin._get_dicom_files: source: {} {}".format(type(source), source))
-            logger.debug("DICOMPlugin._get_dicom_files: scan_files: {}".format(scan_files))
-            for path in archive.getnames(scan_files):
-                logger.debug("DICOMPlugin._get_dicom_files: member: {}".format(path))
-                if os.path.basename(path) == "DICOMDIR":
-                    continue
-                # logger.debug("get_dicom_files: calling archive.getmembers: {}".format(
-                #     len(path)))
-                member = archive.getmembers([path, ])
-                # logger.debug("get_dicom_files: returned from archive.getmembers: {}".format(
-                #     len(member)))
-                if len(member) != 1:
-                    raise IndexError('Should not be multiple files for a filename')
-                member = member[0]
-                object_list.append((archive, member))
-        # sorted_list = []
-        # for uid in object_list:
-        #     try:
-        #         # sorted_list.append(self.sort_images(image_dict[uid], input_order, opts))
-        #         sorted_list += self.sort_images(object_list[uid], input_order, opts)
-        #     except UnevenSlicesError as e:
-        #         if 'skip_broken_series' in opts and opts['skip_broken_series']:
-        #             print('WARNING: Skipping {}: {}'.format(uid, e))
-        #             pass
-        #         else:
-        #             raise CannotSort('UID: {}: {}'.format(uid, e))
-        #     except Exception as e:
-        #         print('WARNING: Skipping {}: {}'.format(uid, e))
-        #         pass
-        # return [sorted_list, None, None]
-        return object_list
-
-    def sort_images(self, header_dict, input_order, opts):
-        """Sort DICOM images.
-
-        Args:
-            self: DICOMPlugin instance
-            header_dict: dict where sliceLocations are keys
-            input_order: determine how to sort the input images
-            opts: options (dict)
-        Returns:
-            List of tuples of
-                - hdr
-                    - input_format
-                    - input_order
-                    - slices
-                    - sliceLocations
-                    - dicomTemplate
-                    - SOPInstanceUIDs
-                    - tags
-                - shape
-        """
-
-        def _copy_headers(sorted_headers):
-            def all_except_pixeldata_callback(dataset, data_element):
-                if data_element.tag.group == 0x7fe0:
-                    pass
-                else:
-                    ds[data_element.tag] = dataset[data_element.tag]
-
-            headers = {}
-            for s in sorted(sorted_headers):
-                headers[s] = []
-                for tg, member_name, im in sorted_headers[s]:
-                    ds = self.construct_basic_dicom()
-                    im.walk(all_except_pixeldata_callback)
-                    headers[s].append((tg, member_name, ds))
-            return headers
-
-        def _verify_acquisition(header_dict):
-            # Verify one acquisition only
-            count = {}
-            thicknesses = []
-            for sloc in sorted(header_dict):
-                for member, ds in header_dict[sloc]:
-                    try:
-                        acqnum = ds[0x00200012].value
-                    except KeyError:
-                        return
-                    if acqnum not in count:
-                        count[acqnum] = 0
-                    count[acqnum] += 1
-                    try:
-                        thickness = ds.SliceThickness
-                    except KeyError:
-                        return
-                    if thickness not in thicknesses:
-                        thicknesses.append(thickness)
-            logger.debug("sort_images: acqnum: {}".format(count))
-            logger.debug("sort_images: thicknesses: {}".format(thicknesses))
-            if len(thicknesses) < 2:
-                # All acquisitions are same slice thickness. Accept.
-                return
-            if len(count) > 1:
-                logger.debug(
-                    'Multiple acquisition numbers and slice thickness, must sort: {}'.format(count)
-                )
-                # Keep selcted slice thickness only
-                select = 'thin'
-                if 'select_thickness' in opts:
-                    if opts['select_thickness'] is None:
-                        select = 'all'
-                    elif opts['select_thickness'] in ['thin', 'thick']:
-                        select = opts['select_thickness']
-                    else:
-                        raise ValueError('Unknown select_thickness option: {}'.format(
-                            opts['select_thickness']
-                        ))
-                if select == 'all':
-                    # _split_acquisitions(header_dict)
-                    return
-                selected_thickness = min(thicknesses)
-                if select == 'thick':
-                    selected_thickness = max(thicknesses)
-                for sloc in sorted(header_dict):
-                    for tag in reversed(range(len(header_dict[sloc]))):
-                        member, ds = header_dict[sloc][tag]
-                        if ds.SliceThickness != selected_thickness:
-                            # Drop this item
-                            del header_dict[sloc][tag]
-                    if len(header_dict[sloc]) == 0:
-                        del header_dict[sloc]
-            # Re-verify
-            _verify_acquisition(header_dict)
-
-        def _split_acquisitions(header_dict):
-            for sloc in sorted(header_dict):
-                for tag in range(len(header_dict[sloc])):
-                    member, ds = header_dict[sloc][tag]
-                    try:
-                        acqnum = ds[0x00200012].value
-                    except KeyError:
-                        return
-
-        hdr = Header()
-        hdr.input_format = 'dicom'
-        # hdr.input_order = input_order
-        sliceLocations = sorted(header_dict)
-        # hdr.slices = len(sliceLocations)
-        hdr.sliceLocations = np.array(sliceLocations)
-
-        if len(header_dict) == 0:
-            raise ValueError("No DICOM images found.")
-
-        # Verify one acquisition only
-        _verify_acquisition(header_dict)
-
-        # Verify same number of images for each slice
-        count = np.zeros(len(header_dict), dtype=int)
-        islice = 0
-        for sloc in sorted(header_dict):
-            count[islice] += len(header_dict[sloc])
-            islice += 1
-        logger.debug("sort_images: tags per slice: {}".format(count))
-        accept_uneven_slices = accept_duplicate_tag = False
-        if 'accept_uneven_slices' in opts and \
-                opts['accept_uneven_slices'] == 'True':
-            accept_uneven_slices = True
-        if 'accept_duplicate_tag' in opts and \
-                opts['accept_duplicate_tag'] == 'True':
-            accept_duplicate_tag = True
-        if min(count) != max(count) and not accept_uneven_slices:
-            logger.error("sort_images: tags per slice: {}".format(count))
-            raise UnevenSlicesError(
-                "Different number of images in each slice. Tags per slice:\n{}".format(count)
-            )
-
-        if input_order == INPUT_ORDER_AUTO:
-            input_order = self.auto_sort(header_dict, opts)
-
-        hdr.input_order = input_order
-
-        # Extract all tags and sort them per slice
-        tag_list = {}
-        islice = 0
-        for sloc in sorted(header_dict):
-            tag_list[islice] = []
-            i = 0
-            for archive, filename, im in sorted(header_dict[sloc]):
-                try:
-                    tag = self._get_tag(im, input_order, opts)
-                except KeyError:
-                    if input_order == INPUT_ORDER_FAULTY:
-                        tag = i
-                    else:
-                        raise CannotSort('Tag not found in dataset')
-                except CannotSort:
-                    raise
-                except Exception:
-                    raise
-                if tag is None:
-                    raise CannotSort("Tag {} not found in data".format(input_order))
-                if tag not in tag_list[islice] or accept_duplicate_tag:
-                    tag_list[islice].append(tag)
-                else:
-                    raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
-                i += 1
-            islice += 1
-        for islice in range(len(header_dict)):
-            tag_list[islice] = sorted(tag_list[islice])
-        # Sort images based on position in tag_list
-        sorted_headers = {}
-        SOPInstanceUIDs = {}
-        islice = 0
-        # Allow for variable sized slices
-        frames = None
-        rows = columns = 0
-        i = 0
-        for sloc in sorted(header_dict):
-            # Pre-fill sorted_headers
-            sorted_headers[islice] = [False for _ in range(count[islice])]
-            for archive, filename, im in sorted(header_dict[sloc]):
-                if input_order == INPUT_ORDER_FAULTY:
-                    tag = i
-                else:
-                    try:
-                        tag = self._get_tag(im, input_order, opts)
-                    except CannotSort:
-                        raise
-                idx = tag_list[islice].index(tag)
-                if sorted_headers[islice][idx]:
-                    # Duplicate tag
-                    if accept_duplicate_tag:
-                        while sorted_headers[islice][idx]:
-                            idx += 1
-                    else:
-                        print("WARNING: Duplicate tag", tag)
-                # sorted_headers[islice].insert(idx, (tag, (archive,filename), image))
-                # noinspection PyTypeChecker
-                sorted_headers[islice][idx] = (tag, (archive, filename), im)
-                SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
-                rows = max(rows, im.Rows)
-                columns = max(columns, im.Columns)
-                if 'NumberOfFrames' in im:
-                    frames = im.NumberOfFrames
-                i += 1
-            islice += 1
-        # hdr.DicomHeaderDict = _copy_headers(sorted_headers)
-        self.DicomHeaderDict = sorted_headers
-        hdr.dicomTemplate = im
-        hdr.SOPInstanceUIDs = SOPInstanceUIDs
-        # hdr.seriesInstanceUID = self.getDicomAttribute(self.DicomHeaderDict, 'SeriesInstanceUID')
-        # hdr.SOPClassUID = self.getDicomAttribute(self.DicomHeaderDict, 'SOPClassUID')
-        hdr.tags = {}
-        for _slice in range(len(tag_list)):
-            hdr.tags[_slice] = np.array(tag_list[_slice])
-        nz = len(header_dict)
-        if frames is not None and frames > 1:
-            nz = frames
-        if len(tag_list[0]) > 1:
-            shape = (len(tag_list[0]), nz, rows, columns)
-        else:
-            shape = (nz, rows, columns)
-        spacing = self.__get_voxel_spacing(sorted_headers)
-        ipp = self.getDicomAttribute(self.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
-        if ipp is not None:
-            ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
-        else:
-            ipp = np.array([0, 0, 0])
-        axes = list()
-        if len(tag_list[0]) > 1:
-            axes.append(
-                VariableAxis(
-                    input_order_to_dirname_str(input_order),
-                    tag_list[0])
-            )
-        axes.append(UniformLengthAxis(
-            'slice',
-            ipp[0],
-            nz,
-            spacing[0]))
-        axes.append(UniformLengthAxis(
-            'row',
-            ipp[1],
-            rows,
-            spacing[1]))
-        axes.append(UniformLengthAxis(
-            'column',
-            ipp[2],
-            columns,
-            spacing[2]))
-        hdr.color = False
-        if 'SamplesPerPixel' in im and im.SamplesPerPixel == 3:
-            hdr.color = True
-            # shape = shape + (im.SamplesPerPixel,)
-            # axes.append(
-            #     VariableAxis(
-            #         'rgb',
-            #         ['r', 'g', 'b']
-            #     )
-            # )
-        hdr.axes = axes
-        return [sorted_headers, hdr, shape]
-
-    def auto_sort(self, header_dict, opts):
-        def _single_slice_over_time(tags):
-            """If time and slice both varies, the time stamps address slices of a single volume
-            """
-            count_time = {}
-            count_sloc = {}
-            for time, sloc in tags:
-                if time not in count_time:
-                    count_time[time] = 0
-                if sloc not in count_sloc:
-                    count_sloc[sloc] = 0
-                count_time[time] += 1
-                count_sloc[sloc] += 1
-            max_time = max(count_time.values())
-            max_sloc = max(count_sloc.values())
-            return max_time == 1 and max_sloc == 1
-
-        extended_tags = {}
-        found_tags = {}
-        for sloc in sorted(header_dict):
-            for archive, filename, im in sorted(header_dict[sloc]):
-                for order in ['time', 'b', 'fa', 'te']:
-                    try:
-                        tag = self._get_tag(im, order, opts)
-                        if tag is None:
-                            continue
-                        if order not in found_tags:
-                            found_tags[order] = []
-                            extended_tags[order] = []
-                        if tag not in found_tags[order]:
-                            found_tags[order].append(tag)
-                            extended_tags[order].append((tag, sloc))
-                    except (KeyError, TypeError, CannotSort):
-                        pass
-
-        # Determine how to sort
-        actual_order = None
-        for order in found_tags:
-            if len(found_tags[order]) > 1:
-                if actual_order == 'time' and order in ['b', 'te']:
-                    # DWI images will typically have varying time.
-                    # Let b values override time stamps.
-                    actual_order = order
-                elif actual_order is None:
-                    actual_order = order
-                else:
-                    raise CannotSort('Cannot auto-sort: {}'.format(extended_tags))
-        if actual_order is None:
-            actual_order = INPUT_ORDER_NONE
-        elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
-            actual_order = INPUT_ORDER_NONE
-        return actual_order
-
-    def _sort_datasets(self,
-                       image_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]],
-                       input_order: str,
-                       opts: dict = None
-                       ) -> (
-            defaultdict[SeriesUID, defaultdict[float, list[Dataset]]],
-            dict[str]
-    ):
-
-        def _get_sloc(ds: Dataset) -> float:
-            try:
-                return float(ds.SliceLocation)
-            except AttributeError:
-                logger.debug('DICOMPlugin._process_member: Calculate SliceLocation')
-                try:
-                    return self._calculate_slice_location(ds)
-                except ValueError:
-                    pass
-            logger.debug('DICOMPlugin._process_member: {} SliceLocation {}'.format(ds, sloc))
-            return 0.0
-
-        # Sort datasets on sloc
-        sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]]
-        sorted_dataset_dict = defaultdict(lambda: defaultdict(list))
-        sorting = {}
-        for seriesUID in image_dict:
-            sorting[seriesUID] = 'none'
-            dataset_list = image_dict[seriesUID]
-            for dataset in dataset_list:
-                logger.debug('DICOMPlugin._process_image_members: process_member {}'.format(
-                    dataset))
-                sloc = _get_sloc(dataset)
-
-                # Catalog images with seriesUID and sloc as key
-                sorted_dataset_dict[seriesUID][sloc].append(dataset)
-            # Determine (automatic) sorting
-            sorting[seriesUID] = self._determine_sorting(sorted_dataset_dict[seriesUID], input_order, opts)
-            # sorted_dataset_dict[seriesUID][sloc].sort(key=lambda ds: ds[sorting])
-            # Sort the dataset on selected key for each sloc
-            for sloc in sorted_dataset_dict[seriesUID].keys():
-                sorted_dataset_dict[seriesUID][sloc].sort(
-                    key=partial(self._get_tag, input_order=sorting[seriesUID], opts=opts)
-                )
-        return sorted_dataset_dict, sorting
-
-    def _determine_sorting(self,
-                           sorted_dataset_dict: defaultdict[float, list[Dataset]],
-                           input_order: str,
-                           opts: dict = None) -> str:
-        def _single_slice_over_time(tags):
-            """If time and slice both varies, the time stamps address slices of a single volume
-            """
-            count_time = {}
-            count_sloc = {}
-            for time, sloc in tags:
-                if time not in count_time:
-                    count_time[time] = 0
-                if sloc not in count_sloc:
-                    count_sloc[sloc] = 0
-                count_time[time] += 1
-                count_sloc[sloc] += 1
-            max_time = max(count_time.values())
-            max_sloc = max(count_sloc.values())
-            return max_time == 1 and max_sloc == 1
-
-        if input_order != 'auto':
-            return input_order
-        extended_tags = {}
-        found_tags = {}
-        for sloc in sorted_dataset_dict.keys():
-            for im in sorted_dataset_dict[sloc]:
-                for order in ['time', 'b', 'fa', 'te']:
-                    try:
-                        tag = self._get_tag(im, order, opts)
-                        if tag is None:
-                            continue
-                        if order not in found_tags:
-                            found_tags[order] = []
-                            extended_tags[order] = []
-                        if tag not in found_tags[order]:
-                            found_tags[order].append(tag)
-                            extended_tags[order].append((tag, sloc))
-                    except (KeyError, TypeError, CannotSort):
-                        pass
-
-        # Determine how to sort
-        actual_order = None
-        for order in found_tags:
-            if len(found_tags[order]) > 1:
-                if actual_order == 'time' and order in ['b', 'te']:
-                    # DWI images will typically have varying time.
-                    # Let b values override time stamps.
-                    actual_order = order
-                elif actual_order is None:
-                    actual_order = order
-                else:
-                    raise CannotSort('Cannot auto-sort: {}'.format(extended_tags))
-        if actual_order is None:
-            actual_order = INPUT_ORDER_NONE
-        elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
-            actual_order = INPUT_ORDER_NONE
-        return actual_order
-
-
-    def correct_acqtimes_for_dynamic_series(self, hdr, si):
+    def _correct_acqtimes_for_dynamic_series(self, hdr, si):
         # si[t,slice,rows,columns]
 
         # Extract acqtime for each image
@@ -1366,15 +986,11 @@ class DICOMPlugin(AbstractPlugin):
                 hdr.tags[_slice][t] = acq[0, t]
         return newsi
 
-    # noinspection PyArgumentList
     @staticmethod
     def _count_timesteps(hdr):
         slices = len(hdr.sliceLocations)
         timesteps = np.zeros([slices], dtype=int)
         for _slice in hdr.DicomHeaderDict:
-            # for tg, image in hdr.DicomHeaderDict[_slice]:
-            # for _ in hdr.DicomHeaderDict[_slice]:
-            #    timesteps[_slice] += 1
             timesteps[_slice] = len(hdr.DicomHeaderDict[_slice])
             if timesteps.min() != timesteps.max():
                 raise ValueError("Number of time steps ranges from %d to %d." % (
@@ -1698,7 +1314,7 @@ class DICOMPlugin(AbstractPlugin):
         # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
         ds.Rows = si.rows
         ds.Columns = si.columns
-        self._insert_pixeldata(ds, si)
+        self._insert_pixel_data(ds, si)
         # logger.debug("write_enhanced: filename {}".format(filename))
 
         # Set tag
@@ -1777,7 +1393,6 @@ class DICOMPlugin(AbstractPlugin):
         # except ValueError:
         #     raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         try:
-            # im = si.dicomTemplate
             ds = self.construct_dicom(filename, si.dicomTemplate, si, sop_ins_uid=sop_ins_uid)
         except ValueError:
             ds = self.construct_basic_dicom(si, sop_ins_uid=sop_ins_uid)
@@ -1865,7 +1480,7 @@ class DICOMPlugin(AbstractPlugin):
         # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
         ds.Rows = si.rows
         ds.Columns = si.columns
-        self._insert_pixeldata(ds, si)
+        self._insert_pixel_data(ds, si)
         # logger.debug("write_slice: filename {}".format(filename))
 
         # Set tag
@@ -1932,7 +1547,11 @@ class DICOMPlugin(AbstractPlugin):
         ds.Modality = 'SC'
         return ds
 
-    def construct_dicom(self, filename, template, si, sop_ins_uid=None):
+    def construct_dicom(self,
+                        filename: str,
+                        template: Series,
+                        si: Series,
+                        sop_ins_uid=None) -> FileDataset:
 
         self.instanceNumber += 1
         # if not self.keep_uid:
@@ -1996,7 +1615,7 @@ class DICOMPlugin(AbstractPlugin):
             if data_element.VR != "SQ":
                 ds_out[data_element.tag] = ds_in[data_element.tag]
 
-    def _insert_pixeldata(self, ds, arr):
+    def _insert_pixel_data(self, ds, arr):
         """Insert pixel data into dicom object
 
         If float array, scale to uint16
@@ -2302,7 +1921,7 @@ class DICOMPlugin(AbstractPlugin):
                     import nibabel.nicom.csareader as csa
                 csa_head = csa.get_csa_header(im)
                 try:
-                    if csa.get_b_value(csa_head) != float(value):
+                    if csa.get_b_value(csa_head) != float(value):  # Is b value to be changed?
                         if not (0x29, 0x10) in im:  # Cannot be Siemens CSA
                             return None
                         section_start = csa.find_private_section(im, 0x29, 'SIEMENS CSA HEADER')
@@ -2430,7 +2049,7 @@ class DICOMPlugin(AbstractPlugin):
         return affine
 
     @staticmethod
-    def _calculate_slice_location(image) -> np.ndarray:
+    def _calculate_slice_location(image: Dataset) -> float:
         """Function to calculate slicelocation from imageposition and orientation.
 
         Args:
