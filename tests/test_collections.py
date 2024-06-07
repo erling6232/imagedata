@@ -57,8 +57,7 @@ class TestStudy(unittest.TestCase):
             si.setDicomAttribute('AcquisitionNumber', 2)
             si.setDicomAttribute('SliceThickness', 4)
             si.write(os.path.join(d, '2'), opts={'keep_uid': True})
-            study = Study(d, input_format='dicom', select_thickness=None)
-        pass
+            study = Study(d, input_format='dicom', opts={'split_acquisitions': True})
 
 
 class TestPatient(unittest.TestCase):
