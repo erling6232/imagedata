@@ -57,7 +57,7 @@ def dump():
             member = member[0]
             try:
                 with archive.open(member, mode='rb') as f:
-                    reader.process_member(image_dict, archive, path, f, in_opts, skip_pixels=True)
+                    reader._sort_datasets(image_dict, archive, path, f, in_opts, skip_pixels=True)
             except Exception:
                 raise
 
