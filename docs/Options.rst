@@ -53,10 +53,6 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |times for dynamic      |
 |                         |                         |     |series                 |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |separate_series          |bool |Sort by Series Instance|
-|                         |                         |     |UID.                   |
-|                         |                         |     |Used by Collections    |
-+-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_serinsuid          |str  |Filter input files on  |
 |                         |                         |     |specified              |
 |                         |                         |     |Series Instance UID    |
