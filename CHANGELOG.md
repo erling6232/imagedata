@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v4.0.0-dev0] - 2024-06-07
+### Changed
+* Refactored DICOMPlugin to better split series based AcquisitionNumber and/or EchoNumber.
+* Format plugin read() now return hdr and si as dicts of series.
+
 ## [v3.5.6-dev0] - 2024-05-30
 ### Changed
 * Modify DICOMPlugin to improve sorting of based on several criteria.
