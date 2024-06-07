@@ -24,7 +24,7 @@ header_tags = ['input_format',
                'patientName', 'patientID', 'patientBirthDate',
                # 'windowCenter', 'windowWidth',
                'dicomTemplate', 'dicomToDo',
-               'tags', 'colormap', 'colormap_norm', 'colormap_label',
+               'tags', 'colormap', 'colormap_norm', 'colormap_label', 'color',
                'echoNumbers', 'acquisitionNumber',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
@@ -135,6 +135,7 @@ class Header(object):
         self.imagePositions = {}
         self.windowCenter = None
         self.windowWidth = None
+        self.color = False
 
         if axes is None:
             return
