@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.6-dev0] - 2024-05-30
 ### Changed
-* Modify DICOMPlugin to improve sorting of based on several criteria.
+* Modify DICOMPlugin to improve sorting based on several criteria.
 
 ## [v3.5.5] - 2024-05-28
 ### Fixed
