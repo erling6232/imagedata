@@ -1934,8 +1934,6 @@ class DICOMPlugin(AbstractPlugin):
                             return
                         except KeyError:
                             return None
-                        raise ValueError(
-                            'Replacing b value in CSA header has not been implemented.')
                 except Exception:
                     raise ValueError('Replacing b value in CSA header has not been implemented.')
             else:
