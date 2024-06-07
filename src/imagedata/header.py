@@ -108,6 +108,15 @@ class Header(object):
         obj.windowWidth = None
         return obj
 
+    @property
+    def shape(self) -> tuple:
+        """Return matrix shape as given by axes properties.
+        """
+        shape = []
+        for axis in self.axes:
+            shape.append(len(axis))
+        return tuple(shape)
+
     def new_uid(self) -> str:
         """Return the next available UID from the UID generator.
         """
