@@ -76,7 +76,12 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Instance UIDs when     |
 |                         |                         |     |writing                |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |window                   |str  |Acquisition Number     |
+|write                    |window                   |str  |When `original`:       |
+|                         |                         |     |keep original          |
+|                         |                         |     |center/level values.   |
+|                         |                         |     |Otherwise, calculate   |
+|                         |                         |     |window center/level    |
+|                         |                         |     |from present data.     |
 +-------------------------+-------------------------+-----+-----------------------+
 |write                    |output_sort              |str  |Which tag will sort    |
 |                         |                         |     |the output images,     |
