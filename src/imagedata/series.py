@@ -34,6 +34,10 @@ class DoNotSetSlicesError(Exception):
     pass
 
 
+class MultipleSeriesError(Exception):
+    pass
+
+
 class Series(np.ndarray):
     """Series -- a multidimensional array of medical imaging pixels.
 
@@ -159,6 +163,10 @@ class Series(np.ndarray):
 
         # Read input, hdr is dict of attributes
         hdr, si = r_read(urls, input_order, opts, input_format)
+        if len(hdr) > 1:
+            raise MultipleSeriesError('Multiple (n={}) series found in Series'.format(len(hdr)))
+        hdr = hdr[next(iter(hdr))]
+        si = si[next(iter(si))]
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
