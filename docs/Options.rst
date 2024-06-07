@@ -42,10 +42,12 @@ The following plugin options are known at the time of writing:
 |read                     |accept_duplicate_tag     |bool |Accept series where tag|
 |                         |                         |     |is duplicated          |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |select_thickness         |str  |Select "thin" or       |
-|                         |                         |     |"thick" series.        |
-|                         |                         |     |Used for some CT       |
-|                         |                         |     |acquisitions.          |
+|read                     |split_acquisitions       |str  |Split series on        |
+|                         |                         |     |DICOM Acquisition      |
+|                         |                         |     |Number.                |
++-------------------------+-------------------------+-----+-----------------------+
+|read                     |split_echo_numbers       |str  |Split series on        |
+|                         |                         |     |DICOM Echo Numbers.    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |headers_only             |bool |Skip pixel data        |
 +-------------------------+-------------------------+-----+-----------------------+
