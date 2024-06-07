@@ -76,7 +76,7 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Instance UIDs when     |
 |                         |                         |     |writing                |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |window                   |str  |When `original`:       |
+|write                    |window                   |str  |When "original":       |
 |                         |                         |     |keep original          |
 |                         |                         |     |center/level values.   |
 |                         |                         |     |Otherwise, calculate   |
