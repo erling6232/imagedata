@@ -1611,10 +1611,6 @@ class Series(np.ndarray):
     @property
     def seriesDescription(self):
         """str: DICOM series description.
-
-        Raises:
-            ValueError: When series description is not set.
-            AssertionError: when series description is not str
         """
         try:
             if self.header.seriesDescription is not None:
