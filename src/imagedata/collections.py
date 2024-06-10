@@ -9,7 +9,7 @@ The Cohort class is a collection of Patient objects.
 """
 
 from datetime import datetime, date, time
-from sortedcontainers import SortedDict
+from collections import UserDict
 import logging
 import argparse
 from pathlib import Path
@@ -147,6 +147,35 @@ def _sort_in_patients(_study_dict, _opts):
     # return _patients
 
 
+# class IndexedDict(UserDict):
+class IndexedDict(dict):
+
+    def __init__(self):
+        super(IndexedDict, self).__init__()
+
+    def _item_to_key_(self, item):
+        if isinstance(item, int):
+            return list(self.keys())[item]
+        return item
+
+    def __getitem__(self, item):
+        key = self._item_to_key_(item)
+        return super(IndexedDict, self).__getitem__(key)
+
+    def __setitem__(self, item, val):
+        key = self._item_to_key_(item)
+        super(IndexedDict, self).__setitem__(key, val)
+
+    def __repr__(self):
+        dictrepr = super(IndexedDict, self).__repr__(self)
+        return '%s(%s)' % (type(self).__name__, dictrepr)
+
+    def update(self, *args, **kwargs):
+        for item, v in dict(*args, **kwargs).items():
+            key = self._item_to_key_(item)
+            self[key] = v
+
+
 class UnknownOptionType(Exception):
     pass
 
@@ -185,7 +214,7 @@ class ClinicalTrialSubject(object):
             setattr(self, _attr, _get_attribute(obj, _dicom_attribute))
 
 
-class Study(SortedDict):
+class Study(IndexedDict):
     """Study -- Read and sort images into a collection of Series objects.
 
     Study(data, opts=None)
@@ -326,7 +355,7 @@ class Study(SortedDict):
                 raise Exception(_url) from e
 
 
-class Patient(SortedDict):
+class Patient(IndexedDict):
     """Patient -- Read and sort images into a collection of Study objects.
 
     Patient(data, opts=None)
@@ -507,7 +536,7 @@ class Patient(SortedDict):
                     raise Exception(_url) from e
 
 
-class Cohort(SortedDict):
+class Cohort(IndexedDict):
     """Cohort -- Read and sort images into a collection of Patient objects.
 
     Cohort(data, opts=None)
