@@ -45,6 +45,14 @@ class TestStudy(unittest.TestCase):
             input_echo=1)
         self.assertRaises(UnknownInputError, _read_study)
 
+    def test_indexed_dict(self):
+        si1 = Study(
+            'data/dicom/time/time00',
+            input_format='dicom'
+        )
+        s = si1[0]
+        self.assertIsInstance(s, Series, 'Study with key:0 does not return a Series object')
+
     def test_two_acqnum(self):
         si = Series(
             # 'data/dicom/time/time00/Image_00020.dcm',
