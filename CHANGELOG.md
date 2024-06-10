@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v4.0.0-dev2] - 2024-06-10
 ## Changed
 * Depend on itk-io 5.4.0 on all python versions.
+* Depend on pydicom 2.4.0 and matplotlib 3.8.0.
 
 ## [v4.0.0-dev0] - 2024-06-07
 ### Changed
