@@ -166,8 +166,16 @@ class IndexedDict(dict):
         key = self._item_to_key_(item)
         super(IndexedDict, self).__setitem__(key, val)
 
-    def __repr__(self):
-        dictrepr = super(IndexedDict, self).__repr__(self)
+    def __repr__(self, item = None):
+        if item is None:
+            dictrepr = super(IndexedDict, self).__repr__()
+            return '%s(%s)' % (type(self).__name__, dictrepr)
+        key = self._item_to_key_(item)
+        dictrepr = super(IndexedDict, self).__repr__(key)
+        return '%s(%s)' % (type(self).__name__, dictrepr)
+
+    def __str__(self):
+        dictrepr = super(IndexedDict, self).__str__()
         return '%s(%s)' % (type(self).__name__, dictrepr)
 
     def update(self, *args, **kwargs):
