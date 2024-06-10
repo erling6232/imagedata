@@ -182,14 +182,17 @@ class DICOMPlugin(AbstractPlugin):
 
         # pixel_dict: dict[SeriesUID, np.ndarray]
         pixel_dict: PixelDict
-        pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
-                                                  opts, skip_pixels)
+        if skip_pixels:
+            pixel_dict = {}
+        else:
+            pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
+                                                      opts, skip_pixels)
 
-        if 'correct_acq' in opts and opts['correct_acq']:
-            for seriesUID in sorted_dataset_dict:
-                pixel_dict[seriesUID] = self._correct_acqtimes_for_dynamic_series(
-                    sorted_header_dict[seriesUID], pixel_dict[seriesUID]
-                )
+            if 'correct_acq' in opts and opts['correct_acq']:
+                for seriesUID in sorted_dataset_dict:
+                    pixel_dict[seriesUID] = self._correct_acqtimes_for_dynamic_series(
+                        sorted_header_dict[seriesUID], pixel_dict[seriesUID]
+                    )
 
         return sorted_header_dict, pixel_dict
 
@@ -287,10 +290,11 @@ class DICOMPlugin(AbstractPlugin):
             except pydicom.errors.InvalidDicomError as e:
                 raise DoNotIncludeFile('Invalid Dicom Error: {}'.format(e))
             # Verify that the DICOM object has pixel data
-            try:
-                _pixels = len(im.pixel_array)
-            except AttributeError:
-                raise DoNotIncludeFile('No pixel data in DICOM object')
+            if not skip_pixels:
+                try:
+                    _pixels = len(im.pixel_array)
+                except AttributeError:
+                    raise DoNotIncludeFile('No pixel data in DICOM object')
 
         if 'input_serinsuid' in opts and opts['input_serinsuid'] is not None:
             if im.SeriesInstanceUID != opts['input_serinsuid']:
