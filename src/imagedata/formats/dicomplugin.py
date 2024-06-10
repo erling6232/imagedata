@@ -324,7 +324,6 @@ class DICOMPlugin(AbstractPlugin):
                     return self._calculate_slice_location(ds)
                 except ValueError:
                     pass
-            logger.debug('DICOMPlugin._process_member: {} SliceLocation {}'.format(ds, sloc))
             return 0.0
 
         # Sort datasets on sloc
