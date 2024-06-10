@@ -442,7 +442,8 @@ class DICOMPlugin(AbstractPlugin):
             if min_slice_count != max_slice_count and not accept_uneven_slices:
                 logger.error("sort_images: tags per slice: {}".format(slice_count))
                 raise UnevenSlicesError(
-                    "Different number of images in each slice. Tags per slice:\n{}".format(slice_count)
+                    "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
+                    "\nMaybe try 'split_acquisitions=True' or 'split_echo_numbers=True'."
                 )
             return slice_count
 
