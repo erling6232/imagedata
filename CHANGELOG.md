@@ -7,16 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.5.4-dev0] - 2024-04-11
-* Prepare for NumPy 2.0.
-* Depend on pandas 2.2.2+
-* Depend on SciPy 1.13.0+
-* Depend on itk-io 5.4rc3+
-* Depend on pydicom 2 only. Will need to verify new `pixels` backend in pydicom 3.
-* Drop support for Python 3.8.
-* Series.__new__(): compare string to type str, not np.compat.basestring.
+## [v4.0.0-dev1] - 2024-06-10
+### Changed
+* Depend on numpy 2.0.0rc2 and itk-io 5.4.0.
 
-## [v3.5.1-dev0] - 2024-03-15
+## [v4.0.0-dev0] - 2024-06-07
+### Changed
+* Refactored DICOMPlugin to better split series based AcquisitionNumber and/or EchoNumber.
+* Format plugin read() now return hdr and si as dicts of series.
+* Drop support for python 3.8.
+
+## [v3.5.6-dev0] - 2024-05-30
+### Changed
+* Modify DICOMPlugin to improve sorting based on several criteria.
+
+## [v3.5.5] - 2024-05-28
+### Fixed
+* Added `strict_values` to Options documentation for Study/Patient/Cohort classes.
+
+## [v3.5.5-rc4] - 2024-05-22
+### Added
+* DICOMPlugin: Option `skip_broken_series` to bypass broken series in a study.
+  Otherwise, an exception is raised.
+
+## [v3.5.5-rc3] - 2024-05-15
+### Fixed
+* DICOMPlugin: Raise exception CannotSort when CSA header cannot be read.
+
+## [v3.5.5-rc2] - 2024-05-14
+### Added
+* DICOMPlugin: multiple acquisition numbers and slice thicknesses are resolved by
+  keeping the thin slices only. Option `select_thickness` is used to select 'thin'
+  slices (default), or 'thick' slices.
+* Cohort, Patient, Study and Series: accept options as kwargs.
+* Add EchoNumbers and AcquisitionNumber to Header.
+
+## [v3.5.5-rc1] - 2024-04-29
+### Added
+* Series: Added parameter `input_format` to specify a particular input format.
+* test_formats_dicom: Added unittest for input_format.
+
+### Fixed
+* DICOMPlugin.read: Raise CannotSort exception when UnevenSlicesError is raised internally.
+
+## [v3.5.5-rc0] - 2024-04-26
+### Fixed
+* DICOMPlugin.sort_images(): Raise exception UnevenSlicesError when number of slices differ
+  across a volume.
+* DICOMPlugin.get_dicom_files(): Raise exception CannotSort when sort_images()
+  raises UnevenSlicesError.
+* imagedata._reduce(): Protect for empty lists.
+
+## [v3.5.4] - 2024-04-25
+### Added
+* Added option `input_acquisition` to Series to select a particular Acquisiton Number in a CT series.
+* Added command line option --input_acquisition to select a particular Acquisition Number.
+
+## [v3.5.3] - 2024-04-10
+### Fixed
+* NiftiPlugin and ITKPlugin: create output directory before writing local files.
+* Header: set default sort_on=SORT_ON_SLICE.
+
+### Added
+* conversion: write cohort data at the lowest level possible.
+
+## [v3.5.2] - 2024-04-09
+### Fixed
+* Corrected file name generation when writing 4D DICOM using SORT_ON_TAG.
+
+## [v3.5.1] - 2024-04-09
+### Added
+* AbstractPlugin: Honor the input_sort option.
+### Fixed
+* Corrected behaviour when writing 4D DICOM with output_dir == 'multi'.
+
+## [v3.5.1-rc3] - 2024-04-09
+### Added
+* AbstractPlugin: Honor the input_sort option.
+
+## [v3.5.1-rc2] - 2024-04-08
+### Fixed
+* Corrected behaviour when writing 4D DICOM with output_dir == 'multi'.
 
 ## [v3.5.0] - 2024-02-29
 * Modified file name generation to allow user to specify single file output when the format plugin support this.
