@@ -281,10 +281,16 @@ class DICOMPlugin(AbstractPlugin):
         if issubclass(type(member), Dataset):
             im = member
         else:
+            # Read the DICOM object
             try:
                 im = pydicom.filereader.dcmread(member, stop_before_pixels=skip_pixels)
             except pydicom.errors.InvalidDicomError as e:
                 raise DoNotIncludeFile('Invalid Dicom Error: {}'.format(e))
+            # Verify that the DICOM object has pixel data
+            try:
+                _pixels = len(im.pixel_array)
+            except AttributeError:
+                raise DoNotIncludeFile('No pixel data in DICOM object')
 
         if 'input_serinsuid' in opts and opts['input_serinsuid'] is not None:
             if im.SeriesInstanceUID != opts['input_serinsuid']:
