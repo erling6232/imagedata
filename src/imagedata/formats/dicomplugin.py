@@ -461,17 +461,21 @@ class DICOMPlugin(AbstractPlugin):
                         if input_order == INPUT_ORDER_FAULTY:
                             tag = i
                         else:
-                            raise CannotSort('Tag not found in dataset')
+                            raise CannotSort('Tag {:08x} ({}) not found in dataset'.format(
+                                tag, pydicom.datadict.keyword_for_tag(tag)
+                            ))
                     except CannotSort:
                         raise
                     except Exception:
                         raise
                     if tag is None:
-                        raise CannotSort("Tag {} not found in data".format(input_order))
+                        raise CannotSort("Tag {:08x} not found in data".format(input_order))
                     if tag not in tag_list[islice] or accept_duplicate_tag:
                         tag_list[islice].append(tag)
                     else:
-                        raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                        raise CannotSort("Duplicate tag ({}): {:08x} ({})".format(
+                            input_order, tag, pydicom.datadict.keyword_for_tag(tag)
+                        ))
                     i += 1
             for islice in tag_list.keys():
                 tag_list[islice] = sorted(tag_list[islice])
@@ -693,7 +697,9 @@ class DICOMPlugin(AbstractPlugin):
             if tag in im:
                 return im[tag].value
             else:
-                raise ValueError('Tag %s not found' % tag)
+                raise ValueError('Tag {:08x} ({}) not found'.format(
+                    tag, pydicom.datadict.keyword_for_tag(tag)
+                ))
 
         dataset = series[next(iter(series))][0]
         for attribute in attributes:
@@ -707,7 +713,10 @@ class DICOMPlugin(AbstractPlugin):
 
         # Image position (patient)
         # Reverse orientation vectors from (x,y,z) to (z,y,x)
-        iop = get_attribute(dataset, tag_for_keyword("ImageOrientationPatient"))
+        try:
+            iop = get_attribute(dataset, tag_for_keyword("ImageOrientationPatient"))
+        except ValueError:
+            iop = [0, 0, 1, 0, 1, 0]
         if iop is not None:
             hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                         iop[5], iop[4], iop[3]))
@@ -2067,7 +2076,9 @@ class DICOMPlugin(AbstractPlugin):
             if tag in im:
                 return im[tag].value
             else:
-                raise ValueError('Tag %s not found' % tag)
+                raise ValueError('Tag {:08x} ({}) not found'.format(
+                    tag, pydicom.datadict.keyword_for_tag(tag)
+                ))
 
         def get_normal(im):
             iop = np.array(get_attribute(im, tag_for_keyword('ImageOrientationPatient')))
