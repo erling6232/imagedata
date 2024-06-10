@@ -78,7 +78,7 @@ def _sort_in_series(_data, _opts):
         for _uid in _hdr:
             _series = Series(_si[_uid], opts=_opts)
             _series.header = _hdr[_uid]
-            _series_dict[_series.seriesInstanceUID] = _series
+            _series_dict[_uid] = _series
     else:
         raise ValueError('Unexpected series type {}'.format(type(_data)))
     return _series_dict
@@ -289,7 +289,7 @@ class Study(IndexedDict):
 
         for _seriesInstanceUID in _series_dict:
             _series = _series_dict[_seriesInstanceUID]
-            self[_series.seriesInstanceUID] = _series
+            self[_seriesInstanceUID] = _series
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
