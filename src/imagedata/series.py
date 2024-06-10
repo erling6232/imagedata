@@ -12,6 +12,7 @@ methods and attributes.
 from typing import Tuple
 import copy
 import numbers
+import argparse
 import numpy as np
 import logging
 from pathlib import PurePath
@@ -100,6 +101,8 @@ class Series(np.ndarray):
 
         if opts is None:
             opts = {}
+        elif issubclass(type(opts), argparse.Namespace):
+            opts = vars(opts)
         for key, value in kwargs.items():
             opts[key] = value
 
@@ -166,7 +169,8 @@ class Series(np.ndarray):
         if len(hdr) > 1:
             raise MultipleSeriesError('Multiple (n={}) series found in Series'.format(len(hdr)))
         hdr = hdr[next(iter(hdr))]
-        si = si[next(iter(si))]
+        if 'headers_only' not in opts or not opts['headers_only']:
+            si = si[next(iter(si))]
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
