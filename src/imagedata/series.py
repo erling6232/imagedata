@@ -1621,7 +1621,7 @@ class Series(np.ndarray):
                 return self.header.seriesDescription
         except AttributeError:
             pass
-        raise ValueError("No series description set.")
+        return ''
 
     @seriesDescription.setter
     def seriesDescription(self, descr):
