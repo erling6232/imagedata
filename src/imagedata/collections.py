@@ -155,24 +155,45 @@ class IndexedDict(dict):
 
     def _item_to_key_(self, item):
         if isinstance(item, int):
-            return list(self.keys())[item]
-        return item
+            return [list(self.keys())[item]]
+        elif isinstance(item, slice):
+            uids = []
+            start = 0 if item.start is None else item.start
+            stop = len(self) if item.stop is None else item.stop
+            step = 1 if item.step is None else item.step
+            for i in range(start, stop, step):
+                uids.append(list(self.keys())[i])
+            return uids
+        return [item]
 
     def __getitem__(self, item):
-        key = self._item_to_key_(item)
-        return super(IndexedDict, self).__getitem__(key)
+        keys = self._item_to_key_(item)
+        items = []
+        for key in keys:
+            items.append(
+                super(IndexedDict, self).__getitem__(key)
+            )
+        if len(items) == 1:
+            return items[0]
+        else:
+            return items
 
     def __setitem__(self, item, val):
-        key = self._item_to_key_(item)
-        super(IndexedDict, self).__setitem__(key, val)
+        keys = self._item_to_key_(item)
+        if len(keys) != 1:
+            raise IndexedDict('Bad index: {}'.format(keys))
+        super(IndexedDict, self).__setitem__(keys[0], val)
 
     def __repr__(self, item = None):
         if item is None:
             dictrepr = super(IndexedDict, self).__repr__()
             return '%s(%s)' % (type(self).__name__, dictrepr)
-        key = self._item_to_key_(item)
-        dictrepr = super(IndexedDict, self).__repr__(key)
-        return '%s(%s)' % (type(self).__name__, dictrepr)
+        keys = self._item_to_key_(item)
+        s = ""
+        for key in keys:
+            dictrepr = super(IndexedDict, self).__repr__(key)
+            s += '%s(%s)' % (type(self).__name__, dictrepr)
+        return s
 
     def __str__(self):
         dictrepr = super(IndexedDict, self).__str__()
@@ -180,7 +201,8 @@ class IndexedDict(dict):
 
     def update(self, *args, **kwargs):
         for item, v in dict(*args, **kwargs).items():
-            key = self._item_to_key_(item)
+            keys = self._item_to_key_(item)
+            key = keys[0]
             self[key] = v
 
 
