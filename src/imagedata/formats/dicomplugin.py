@@ -413,7 +413,10 @@ class DICOMPlugin(AbstractPlugin):
                 elif actual_order is None:
                     actual_order = order
                 else:
-                    raise CannotSort('Cannot auto-sort: {}'.format(extended_tags))
+                    raise CannotSort('Cannot auto-sort: {}\n'.format(extended_tags) +
+                                     '  actual_order: {}, order: {},'.format(actual_order, order) +
+                                     ' Series #{}: {}'.format(im.SeriesNumber, im.SeriesDescription)
+                                     )
         if actual_order is None:
             actual_order = INPUT_ORDER_NONE
         elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
@@ -434,8 +437,7 @@ class DICOMPlugin(AbstractPlugin):
                 slice_count[islice] = len(series[sloc])
             logger.debug("sort_images: tags per slice: {}".format(slice_count))
             accept_uneven_slices = False
-            if 'accept_uneven_slices' in opts and \
-                    opts['accept_uneven_slices'] == 'True':
+            if 'accept_uneven_slices' in opts and opts['accept_uneven_slices']:
                 accept_uneven_slices = True
             min_slice_count = min(slice_count.values())
             max_slice_count = max(slice_count.values())
@@ -443,7 +445,8 @@ class DICOMPlugin(AbstractPlugin):
                 logger.error("sort_images: tags per slice: {}".format(slice_count))
                 raise UnevenSlicesError(
                     "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
-                    "\nMaybe try 'split_acquisitions=True' or 'split_echo_numbers=True'."
+                    "\nLast file: {}".format(series[sloc][0].filename) +
+                    "\nCould try 'split_acquisitions=True' or 'split_echo_numbers=True'."
                 )
             return slice_count
 
@@ -452,10 +455,11 @@ class DICOMPlugin(AbstractPlugin):
                               input_order: str,
                               slice_count: Counter
                               ) -> None:
-            accept_duplicate_tag = False
-            if 'accept_duplicate_tag' in opts and \
-                    opts['accept_duplicate_tag'] == 'True':
+            accept_duplicate_tag = accept_uneven_slices = False
+            if 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']:
                 accept_duplicate_tag = True
+            if 'accept_uneven_slices' in opts and opts['accept_uneven_slices']:
+                accept_uneven_slices = True
             tag_list = defaultdict(list)
             for islice, sloc in enumerate(sorted(series)):
                 i = 0
@@ -477,6 +481,9 @@ class DICOMPlugin(AbstractPlugin):
                         raise CannotSort("Tag {:08x} not found in data".format(input_order))
                     if tag not in tag_list[islice] or accept_duplicate_tag:
                         tag_list[islice].append(tag)
+                    elif accept_uneven_slices:
+                        # Drop duplicate images
+                        logger.warning("sort_images: dropping duplicate image: {} {}".format(islice, sloc))
                     else:
                         raise CannotSort("Duplicate tag ({}): {:08x} ({})".format(
                             input_order, tag, pydicom.datadict.keyword_for_tag(tag)
@@ -632,8 +639,7 @@ class DICOMPlugin(AbstractPlugin):
                 tgs = hdr.tags[_slice]
                 idx = np.where(tgs == tag)[0][0]
                 if _done[idx] and \
-                        'accept_duplicate_tag' in opts and \
-                        opts['accept_duplicate_tag'] == 'True':
+                        'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']:
                     while _done[idx]:
                         idx += 1
                 _done[idx] = True
