@@ -37,10 +37,16 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Do not raise exception.|
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_uneven_slices     |bool |Accept series with     |
-|                         |                         |     |uneven number of slices|
+|                         |                         |     |uneven number of       |
+|                         |                         |     |slices.                |
+|                         |                         |     |Keep last  image for   |
+|                         |                         |     |each position only.    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_duplicate_tag     |bool |Accept series where tag|
-|                         |                         |     |is duplicated          |
+|                         |                         |     |is duplicated.         |
+|                         |                         |     |Each image is added    |
+|                         |                         |     |to image list at slice |
+|                         |                         |     |position.              |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |split_acquisitions       |str  |Split series on        |
 |                         |                         |     |DICOM Acquisition      |
