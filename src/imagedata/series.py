@@ -685,16 +685,16 @@ class Series(np.ndarray):
         except ValueError:
             seriesNumber = 0
         return "Patient: {} {}\n".format(patientID, patientName) + \
-            "Study  Time: {} {}\n".format(
+            "  Study  Time: {} {}\n".format(
                 self.getDicomAttribute('StudyDate'),
                 self.getDicomAttribute('StudyTime')
             ) + \
-            "Series Time: {} {}\n".format(
+            "  Series Time: {} {}\n".format(
                 self.getDicomAttribute('SeriesDate'),
                 self.getDicomAttribute('SeriesTime')
             ) + \
-            "Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
-            "Shape: {}, dtype: {}, input order: {}".format(
+            "  Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
+            "  Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
                 input_order_to_dirname_str(self.input_order)
             )
