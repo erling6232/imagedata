@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v4.0.0-dev2] - 2024-06-10
+## [v3.6.0-rc0] - 2024-06-17
+* Release candidate 0.
+
+## [v3.6.0-dev2] - 2024-06-10
 ## Added
 * DICOMPlugin: Print tag values in hex and keyword.
 
@@ -18,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Depend on itk-io 5.4.0 on all python versions.
 * Depend on pydicom 2.4.0 and matplotlib 3.8.0.
 
-## [v4.0.0-dev0] - 2024-06-07
+## [v3.6.0-dev0] - 2024-06-07
 ### Changed
 * Refactored DICOMPlugin to better split series based AcquisitionNumber and/or EchoNumber.
 * Format plugin read() now return hdr and si as dicts of series.
