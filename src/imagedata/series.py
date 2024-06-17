@@ -12,6 +12,7 @@ methods and attributes.
 from typing import Tuple
 import copy
 import numbers
+import argparse
 import numpy as np
 import logging
 from pathlib import PurePath
@@ -31,6 +32,10 @@ logger = logging.getLogger(__name__)
 
 
 class DoNotSetSlicesError(Exception):
+    pass
+
+
+class MultipleSeriesError(Exception):
     pass
 
 
@@ -96,6 +101,8 @@ class Series(np.ndarray):
 
         if opts is None:
             opts = {}
+        elif issubclass(type(opts), argparse.Namespace):
+            opts = vars(opts)
         for key, value in kwargs.items():
             opts[key] = value
 
@@ -159,6 +166,11 @@ class Series(np.ndarray):
 
         # Read input, hdr is dict of attributes
         hdr, si = r_read(urls, input_order, opts, input_format)
+        if len(hdr) > 1:
+            raise MultipleSeriesError('Multiple (n={}) series found in Series'.format(len(hdr)))
+        hdr = hdr[next(iter(hdr))]
+        if 'headers_only' not in opts or not opts['headers_only']:
+            si = si[next(iter(si))]
 
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
@@ -673,16 +685,16 @@ class Series(np.ndarray):
         except ValueError:
             seriesNumber = 0
         return "Patient: {} {}\n".format(patientID, patientName) + \
-            "Study  Time: {} {}\n".format(
+            "  Study  Time: {} {}\n".format(
                 self.getDicomAttribute('StudyDate'),
                 self.getDicomAttribute('StudyTime')
             ) + \
-            "Series Time: {} {}\n".format(
+            "  Series Time: {} {}\n".format(
                 self.getDicomAttribute('SeriesDate'),
                 self.getDicomAttribute('SeriesTime')
             ) + \
-            "Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
-            "Shape: {}, dtype: {}, input order: {}".format(
+            "  Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
+            "  Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
                 input_order_to_dirname_str(self.input_order)
             )
@@ -1603,17 +1615,13 @@ class Series(np.ndarray):
     @property
     def seriesDescription(self):
         """str: DICOM series description.
-
-        Raises:
-            ValueError: When series description is not set.
-            AssertionError: when series description is not str
         """
         try:
             if self.header.seriesDescription is not None:
                 return self.header.seriesDescription
         except AttributeError:
             pass
-        raise ValueError("No series description set.")
+        return ''
 
     @seriesDescription.setter
     def seriesDescription(self, descr):

@@ -9,7 +9,7 @@ The Cohort class is a collection of Patient objects.
 """
 
 from datetime import datetime, date, time
-from sortedcontainers import SortedDict
+from collections import UserDict
 import logging
 import argparse
 from pathlib import Path
@@ -71,7 +71,6 @@ def _sort_in_series(_data, _opts):
     elif issubclass(type(_data), str) or issubclass(type(_data), Path):
         # _data is URL
         # Read input, hdr is dict of attributes
-        _opts['separate_series'] = True
         _hdr, _si = r_read(_data, order='auto', opts=_opts)
         if len(_hdr) < 1:
             raise UnknownInputError('No input data found.')
@@ -79,7 +78,7 @@ def _sort_in_series(_data, _opts):
         for _uid in _hdr:
             _series = Series(_si[_uid], opts=_opts)
             _series.header = _hdr[_uid]
-            _series_dict[_series.seriesInstanceUID] = _series
+            _series_dict[_uid] = _series
     else:
         raise ValueError('Unexpected series type {}'.format(type(_data)))
     return _series_dict
@@ -148,6 +147,65 @@ def _sort_in_patients(_study_dict, _opts):
     # return _patients
 
 
+# class IndexedDict(UserDict):
+class IndexedDict(dict):
+
+    def __init__(self):
+        super(IndexedDict, self).__init__()
+
+    def _item_to_key_(self, item):
+        if isinstance(item, int):
+            return [list(self.keys())[item]]
+        elif isinstance(item, slice):
+            uids = []
+            start = 0 if item.start is None else item.start
+            stop = len(self) if item.stop is None else item.stop
+            step = 1 if item.step is None else item.step
+            for i in range(start, stop, step):
+                uids.append(list(self.keys())[i])
+            return uids
+        return [item]
+
+    def __getitem__(self, item):
+        keys = self._item_to_key_(item)
+        items = []
+        for key in keys:
+            items.append(
+                super(IndexedDict, self).__getitem__(key)
+            )
+        if len(items) == 1:
+            return items[0]
+        else:
+            return items
+
+    def __setitem__(self, item, val):
+        keys = self._item_to_key_(item)
+        if len(keys) != 1:
+            raise IndexedDict('Bad index: {}'.format(keys))
+        super(IndexedDict, self).__setitem__(keys[0], val)
+
+    def __repr__(self, item = None):
+        if item is None:
+            dictrepr = super(IndexedDict, self).__repr__()
+            return '%s(%s)' % (type(self).__name__, dictrepr)
+        keys = self._item_to_key_(item)
+        s = ""
+        for key in keys:
+            dictrepr = super(IndexedDict, self).__repr__(key)
+            s += '%s(%s)' % (type(self).__name__, dictrepr)
+        return s
+
+    def __str__(self):
+        dictrepr = super(IndexedDict, self).__str__()
+        return '%s(%s)' % (type(self).__name__, dictrepr)
+
+    def update(self, *args, **kwargs):
+        for item, v in dict(*args, **kwargs).items():
+            keys = self._item_to_key_(item)
+            key = keys[0]
+            self[key] = v
+
+
 class UnknownOptionType(Exception):
     pass
 
@@ -186,7 +244,7 @@ class ClinicalTrialSubject(object):
             setattr(self, _attr, _get_attribute(obj, _dicom_attribute))
 
 
-class Study(SortedDict):
+class Study(IndexedDict):
     """Study -- Read and sort images into a collection of Series objects.
 
     Study(data, opts=None)
@@ -253,7 +311,7 @@ class Study(SortedDict):
 
         for _seriesInstanceUID in _series_dict:
             _series = _series_dict[_seriesInstanceUID]
-            self[_series.seriesInstanceUID] = _series
+            self[_seriesInstanceUID] = _series
             for _attr in self._attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
@@ -327,7 +385,7 @@ class Study(SortedDict):
                 raise Exception(_url) from e
 
 
-class Patient(SortedDict):
+class Patient(IndexedDict):
     """Patient -- Read and sort images into a collection of Study objects.
 
     Patient(data, opts=None)
@@ -508,7 +566,7 @@ class Patient(SortedDict):
                     raise Exception(_url) from e
 
 
-class Cohort(SortedDict):
+class Cohort(IndexedDict):
     """Cohort -- Read and sort images into a collection of Patient objects.
 
     Cohort(data, opts=None)

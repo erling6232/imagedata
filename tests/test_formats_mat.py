@@ -185,7 +185,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat', 'Image_%05d.mat'), formats=['mat'])
+            si1.write(os.path.join(d, 'mat', 'Image_{:05d}.mat'), formats=['mat'])
 
     # @unittest.skip("skipping test_read_3d_mat")
     def test_write_3d_mat(self):
@@ -226,7 +226,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         s3 = si1 - si2
         with tempfile.TemporaryDirectory() as d:
-            s3.write(os.path.join(d, 'diff', 'Image_%05d.mat'), formats=['mat'], opts=self.opts)
+            s3.write(os.path.join(d, 'diff', 'Image_{:05d}.mat'), formats=['mat'], opts=self.opts)
 
 
 class Test4DMatPlugin(unittest.TestCase):

@@ -37,25 +37,29 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Do not raise exception.|
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_uneven_slices     |bool |Accept series with     |
-|                         |                         |     |uneven number of slices|
+|                         |                         |     |uneven number of       |
+|                         |                         |     |slices.                |
+|                         |                         |     |Keep last  image for   |
+|                         |                         |     |each position only.    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_duplicate_tag     |bool |Accept series where tag|
-|                         |                         |     |is duplicated          |
+|                         |                         |     |is duplicated.         |
+|                         |                         |     |Each image is added    |
+|                         |                         |     |to image list at slice |
+|                         |                         |     |position.              |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |select_thickness         |str  |Select "thin" or       |
-|                         |                         |     |"thick" series.        |
-|                         |                         |     |Used for some CT       |
-|                         |                         |     |acquisitions.          |
+|read                     |split_acquisitions       |str  |Split series on        |
+|                         |                         |     |DICOM Acquisition      |
+|                         |                         |     |Number.                |
++-------------------------+-------------------------+-----+-----------------------+
+|read                     |split_echo_numbers       |str  |Split series on        |
+|                         |                         |     |DICOM Echo Numbers.    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |headers_only             |bool |Skip pixel data        |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |correct_acq              |bool |Correct acquisition    |
 |                         |                         |     |times for dynamic      |
 |                         |                         |     |series                 |
-+-------------------------+-------------------------+-----+-----------------------+
-|read                     |separate_series          |bool |Sort by Series Instance|
-|                         |                         |     |UID.                   |
-|                         |                         |     |Used by Collections    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_serinsuid          |str  |Filter input files on  |
 |                         |                         |     |specified              |
@@ -76,7 +80,12 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Instance UIDs when     |
 |                         |                         |     |writing                |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |window                   |str  |Acquisition Number     |
+|write                    |window                   |str  |When "original":       |
+|                         |                         |     |keep original          |
+|                         |                         |     |center/level values.   |
+|                         |                         |     |Otherwise, calculate   |
+|                         |                         |     |window center/level    |
+|                         |                         |     |from present data.     |
 +-------------------------+-------------------------+-----+-----------------------+
 |write                    |output_sort              |str  |Which tag will sort    |
 |                         |                         |     |the output images,     |

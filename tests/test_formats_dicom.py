@@ -50,8 +50,8 @@ class TestDicomPlugin(unittest.TestCase):
         )
         with tempfile.TemporaryDirectory() as self.d:
             # Duplicate image file
-            si.write(os.path.join(self.d, '0'), formats=['dicom'])
-            si.write(os.path.join(self.d, '1'), formats=['dicom'])
+            si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
+            si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
             self.assertRaises(formats.CannotSort, _read_series)
 
     def test_without_dicom_plugin(self):
@@ -163,7 +163,7 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'TI'),
             input_order='ti',
-            opts={'ti': 'InversionTime'})
+            opts={'ti': 'InversionTime', 'ignore_series_uid': True})
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (5, 1, 384, 384))
@@ -299,7 +299,7 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'Image%05d.dcm'),
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'])
             si2 = Series(d)
         self.assertEqual('dicom', si2.input_format)
@@ -316,7 +316,7 @@ class TestDicomPlugin(unittest.TestCase):
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
         with tempfile.TemporaryDirectory() as d:
-            si.write(os.path.join(d, 'Image_%05d'),
+            si.write(os.path.join(d, 'Image_{:05d}.dcm'),
                      formats=['dicom'], opts=self.opts)
             newsi = Series(d,
                            formats.INPUT_ORDER_TIME,
@@ -338,7 +338,7 @@ class TestDicomPlugin(unittest.TestCase):
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
         with tempfile.TemporaryDirectory() as d:
-            si.write(os.path.join(d, 'Image_%05d'),
+            si.write(os.path.join(d, 'Image_{:05d}.dcm'),
                      formats=['dicom'])
             newsi = Series(d,
                            formats.INPUT_ORDER_TIME)
@@ -423,7 +423,7 @@ class TestDicomPlugin(unittest.TestCase):
                     si1.SOPInstanceUIDs[(_tag, _slice)]
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'Image%05d.dcm'),
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': True})
             si2 = Series(d)
@@ -460,7 +460,7 @@ class TestDicomPlugin(unittest.TestCase):
                 si1_sopinsuid[_slice][_tag] =\
                     si1.SOPInstanceUIDs[(_tag, _slice)]
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'Image%05d.dcm'),
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': False})
             si2 = Series(d)
@@ -502,7 +502,7 @@ class TestDicomZipPlugin(unittest.TestCase):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'dicom.zip?Image_%05d.dcm'),
+            si1.write(os.path.join(d, 'dicom.zip?Image_{:05d}.dcm'),
                       formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip'))
         self.assertEqual('dicom', si2.input_format)

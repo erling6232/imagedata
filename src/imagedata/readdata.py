@@ -11,6 +11,7 @@ import fnmatch
 import pathlib
 import urllib.parse
 import traceback as tb
+from typing import Dict, List, Tuple, Union
 from .formats import INPUT_ORDER_NONE, input_order_to_str, find_plugin, get_plugins_list
 from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
 from .transports import RootIsNotDirectory
@@ -92,7 +93,10 @@ def read(urls, order=None, opts=None, input_format=None):
         logger.debug("readdata.read template {}".format(in_opts['template']))
         template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
-        pre_hdr, _ = reader.read_files(template_source, input_order, in_opts)
+        pre_hdr, _ = reader.read(template_source, None, input_order, in_opts)
+        if len(pre_hdr) != 1:
+            raise ValueError('Template is not a single series')
+        pre_hdr = pre_hdr[next(iter(pre_hdr))]
 
     # Pre-fetch DICOM geometry
     geom_hdr = None
@@ -100,7 +104,10 @@ def read(urls, order=None, opts=None, input_format=None):
         logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
         geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
-        geom_hdr, _ = reader.read_files(geometry_source, input_order, in_opts)
+        geom_hdr, _ = reader.read(geometry_source, None, input_order, in_opts)
+        if len(geom_hdr) != 1:
+            raise ValueError('Geometry template is not a single series')
+        geom_hdr = geom_hdr[next(iter(geom_hdr))]
         # if pre_hdr is None:
         #    pre_hdr = {}
         # _add_dicom_geometry(pre_hdr, geom_hdr)
@@ -121,9 +128,9 @@ def read(urls, order=None, opts=None, input_format=None):
                 source['archive'].close()
             if 'headers_only' in in_opts and in_opts['headers_only']:
                 pass
-            elif 'separate_series' not in in_opts or not in_opts['separate_series']:
-                hdr.add_template(pre_hdr)
-                hdr.add_geometry(geom_hdr)
+            for seriesUID in hdr:
+                hdr[seriesUID].add_template(pre_hdr)
+                hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
         except (FileNotFoundError, CannotSort):
             raise
@@ -442,7 +449,9 @@ def _simplify_locations(locations):
     return new_locations
 
 
-def _get_sources(urls, mode, opts=None):
+def _get_sources(
+        urls: Union[List, Tuple, str],
+        mode: str, opts: dict = None) -> List[Dict]:
     """Determine transport, archive and file from each url.
 
     Handle both single url, a url tuple, and a url list
