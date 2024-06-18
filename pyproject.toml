@@ -69,20 +69,14 @@ Documentation = "https://imagedata.readthedocs.io"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
-# packages = ["NPreg"]
-# py-modules = ["_custom_build"]
-
-# [tool.setuptools.cmdclass]
-# build_py = "_custom_build.build_py"
 
 [tool.setuptools.dynamic]
-# version = {attr = "imagedata.__version__"}
 version = {file = "VERSION.txt"}
-# readme = {file = ["README.rst", "USAGE.rst"]}
 
 [tool.cibuildwheel]
 test-requires = "coverage"
 # test-command = "coverage run -m unittest discover {project}/tests -t {project}"
+test-command = "coverage run -m unittest discover imagedata/tests -t imagedata"
 
 [project.scripts]
 dicom_dump = "imagedata.image_data:dump"
