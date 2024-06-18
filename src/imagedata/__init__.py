@@ -3,7 +3,7 @@
 from os.path import join
 import logging
 from importlib import import_module
-from importlib.metadata import entry_points
+from importlib.metadata import version, entry_points
 from .series import Series
 from .collections import Study, Patient, Cohort
 
@@ -19,17 +19,20 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 #         __version__ = fh.readline().strip()
 
 try:
-    from importlib.metadata import version, entry_points
-    try:
-        __version__ = version('imagedata')
-    except Exception:
-        __version__ = None
+    __version__ = version('imagedata')
 except Exception:
-    from . import __path__ as _path
-    from os.path import join
-    # with open(join(_.__path__[0], "..", "VERSION.txt"), 'r') as fh:
-    with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
-        __version__ = fh.readline().strip()
+    __version__ = None
+# try:
+#     try:
+#         __version__ = version('imagedata')
+#     except Exception:
+#         __version__ = None
+# except ModuleNotFoundError:
+#     from . import __path__ as _path
+#     from os.path import join
+#     # with open(join(_.__path__[0], "..", "VERSION.txt"), 'r') as fh:
+#     with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
+#         __version__ = fh.readline().strip()
 
 __author__ = 'Erling Andersen, Haukeland University Hospital, Bergen, Norway'
 __email__ = 'Erling.Andersen@Helse-Bergen.NO'
