@@ -1,32 +1,22 @@
 """imagedata"""
 
-import sys
-from os.path import abspath, dirname, join
+from os.path import join
 import logging
 import importlib
 from importlib.metadata import entry_points
-# from imagedata.formats.abstractplugin import AbstractPlugin
 from .series import Series
 from .collections import Study, Patient, Cohort
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-# from . import __path__ as _path
-# _here = abspath(dirname(__file__))
-# raise ValueError('__init.py__: _here: {}'.format(_here))
-# with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
-#     __version__ = fh.readline().strip()
-# _here = dirname(sys.modules['package']).__file__
 from . import __path__ as _path
-print('imagedata: _path: {}'.format(_path[0]))
+__version__ = None
 try:
     with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
         __version__ = fh.readline().strip()
 except FileNotFoundError:
     with open(join(_path[0], "..", "..", "VERSION.txt"), 'r') as fh:
         __version__ = fh.readline().strip()
-print('imagedata: __version__: {}'.format(__version__))
-# __version__ = "3.6.0.dev7"
 
 # try:
 #     from importlib.metadata import version, entry_points
