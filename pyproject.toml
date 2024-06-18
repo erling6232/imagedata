@@ -8,7 +8,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "imagedata"
-dynamic = ["version"]
+# dynamic = ["version"]
+version = "file: VERSION.txt"
 # version = "3.6.0-dev7"
 authors = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
