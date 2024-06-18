@@ -16,10 +16,17 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 # raise ValueError('__init.py__: _here: {}'.format(_here))
 # with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
 #     __version__ = fh.readline().strip()
-_here = dirname(sys.modules['package']).__file__
-print('imagedata: _here: {}'.format(_here))
-# with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
-__version__ = "3.6.0.dev7"
+# _here = dirname(sys.modules['package']).__file__
+from . import __path__ as _path
+print('imagedata: _path: {}'.format(_path[0]))
+try:
+    with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
+        __version__ = fh.readline().strip()
+except FileNotFoundError:
+    with open(join(_path[0], "..", "..", "VERSION.txt"), 'r') as fh:
+        __version__ = fh.readline().strip()
+print('imagedata: __version__: {}'.format(__version__))
+# __version__ = "3.6.0.dev7"
 
 # try:
 #     from importlib.metadata import version, entry_points
