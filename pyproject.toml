@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "imagedata"
-# dynamic = ["version"]
+dynamic = ["version"]
 # version = "3.6.0-dev7"
 authors = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
@@ -76,7 +76,9 @@ package-dir = {"" = "src"}
 # build_py = "_custom_build.build_py"
 
 [tool.setuptools.dynamic]
-version = {attr = "imagedata.__version__"}
+# version = {attr = "imagedata.__version__"}
+version = {file = "VERSION.txt"}
+# readme = {file = ["README.rst", "USAGE.rst"]}
 
 [tool.cibuildwheel]
 test-requires = "coverage"
