@@ -393,8 +393,8 @@ class TestDicomPlugin(unittest.TestCase):
         fsi_center = fsi.windowCenter
         fsi_width = fsi.windowWidth
         with tempfile.TemporaryDirectory() as d:
-            fsi.write(d, formats=['dicom'])
-            fsi_read = Series(d)
+            fsi.write(os.path.join(d, 'test_write_float'), formats=['dicom'])
+            fsi_read = Series(os.path.join(d, 'test_write_float'))
             self.assertEqual(fsi_read.input_format, 'dicom')
         compare_headers(self, fsi, fsi_read, uid=False)
         self.assertAlmostEqual(fsi_read.windowCenter, fsi_center, places=5)
