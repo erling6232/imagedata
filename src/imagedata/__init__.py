@@ -1,5 +1,6 @@
 """imagedata"""
 
+import sys
 from os.path import abspath, dirname, join
 import logging
 import importlib
@@ -15,6 +16,9 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 # raise ValueError('__init.py__: _here: {}'.format(_here))
 # with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
 #     __version__ = fh.readline().strip()
+_here = dirname(sys.modules['package']).__file__
+print('imagedata: _here: {}'.format(_here))
+# with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
 __version__ = "3.6.0.dev7"
 
 # try:
