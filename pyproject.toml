@@ -93,7 +93,7 @@ image_show = "imagedata.image_data:show"
 image_statistics = "imagedata.image_data:statistics"
 timeline = "imagedata.image_data:timeline"
 
-[project.entry-points."imagedata_plugin"]
+[project.entry-points."imagedata_plugins"]
 dicomformat = "imagedata.formats.dicomplugin:DICOMPlugin"
 itkformat = "imagedata.formats.itkplugin:ITKPlugin"
 matformat = "imagedata.formats.matplugin:MatPlugin"
