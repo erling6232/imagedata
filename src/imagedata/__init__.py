@@ -1,17 +1,19 @@
 """imagedata"""
 
+from os.path import abspath, dirname, join
 import logging
 import importlib
+from importlib.metadata import entry_points
 # from imagedata.formats.abstractplugin import AbstractPlugin
 from .series import Series
 from .collections import Study, Patient, Cohort
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-from . import __path__ as _path
-from os.path import join
-from importlib.metadata import entry_points
-with open(join(_path[0], "..", "..", "VERSION.txt"), 'r') as fh:
+# from . import __path__ as _path
+_here = abspath(dirname(__file__))
+print('__init.py__: _here: {}'.format(_here))
+with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
     __version__ = fh.readline().strip()
 
 # try:
