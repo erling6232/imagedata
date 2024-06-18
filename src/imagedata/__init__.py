@@ -11,10 +11,11 @@ from .collections import Study, Patient, Cohort
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # from . import __path__ as _path
-_here = abspath(dirname(__file__))
-raise ValueError('__init.py__: _here: {}'.format(_here))
-with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
-    __version__ = fh.readline().strip()
+# _here = abspath(dirname(__file__))
+# raise ValueError('__init.py__: _here: {}'.format(_here))
+# with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
+#     __version__ = fh.readline().strip()
+__version__ = "3.6.0.dev7"
 
 # try:
 #     from importlib.metadata import version, entry_points
