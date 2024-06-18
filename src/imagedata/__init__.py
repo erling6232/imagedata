@@ -12,7 +12,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # from . import __path__ as _path
 _here = abspath(dirname(__file__))
-print('__init.py__: _here: {}'.format(_here))
+raise ValueError('__init.py__: _here: {}'.format(_here))
 with open(join(_here, "..", "..", "VERSION.txt"), 'r') as fh:
     __version__ = fh.readline().strip()
 
