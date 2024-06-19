@@ -50,7 +50,8 @@ jobs:
       run: |
         cd src
         ln -s ../data .
-        coverage run -m unittest discover ../tests -t .
+        ln -s ../tests .
+        coverage run -m unittest discover tests -t .
         coverage report -m
         coverage xml
         coverage html
