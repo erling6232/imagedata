@@ -52,7 +52,7 @@ class TestDicomPlugin(unittest.TestCase):
             # Duplicate image file
             si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
             si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            self.assertRaises(formats.CannotSort, _read_series)
+            self.assertRaises(formats.UnknownInputError, _read_series)
 
     def test_without_dicom_plugin(self):
         def _read_series():
@@ -152,11 +152,12 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
-        with self.assertRaises(formats.CannotSort) as context:
+        with self.assertRaises(formats.UnknownInputError) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
-                'b',
-                self.opts)
+                input_format='dicom',
+                input_order='b',
+                opts=self.opts)
 
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
     def test_read_dicom_user_defined_TI(self):
