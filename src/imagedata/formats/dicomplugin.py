@@ -34,7 +34,7 @@ from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
-from ..apps.diffusion import set_ds_b_value
+from ..apps.diffusion import get_ds_b_value, set_ds_b_value
 
 logger = logging.getLogger(__name__)
 try:
@@ -1858,12 +1858,15 @@ class DICOMPlugin(AbstractPlugin):
                 except ValueError:
                     raise CannotSort("Unable to extract time value from header.")
         elif input_order == INPUT_ORDER_B:
+            try:
+                return get_ds_b_value(im)
+            except IndexError:
+                raise CannotSort("Unable to extract b value from header.")
             b_tag = self._choose_tag('b', 'DiffusionBValue')
             try:
                 return float(im.data_element(b_tag).value)
             except (KeyError, TypeError):
                 pass
-                raise CannotSort("Unable to extract b value from header.")
             b_tag = self._choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
                 with warnings.catch_warnings():
