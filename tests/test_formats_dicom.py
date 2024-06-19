@@ -686,6 +686,12 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
                 'b'
             )
 
+    def test_read_dicom_not_DWI_no_CSA_exception(self):
+        d = Series(
+            os.path.join('data', 'dicom', 'lena_color.dcm'),
+            'b'
+        )
+
 
 class TestDicomSlicing(unittest.TestCase):
     def setUp(self):
