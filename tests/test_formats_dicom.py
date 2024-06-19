@@ -7,11 +7,9 @@ import logging
 import argparse
 import pydicom.filereader
 
-# from .context import imagedata
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
-from src.imagedata.collections import Study
 from .compare_headers import compare_headers, compare_pydicom
 
 
