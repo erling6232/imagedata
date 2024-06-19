@@ -40,9 +40,6 @@ class TestDicomPlugin(unittest.TestCase):
         )
 
     def test_cannot_sort_dicom(self):
-        def _read_series():
-            newsi = Series(self.d)
-
         si = Series(
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
             'none',
@@ -52,7 +49,9 @@ class TestDicomPlugin(unittest.TestCase):
             # Duplicate image file
             si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
             si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            self.assertRaises(formats.UnknownInputError, _read_series)
+            _ = Series(self.d, input_format='dicom')
+            with self.assertRaises(formats.UnknownInputError) as context:
+                _ = Series(self.d, input_format='dicom')
 
     def test_without_dicom_plugin(self):
         def _read_series():
