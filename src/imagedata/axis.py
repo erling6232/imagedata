@@ -45,6 +45,22 @@ class UniformAxis(Axis):
         self.stop = stop
         self.step = step
 
+    def copy(self,
+             name: str = None,
+             start: Number = None,
+             stop: Number = None,
+             step: Number = None,
+             n: int = None
+             ) -> UniformAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        start = self.start if start is None else start
+        stop = self.stop if stop is None else stop
+        step = self.step if step is None else step
+        if n is not None:
+            stop = start + (n + 1) * step
+        return UniformAxis(name, start, stop, step)
+
     @overload
     def __getitem__(self, index: int) -> Number:
         ...
@@ -115,6 +131,19 @@ class UniformLengthAxis(UniformAxis):
                  step: Number = 1) -> None:
         super(UniformLengthAxis, self).__init__(name, start, start + n * step, step)
         self.n = n
+
+    def copy(self,
+             name: str = None,
+             start: Number = None,
+             n: Number = None,
+             step: Number = None
+             ) -> UniformLengthAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        start = self.start if start is None else start
+        n = self.n if n is None else n
+        step = self.step if step is None else step
+        return UniformLengthAxis(name, start, n, step)
 
     @overload
     def __getitem__(self, index: int) -> Number:
@@ -190,6 +219,15 @@ class VariableAxis(Axis):
                     ds = None
                     break
             self.step = ds
+
+    def copy(self,
+             name: str = None,
+             n: Number = None
+             ) -> VariableAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        n = len(self.values) if n is None else n
+        return VariableAxis(name, self.values[:n])
 
     @overload
     def __getitem__(self, index: int) -> Number:
