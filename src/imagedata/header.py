@@ -361,7 +361,7 @@ class Header(object):
                 for geometry_axis in geometry_axes:
                     if geometry_axis.name == axis.name:
                         # Ensure geometry_axis length agree with matrix size
-                        self.axes[i] = self.__adjust_axis_from_template(axis, geometry_axis)
+                        self.axes[i] = geometry_axis.copy(axis.name, n=len(axis))
 
     def __set_slice_locations_from_template(self, geometry_sloc):
         if geometry_sloc is None:
@@ -381,28 +381,6 @@ class Header(object):
             self.sliceLocations = np.array(sloc)
         except ValueError:
             self.sliceLocations = geometry_sloc
-
-    def __adjust_axis_from_template(self, axis, template):
-        """Construct new axis from template, retaining axis length.
-        """
-        return template.copy(axis.name, n=len(axis))
-        # UniformLengthAxis is subclassed from UniformAxis, so check first
-        if isinstance(template, UniformLengthAxis):
-            return UniformLengthAxis(axis.name,
-                                     template.start,
-                                     len(axis),
-                                     template.step)
-        elif isinstance(template, UniformAxis):
-            return UniformAxis(axis.name,
-                               template.start,
-                               template.start + (len(axis)+1) * template.step,  # stop
-                               template.step)
-        elif isinstance(template, VariableAxis):
-            return VariableAxis(axis.name,
-                                template.values[:len(axis)])
-        else:
-            raise ValueError('Unknown template axis class: {}'.format(
-                type(template)))
 
     def find_axis(self, name):
         """Find axis with given name
