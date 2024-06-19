@@ -16,7 +16,7 @@ maintainers = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
 ]
 description = "Read/write medical image data"
-readme = "README.rst"
+readme = {file = "README.rst", content-type = "text/x-rst"}
 requires-python = ">=3.9,<3.13"
 keywords = [
     "dicom",
