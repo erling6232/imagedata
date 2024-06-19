@@ -1863,6 +1863,7 @@ class DICOMPlugin(AbstractPlugin):
                 return float(im.data_element(b_tag).value)
             except (KeyError, TypeError):
                 pass
+                raise
             b_tag = self._choose_tag('b', 'csa_header')
             if b_tag == 'csa_header':
                 with warnings.catch_warnings():
