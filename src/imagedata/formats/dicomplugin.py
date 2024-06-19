@@ -1944,15 +1944,27 @@ class DICOMPlugin(AbstractPlugin):
             set_ds_b_value(im, value)
         elif input_order == INPUT_ORDER_FA:
             fa_tag = self._choose_tag('fa', 'FlipAngle')
-            im.data_element(fa_tag).value = float(value)
+            if fa_tag not in im:
+                VR = pydicom.datadict.dictionary_VR(fa_tag)
+                im.add_new(fa_tag, VR, float(value))
+            else:
+                im.data_element(fa_tag).value = float(value)
         elif input_order == INPUT_ORDER_TE:
             te_tag = self._choose_tag('te', 'EchoTime')
-            im.data_element(te_tag).value = float(value)
+            if te_tag not in im:
+                VR = pydicom.datadict.dictionary_VR(te_tag)
+                im.add_new(te_tag, VR, float(value))
+            else:
+                im.data_element(te_tag).value = float(value)
         else:
             # User-defined tag
             if input_order in self.input_options:
                 _tag = self.input_options[input_order]
-                im.data_element(_tag).value = float(value)
+                if _tag not in im:
+                    VR = pydicom.datadict.dictionary_VR(_tag)
+                    im.add_new(_tag, VR, float(value))
+                else:
+                    im.data_element(_tag).value = float(value)
             else:
                 raise (UnknownTag("Unknown input_order {}.".format(input_order)))
 
