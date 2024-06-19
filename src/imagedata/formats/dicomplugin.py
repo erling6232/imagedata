@@ -34,6 +34,7 @@ from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
+from ..apps.diffusion import set_ds_b_value
 
 logger = logging.getLogger(__name__)
 try:
@@ -87,7 +88,6 @@ class DICOMPlugin(AbstractPlugin):
 
     Attributes:
         input_order
-        # DicomHeaderDict
         instanceNumber
         today
         now
@@ -386,6 +386,7 @@ class DICOMPlugin(AbstractPlugin):
             return input_order
         extended_tags = {}
         found_tags = {}
+        im = None
         for sloc in sorted_dataset_dict.keys():
             for im in sorted_dataset_dict[sloc]:
                 for order in ['time', 'b', 'fa', 'te']:
@@ -433,8 +434,10 @@ class DICOMPlugin(AbstractPlugin):
         def _verify_consistent_slices(series: SortedDatasetList) -> Counter:
             # Verify same number of images for each slice
             slice_count = Counter()
+            last_sloc = None
             for islice, sloc in enumerate(series):
                 slice_count[islice] = len(series[sloc])
+                last_sloc = sloc
             logger.debug("sort_images: tags per slice: {}".format(slice_count))
             accept_uneven_slices = False
             if 'accept_uneven_slices' in opts and opts['accept_uneven_slices']:
@@ -445,7 +448,7 @@ class DICOMPlugin(AbstractPlugin):
                 logger.error("sort_images: tags per slice: {}".format(slice_count))
                 raise UnevenSlicesError(
                     "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
-                    "\nLast file: {}".format(series[sloc][0].filename) +
+                    "\nLast file: {}".format(series[last_sloc][0].filename) +
                     "\nCould try 'split_acquisitions=True' or 'split_echo_numbers=True'."
                 )
             return slice_count
@@ -470,15 +473,15 @@ class DICOMPlugin(AbstractPlugin):
                         if input_order == INPUT_ORDER_FAULTY:
                             tag = i
                         else:
-                            raise CannotSort('Tag {:08x} ({}) not found in dataset'.format(
-                                tag, pydicom.datadict.keyword_for_tag(tag)
+                            raise CannotSort('Tag {} not found in dataset'.format(
+                                input_order
                             ))
                     except CannotSort:
                         raise
                     except Exception:
                         raise
                     if tag is None:
-                        raise CannotSort("Tag {:08x} not found in data".format(input_order))
+                        raise CannotSort("Tag {} not found in data".format(input_order))
                     if tag not in tag_list[islice] or accept_duplicate_tag:
                         tag_list[islice].append(tag)
                     elif accept_uneven_slices:
@@ -969,7 +972,7 @@ class DICOMPlugin(AbstractPlugin):
 
         return sorted_dataset_dict
 
-    def _correct_acqtimes_for_dynamic_series(self, hdr, si):
+    def _correct_acqtimes_for_dynamic_series(self, hdr: Header, si: np.ndarray):
         # si[t,slice,rows,columns]
 
         # Extract acqtime for each image
@@ -981,9 +984,9 @@ class DICOMPlugin(AbstractPlugin):
         new_shape = (timesteps, slices, si.shape[2], si.shape[3])
         newsi = np.zeros(new_shape, dtype=si.dtype)
         acq = np.zeros([slices, timesteps])
-        for _slice in hdr.DicomHeaderDict:
+        for _slice in self.DicomHeaderDict:
             t = 0
-            for tg, im in hdr.DicomHeaderDict[_slice]:
+            for tg, im in self.DicomHeaderDict[_slice]:
                 # logger.debug(_slice, tg)
                 acq[_slice, t] = tg
                 t += 1
@@ -996,16 +999,16 @@ class DICOMPlugin(AbstractPlugin):
                 acq[_slice, t] = min_acq
 
         # Set new acqtime for each image
-        for _slice in hdr.DicomHeaderDict:
+        for _slice in self.DicomHeaderDict:
             t = 0
-            for tg, im in hdr.DicomHeaderDict[_slice]:
+            for tg, im in self.DicomHeaderDict[_slice]:
                 im.AcquisitionTime = "%f" % acq[_slice, t]
                 newsi[t, _slice, :, :] = si[t, _slice, :, :]
                 t += 1
 
         # Update taglist in hdr
         hdr.tags = {}
-        for _slice in hdr.DicomHeaderDict:
+        for _slice in self.DicomHeaderDict:
             hdr.tags[_slice] = np.empty((acq.shape[1],))
             for t in range(acq.shape[1]):
                 hdr.tags[_slice][t] = acq[0, t]
@@ -1938,31 +1941,7 @@ class DICOMPlugin(AbstractPlugin):
             else:
                 im.data_element(time_tag).value = float(value)
         elif input_order == INPUT_ORDER_B:
-            # b_tag = opts['b'] if 'b' in opts else b_tag = 'csa_header'
-            b_tag = self._choose_tag('b', "csa_header")
-            if b_tag == "csa_header":
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=UserWarning)
-                    import nibabel.nicom.csareader as csa
-                csa_head = csa.get_csa_header(im)
-                try:
-                    if csa.get_b_value(csa_head) != float(value):  # Is b value to be changed?
-                        if not (0x29, 0x10) in im:  # Cannot be Siemens CSA
-                            return None
-                        section_start = csa.find_private_section(im, 0x29, 'SIEMENS CSA HEADER')
-                        if section_start is None:
-                            return None
-                        # element_offset = 0x10
-                        # element_no = section_start + element_offset
-                        try:
-                            csa_head['tags']['B_value']['items'] = [float(value)]
-                            return
-                        except KeyError:
-                            return None
-                except Exception:
-                    raise ValueError('Replacing b value in CSA header has not been implemented.')
-            else:
-                im.data_element(b_tag).value = float(value)
+            set_ds_b_value(im, value)
         elif input_order == INPUT_ORDER_FA:
             fa_tag = self._choose_tag('fa', 'FlipAngle')
             im.data_element(fa_tag).value = float(value)
