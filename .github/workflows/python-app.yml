@@ -48,7 +48,6 @@ jobs:
         ls -lR
     - name: Run Unit Tests and Generate Coverage Report
       run: |
-        coverage run -h
         coverage run -m unittest discover tests -t .
         coverage report -m
         coverage xml
