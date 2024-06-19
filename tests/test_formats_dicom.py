@@ -480,6 +480,22 @@ class TestDicomPlugin(unittest.TestCase):
                     si2.SOPInstanceUIDs[(_tag, _slice)]
                 )
 
+    def test_read_dicom_not_DWI(self):
+        with self.assertRaises(formats.UnknownInputError) as context:
+            _ = Series(
+                os.path.join('data', 'dicom', 'time'),
+                input_format='dicom',
+                input_order='b'
+            )
+
+    def test_read_dicom_not_DWI_no_CSA(self):
+        with self.assertRaises(formats.UnknownInputError) as context:
+            _ = Series(
+                os.path.join('data', 'dicom', 'lena_color.dcm'),
+                input_format='dicom',
+                input_order='b'
+            )
+
 
 class TestDicomZipPlugin(unittest.TestCase):
     def setUp(self):
@@ -669,31 +685,6 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
-
-    # @unittest.skip("skipping test_read_dicom_not_DWI")
-    def test_read_dicom_not_DWI(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(
-                os.path.join('data', 'dicom', 'time'),
-                input_format='dicom',
-                input_order='b'
-            )
-
-    # @unittest.skip("skipping test_read_dicom_not_DWI_no_CSA")
-    def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(
-                os.path.join('data', 'dicom', 'lena_color.dcm'),
-                input_format='dicom',
-                input_order='b'
-            )
-
-    def test_read_dicom_not_DWI_no_CSA_exception(self):
-        _ = Series(
-            os.path.join('data', 'dicom', 'lena_color.dcm'),
-            input_format='dicom',
-            input_order='b'
-        )
 
 
 class TestDicomSlicing(unittest.TestCase):
