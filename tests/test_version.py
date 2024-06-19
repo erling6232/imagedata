@@ -4,7 +4,7 @@ import unittest
 import logging
 
 # from .context import imagedata
-import src.imagedata as imagedata
+import .imagedata as imagedata
 
 
 class TestVersion(unittest.TestCase):
