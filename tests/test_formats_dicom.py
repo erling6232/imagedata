@@ -673,23 +673,26 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     # @unittest.skip("skipping test_read_dicom_not_DWI")
     def test_read_dicom_not_DWI(self):
         with self.assertRaises(formats.CannotSort) as context:
-            d = Series(
+            _ = Series(
                 os.path.join('data', 'dicom', 'time'),
-                'b'
+                input_format='dicom',
+                input_order='b'
             )
 
     # @unittest.skip("skipping test_read_dicom_not_DWI_no_CSA")
     def test_read_dicom_not_DWI_no_CSA(self):
         with self.assertRaises(formats.CannotSort) as context:
-            d = Series(
+            _ = Series(
                 os.path.join('data', 'dicom', 'lena_color.dcm'),
-                'b'
+                input_format='dicom',
+                input_order='b'
             )
 
     def test_read_dicom_not_DWI_no_CSA_exception(self):
-        d = Series(
+        _ = Series(
             os.path.join('data', 'dicom', 'lena_color.dcm'),
-            'b'
+            input_format='dicom',
+            input_order='b'
         )
 
 
