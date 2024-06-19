@@ -9,30 +9,10 @@ from .collections import Study, Patient, Cohort
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
-# from . import __path__ as _path
-# __version__ = None
-# try:
-#     with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
-#         __version__ = fh.readline().strip()
-# except FileNotFoundError:
-#     with open(join(_path[0], "..", "..", "VERSION.txt"), 'r') as fh:
-#         __version__ = fh.readline().strip()
-
 try:
     __version__ = version('imagedata')
 except Exception:
     __version__ = None
-# try:
-#     try:
-#         __version__ = version('imagedata')
-#     except Exception:
-#         __version__ = None
-# except ModuleNotFoundError:
-#     from . import __path__ as _path
-#     from os.path import join
-#     # with open(join(_.__path__[0], "..", "VERSION.txt"), 'r') as fh:
-#     with open(join(_path[0], "..", "VERSION.txt"), 'r') as fh:
-#         __version__ = fh.readline().strip()
 
 __author__ = 'Erling Andersen, Haukeland University Hospital, Bergen, Norway'
 __email__ = 'Erling.Andersen@Helse-Bergen.NO'
