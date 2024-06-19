@@ -127,7 +127,7 @@ class Series(np.ndarray):
                 # Copy attributes from existing Series to newly created obj
                 obj.header = copy.copy(data.header)  # carry forward attributes
                 obj.input_order = data.input_order
-                obj.header.add_template(data.header)  # Includes DicomHeaderDict
+                obj.header.add_template(data.header)
                 obj.header.add_geometry(data.header)
             else:
                 obj.header.set_default_values(obj.axes if axes is None else axes)
@@ -416,7 +416,7 @@ class Series(np.ndarray):
                     header = copy.copy(input_.header)
                     header.input_order = input_.input_order
                     header.set_default_values(input_.axes)
-                    header.add_template(input_.header)  # Includes DicomHeaderDict
+                    header.add_template(input_.header)
                     header.add_geometry(input_.header)
 
                 # Here we could have compared the headers of
@@ -556,9 +556,6 @@ class Series(np.ndarray):
                     todo.append(('tags', tags))
                     if len(tags[0]) == 1:
                         reduce_dim = True
-            # # Select slice of DicomHeaderDict
-            # hdr = self.__get_DicomHeaderDict(spec)
-            # todo.append(('DicomHeaderDict', hdr))
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
@@ -623,42 +620,6 @@ class Series(np.ndarray):
             j += 1
         # logger.debug('__get_imagePositions: exit')
         return ippdict
-
-    # def __get_DicomHeaderDict(self, specs):
-    #     try:
-    #         slices = len(self.DicomHeaderDict)
-    #     except ValueError:
-    #         return None
-    #     slice_spec = slice(0, slices, 1)
-    #     assert len(self.tags) > 0, "No tags defined"
-    #     tags = len(self.tags[0])
-    #     tag_spec = slice(0, tags, 1)
-    #     for d in specs:
-    #         start, stop, step, axis = specs[d]
-    #         if axis.name == 'slice':
-    #             slice_spec = slice(start, stop, step)
-    #         elif axis.name == input_order_to_dirname_str(self.input_order):
-    #             tag_spec = slice(start, stop, step)
-    #     # DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
-    #     hdr = {}
-    #     j = 0
-    #     for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
-    #         _slice = min(s, slices - 1)
-    #         hdr[j] = list()
-    #         for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
-    #             try:
-    #                 tag = self.tags[_slice][t]
-    #             except IndexError:
-    #                 raise IndexError("Could not get tag for slice {}, tag {}".format(_slice, t))
-    #             try:
-    #                 hdr[j].append(
-    #                     self.__find_tag_in_hdr(self.DicomHeaderDict[_slice], tag)
-    #                 )
-    #             except TypeError:
-    #                 return None
-    #         j += 1
-    #
-    #     return hdr
 
     def __repr__(self):
         return super().__repr__()
@@ -1030,38 +991,6 @@ class Series(np.ndarray):
         except ValueError:
             return None
 
-    # @property
-    # def DicomHeaderDict(self):
-    #     """dict: DICOM header dictionary
-    #
-    #     DicomHeaderDict[slice].tuple(tagvalue, filename, dicomheader)
-    #
-    #     Raises:
-    #         ValueError: when DICOM header is not set.
-    #
-    #     Examples:
-    #         Get values for slice=0:
-    #
-    #         >>> si = Series(np.eye(128))
-    #         >>> tagvalue, filename, dicomheader = si.DicomHeaderDict()[0]
-    #     """
-    #     # logger.debug('Series.DicomHeaderDict: here')
-    #     try:
-    #         if self.header.DicomHeaderDict is not None:
-    #             # logger.debug('Series.DicomHeaderDict: return')
-    #             # logger.debug('Series.DicomHeaderDict: return {}'.format(
-    #             #              type(self.header.DicomHeaderDict)))
-    #             # logger.debug('Series.DicomHeaderDict: return {}'.format(
-    #             #              self.header.DicomHeaderDict.keys()))
-    #             return self.header.DicomHeaderDict
-    #     except AttributeError:
-    #         pass
-    #     raise ValueError("Dicom Header Dict is not set.")
-    #
-    # @DicomHeaderDict.setter
-    # def DicomHeaderDict(self, dct):
-    #     self.header.DicomHeaderDict = dct
-
     @property
     def tags(self):
         """dict[slice] of numpy.ndarray(tags): Image tags for each slice
@@ -1070,8 +999,6 @@ class Series(np.ndarray):
             - time points
             - diffusion weightings (b values)
             - flip angles
-
-        Setting the tags will adjust the tags in DicomHeaderDict too.
 
         tags is a dict with (slice keys, tag array)
 
@@ -1097,21 +1024,6 @@ class Series(np.ndarray):
         # hdr = {}
         for s in tags.keys():
             self.header.tags[s] = np.array(tags[s])
-        #     hdr[s] = list()
-        #     max_t = len(self.header.DicomHeaderDict[s]) - 1
-        #     for t in range(len(tags[s])):
-        #         if t <= max_t:
-        #             wrongtag, filename, dcm = self.header.DicomHeaderDict[s][t]
-        #             hdr[s].append(
-        #                 (tags[s][t], filename, dcm)
-        #             )
-        #         else:
-        #             # Copy last DicomHeaderDict
-        #             wrongtag, filename, dcm = self.header.DicomHeaderDict[s][max_t]
-        #             hdr[s].append(
-        #                 (tags[s][t], None, dcm)
-        #             )
-        # self.header.DicomHeaderDict = hdr
 
     @property
     def axes(self):
@@ -2306,9 +2218,7 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no DICOM tag is set.
         """
-        #
-        #     if self.DicomHeaderDict is None:
-        #         return None
+
         if issubclass(type(keyword), str):
             _tag = pydicom.datadict.tag_for_keyword(keyword)
         else:
@@ -2318,23 +2228,6 @@ class Series(np.ndarray):
         self.header.dicomToDo.append(
             (_tag, value, slice, tag)
         )
-
-    #     slices = [i for i in range(self.slices)]
-    #     tags = [i for i in range(len(self.tags[0]))]
-    #     if slice is not None:
-    #         slices = [slice]
-    #     if tag is not None:
-    #         tags = [tag]
-    #     for s in slices:
-    #         for t in tags:
-    #             try:
-    #                 tg, fname, im = self.DicomHeaderDict[s][t]
-    #                 # Always make a new attribute to avoid cross-talk after
-    #                 # copying Series instances.
-    #                 VR = pydicom.datadict.dictionary_VR(_tag)
-    #                 im.add_new(_tag, VR, value)
-    #             except (IndexError, TypeError):
-    #                 pass
 
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r.
@@ -2406,15 +2299,7 @@ class Series(np.ndarray):
         r = np.dot(qinv, pt)
 
         # z,y,x
-        # return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
-        # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
-
-    # def deepcopy(self):
-    #     """Create a copy using deepcopy."""
-    #     a = Series(np.copy(self), template=self, geometry=self)
-    #     a.header.DicomHeaderDict = deepcopy_DicomHeaderDict(self.header.DicomHeaderDict)
-    #     return a
 
     def align(moving, reference, interpolation='linear', force=False):
         """Align moving series (self) to reference.
