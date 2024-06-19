@@ -385,6 +385,7 @@ class Header(object):
     def __adjust_axis_from_template(self, axis, template):
         """Construct new axis from template, retaining axis length.
         """
+        return template.copy(axis.name, n=len(axis))
         # UniformLengthAxis is subclassed from UniformAxis, so check first
         if isinstance(template, UniformLengthAxis):
             return UniformLengthAxis(axis.name,
