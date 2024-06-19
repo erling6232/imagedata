@@ -244,7 +244,8 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.input_order, a.input_order)
         for i in range(si.ndim):
             self.assertEqual(si.axes[i].name, a.axes[i].name)
-            if isinstance(si.axes[i], axis.VariableAxis):
+            # if isinstance(si.axes[i], axis.VariableAxis):
+            if issubclass(type(si.axes[i]), axis.VariableAxis):
                 np.testing.assert_array_almost_equal(si.axes[i].values, a.axes[i].values, 4)
             else:
                 self.assertEqual(si.axes[i].slice, a.axes[i].slice)
