@@ -1872,6 +1872,8 @@ class DICOMPlugin(AbstractPlugin):
                     csa_head = csa.get_csa_header(im)
                 except csa.CSAReadError:
                     raise CannotSort("Unable to extract b value from header.")
+                if csa_head is None:
+                    raise CannotSort("Unable to extract b value from header.")
                 try:
                     value = csa.get_b_value(csa_head)
                 except TypeError:
