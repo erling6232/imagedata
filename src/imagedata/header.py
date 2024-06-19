@@ -10,7 +10,6 @@ import pydicom.dataset
 import pydicom.datadict
 from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE
 from .formats.dicomlib.uid import get_uid
-from .axis import UniformAxis, UniformLengthAxis, VariableAxis
 
 logger = logging.getLogger(__name__)
 
