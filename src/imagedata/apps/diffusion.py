@@ -127,7 +127,7 @@ def get_ds_b_value(ds: Dataset) -> float:
     for _method in [get_DICOM_b_value, get_Siemens_b_value, get_GEMS_b_value]:
         try:
             return float(_method(ds))
-        except KeyError:
+        except (KeyError, IndexError):
             pass
     raise IndexError('Cannot get b value')
 
@@ -158,6 +158,6 @@ def set_ds_b_value(ds: Dataset, value: Number):
         try:
             _method(ds, value)
             return
-        except KeyError:
+        except (KeyError, IndexError):
             pass
     raise IndexError('Cannot set b value')
