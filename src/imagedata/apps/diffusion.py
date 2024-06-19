@@ -1,9 +1,14 @@
 """Extract diffusion MRI parameters.
 """
-# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import numpy as np
 import pandas as pd
+from pydicom import Dataset
+from typing import SupportsFloat
+from ..series import Series
+
+Number = type[SupportsFloat]
 
 
 def get_g_vectors(img):
@@ -20,8 +25,8 @@ def get_g_vectors(img):
     Examples:
         >>> from imagedata import Series
         >>> from imagedata.apps.diffusion import get_g_vectors
-        >>> img = Series('data', 'b', opts={'accept_duplicate_tag': 'True'})
-        >>> g = get_g_vectors(img)
+        >>> im = Series('data', 'b', opts={'accept_duplicate_tag': 'True'})
+        >>> g = get_g_vectors(im)
         >>> print(g)
                    b         z         y         x
             0      0       NaN       NaN       NaN
@@ -61,7 +66,7 @@ def get_g_vectors(img):
         _b = get_b_value(img, tag)
         _dwi_weighted = _dwi_weighted or not np.isnan(_b)
         _G = [np.nan, np.nan, np.nan]
-        _ds = img.DicomHeaderDict[_slice][tag][2]
+        _ds: Dataset = img.dicomTemplate
 
         for _method in [get_DICOM_g_vector, get_Siemens_g_vector, get_GEMS_g_vector]:
             try:
@@ -77,38 +82,82 @@ def get_g_vectors(img):
         raise IndexError('No b values found in dataset')
 
 
-def get_b_value(img, tag=0):
+def get_b_value(img: Series) -> float:
     """Get diffusion b value
 
     Extracting diffusion b value has been tested on MRI data from some major vendors.
 
     Args:
         img (imagedata.Series): Series object.
-        tag (int): Optional tag in Series object. Default: 0.
     Returns:
         float: b value. Returns NaN when no b value is present in dataset.
     """
 
-    def get_DICOM_b_value(ds):
-        # Attempt to address standard DICOM attribute
-        return ds['DiffusionBValue'].value
-
-    def get_Siemens_b_value(ds):
-        block = ds.private_block(0x0019, 'SIEMENS MR HEADER')
-        return block[0x0c].value
-
-    def get_GEMS_b_value(ds):
-        block = ds.private_block(0x0043, 'GEMS_PARM_01')
-        return block[0x39].value
-
     # Extract pydicom dataset for given slice and tag
     _slice = 0
-    _ds = img.DicomHeaderDict[_slice][tag][2]
+    _ds: Dataset = img.dicomTemplate
+
+    return get_ds_b_value(_ds)
+
+
+def get_ds_b_value(ds: Dataset) -> float:
+    """Get diffusion b value from Dataset
+
+    Setting diffusion b value has been tested on MRI data from some major vendors.
+
+    Args:
+        ds: Input dataset
+    Returns:
+        b value
+
+    """
+
+    def get_DICOM_b_value(_ds):
+        # Attempt to address standard DICOM attribute
+        return _ds['DiffusionBValue'].value
+
+    def get_Siemens_b_value(_ds):
+        block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
+        return block[0x0c].value
+
+    def get_GEMS_b_value(_ds):
+        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
+        return block[0x39].value
 
     for _method in [get_DICOM_b_value, get_Siemens_b_value, get_GEMS_b_value]:
         try:
-            return _method(_ds)
+            return float(_method(ds))
         except KeyError:
             pass
+    raise IndexError('Cannot get b value')
 
-    return np.nan
+
+def set_ds_b_value(ds: Dataset, value: Number):
+    """Set diffusion b value
+
+    Setting diffusion b value has been tested on MRI data from some major vendors.
+
+    Args:
+        ds (pydicom.Dataset): Dataset
+        value: b value
+    """
+
+    def set_DICOM_b_value(_ds, _value):
+        # Attempt to address standard DICOM attribute
+        _ds.DiffusionBValue = _value
+
+    def set_Siemens_b_value(_ds, _value):
+        block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
+        block[0x0c].value = _value
+
+    def set_GEMS_b_value(_ds, _value):
+        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
+        block[0x39].value = _value
+
+    for _method in [set_DICOM_b_value, set_Siemens_b_value, set_GEMS_b_value]:
+        try:
+            _method(ds, value)
+            return
+        except KeyError:
+            pass
+    raise IndexError('Cannot set b value')
