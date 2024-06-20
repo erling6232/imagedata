@@ -48,8 +48,7 @@ jobs:
         ls -lR
     - name: Run Unit Tests and Generate Coverage Report
       run: |
-        echo "TMPDIR ${TMPDIR}"
-        echo "RUNNER_TEMP ${RUNNER_TEMP}"
+        # Ensure temporary files are created in a unique, local directory
         export TMPDIR=${RUNNER_TEMP}
         coverage run -m unittest discover tests -t .
         coverage report -m
