@@ -111,6 +111,7 @@ jobs:
 
       - name: Verify distribution
         run: |
+          pip install twine pillow
           twine check dist/*
 
       - name: Upload distribution to PyPI
