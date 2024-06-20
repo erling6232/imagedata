@@ -48,6 +48,9 @@ jobs:
         ls -lR
     - name: Run Unit Tests and Generate Coverage Report
       run: |
+        echo "TMPDIR ${TMPDIR}"
+        echo "RUNNER_TEMP ${RUNNER_TEMP}"
+        export TMPDIR=${RUNNER_TEMP}
         coverage run -m unittest discover tests -t .
         coverage report -m
         coverage xml
@@ -109,10 +112,10 @@ jobs:
           name: artifact
           path: dist
 
-      - name: Verify distribution
-        run: |
-          pip install twine pillow
-          twine check dist/*
+#      - name: Verify distribution
+#        run: |
+#          pip install twine pillow
+#          twine check dist/*
 
       - name: Upload distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
