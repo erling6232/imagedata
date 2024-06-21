@@ -35,8 +35,7 @@ except TypeError:
     except KeyError:
         pass
 
-# if len(_plugins) == 0:
-if False:
+if len(_plugins) == 0:
     # Fallback to known built-in plugins
     try:
         from src.imagedata.archives.filesystemarchive import FilesystemArchive
