@@ -43,11 +43,12 @@ class TestDicomPlugin(unittest.TestCase):
             'none',
             input_format='dicom'
         )
-        with tempfile.TemporaryDirectory(prefix='test_cannot_sort_dicom') as self.d:
+        with tempfile.TemporaryDirectory(
+                prefix='{}.test_cannot_sort_dicom'.format(os.getpid())) as self.d:
             # Duplicate image file
             si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
             si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            with self.assertRaises(formats.UnknownInputError) as context:
+            with self.assertRaises(formats.CannotSort) as context:
                 _ = Series(self.d, input_format='dicom')
 
     def test_without_dicom_plugin(self):
@@ -148,7 +149,7 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
-        with self.assertRaises(formats.UnknownInputError) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 input_format='dicom',
@@ -389,7 +390,7 @@ class TestDicomPlugin(unittest.TestCase):
         fsi = si / math.sqrt(2)
         fsi_center = fsi.windowCenter
         fsi_width = fsi.windowWidth
-        with tempfile.TemporaryDirectory(prefix='test_write_float') as d:
+        with tempfile.TemporaryDirectory(prefix='{}'.format(os.getpid())) as d:
             fsi.write(d, formats=['dicom'])
             fsi_read = Series(d)
             self.assertEqual(fsi_read.input_format, 'dicom')
@@ -478,7 +479,7 @@ class TestDicomPlugin(unittest.TestCase):
                 )
 
     def test_read_dicom_not_DWI(self):
-        with self.assertRaises(formats.UnknownInputError) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 input_format='dicom',
@@ -486,7 +487,7 @@ class TestDicomPlugin(unittest.TestCase):
             )
 
     def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises(formats.UnknownInputError) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'lena_color.dcm'),
                 input_format='dicom',
@@ -514,7 +515,8 @@ class TestDicomZipPlugin(unittest.TestCase):
     def test_write_zip(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
-        with tempfile.TemporaryDirectory(prefix='test_write_zip') as d:
+        with tempfile.TemporaryDirectory(
+                prefix='{}.test_write_zip'.format(os.getpid())) as d:
             si1.write(os.path.join(d, 'dicom.zip?Image_{:05d}.dcm'),
                       formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip'))
@@ -616,7 +618,8 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
     def test_read_single_file(self):
         si1 = Series(os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'))
         self.assertEqual('dicom', si1.input_format)
-        with tempfile.TemporaryDirectory(prefix='test_read_single_file') as d:
+        with tempfile.TemporaryDirectory(
+                prefix='{}.test_read_single_file'.format(os.getpid())) as d:
             si1.write(os.path.join(d, 'dicom.zip'), formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip?Image_00000.dcm'))
         self.assertEqual('dicom', si2.input_format)
@@ -817,7 +820,8 @@ class TestDicomPluginSortCriteria(unittest.TestCase):
             opts={
                 't': 'InstanceNumber'
             })
-        with tempfile.TemporaryDirectory(prefix='test_user_defined_sort') as d:
+        with tempfile.TemporaryDirectory(
+                prefix='{}.test_user_defined_sort'.format(os.getpid())) as d:
             si1.write(d, formats=['dicom'])
 
 
