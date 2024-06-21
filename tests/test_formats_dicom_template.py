@@ -48,7 +48,6 @@ class TestDicomTemplate(unittest.TestCase):
         emptydir = tempfile.TemporaryDirectory(prefix='{}.{}'.format(os.getpid(), prefix))
         si00 = Series(si0[0], input_order='none')
         si00.write(os.path.join(emptydir.name, 'empty_header'), formats=['dicom'])
-        print(os.path.join(emptydir.name, 'empty_header'))
 
         # Provide sensible time tags
         si01 = Series(si0[:2], input_order='time')
@@ -90,7 +89,6 @@ class TestDicomTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory(
                 prefix='{}.{}'.format(os.getpid(),'template_cmdline_si1')) as d:
-            print(d)
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)
@@ -145,7 +143,6 @@ class TestDicomTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory(
                 prefix='{}.geometry_cmdline_si1'.format(os.getpid())) as d:
-            print(d)
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)
@@ -200,7 +197,6 @@ class TestDicomTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory(
                 prefix='{}.tempgeom_cmdline_si1'.format(os.getpid())) as d:
-            print(d)
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)

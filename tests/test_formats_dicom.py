@@ -48,7 +48,7 @@ class TestDicomPlugin(unittest.TestCase):
             # Duplicate image file
             si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
             si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            with self.assertRaises(formats.CannotSort) as context:
+            with self.assertRaises(formats.UnknownInputError) as context:
                 _ = Series(self.d, input_format='dicom')
 
     def test_without_dicom_plugin(self):
@@ -149,7 +149,7 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
-        with self.assertRaises(formats.CannotSort) as context:
+        with self.assertRaises(formats.UnknownInputError) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 input_format='dicom',
@@ -479,7 +479,7 @@ class TestDicomPlugin(unittest.TestCase):
                 )
 
     def test_read_dicom_not_DWI(self):
-        with self.assertRaises(formats.CannotSort) as context:
+        with self.assertRaises(formats.UnknownInputError) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 input_format='dicom',
@@ -487,7 +487,7 @@ class TestDicomPlugin(unittest.TestCase):
             )
 
     def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises(formats.CannotSort) as context:
+        with self.assertRaises(formats.UnknownInputError) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'lena_color.dcm'),
                 input_format='dicom',

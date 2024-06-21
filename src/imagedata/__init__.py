@@ -1,6 +1,5 @@
 """imagedata"""
 
-from os.path import join
 import logging
 from importlib import import_module
 from importlib.metadata import version, entry_points
