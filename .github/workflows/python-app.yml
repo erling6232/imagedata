@@ -34,6 +34,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install flake8 coverage setuptools build
+        # pip install -e .
         pip install -e .
 #        python -c "import configparser; c=configparser.ConfigParser(); c.read('setup.cfg'); print(c['options']['install_requires'])" > requirements.txt
 #        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
