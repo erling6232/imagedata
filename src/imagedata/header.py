@@ -3,7 +3,6 @@
 """
 
 import copy
-import logging
 import numpy as np
 import pydicom.uid
 import pydicom.dataset
@@ -11,7 +10,6 @@ import pydicom.datadict
 from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE
 from .formats.dicomlib.uid import get_uid
 
-logger = logging.getLogger(__name__)
 
 header_tags = ['input_format',
                'modality', 'laterality', 'protocolName', 'bodyPartExamined',
