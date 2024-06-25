@@ -107,15 +107,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 - si[tag,slice,rows,columns]: numpy array
         """
 
+        _name: str = '{}.{}'.format(__name__, self.read.__name__)
         hdr = Header()
         hdr.input_format = self.name
         hdr.input_order = input_order
 
         # image_list: list of tuples (hdr,si)
-        logger.debug("AbstractPlugin.read: sources {}".format(sources))
+        logger.debug("{}: sources {}".format(_name, sources))
         image_list = list()
         for source in sources:
-            logger.debug("AbstractPlugin.read: source: {} {}".format(type(source), source))
+            logger.debug("{}: source: {} {}".format(_name, type(source), source))
             archive: AbstractArchive = source['archive']
             scan_files = source['files']
             if scan_files is None or len(scan_files) == 0:
@@ -129,16 +130,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             #     scan_files = archive.getnames()
             # logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
-                logger.debug("AbstractPlugin.read: file_handle {}".format(file_handle.filename))
+                logger.debug("{}: file_handle {}".format(_name, file_handle.filename))
                 if self._need_local_file():
-                    logger.debug("AbstractPlugin.read: need local file {}".format(
-                        file_handle.filename))
+                    logger.debug("{}: need local file {}".format(
+                        _name, file_handle.filename))
                     f = archive.to_localfile(file_handle)
-                    logger.debug("AbstractPlugin.read: local file {}".format(f))
+                    logger.debug("{}: local file {}".format(_name, f))
                     info, si = self._read_image(f, opts, hdr)
                 else:
                     f = archive.open(file_handle, mode='rb')
-                    logger.debug("AbstractPlugin.read: file {}".format(f))
+                    logger.debug("{}: file {}".format(_name, f))
                     try:
                         info, si = self._read_image(f, opts, hdr)
                     except NotImageError:
@@ -152,10 +153,10 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             raise ValueError('No image data read')
         info, si = image_list[0]
         self._reduce_shape(si)
-        logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
+        logger.debug('{}: reduced si {}'.format(_name, si.shape))
         shape = (len(image_list),) + si.shape
         dtype = si.dtype
-        logger.debug('AbstractPlugin.read: shape {}'.format(shape))
+        logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, dtype)
         i = 0
         for info, img in image_list:
@@ -164,31 +165,31 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             else:
                 si[i] = img
             i += 1
-        logger.debug('AbstractPlugin.read: si {}'.format(si.shape))
+        logger.debug('{}: si {}'.format(_name, si.shape))
 
         # Simplify shape
         self._reduce_shape(si)
-        logger.debug('AbstractPlugin.read: reduced si {}'.format(si.shape))
+        logger.debug('{}: reduced si {}'.format(_name, si.shape))
 
         _shape = si.shape
-        logger.debug('AbstractPlugin.read: _shape {}'.format(_shape))
+        logger.debug('{}: _shape {}'.format(_name, _shape))
         _ndim = len(_shape)
         nz = 1
         if _ndim > 2:
             nz = _shape[-3]
-        logger.debug('AbstractPlugin.read: slices {}'.format(nz))
+        logger.debug('{}: slices {}'.format(_name, nz))
 
-        logger.debug('AbstractPlugin.read: calling _set_tags')
+        logger.debug('{}: calling _set_tags'.format(_name))
         self._set_tags(image_list, hdr, si)
         # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
-        logger.info("Data shape read: {}".format(shape_to_str(si.shape)))
+        logger.info("{}: Data shape read: {}".format(_name, shape_to_str(si.shape)))
 
         # Add any DICOM template
         if pre_hdr is not None:
             hdr.update(pre_hdr)
 
-        logger.debug('AbstractPlugin.read: hdr {}'.format(hdr))
+        logger.debug('{}: hdr {}'.format(_name, hdr))
         return {0: hdr}, {0: si}
 
     def _need_local_file(self):
@@ -488,8 +489,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         flipud: Whether matrix is transposed
         """
 
-        logger.debug('AbstractPlugin._reorder_to_dicom: shape in {}'.format(
-            data.shape))
+        _name: str = '{}.{}'.format(__name__, self._reorder_to_dicom.__name__)
+        logger.debug('{}: shape in {}'.format(_name, data.shape))
         if data.ndim == 5:
             rows, columns, slices, tags, d5 = data.shape
             if flipud:
@@ -545,8 +546,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
-        logger.debug('AbstractPlugin._reorder_to_dicom: shape out {}'.format(
-            si.shape))
+        logger.debug('{}: shape out {}'.format(_name, si.shape))
         return si
 
     def _reorder_from_dicom(self, data, flip=False, flipud=False):
@@ -574,7 +574,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         flipud: Whether matrix is transposed
         """
 
-        logger.debug('AbstractPlugin._reorder_from_dicom: shape in {}'.format(data.shape))
+        _name: str = '{}.{}'.format(__name__, self._reorder_from_dicom.__name__)
+        logger.debug('{}: shape in {}'.format(_name, data.shape))
         if data.ndim == 5:
             d5, tags, slices, rows, columns = data.shape
             if flipud:
@@ -626,8 +627,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
-        logger.debug('AbstractPlugin._reorder_from_dicom: shape out {}'.format(
-            si.shape))
+        logger.debug('{}: shape out {}'.format(_name, si.shape))
         return si
 
     @staticmethod
