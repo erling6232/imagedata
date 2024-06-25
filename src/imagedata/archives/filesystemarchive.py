@@ -111,7 +111,8 @@ class FilesystemArchive(AbstractArchive, ABC):
 
         url_tuple = urllib.parse.urlsplit(url, scheme='file')
         logger.debug('{}: scheme: {}, netloc: {}'.format(
-                     (_name, url_tuple.scheme, url_tuple.path)))
+                     _name, url_tuple.scheme, url_tuple.path
+        ))
 
         try:
             self.transport = Transport(

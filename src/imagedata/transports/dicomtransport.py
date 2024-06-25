@@ -224,7 +224,7 @@ class DicomTransport(AbstractTransport):
         status = self.__assoc.send_c_store(ds)
         if status:
             logger.debug('{}: C-STORE request status: '
-                         '0x{0:04x}'.format(_name, status.Status))
+                         '0x{:04x}'.format(_name, status.Status))
         else:
             raise AssociationFailed('C-STORE request status: 0x{0:04x}'.format(status.Status))
 

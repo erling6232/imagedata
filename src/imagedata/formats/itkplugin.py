@@ -438,7 +438,7 @@ class ITKPlugin(AbstractPlugin):
             logger.debug('{}: write local file {}'.format(_name, f.local_file))
             os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             itk.imwrite(image, f.local_file)
-            logger.debug('{}: written local file {}'.format(f.local_file))
+            logger.debug('{}: written local file {}'.format(_name, f.local_file))
 
     @staticmethod
     def _orientation_from_vnl_matrix(direction):

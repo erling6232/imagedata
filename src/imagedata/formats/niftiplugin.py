@@ -1000,7 +1000,7 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("{}: NewRotation= {} {} {}\n".format(
             _name, orientVec[0], orientVec[1], orientVec[2]
         ))
-        logger.debug("{}: MinCorner= {.2f} {.2f} {.2f}\n".format(
+        logger.debug("{}: MinCorner= {:.2f} {:.2f} {:.2f}\n".format(
             _name, minMM[0], minMM[1], minMM[2]
         ))
         return img
