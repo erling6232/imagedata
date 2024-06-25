@@ -51,18 +51,19 @@ class FileTransport(AbstractTransport):
                  mode: Optional[str] = 'r',
                  read_directory_only: Optional[bool] = False,
                  opts: Optional[dict] = None):
+        _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
         super(FileTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         self.netloc = netloc
         self.opts = opts
         self.path = root
-        logger.debug("FileTransport __init__ root: {} ({})".format(root, mode))
+        logger.debug("{}: root: {} ({})".format(_name, root, mode))
         assert root is not None, "Root should not be None"
         # if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
         #     logger.debug("FileTransport __init__ RootIsNotDirectory")
         #     raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
-            logger.debug("FileTransport __init__ FileNotFoundError")
+            logger.debug("{}: FileNotFoundError".format(_name))
             raise FileNotFoundError("Root ({}) does not exist".format(root))
         if mode[0] == 'w' and not os.path.exists(root) and \
                 os.path.exists(os.path.dirname(root)):
@@ -131,10 +132,10 @@ class FileTransport(AbstractTransport):
             path (str): Path to file.
             mode (str): Open mode, can be 'r', 'w', 'x' or 'a'
         """
-        logger.debug("FileTransport open: {} ({})".format(path, mode))
+        _name: str = '{}.{}'.format(__name__, self.open.__name__)
+        logger.debug("{}: {} ({})".format(_name, path, mode))
         if mode[0] in ['w', 'x', 'a']:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-        logger.debug("FileTransport open: {} ({})".format(path, mode))
         return io.FileIO(path, mode)
 
     def info(self, path) -> str:

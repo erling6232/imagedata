@@ -64,16 +64,17 @@ class FilesystemArchive(AbstractArchive, ABC):
         super(FilesystemArchive, self).__init__(
             self.name, self.description,
             self.authors, self.version, self.url, self.mimetypes)
-        logger.debug("FilesystemArchive.__init__ url: {}".format(url))
+        _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
+        logger.debug("{}: url: {}".format(_name, url))
 
         self._parse_url(url)
         self._get_transport(transport, url, mode, read_directory_only)
         self.__mode = mode
 
-        logger.debug("FilesystemArchive __init__: {}".format(type(self.transport)))
+        logger.debug("{}: {}".format(_name, type(self.transport)))
 
-        logger.debug("FilesystemArchive path: {}".format(self.__path))
-        logger.debug("FilesystemArchive open zipfile mode %s" % self.__mode)
+        logger.debug("{}: path: {}".format(_name, self.__path))
+        logger.debug("{}: open zipfile mode {}".format(_name, self.__mode))
 
         self._set_basedir(mode)
 
@@ -101,6 +102,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         access the parent directory.
         """
 
+        _name: str = '{}.{}'.format(__name__, self._get_transport.__name__)
         if transport is not None:
             self.transport = transport
             return
@@ -108,8 +110,8 @@ class FilesystemArchive(AbstractArchive, ABC):
             raise ValueError('url not given')
 
         url_tuple = urllib.parse.urlsplit(url, scheme='file')
-        logger.debug('FilesystemArchive._get_transport: scheme: %s, netloc: %s' %
-                     (url_tuple.scheme, url_tuple.path))
+        logger.debug('{}: scheme: {}, netloc: {}'.format(
+                     (_name, url_tuple.scheme, url_tuple.path)))
 
         try:
             self.transport = Transport(
@@ -131,29 +133,30 @@ class FilesystemArchive(AbstractArchive, ABC):
     def _set_basedir(self, mode):
         # If the URL refers to a single file, let directory_name refer to the
         # directory and basename to the file
-        logger.debug("FilesystemArchive __init__ verify : {}".format(self.__path))
+        _name: str = '{}.{}'.format(__name__, self._set_basedir.__name__)
+        logger.debug("{}: verify : {}".format(_name, self.__path))
         if mode[0] == 'r' and self.transport.isfile(self.__path):
             self.__dirname = os.path.dirname(self.__path)
             _basename = os.path.basename(self.__path)
             if len(_basename):
                 self.__basename = _basename
-            logger.debug("FilesystemArchive __init__ directory_name : {}".format(self.__dirname))
-            logger.debug("FilesystemArchive __init__ basename: {}".format(self.__basename))
+            logger.debug("{}: directory_name : {}".format(_name, self.__dirname))
+            logger.debug("{}: basename: {}".format(_name, self.__basename))
             return
         elif mode[0] == 'w' and not self.transport.exists(self.__path):
             self.__dirname = os.path.dirname(self.__path)
             _basename = os.path.basename(self.__path)
             if len(_basename):
                 self.__basename = _basename
-            logger.debug("FilesystemArchive __init__ directory_name : {}".format(self.__dirname))
-            logger.debug("FilesystemArchive __init__ basename: {}".format(self.__basename))
+            logger.debug("{}: directory_name : {}".format(_name, self.__dirname))
+            logger.debug("{}: basename: {}".format(_name, self.__basename))
             return
 
         # The URL refers to a directory. Let directory_name refer to the directory
         self.__dirname = self.__path
         self.__basename = None
-        logger.debug("FilesystemArchive __init__ scan directory_name : {}".format(self.__dirname))
-        logger.debug("FilesystemArchive __init__ scan basename: {}".format(self.__basename))
+        logger.debug("{}: scan directory_name : {}".format(_name, self.__dirname))
+        logger.debug("{}: scan basename: {}".format(_name, self.__basename))
 
     def use_query(self):
         """Does the plugin need the ?query part of the url?"""
@@ -394,12 +397,13 @@ class FilesystemArchive(AbstractArchive, ABC):
             ReadOnlyError: when the archive is read-only.
             WriteOnFile: when attempting to write a file to a file.
         """
+        _name: str = '{}.{}'.format(__name__, self.writedata.__name__)
         if self.__mode[0] == 'r':
             raise ReadOnlyError("Archive is read-only.")
         if len(self.__basename) > 0:
             raise WriteOnFile("Do not know how to write a file to a file.")
         fname = os.path.join(self.__dirname, filename)
-        logger.debug("writedata: fname {}".format(fname))
+        logger.debug("{}: fname {}".format(_name, fname))
         with self.transport.open(fname, 'wb') as f:
             f.write(data)
 
@@ -452,8 +456,9 @@ class FilesystemArchive(AbstractArchive, ABC):
     def __enter__(self):
         """Enter context manager.
         """
-        logger.debug("FilesystemArchive __enter__: {} mode {}".format(
-            type(self.transport), self.__mode))
+        _name: str = '{}.{}'.format(__name__, self.__enter__.__name__)
+        logger.debug("{}: {} mode {}".format(
+            _name, type(self.transport), self.__mode))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):

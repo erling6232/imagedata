@@ -52,6 +52,7 @@ class XnatTransport(AbstractTransport):
                  mode: Optional[str] = 'r',
                  read_directory_only: Optional[bool] = False,
                  opts: Optional[dict] = None):
+        _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
         super(XnatTransport, self).__init__(self.name, self.description,
                                             self.authors, self.version, self.url, self.schemes)
         if opts is None:
@@ -73,7 +74,7 @@ class XnatTransport(AbstractTransport):
                 opts['password'] = None
         else:
             self.netloc = netloc
-        logger.debug("XnatTransport __init__ root: {}".format(root))
+        logger.debug("{}: root: {}".format(_name, root))
         root_split = root.split('/')
         try:
             project = root_split[1]
@@ -93,20 +94,20 @@ class XnatTransport(AbstractTransport):
         if 'password' in opts:
             kwargs['password'] = opts['password']
         self.__session = xnat.connect('https://' + self.netloc, **kwargs)
-        logger.debug("XnatTransport __init__ session: {}".format(self.__session))
+        logger.debug("{}: session: {}".format(_name, self.__session))
         self.__project = self.__session.projects[project] if project is not None else None
         self.__root = '/' + project
-        logger.debug("XnatTransport __init__ project: {}".format(self.__project))
+        logger.debug("{}: project: {}".format(_name, self.__project))
 
         self.__subject = self.__project.subjects[subject] if subject is not None else None
         if subject is not None:
             self.__root += '/' + subject
-            logger.debug("Subject: {}".format(self.__subject.label))
+            logger.debug("{}: Subject: {}".format(_name, self.__subject.label))
         self.__experiment = self.__subject.experiments[experiment]\
             if experiment is not None else None
         if experiment is not None:
             self.__root += '/' + experiment
-            logger.debug("Experiment: {}".format(experiment))
+            logger.debug("{}: Experiment: {}".format(_name, experiment))
         if mode == 'r':
             self.__scan = None
             if scan is not None:
@@ -118,14 +119,15 @@ class XnatTransport(AbstractTransport):
             self.__scan = None
         if scan is not None:
             self.__root += '/' + scan
-            logger.debug("Scan: {}".format(scan))
+            logger.debug("{}: Scan: {}".format(_name, scan))
 
     def close(self):
         """Close the transport
         """
+        _name: str = '{}.{}'.format(__name__, self.close.__name__)
         if self.__must_upload:
             # Upload zip file to xnat
-            logger.debug("Upload to {}".format(self.__subject.label))
+            logger.debug("{}: Upload to {}".format(_name, self.__subject.label))
             self.__session.services.import_(self.__zipfile,
                                             project=self.__project.id,
                                             subject=self.__subject.id,

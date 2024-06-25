@@ -36,6 +36,7 @@ def find_plugin(pfind, url, mode="r", opts=None):
 
 def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opts=None):
     """Return plugin for given file type."""
+    _name: str = '{}.{}'.format(__name__, find_mimetype_plugin.__name__)
     if opts is None:
         opts = {}
     from .. import plugins
@@ -67,16 +68,16 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
         except AttributeError:
             pass
     for pname, ptype, pclass in plugins['archive']:
-        logger.debug("imagedata.archive.find_mimetype_plugin: compare '{}' to {}".format(
-            mimetype, pclass.mimetypes))
+        logger.debug("{}: compare '{}' to {}".format(
+            _name, mimetype, pclass.mimetypes))
         if mimetype in pclass.mimetypes:
-            logger.debug("imagedata.archives.find_mimetype_plugin: {}, mode: {}".format(
-                ptype, mode))
+            logger.debug("{}: {}, mode: {}".format(
+                _name, ptype, mode))
             return pclass(url=url, transport=transport, mode=mode, opts=opts)
     # if os.path.isfile(_path):
     # if os.path.exists(_path):
     if urldict.scheme == "file":
-        logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
+        logger.debug("{}: filesystem".format(_name))
         try:
             return find_plugin('filesystem', url, mode, opts=opts)
         except ArchivePluginNotFound:
