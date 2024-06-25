@@ -9,16 +9,12 @@ The Cohort class is a collection of Patient objects.
 """
 
 from datetime import datetime, date, time
-from collections import UserDict
-import logging
 import argparse
 from pathlib import Path
 
 from .series import Series
 from .readdata import read as r_read
 from .formats import UnknownInputError
-
-logger = logging.getLogger(__name__)
 
 
 def _get_attribute(_data, _attr):
