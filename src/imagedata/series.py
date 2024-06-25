@@ -923,7 +923,7 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no slice locations are defined.
         """
-        _name: str = '{}.{}'.format(__name__, self.sliceLocations.__name__)
+        _name: str = '{}.{}'.format(__name__, 'sliceLocations')
 
         if self.header.sliceLocations is not None:
             return self.header.sliceLocations
@@ -1157,7 +1157,7 @@ class Series(np.ndarray):
 
     @spacing.setter
     def spacing(self, *args):
-        _name: str = '{}.{}'.format(__name__, self.spacing.__name__)
+        _name: str = '{}.{}'.format(__name__, 'spacing')
 
         if args[0] is None:
             return
@@ -1225,7 +1225,7 @@ class Series(np.ndarray):
             ValueError: when imagePositions are not set.
             AssertionError: when positions have wrong shape or datatype.
         """
-        _name: str = '{}.{}'.format(__name__, self.imagePositions.__name__)
+        _name: str = '{}.{}'.format(__name__, 'imagePositions')
 
         try:
             if self.header.imagePositions is not None:
@@ -2040,7 +2040,7 @@ class Series(np.ndarray):
         #         norm=np.finfo(v.dtype).eps
         #     return v/norm
 
-        _name: str = '{}.{}'.format(__name__, self.transformationMatrix.__name__)
+        _name: str = '{}.{}'.format(__name__, 'transformationMatrix')
         debug = None
         # debug = True
 
