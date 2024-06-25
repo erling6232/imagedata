@@ -99,6 +99,8 @@ class Series(np.ndarray):
                 template=None, geometry=None, axes=None,
                 **kwargs):
 
+        _name: str = '{}.{}'.format(__name__, cls.__new__.__name__)
+
         if opts is None:
             opts = {}
         elif issubclass(type(opts), argparse.Namespace):
@@ -111,7 +113,7 @@ class Series(np.ndarray):
         if issubclass(type(geometry), Series):
             geometry = geometry.header
         if issubclass(type(data), np.ndarray):
-            logger.debug('Series.__new__: data ({}) is subclass of np.ndarray'.format(type(data)))
+            logger.debug('{}: data ({}) is subclass of np.ndarray'.format(_name, type(data)))
             obj = np.asarray(data).view(cls)
             # Initialize attributes to defaults
             # cls.__init_attributes(cls, obj)
@@ -138,7 +140,7 @@ class Series(np.ndarray):
             obj.header.add_template(template)
             obj.header.add_geometry(geometry)
             return obj
-        logger.debug('Series.__new__: data is NOT subclass of Series, type {}'.format(type(data)))
+        logger.debug('{}: data is NOT subclass of Series, type {}'.format(_name, type(data)))
 
         # Assuming data is url to input data
         if isinstance(data, np.compat.basestring) or issubclass(type(data), PurePath):
@@ -176,7 +178,7 @@ class Series(np.ndarray):
         assert obj.header, "No Header found in obj.header"
 
         # Copy attributes from hdr dict to newly created obj
-        logger.debug('Series.__new__: Copy attributes from hdr dict to newly created obj')
+        logger.debug('{}: Copy attributes from hdr dict to newly created obj'.format(_name))
         if axes is not None:
             obj.axes = copy.copy(axes)
         elif hdr.axes is not None:
@@ -748,9 +750,11 @@ class Series(np.ndarray):
 
             - input_order: DICOM tag for given input_order (str).
         """
-        logger.debug('Series.write: url    : {}'.format(url))
-        logger.debug('Series.write: formats: {}'.format(formats))
-        logger.debug('Series.write: opts   : {}'.format(opts))
+        _name: str = '{}.{}'.format(__name__, self.write.__name__)
+
+        logger.debug('{}: url    : {}'.format(_name, url))
+        logger.debug('{}: formats: {}'.format(_name, formats))
+        logger.debug('{}: opts   : {}'.format(_name, opts))
         r_write(self, url, formats=formats, opts=opts)
 
     @property
@@ -919,6 +923,8 @@ class Series(np.ndarray):
         Raises:
             ValueError: When no slice locations are defined.
         """
+        _name: str = '{}.{}'.format(__name__, self.sliceLocations.__name__)
+
         if self.header.sliceLocations is not None:
             return self.header.sliceLocations
         try:
@@ -926,9 +932,9 @@ class Series(np.ndarray):
             # If orientation and imagePositions are set, slice locations can
             # be calculated.
             if self.header.orientation is not None and self.header.imagePositions is not None:
-                logger.debug(
+                logger.debug('{}: '
                     'sliceLocations: calculate {} slice from orientation and '
-                    'imagePositions'.format(self.slices))
+                    'imagePositions'.format(_name, self.slices))
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
                 for _slice in range(self.slices):
@@ -1151,11 +1157,13 @@ class Series(np.ndarray):
 
     @spacing.setter
     def spacing(self, *args):
+        _name: str = '{}.{}'.format(__name__, self.spacing.__name__)
+
         if args[0] is None:
             return
-        logger.debug("spacing.setter {} {}".format(len(args), args))
+        logger.debug("{}: {} {}".format(_name, len(args), args))
         for arg in args:
-            logger.debug("spacing.setter arg {} {}".format(len(arg), arg))
+            logger.debug("{}: arg {} {}".format(_name, len(arg), arg))
         # Invalidate existing transformation matrix
         self.header.transformationMatrix = None
         # Handle both tuple and component spacings
@@ -1217,7 +1225,8 @@ class Series(np.ndarray):
             ValueError: when imagePositions are not set.
             AssertionError: when positions have wrong shape or datatype.
         """
-        # logger.debug('Series.imagePositions.get:')
+        _name: str = '{}.{}'.format(__name__, self.imagePositions.__name__)
+
         try:
             if self.header.imagePositions is not None:
                 if len(self.header.imagePositions) > self.slices:
@@ -1234,9 +1243,9 @@ class Series(np.ndarray):
                     # Could calculate the missing imagePositions from origin and
                     # orientation.
                     # Set imagePositions for additional slices
-                    logger.debug(
+                    logger.debug('{}: '
                         'Series.imagePositions.get: 1 positions only.  Calculating the other {} '
-                        'positions'.format(self.slices - 1))
+                        'positions'.format(_name, self.slices - 1))
                     m = self.transformationMatrix
                     for _slice in range(1, self.slices):
                         self.header.imagePositions[_slice] = \
@@ -2031,21 +2040,22 @@ class Series(np.ndarray):
         #         norm=np.finfo(v.dtype).eps
         #     return v/norm
 
+        _name: str = '{}.{}'.format(__name__, self.transformationMatrix.__name__)
         debug = None
         # debug = True
 
         try:
             if self.header.transformationMatrix is not None:
-                logger.debug('Series.transformationMatrix: return existing matrix')
+                logger.debug('{}: return existing matrix'.format(_name))
                 return self.header.transformationMatrix
 
             # Calculate transformation matrix
-            logger.debug('Series.transformationMatrix: Calculate transformation matrix')
-            logger.debug('Series.transformationMatrix: self {} {}'.format(self.dtype, self.shape))
+            logger.debug('{}: Calculate transformation matrix'.format(_name))
+            logger.debug('{}: self {} {}'.format(_name, self.dtype, self.shape))
             ds, dr, dc = self.spacing
-            logger.debug('Series.transformationMatrix: ds {}, dr {}, dc {}'.format(ds, dr, dc))
+            logger.debug('{}: ds {}, dr {}, dc {}'.format(_name, ds, dr, dc))
             slices = len(self.header.imagePositions)
-            logger.debug('Series.transformationMatrix: slices {}'.format(slices))
+            logger.debug('{}: slices {}'.format(_name, slices))
             T0 = self.header.imagePositions[0].reshape(3, 1)  # z,y,x
             Tn = self.header.imagePositions[slices - 1].reshape(3, 1)
             orient = self.orientation
@@ -2053,19 +2063,19 @@ class Series(np.ndarray):
             colr = np.array(orient[3:]).reshape(3, 1)
             colc = np.array(orient[:3]).reshape(3, 1)
             if slices > 1:
-                logger.debug('Series.transformationMatrix: multiple slices case (slices={})'
-                             ''.format(slices))
+                logger.debug('{}: multiple slices case (slices={})'
+                             ''.format(_name, slices))
                 # Calculating normal vector based on first and last slice should be
                 # the correct method.
                 k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
                 # k = np.cross(colr, colc, axis=0) * ds
             else:
-                logger.debug('Series.transformationMatrix: single slice case')
+                logger.debug('{}: single slice case'.format(_name))
                 k = np.cross(colr, colc, axis=0)
                 # k = normalize(k) * ds
                 k = k * ds
-            logger.debug('Series.transformationMatrix: k={}'.format(k.T))
+            logger.debug('{}: k={}'.format(_name, k.T))
             # logger.debug("q: k {} colc {} colr {} T0 {}".format(k.shape,
             #    colc.shape, colr.shape, T0.shape))
             A = np.eye(4)
@@ -2075,11 +2085,11 @@ class Series(np.ndarray):
                 colc * dc,
                 T0])
             if debug:
-                logger.debug("A:\n{}".format(A))
+                logger.debug("{}: A:\n{}".format(_name, A))
             self.header.transformationMatrix = A
             return self.header.transformationMatrix
         except AttributeError:
-            logger.debug('Series.transformationMatrix: AttributeError')
+            logger.debug('{}: AttributeError'.format(_name))
             pass
         raise ValueError('Transformation matrix cannot be constructed.')
 
@@ -2244,14 +2254,16 @@ class Series(np.ndarray):
             numpy.array((z,y,x)): position of voxel in world coordinates (mm)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.getPositionForVoxel.__name__)
+
         if transformation is None:
-            logger.debug('Series.getPositionForVoxel: use existing transformationMatrix {}'.format(
-                self.transformationMatrix.shape
+            logger.debug('{}: use existing transformationMatrix {}'.format(
+                _name, self.transformationMatrix.shape
             ))
             transformation = self.transformationMatrix
         else:
-            logger.debug('Series.getPositionForVoxel: user-provided transformationMatrix'
-                         '{}'.format(transformation.shape)
+            logger.debug('{}: user-provided transformationMatrix'
+                         '{}'.format(_name, transformation.shape)
                          )
         # q = self.getTransformationMatrix()
 
