@@ -3,13 +3,9 @@
 Standard plugins provides support for file, http/https and xnat transports.
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import logging
 from urllib import parse
-# from .abstracttransport import AbstractTransport
-
-logger = logging.getLogger(__name__)
 
 
 global __path__
