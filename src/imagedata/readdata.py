@@ -55,7 +55,9 @@ def read(urls, order=None, opts=None, input_format=None):
         CannotSort: When input data cannot be sorted.
     """
 
-    logger.debug("reader.read: urls {}".format(urls))
+    _name: str = '{}.{}'.format(__name__, read.__name__)
+
+    logger.debug("{}: urls {}".format(_name, urls))
     #    transport,my_urls,files = sanitize_urls(urls)
     #    if len(my_urls) < 1:
     #        raise ValueError("No URL(s) where given")
@@ -63,7 +65,7 @@ def read(urls, order=None, opts=None, input_format=None):
     sources = _get_sources(urls, mode='r', opts=opts)
     if len(sources) < 1:
         raise ValueError("No source(s) where given")
-    logger.debug("reader.read: sources {}".format(sources))
+    logger.debug("{}: sources {}".format(_name, sources))
 
     # Let in_opts be a dict from opts
     if opts is None:
@@ -85,12 +87,13 @@ def read(urls, order=None, opts=None, input_format=None):
         input_order = in_opts['input_order']
     if order != 'none':
         input_order = order
-    logger.info("Input order: {}.".format(input_order_to_str(input_order)))
+    logger.info("{}: Input order: {}.".format(
+        _name, input_order_to_str(input_order)))
 
     # Pre-fetch DICOM template
     pre_hdr = None
     if 'template' in in_opts and in_opts['template']:
-        logger.debug("readdata.read template {}".format(in_opts['template']))
+        logger.debug("{}: template {}".format(_name, in_opts['template']))
         template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
         pre_hdr, _ = reader.read(template_source, None, input_order, in_opts)
@@ -101,7 +104,7 @@ def read(urls, order=None, opts=None, input_format=None):
     # Pre-fetch DICOM geometry
     geom_hdr = None
     if 'geometry' in in_opts and in_opts['geometry']:
-        logger.debug("readdata.read geometry {}".format(in_opts['geometry']))
+        logger.debug("{}: geometry {}".format(_name, in_opts['geometry']))
         geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
         reader = find_plugin('dicom')
         geom_hdr, _ = reader.read(geometry_source, None, input_order, in_opts)
@@ -114,17 +117,18 @@ def read(urls, order=None, opts=None, input_format=None):
 
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(get_plugins_list(), input_format)
-    logger.debug("readdata.read plugins length {}".format(len(plugins)))
+    logger.debug("{}: plugins length {}".format(_name, len(plugins)))
     summary = 'Summary of read plugins:'
     for pname, ptype, pclass in plugins:
-        logger.debug("%20s (%8s) %s" % (pname, ptype, pclass.description))
+        logger.debug("{}: {:20s} ({:8s}) {}".format(
+            _name, pname, ptype, pclass.description))
         reader = pclass()
         try:
             hdr, si = reader.read(sources, None, input_order, in_opts)
             del reader
 
             for source in sources:
-                logger.debug("readdata.read: close archive {}".format(source['archive']))
+                logger.debug("{}: close archive {}".format(_name, source['archive']))
                 source['archive'].close()
             if 'headers_only' in in_opts and in_opts['headers_only']:
                 pass
@@ -133,16 +137,19 @@ def read(urls, order=None, opts=None, input_format=None):
                 hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
         except (FileNotFoundError, CannotSort):
-            raise
+            if 'skip_broken_series' in opts and opts['skip_broken_series']:
+                pass
+            else:
+                raise
         except NotImageError as e:
-            logger.info("Giving up {}: {}".format(ptype, e))
+            logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
-            logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
+            logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
 
     for source in sources:
-        logger.debug("readdata.read: close archive {}".format(source['archive']))
+        logger.debug("{}: close archive {}".format(_name, source['archive']))
         source['archive'].close()
 
     # All reader plugins failed - report
@@ -192,6 +199,8 @@ def write(si, url, opts=None, formats=None):
         imagedata.formats.WriteNotImplemented: Cannot write this image format.
     """
 
+    _name: str = '{}.{}'.format(__name__, write.__name__)
+
     def _replace_url(url, pattern, value):
         if isinstance(url, str):
             url = url.replace(pattern, value)
@@ -231,9 +240,9 @@ def write(si, url, opts=None, formats=None):
         output_formats = [si.input_format]
     except AttributeError:
         output_formats = None
-    logger.debug("Default    output format : {}".format(output_formats))
-    logger.debug("Overriding output formats: {}".format(formats))
-    logger.debug("Options: {}".format(out_opts))
+    logger.debug("{}: Default    output format : {}".format(_name, output_formats))
+    logger.debug("{}: Overriding output formats: {}".format(_name, formats))
+    logger.debug("{}: Options: {}".format(_name, out_opts))
     if formats is not None:
         if isinstance(formats, list):
             output_formats = formats
@@ -245,7 +254,7 @@ def write(si, url, opts=None, formats=None):
         output_formats = out_opts['output_format']
     if output_formats is None:
         output_formats = ['dicom']  # Fall-back to dicom output
-    logger.info("Output formats: {}".format(output_formats))
+    logger.info("{}: Output formats: {}".format(_name, output_formats))
 
     # Determine output dtype
     write_si = si
@@ -261,15 +270,16 @@ def write(si, url, opts=None, formats=None):
     #        len(destinations))
 
     # Call plugin writers in turn to store the data
-    logger.debug("Available plugins {}".format(len(get_plugins_list())))
+    logger.debug("{}: Available plugins {}".format(_name, len(get_plugins_list())))
     written = False
     msg = ''
     for pname, ptype, pclass in get_plugins_list():
         if ptype in output_formats:
-            logger.debug("Attempt plugin {}".format(ptype))
+            logger.debug("{}: Attempt plugin {}".format(_name, ptype))
             # Create plugin to write data in specified format
             writer = pclass()
-            logger.debug("readdata.write: Created writer plugin of type {}".format(type(writer)))
+            logger.debug("{}: Created writer plugin of type {}".format(
+                _name, type(writer)))
             # local_url = url.replace('%p', ptype)
             local_url = _replace_url(url, '%p', ptype)
             destinations = _get_sources(local_url, mode='w', opts=out_opts)
@@ -277,7 +287,7 @@ def write(si, url, opts=None, formats=None):
                 raise ValueError('Wrong number of destinations (%d) given' %
                                  len(destinations))
             destination = destinations[0]
-            logger.debug('readdata.write: destination {}'.format(destination))
+            logger.debug('{}: destination {}'.format(_name, destination))
             try:
                 if write_si.ndim == 4 and write_si.shape[0] > 1:
                     # 4D data
@@ -293,7 +303,8 @@ def write(si, url, opts=None, formats=None):
             except WriteNotImplemented:
                 raise
             except Exception as e:
-                logger.info("Giving up (OTHER) {}: {}".format(ptype, e))
+                logger.info("{}: Giving up (OTHER) {}: {}".format(
+                    _name, ptype, e))
                 msg = msg + '\n{}: {}'.format(ptype, e)
                 msg = msg + '\n' + ''.join(tb.format_exception(None, e, e.__traceback__))
                 pass
@@ -303,7 +314,7 @@ def write(si, url, opts=None, formats=None):
             raise IOError("Failed writing: {}".format(msg))
         raise ValueError("No writer plugin was found for {}".format(output_formats))
     if len(msg) > 0:
-        logger.error(msg)
+        logger.error("{}: {}".format(_name, msg))
     # destination['archive'].close()
 
 
@@ -330,6 +341,8 @@ def sorted_plugins_dicom_first(plugins, input_format):
 def _get_location_part(url):
     """Get location part of URL: scheme, netloc and path"""
 
+    _name: str = '{}.{}'.format(__name__, _get_location_part.__name__)
+
     if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without x:, then reattach drive letter
         url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
@@ -347,10 +360,10 @@ def _get_location_part(url):
         None))
     if location[:8] == 'file:///' and _path[0] != '/':
         location = 'file://' + os.path.abspath(location[8:])
-    logger.debug('readdata._get_location_part: scheme %s' % url_tuple.scheme)
-    logger.debug('readdata._get_location_part: netloc %s' % url_tuple.netloc)
-    logger.debug('readdata._get_location_part: path %s' % _path)
-    logger.debug('readdata._get_location_part: location %s' % location)
+    logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
+    logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
+    logger.debug('{}: path {}'.format(_name, _path))
+    logger.debug('{}: location {}'.format(_name, location))
     return location
 
 
@@ -364,9 +377,11 @@ def _get_query_part(url):
 def _get_archive(url, mode='r', opts=None):
     """Get archive plugin for given URL."""
 
+    _name: str = '{}.{}'.format(__name__, _get_archive.__name__)
+
     if opts is None:
         opts = {}
-    logger.debug('readdata._get_archive: url %s' % url)
+    logger.debug('{}: url {}'.format(_name, url))
     url_tuple = urllib.parse.urlsplit(url, scheme="file")
     if os.name == 'nt' and \
             url_tuple.scheme == 'file' and \
@@ -384,8 +399,8 @@ def _get_archive(url, mode='r', opts=None):
         # read_directory_only=mode[0] == 'r',
         read_directory_only=False,
         opts=opts)
-    logger.debug('readdata._get_archive: _mimetypes %s' % mimetype)
-    logger.debug('readdata._get_archive: archive %s' % archive.name)
+    logger.debug('{}: _mimetypes {}'.format(_name, mimetype))
+    logger.debug('{}: archive {}'.format(_name, archive.name))
     return archive
 
 
@@ -414,7 +429,9 @@ def _common_prefix(level):
 def _simplify_locations(locations):
     """Simplify locations by joining file:/// locations to a common prefix."""
 
-    logger.debug('readdata._simplify_locations: locations {}'.format(locations))
+    _name: str = '{}.{}'.format(__name__, _simplify_locations.__name__)
+
+    logger.debug('{}: locations {}'.format(_name, locations))
     new_locations = {}
     paths = []
     for location in locations:
@@ -431,10 +448,10 @@ def _simplify_locations(locations):
             paths.append(_path)
         else:
             new_locations[location] = True
-    logger.debug('readdata._simplify_locations: paths {}'.format(paths))
+    logger.debug('{}: paths {}'.format(_name, paths))
     if len(paths) > 0:
         prefix = _common_prefix(paths)
-        logger.debug('readdata._simplify_locations: prefix {}'.format(prefix))
+        logger.debug('{}: prefix {}'.format(_name, prefix))
         prefix_url = urllib.parse.urlunsplit((
             'file',
             '',
@@ -445,7 +462,7 @@ def _simplify_locations(locations):
         if os.name == 'nt' and fnmatch.fnmatch(prefix_url, 'file:///[A-Za-z]:\\*'):
             prefix_url = 'file://' + prefix_url[8:]
         new_locations[prefix_url] = True
-    logger.debug('readdata._simplify_locations: new_locations {}'.format(new_locations))
+    logger.debug('{}: new_locations {}'.format(_name, new_locations))
     return new_locations
 
 
@@ -478,6 +495,8 @@ def _get_sources(
             - 'files'    : list of file names or regexp. May be empty list.
     """
 
+    _name: str = '{}.{}'.format(__name__, _get_sources.__name__)
+
     # Ensure the input is a list: my_urls
     if opts is None:
         opts = {}
@@ -503,7 +522,7 @@ def _get_sources(
     # Set up sources for each location, and possibly add files
     sources = []
     for location in locations:
-        logger.debug('readdata._get_sources: location %s' % location)
+        logger.debug('{}: location {}'.format(_name, location))
         source_location = location
         source = {'files': []}
         try:
@@ -512,14 +531,14 @@ def _get_sources(
                 ArchivePluginNotFound):
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
-            logger.debug('readdata._get_sources: retry location %s' % source_location)
+            logger.debug('{}: retry location {}'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         for url in my_urls:
             location_part = _get_location_part(url)
-            logger.debug('readdata._get_sources: compare _get_location_part %s location %s' %
-                         (location_part, source_location))
+            logger.debug('{}: compare _get_location_part {} location {}'.format(
+                         _name, location_part, source_location))
             query = _get_query_part(url)
-            logger.debug('readdata._get_sources: query %s' % query)
+            logger.debug('{}: query {}'.format(_name, query))
             if location_part.startswith(source_location):
                 if source['archive'].use_query():
                     fname = query
@@ -533,7 +552,7 @@ def _get_sources(
                     source['files'].append(fname)
         sources.append(source)
     for source in sources:
-        logger.debug('readdata._get_sources: sources %s' % source)
+        logger.debug('{}: sources {}'.format(_name, source))
     return sources
 
 
