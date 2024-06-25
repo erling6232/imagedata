@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.0-dev13] - 2024-06-25
+## [v3.6.0-rc4] - 2024-06-25
 * Depend on pylibjpeg.
 * Standardized logging to log proper module and function names.
 * Honor the `skip_broken_series` option.
