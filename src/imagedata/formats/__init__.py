@@ -3,14 +3,11 @@
 Standard plugins provides support for DICOM and Nifti image file formats.
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import logging
 import sys
-
 import numpy as np
 
-logger = logging.getLogger(__name__)
 
 (SORT_ON_SLICE,
  SORT_ON_TAG) = range(2)
