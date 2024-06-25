@@ -275,6 +275,8 @@ class Viewer(object):
         return h
 
     def pretty_datetime(self, my_date, my_time):
+        _name: str = '{}.{}'.format(__name__, self.pretty_datetime.__name__)
+
         _date = _time = None
         if my_date is not None:
             try:
@@ -294,11 +296,11 @@ class Viewer(object):
             if _date is not None:
                 _date_fmt = '{} '.format(_date.strftime("%Y-%m-%d"))
             else:
-                logger.debug('Cannot add date for \"{}\"'.format(my_date))
+                logger.debug('{}: Cannot add date for \"{}\"'.format(_name, my_date))
             if _time is not None:
                 _date_fmt += _time.strftime("%H:%M:%S")
             else:
-                logger.debug('Cannot add time for \"{}\"'.format(my_time))
+                logger.debug('{}: Cannot add time for \"{}\"'.format(_name, my_time))
         return _date_fmt
 
     def upper_left_text(self, im):
@@ -1103,6 +1105,8 @@ def _check_vmin_vmax(vmin, vmax, norm):
 
 
 def build_info(im, colormap, norm, colorbar, window, level):
+    _name: str = '{}.{}'.format(__name__, build_info.__name__)
+
     if im is None:
         return None
     if not issubclass(type(im), Series):
@@ -1128,7 +1132,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         lut = 256
     elif np.issubdtype(im.dtype, np.complexfloating):
         lut = 256
-        logger.warning('Displaying real part of complex values.')
+        logger.warning('{}: Displaying real part of complex values.'.format(_name))
         im = np.real(im)
     elif im.color:
         lut = 256
