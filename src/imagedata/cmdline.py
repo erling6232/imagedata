@@ -1,9 +1,10 @@
 """Add standard command line options."""
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import argparse
+import ast
 import copy
 import logging
 from . import __version__
@@ -26,7 +27,10 @@ class DictAction(argparse.Action):
 
         # noinspection PyProtectedMember
         items = copy.copy(getattr(namespace, self.dest, {}))  # Default mutables, use copy!
-        items[k] = v
+        try:
+            items[k] = ast.literal_eval(v)
+        except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+            items[k] = v
         setattr(namespace, self.dest, items)
 
 
