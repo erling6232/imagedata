@@ -177,7 +177,7 @@ class IndexedDict(dict):
     def __setitem__(self, item, val):
         keys = self._item_to_key_(item)
         if len(keys) != 1:
-            raise IndexedDict('Bad index: {}'.format(keys))
+            raise IndexError('Bad index: {}'.format(item))
         super(IndexedDict, self).__setitem__(keys[0], val)
 
     def __repr__(self, item = None):
