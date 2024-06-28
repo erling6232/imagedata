@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.1-dev0] - 2024-06-28
+## [v3.6.1] - 2024-06-28
 * image_data._reduce(): Corrected indexing collections classes. 
 * cmdline.DictAction: Use ast.literal_eval() to evaluate input options.
 * Collections and Series: Access input_options in opts similar to kwargs.
+* Remove exception UnevenSlicesError. Use CannotSort instead.
 
 ## [v3.6.0] - 2024-06-27
 * Final release 3.6.0.
