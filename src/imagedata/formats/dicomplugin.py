@@ -69,10 +69,6 @@ class NoDICOMAttributes(Exception):
     pass
 
 
-class UnevenSlicesError(Exception):
-    pass
-
-
 class ValueErrorWrapperPrecisionError(Exception):
     pass
 
@@ -368,7 +364,7 @@ class DICOMPlugin(AbstractPlugin):
                 sorting[seriesUID] = self._determine_sorting(
                     sorted_dataset, input_order, opts
                 )
-            except (CannotSort, UnevenSlicesError):
+            except CannotSort:
                 logger.debug('{}: opts {}'.format(_name, opts))
                 logger.debug('{}: skip_broken_series {}'.format(
                     _name, opts['skip_broken_series']
@@ -479,7 +475,7 @@ class DICOMPlugin(AbstractPlugin):
             max_slice_count = max(slice_count.values())
             if min_slice_count != max_slice_count and not accept_uneven_slices:
                 logger.error("{}: tags per slice: {}".format(_name, slice_count))
-                raise UnevenSlicesError(
+                raise CannotSort(
                     "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
                     "\nLast file: {}".format(series[last_sloc][0].filename) +
                     "\nCould try 'split_acquisitions=True' or 'split_echo_numbers=True'."
@@ -618,7 +614,7 @@ class DICOMPlugin(AbstractPlugin):
                 slice_count = _verify_consistent_slices(series_dataset)
                 _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count)
                 sorted_header_dict[seriesUID] = hdr
-            except (CannotSort, UnevenSlicesError):
+            except CannotSort:
                 if skip_broken_series:
                     logger.debug(
                         '{}: skip_broken_series continue {}'.format(
