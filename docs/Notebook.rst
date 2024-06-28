@@ -10,7 +10,7 @@ Always start your notebook with:
 
 .. code-block:: python
 
-    %matplotlib widget
+    %matplotlib ipympl
 
 Let's start by creating some random data:
 
@@ -23,6 +23,7 @@ Let's start by creating some random data:
 
 Next, show the image series in the notebook.
 Notice how you can step through the slices and time points using the arrow keys.
+When using mouse scrolling, keep `shift` key pressed to avoid scrolling the window frame.
 
 .. code-block:: python
 
