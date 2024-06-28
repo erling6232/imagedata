@@ -107,6 +107,9 @@ class Series(np.ndarray):
             opts = vars(opts)
         for key, value in kwargs.items():
             opts[key] = value
+        if 'input_options' in opts:
+            for key, value in opts['input_options'].items():
+                opts[key] = value
 
         if issubclass(type(template), Series):
             template = template.header

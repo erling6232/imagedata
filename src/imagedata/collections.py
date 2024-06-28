@@ -290,6 +290,9 @@ class Study(IndexedDict):
                                                                         opts))
         for key, value in kwargs.items():
             _in_opts[key] = value
+        if 'input_options' in _in_opts:
+            for key, value in _in_opts['input_options'].items():
+                _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -432,6 +435,9 @@ class Patient(IndexedDict):
                                                                         opts))
         for key, value in kwargs.items():
             _in_opts[key] = value
+        if 'input_options' in _in_opts:
+            for key, value in _in_opts['input_options'].items():
+                _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
@@ -611,6 +617,9 @@ class Cohort(IndexedDict):
                                                                         opts))
         for key, value in kwargs.items():
             _in_opts[key] = value
+        if 'input_options' in _in_opts:
+            for key, value in _in_opts['input_options'].items():
+                _in_opts[key] = value
 
         _strict_values = True if 'strict_values' not in _in_opts \
             else _in_opts['strict_values']
