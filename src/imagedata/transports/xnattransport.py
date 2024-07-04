@@ -144,9 +144,12 @@ class XnatTransport(AbstractTransport):
         Return:
         - tuples of (root, dirs, files)
         """
+        _name: str = '{}.{}'.format(__name__, self.walk.__name__)
+        logger.debug('{}: root {}, top {}'.format(_name, self.__root, top))
         if len(top) < 1 or top[0] != '/':
             # Add self.__root to relative tree top
             top = self.__root + '/' + top
+            logger.debug('{}: new top {}'.format(_name, top))
         url_tuple = urllib.parse.urlsplit(top)
         url = url_tuple.path.split('/')
         subject_search = url[2] if len(url) >= 3 else None
@@ -235,6 +238,8 @@ class XnatTransport(AbstractTransport):
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
+        _name: str = '{}.{}'.format(__name__, self.open.__name__)
+        print('{}: path "{}", mode {}'.format(_name, path, mode))
         if mode[0] == 'r' and not self.__local:
             scan_id = path.split('/')[4]
             if scan_id in self.__experiment.scans:
