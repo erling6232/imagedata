@@ -403,13 +403,16 @@ def image_list():
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)
     netloc = '{}://{}'.format(url_tuple.scheme, url_tuple.netloc)
+    logger.debug("image_list: url_tuple {}".format(url_tuple))
     transport = Transport(args.input)
     found = False
     for root, dirs, files in transport.walk('*'):
+        logger.debug("image_list: root: {}, dirs: {}, files: {}".format(root, dirs, files))
         found = True
         for dir in dirs:
             info = transport.info('{}/{}'.format(root, dir))
@@ -418,7 +421,8 @@ def image_list():
             info = transport.info('{}/{}'.format(root, filename))
             print('{}{}/{} {}'.format(netloc, root, filename, info))
         if not args.recursive:
-            break  # Do not descend down the tree
+            if root == url_tuple.path:
+                break  # Do not descend further down the tree
     transport.close()
 
     if found:
