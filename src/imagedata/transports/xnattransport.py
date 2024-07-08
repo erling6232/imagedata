@@ -10,6 +10,7 @@ import io
 import fnmatch
 import logging
 import shutil
+from zipfile import ZipFile
 import tempfile
 import urllib.parse
 import xnat
@@ -43,8 +44,6 @@ class XnatTransport(AbstractTransport):
     __subject = None
     __experiment = None
     __scan = None
-    __tmpdir = None
-    __must_upload: bool = False
 
     def __init__(self,
                  netloc: Optional[str] = None,
@@ -235,34 +234,88 @@ class XnatTransport(AbstractTransport):
         """
         return False
 
+    def _search_subjects(self, path):
+        """Search for subject(s) from the archive.
+        """
+        _name: str = '{}.{}'.format(__name__, self._search_subjects.__name__)
+        assert len(path.split('/')) == 3, "{} with wrong level".format(_name)
+        subject_list = []
+        subject_id = path.split('/')[-1]
+        for id in self.__project.subjects:
+            logger.debug('{}: locate subject id {}'.format(_name, id))
+            subject = self.__project.subjects[id]
+            if fnmatch.fnmatch(subject.label, subject_id):
+                subject_list.append(subject)
+        object_list = []
+        for subject in subject_list:
+            object_list += self._search_experiments(path + '/*')
+        return object_list
+
+    def _search_experiments(self, path):
+        """Search for experiment(s) from the archive.
+        """
+        _name: str = '{}.{}'.format(__name__, self._search_experiments.__name__)
+        assert len(path.split('/')) == 4, "{} with wrong level".format(_name)
+        object_list = []
+        experiment_id = path.split('/')[-1]
+        for id in self.__subject.experiments:
+            logger.debug('{}: locate experiment id {}'.format(_name, id))
+            experiment = self.__subject.experiments[id]
+            if fnmatch.fnmatch(experiment.id, experiment_id):
+                object_list.append(experiment)
+        return object_list
+
+    def _search_scans(self, path):
+        """Search for scan(s) from the archive.
+        """
+        _name: str = '{}.{}'.format(__name__, self._search_scans.__name__)
+        assert len(path.split('/')) == 5, "{} with wrong level".format(_name)
+        object_list = []
+        scan_id = path.split('/')[-1]
+        for id in self.__experiment.scans:
+            logger.debug('{}: locate scan id {}'.format(_name, id))
+            scan = self.__experiment.scans[id]
+            if scan.quality == 'usable' and fnmatch.fnmatch(scan.id, scan_id):
+                object_list.append(scan)
+        return object_list
+
     def open(self, path, mode='r'):
         """Extract a member from the archive as a file-like object.
         """
+        def _combine_zipfiles(orig, temp):
+            """Move contents of temp into orig
+            """
+            z1 = ZipFile(orig, 'a')
+            z2 = ZipFile(temp, 'r')
+            [z1.writestr(t[0], t[1].read()) for t in ((n, z2.open(n)) for n in z2.namelist())]
+            z1.close()
+            z2.close()
+
         _name: str = '{}.{}'.format(__name__, self.open.__name__)
         print('{}: path "{}", mode {}'.format(_name, path, mode))
         if mode[0] == 'r' and not self.__local:
-            scan_id = path.split('/')[4]
-            if scan_id in self.__experiment.scans:
-                scans = [self.__experiment.scans[scan_id]]
-            else:
-                scans = []
-                for id in self.__experiment.scans:
-                    scan = self.__experiment.scans[id]
-                    if scan.quality == 'usable' and fnmatch.fnmatch(scan.type, scan_id):
-                        scans.append(scan)
-            if len(scans) == 0:
-                raise FileNotFoundError('Scan {} not found.'.format(scan_id))
-            elif len(scans) > 1:
-                raise ValueError('Too many scans match search "{}": {}'.format(
-                    scan_id, scans
-                ))
-            scan = scans[0]
+            level = len(path.split('/'))
+            if level == 3:
+                object_list = self._search_subjects(path)
+            elif level == 4:
+                object_list = self._search_experiments(path)
+            elif level == 5:
+                object_list = self._search_scans(path)
+            print('{}: object_list {}'.format(_name, object_list))
+            if len(object_list) == 0:
+                raise FileNotFoundError('File {} not found.'.format(path))
             self.__tmpdir = tempfile.mkdtemp()
-            if scan.quality == 'usable':
+            self.__zipfile = os.path.join(self.__tmpdir, 'scan.zip')
+            self.__ziptemp = os.path.join(self.__tmpdir, 'temp.zip')
+            for i, _object in enumerate(object_list):
                 # scan.download_dir(self.__tmpdir)
-                self.__zipfile = os.path.join(self.__tmpdir, 'scan.zip')
-                scan.download(self.__zipfile)
-                self.__local = True
+                if i == 0:
+                    _object.download(self.__zipfile)
+                else:
+                    _object.download(self.__ziptemp)
+                    _combine_zipfiles(self.__zipfile, self.__ziptemp)
+                    os.remove(self.__ziptemp)
+            self.__local = True
         elif mode[0] == 'w' and not self.__local:
             self.__tmpdir = tempfile.mkdtemp()
             self.__zipfile = os.path.join(self.__tmpdir, 'upload.zip')
@@ -271,7 +324,7 @@ class XnatTransport(AbstractTransport):
         if self.__local:
             return io.FileIO(self.__zipfile, mode)
         else:
-            raise IOError('Could not download scan {}'.format(scan_id))
+            raise IOError('Could not download scan {}'.format(path))
 
     def info(self, path) -> str:
         """Return info describing the object
