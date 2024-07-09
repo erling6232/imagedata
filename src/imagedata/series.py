@@ -2070,9 +2070,9 @@ class Series(np.ndarray):
                              ''.format(_name, slices))
                 # Calculating normal vector based on first and last slice should be
                 # the correct method.
-                # k = (T0 - Tn) / (1 - slices)
+                k = (T0 - Tn) / (1 - slices)
                 # Will just calculate normal to row and column to match other software.
-                k = np.cross(colr, colc, axis=0) * ds
+                # k = np.cross(colr, colc, axis=0) * ds
             else:
                 logger.debug('{}: single slice case'.format(_name))
                 k = np.cross(colr, colc, axis=0)
