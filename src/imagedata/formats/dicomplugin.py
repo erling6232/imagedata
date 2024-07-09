@@ -589,7 +589,7 @@ class DICOMPlugin(AbstractPlugin):
             if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
                 hdr.color = True
             hdr.axes = axes
-            self._extract_dicom_attributes(series, hdr)
+            self._extract_dicom_attributes(series, hdr, opts=opts)
 
         _name: str = '{}.{}'.format(__name__, self._get_headers.__name__)
         skip_broken_series = False
@@ -753,7 +753,8 @@ class DICOMPlugin(AbstractPlugin):
 
     def _extract_dicom_attributes(self,
                                   series: SortedDatasetList,
-                                  hdr: Header
+                                  hdr: Header,
+                                  opts: dict = None
                                   ) -> None:
         """Extract DICOM attributes
 
@@ -761,6 +762,7 @@ class DICOMPlugin(AbstractPlugin):
             self: DICOMPlugin instance
             series:
             hdr: existing header (Header)
+            opts:
         Returns:
             hdr: header
                 - seriesNumber
@@ -818,6 +820,32 @@ class DICOMPlugin(AbstractPlugin):
         hdr.imagePositions = {}
         for i, _slice in enumerate(series):
             hdr.imagePositions[i] = self.getOriginForSlice({i: [(0, series[_slice][0])]}, i)
+
+        hdr.transformationMatrix = self.__get_transformation_matrix(hdr, opts)
+
+    def __get_transformation_matrix(self, hdr: Header, opts: dict = None) -> np.ndarray:
+        use_cross_product = False
+        if 'use_cross_product' in opts:
+            use_cross_product = opts['use_cross_product']
+        ds, dr, dc = hdr.spacing
+        slices = len(hdr.imagePositions)
+        T0 = hdr.imagePositions[0].reshape(3, 1)  # z,y,x
+        Tn = hdr.imagePositions[slices - 1].reshape(3, 1)
+        orient = hdr.orientation
+        colr = np.array(orient[3:]).reshape(3, 1)
+        colc = np.array(orient[:3]).reshape(3, 1)
+        if slices == 1 or use_cross_product:
+            k = np.cross(colr, colc, axis=0)
+            k = k * ds
+        else:
+            k = (T0 - Tn) / (1 - slices)
+        A = np.eye(4)
+        A[:3, :4] = np.hstack([
+            k,
+            colr * dr,
+            colc * dc,
+            T0])
+        return A
 
     def __get_voxel_spacing(self, dictionary):
         # Spacing
