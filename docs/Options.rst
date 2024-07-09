@@ -73,6 +73,12 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |specified              |
 |                         |                         |     |Acquisition Number     |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |use_cross_product        |bool |Always use             |
+|                         |                         |     |vector cross           |
+|                         |                         |     |product to calculate   |
+|                         |                         |     |z column of the        |
+|                         |                         |     |transformation matrix  |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |<input_order>            |str  |User-defined input     |
 |                         |                         |     |order                  |
 +-------------------------+-------------------------+-----+-----------------------+

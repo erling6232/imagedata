@@ -1,13 +1,13 @@
 """ROI objects
 """
 
-# Copyright (c) 2017-2018 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2017-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 import numpy as np
 import math
 from abc import ABCMeta, abstractmethod
-from imagedata.apps.Siemens.draw_antialiased import draw_circle_mask, draw_polygon_mask
+from .draw_antialiased import draw_circle_mask, draw_polygon_mask
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,12 @@ class ROI(object, metaclass=ABCMeta):
         self.stu_ins_uid = stu_ins_uid
         self.ser_ins_uid = ser_ins_uid
         self.sop_ins_uid = sop_ins_uid
+
+    def __str__(self):
+        return "ROI {} points: {}\n".format(self.label, len(self.points)) + \
+            "StudyInstanceUID: {}\n".format(self.stu_ins_uid) + \
+            "SeriesInstanceUID: {}\n".format(self.ser_ins_uid) + \
+            "SOPInstanceUID: {}\n".format(self.sop_ins_uid)
 
     @abstractmethod
     def get_points_cm(self):
@@ -103,9 +109,9 @@ class ROI(object, metaclass=ABCMeta):
         """
         canvas = self.create_canvas(mask.shape)
         self.draw_roi_on_canvas(canvas, colour=colour, threshold=threshold, fill=fill)
-        if not self.slice:
-            print("ROI::draw_roi_on_numpy: no self._slice")
         if self.slice:
+            logger.debug('mask: {}, canvas: {}, slice: {}'.format(
+                mask.shape, canvas.shape, self.slice))
             mask[self.slice, :, :] = np.logical_or(mask[self.slice, :, :], canvas)
         return mask
 
@@ -118,6 +124,7 @@ class ROI(object, metaclass=ABCMeta):
             if z != iz:
                 logger.debug("Point %d,%d,%d is not in _slice %d." % (z, y, x, iz))
                 # raise ValueError("Point %d,%d,%d is not in _slice %d." % (z,y,x,iz))
+        logger.debug('verify_all_voxels_in_slice: {}'.format(iz))
         return iz
 
     @staticmethod
@@ -129,12 +136,13 @@ class ROI(object, metaclass=ABCMeta):
         return np.asarray(voxels).reshape(len(points), 3)
 
     def get_timepoint(self, si):
-        if si.DicomHeaderDict is not None:
-            for _slice in si.DicomHeaderDict:
-                for time_index, item in enumerate(si.DicomHeaderDict[_slice]):
-                    tg, fname, im = item
-                    if im['SOPInstanceUID'].value == self.sop_ins_uid:
-                        return time_index
+        _index = None
+        for key in si.SOPInstanceUIDs:
+            if self.sop_ins_uid == si.SOPInstanceUIDs[key]:
+                _index = key
+                break
+        if _index is not None:
+            return _index[0]
         raise IndexError("SOP Instance UID {} not found".format(self.sop_ins_uid))
 
 
@@ -271,7 +279,6 @@ class EllipseROI(ROI):
         centre = self.points_matrix[0]
         yc, xc = centre[1], centre[2]
         radius = self.radius_matrix
-        print("EllipseROI::draw_roi_on_canvas xc,yc,radius", xc, yc, radius)
 
         if radius > 0:
             draw_circle_mask(canvas, xc, yc, radius, colour, threshold, fill=fill)
