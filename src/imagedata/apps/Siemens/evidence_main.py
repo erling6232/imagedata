@@ -1,60 +1,61 @@
+#!/usr/bin/env python3
+
 import os
-import sys
 import argparse
 import logging
-import imagedata
+import pydicom
+import imagedata.formats
 from imagedata.cmdline import add_argparse_options
-# from evidence2mask import evidence2roi  # TODO
+# from imagedata.readdata import read as r_read
+# from imagedata.apps.Siemens.evidence2mask import evidence2roi
+from evidence2mask import evidence2roi
+from imagedata import Series
 
 
 logger = logging.getLogger()
 
 
-if __name__ == '__main__':
-    global separate_laterality
+def read_uid_map(filename):
+    uidmap = {}
+    with open(filename, 'r') as f:
+        # line = f.readline()
+        for line in f.readlines():
+            # orig, pseudo = f.readline().strip().split('\t')
+            orig, pseudo = line.strip().split('\t')
+            uidmap[orig] = pseudo
+    return uidmap
 
+
+if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
+    parser.add_argument("output")
+    parser.add_argument("evidence")
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
+    parser.add_argument("--uid_table",
+                        help="UID translate table",
+                        default=None)
+    parser.add_argument("-l", "--laterality",
+                        help="[--laterality separate|combined] - Separate left and right ROIs "
+                             "in separate files. Otherwise combine both (default).",
+                        default="combined")
     args = parser.parse_args()
     logger.setLevel(args.loglevel)
 
-    try:
-        out_name = sys.argv[1]
-        evidence_name = sys.argv[2]
-        in_dirs = sys.argv[3:]
-    except Exception:
-        print("Usage:", sys.argv[0], "<options> [-laterality sep] out evidence in...")
-        print("\nWhere <options> are:\n", imagedata.options_to_text())
-        print(
-            "  [-laterality separate|combined] - Separate left and right ROIs "
-            "in separate files. Other combine both (default).")
-        sys.exit(1)
+    out_name = args.output
+    evidence_name = args.evidence
 
-    try:
-        hdr, si = imagedata.readdata.read(in_dirs, imagedata.formats.INPUT_ORDER_TIME)
-    except imagedata.UnknownInputError:
-        print("Could not determine input format of %s." % in_dirs[1])
-        import traceback
+    uidmap = None
+    if args.uid_table is not None:
+        uidmap = read_uid_map(args.uid_table)
+    si = Series(args.in_dirs, imagedata.formats.INPUT_ORDER_TIME)
 
-        traceback.print_exc(file=sys.stdout)
-        sys.exit(1)
+    reading = pydicom.read_file(args.evidence)
 
-    try:
-        reading = imagedata.read_headers((evidence_name,),
-                                         imagedata.formats.INPUT_ORDER_NONE,
-                                         force_order=True)
-    except imagedata.UnknownInputError:
-        print("Could not determine input format of %s." % evidence_name)
-        import traceback
-
-        traceback.print_exc(file=sys.stdout)
-        sys.exit(1)
-
-    mask = {}
-    # mask, content = evidence2mask(mask, reading, hdr, si, separate_laterality)
-    content = None
+    # mask = {}
+    # mask, content = evidence2roi(mask, reading, si, args.laterality)
+    mask, content = evidence2roi(reading, uidmap)
     # print(content)
 
     serNum = 5000
