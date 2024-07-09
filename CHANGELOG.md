@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.2-dev1] - 2024-07-09
+## [v3.6.2-rc0] - 2024-07-09
 ### Added
 * XNATTransport.open(): Can now download data also at patient and experiment level.
 ### Fixed
