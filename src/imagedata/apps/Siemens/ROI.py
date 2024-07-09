@@ -124,6 +124,7 @@ class ROI(object, metaclass=ABCMeta):
             if z != iz:
                 logger.debug("Point %d,%d,%d is not in _slice %d." % (z, y, x, iz))
                 # raise ValueError("Point %d,%d,%d is not in _slice %d." % (z,y,x,iz))
+        logger.debug('verify_all_voxels_in_slice: {}'.format(iz))
         return iz
 
     @staticmethod
