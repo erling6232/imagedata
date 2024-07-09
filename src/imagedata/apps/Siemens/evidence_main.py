@@ -66,20 +66,17 @@ if __name__ == '__main__':
     f.close()
 
     for laterality in mask.keys():
-        hdr_copy = hdr.copy()
-        hdr_copy.removePrivateTags()
-        hdr_copy.setSeriesNumber(serNum)
-        hdr_copy.setSeriesDescription("Mask %s" % laterality)
-        hdr_copy.setImageType(imageType)
+        mask[laterality].removePrivateTags()
+        mask[laterality].setSeriesNumber(serNum)
+        mask[laterality].setSeriesDescription("Mask %s" % laterality)
+        mask[laterality].setImageType(imageType)
         # Acquisition Date
-        hdr_copy.setDicomAttribute((0x0008, 0x0022), content['date'])
+        mask[laterality].setDicomAttribute((0x0008, 0x0022), content['date'])
         # Acquisition Time
-        hdr_copy.setDicomAttribute((0x0008, 0x0032), content['time'])
+        mask[laterality].setDicomAttribute((0x0008, 0x0032), content['time'])
         # Operator's Name
-        hdr_copy.setDicomAttribute((0x0008, 0x1070), content['creator'])
+        mask[laterality].setDicomAttribute((0x0008, 0x1070), content['creator'])
         # Image Laterality
-        hdr_copy.setDicomAttribute((0x0020, 0x0062), laterality)
-        imagedata.write_images(hdr_copy,
-                               mask[laterality],
-                               os.path.join(out_name, "%s_%%05d" % laterality))
+        mask[laterality].setDicomAttribute((0x0020, 0x0062), laterality)
+        mask[laterality].write(os.path.join(out_name, "%s_%%05d" % laterality))
         serNum += 1
