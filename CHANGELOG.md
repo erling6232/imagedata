@@ -7,12 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.2-rc0] - 2024-07-09
+## [v3.6.2] - 2024-07-09
 ### Added
+* DICOMPlugin: Added `use_cross_product` option to demand that the z column of the transformation
+  matrix is calculated using vector cross product.
 * XNATTransport.open(): Can now download data also at patient and experiment level.
-### Fixed
-* Series.transformationMatrix: Always calculate 3rd column using vector cross product
-  independent of number of slices.
 ### Changed
 * evidence2mask: Removed functions make_mask_in_slice() and
   transform_data_points_to_voxels().
