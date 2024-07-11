@@ -407,6 +407,18 @@ class TestDicomPlugin(unittest.TestCase):
             self.assertEqual('dicom', eye_read.input_format)
         self.assertNotEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
 
+    def test_changed_uid_on_copy(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_copy = Series(eye)
+        self.assertNotEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
+
+    def test_unchanged_uid_on_slicing(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_copy = eye[0]
+        self.assertEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
+
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
