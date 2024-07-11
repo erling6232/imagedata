@@ -519,9 +519,7 @@ class DICOMPlugin(AbstractPlugin):
                         logger.warning("{}: dropping duplicate image: {} {}".format(
                             _name, islice, sloc))
                     else:
-                        raise CannotSort("Duplicate tag ({}): {:08x} ({})".format(
-                            input_order, tag, pydicom.datadict.keyword_for_tag(tag)
-                        ))
+                        raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
                     i += 1
             for islice in tag_list.keys():
                 tag_list[islice] = sorted(tag_list[islice])
