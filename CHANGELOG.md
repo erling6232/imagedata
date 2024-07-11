@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.5-dev0] - 2024-07-11
+### Fixed
+* Improved UID generation to garantee unique DICOM UIDs.
+
 ## [v3.6.4] - 2024-07-11
 ### Fixed
 * DICOMPlugin._extract_all_tags(): Fixed error where float tag was printed with :0x formatting.
