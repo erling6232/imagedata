@@ -77,7 +77,6 @@ class UnknownTag(Exception):
     pass
 
 
-# noinspection PyPep8Naming
 class DICOMPlugin(AbstractPlugin):
     """Read/write DICOM files.
 
