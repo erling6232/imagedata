@@ -1550,6 +1550,7 @@ class DICOMPlugin(AbstractPlugin):
             ds = self.construct_dicom(filename, si.dicomTemplate, si, sop_ins_uid=sop_ins_uid)
         except ValueError:
             ds = self.construct_basic_dicom(si, sop_ins_uid=sop_ins_uid)
+            ds.SeriesInstanceUID = si.header.seriesInstanceUID
             # raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         # logger.debug("write_slice member_name {}".format(member_name))
         # self._copy_dicom_group(0x21, im, ds)
@@ -1691,8 +1692,10 @@ class DICOMPlugin(AbstractPlugin):
         ds.StudyDate = self.today
         ds.StudyTime = '000000'
         try:
-            ds.StudyInstanceUID = template.header.new_uid()
-            ds.SeriesInstanceUID = template.header.new_uid()
+            # ds.StudyInstanceUID = template.header.new_uid()
+            # ds.SeriesInstanceUID = template.header.new_uid()
+            ds.StudyInstanceUID = template.header.studyInstanceUID
+            ds.SeriesInstanceUID = template.header.seriesInstanceUID
         except Exception as e:
             print(e)
         ds.StudyID = '0'
