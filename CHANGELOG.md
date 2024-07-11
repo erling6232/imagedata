@@ -7,14 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.3] - 2024-07-11
+### Fixed
+* XNATTransport.walk(): Only return file names from the `top` down.
+
 ## [v3.6.2] - 2024-07-09
 ### Added
 * DICOMPlugin: Added `use_cross_product` option to demand that the z column of the transformation
   matrix is calculated using vector cross product.
-* XNATTransport.open(): Can now download data also at patient and experiment level.
+`* XNATTransport.open(): Can now download data also at patient and experiment level.
 ### Changed
 * evidence2mask: Removed functions make_mask_in_slice() and
-  transform_data_points_to_voxels().
+  transform_data_points_to_voxels().`
 
 ## [v3.6.1] - 2024-06-28
 * image_data._reduce(): Corrected indexing collections classes. 
