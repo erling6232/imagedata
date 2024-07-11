@@ -42,34 +42,30 @@ class TestDicomTemplate(unittest.TestCase):
                 self.dicom_plugin = pclass
         self.assertIsNotNone(self.dicom_plugin)
 
-    def getEmpty(self, prefix=None):
+    def getEmpty(self, dir):
         # Create a DICOM series with empty header
-        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'), input_order='time')
-        emptydir = tempfile.TemporaryDirectory(prefix='{}.{}'.format(os.getpid(), prefix))
+        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
+                     input_order='time', input_format='mat')
         si00 = Series(si0[0], input_order='none')
-        si00.write(os.path.join(emptydir.name, 'empty_header'), formats=['dicom'])
+        si00.write(dir, formats=['dicom'])
 
+    def getEmptyTime(self, dir):
         # Provide sensible time tags
+        si0 = Series(os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
+                     input_order='time', input_format='mat')
         si01 = Series(si0[:2], input_order='time')
         for s in range(3):
             for t in range(2):
                 time_str = datetime.fromtimestamp(float(t), timezone.utc).strftime("%H%M%S.%f")
                 si01.setDicomAttribute('AcquisitionTime', time_str, slice=s, tag=t)
-        si01.write(os.path.join(emptydir.name, 'empty_header_time'), formats=['dicom'])
-        return emptydir
+        si01.write(dir, formats=['dicom'])
 
-    def dropEmpty(self, emptydir):
-        emptydir.cleanup()
-
-    # @unittest.skip("skipping test_dicom_template_cmdline")
     def test_dicom_template_cmdline(self):
         # Read the DICOM empty header series,
         # adding DICOM template
-        emptydir = self.getEmpty('template_cmdline')
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            'none',
-            self.opts_template)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(emptydir, 'none', self.opts_template)
         self.assertEqual('dicom', si1.input_format)
         # Read the original DICOM series
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
@@ -87,25 +83,23 @@ class TestDicomTemplate(unittest.TestCase):
             raise ShouldHaveFailed('Template header should differ when joining geometry')
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
-        with tempfile.TemporaryDirectory(
-                prefix='{}.{}'.format(os.getpid(),'template_cmdline_si1')) as d:
+        with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)
         np.testing.assert_array_equal(si2, si3)
         compare_template_headers(self, si2, si3)
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_template_prog")
     def test_dicom_template_prog(self):
         # Read the DICOM empty header series,
         # adding DICOM template in Series constructor
-        emptydir = self.getEmpty('template_prog')
         template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', template.input_format)
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            template=template)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(
+                emptydir,
+                template=template)
         self.assertEqual('dicom', si1.input_format)
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si2.input_format)
@@ -113,17 +107,13 @@ class TestDicomTemplate(unittest.TestCase):
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
         compare_template_headers(self, si1, si2)
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_geometry_cmdline")
     def test_dicom_geometry_cmdline(self):
         # Read the DICOM empty header series,
         # adding DICOM geometry
-        emptydir = self.getEmpty('geometry_cmdline')
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            'none',
-            self.opts_geometry)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(emptydir, 'none', self.opts_geometry)
         self.assertEqual('dicom', si1.input_format)
         # Read the original DICOM series
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
@@ -141,25 +131,21 @@ class TestDicomTemplate(unittest.TestCase):
             raise ShouldHaveFailed('Template header should differ when joining geometry')
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
-        with tempfile.TemporaryDirectory(
-                prefix='{}.geometry_cmdline_si1'.format(os.getpid())) as d:
+        with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)
         np.testing.assert_array_equal(si2, si3)
         compare_geometry_headers(self, si2, si2)
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_geometry_prog")
     def test_dicom_geometry_prog(self):
         # Read the DICOM empty header series,
         # adding DICOM geometry in Series constructor
-        emptydir = self.getEmpty('geometry_prog')
         geometry = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', geometry.input_format)
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            geometry=geometry)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(emptydir, geometry=geometry)
         self.assertEqual('dicom', si1.input_format)
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si2.input_format)
@@ -170,21 +156,17 @@ class TestDicomTemplate(unittest.TestCase):
         try:
             compare_template_headers(self, si1, si2)
         except AssertionError:
-            # Excpected to fail
+            # Expected to fail
             pass
         else:
             raise ShouldHaveFailed('Template header should differ when joining geometry')
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_tempgeom_cmdline")
     def test_dicom_tempgeom_cmdline(self):
         # Read the DICOM empty header series,
         # adding DICOM template
-        emptydir = self.getEmpty('tempgeom_cmdline')
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            'none',
-            self.opts_tempgeom)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(emptydir, 'none', self.opts_tempgeom)
         self.assertEqual('dicom', si1.input_format)
         # Read the original DICOM series
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
@@ -195,28 +177,23 @@ class TestDicomTemplate(unittest.TestCase):
         compare_headers(self, si1, si2)
         # Write constructed series si1 to disk,
         # then re-read and compare to original si2
-        with tempfile.TemporaryDirectory(
-                prefix='{}.tempgeom_cmdline_si1'.format(os.getpid())) as d:
+        with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
             si3 = Series(d, 'none', self.opts)
         self.assertEqual('dicom', si3.input_format)
         np.testing.assert_array_equal(si2, si3)
         compare_headers(self, si2, si3)
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_tempgeom_prog")
     def test_dicom_tempgeom_prog(self):
         # Read the DICOM empty header series,
         # adding DICOM template in Series constructor
-        emptydir = self.getEmpty('tempgeom_prog1')
         template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', template.input_format)
         geometry = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', geometry.input_format)
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header'),
-            template=template,
-            geometry=geometry)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmpty(emptydir)
+            si1 = Series(emptydir, template=template, geometry=geometry)
         self.assertEqual('dicom', si1.input_format)
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si2.input_format)
@@ -224,23 +201,18 @@ class TestDicomTemplate(unittest.TestCase):
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
         compare_headers(self, si1, si2)
-        self.dropEmpty(emptydir)
 
-    # @unittest.skip("skipping test_dicom_temp_slice")
     def test_dicom_temp_slice(self):
         # Read the DICOM empty header series,
         # adding DICOM template in Series constructor
         # Then slice the si1 Series
-        emptydir = self.getEmpty('temp_slice')
         template = Series(os.path.join('data', 'dicom', 'time'), input_order='time')
         self.assertEqual('dicom', template.input_format)
         geometry = Series(os.path.join('data', 'dicom', 'time'), input_order='time')
         self.assertEqual('dicom', geometry.input_format)
-        si1 = Series(
-            os.path.join(emptydir.name, 'empty_header_time'),
-            input_order='time',
-            template=template,
-            geometry=geometry)
+        with tempfile.TemporaryDirectory() as emptydir:
+            self.getEmptyTime(emptydir)
+            si1 = Series(emptydir, input_order='time', template=template, geometry=geometry)
         self.assertEqual('dicom', si1.input_format)
         si1_0 = si1[0]
         si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
@@ -251,7 +223,6 @@ class TestDicomTemplate(unittest.TestCase):
         # Tags do not match, so copy them to enable header comparison.
         si1_0.tags = si2.tags
         compare_headers(self, si1_0, si2)
-        self.dropEmpty(emptydir)
 
 
 class TestDicomGeometryTemplate(unittest.TestCase):

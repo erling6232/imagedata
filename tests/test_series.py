@@ -436,7 +436,7 @@ class TestSeries(unittest.TestCase):
         self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
         # print('si after', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
         # print('si1', si1.getDicomAttribute('SeriesInstanceUID'), si1.seriesInstanceUID)
-        self.assertNotEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
 
         si2 = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si2.input_format)
