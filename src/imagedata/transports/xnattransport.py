@@ -155,19 +155,26 @@ class XnatTransport(AbstractTransport):
         experiment_search = url[3] if len(url) >= 4 else None
         scan_search = url[4] if len(url) >= 5 else None
         instance_search = url[5] if len(url) >= 6 else None
+        logger.debug('{}: subject_search {}'.format(_name, subject_search))
+        logger.debug('{}: experiment_search {}'.format(_name, experiment_search))
+        logger.debug('{}: scan_search {}'.format(_name, scan_search))
+        logger.debug('{}: instance_search {}'.format(_name, instance_search))
 
         # Walk the patient list
         subjects, labels = self._get_subjects(subject_search)
-        yield '/{}'.format(self.__project.id), labels, []
+        if experiment_search is None:
+            yield '/{}'.format(self.__project.id), labels, []
         for subject in subjects:
             # Walk the experiment list
             experiments, labels = self._get_experiments(subject, experiment_search)
-            yield '/{}/{}'.format(self.__project.id, subject.label), labels, []
+            if scan_search is None:
+                yield '/{}/{}'.format(self.__project.id, subject.label), labels, []
             for experiment in experiments:
                 # Walk the scan list
                 scans, labels = self._get_scans(experiment, scan_search)
-                yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id), \
-                      labels, []
+                if instance_search is None:
+                    yield '/{}/{}/{}'.format(self.__project.id, subject.label, experiment.id), \
+                          labels, []
                 for scan in scans:
                     # Walk the file list
                     files = self._get_files(scan, instance_search)
@@ -292,7 +299,7 @@ class XnatTransport(AbstractTransport):
             z2.close()
 
         _name: str = '{}.{}'.format(__name__, self.open.__name__)
-        print('{}: path "{}", mode {}'.format(_name, path, mode))
+        logger.debug('{}: path "{}", mode {}'.format(_name, path, mode))
         if mode[0] == 'r' and not self.__local:
             level = len(path.split('/'))
             if level == 3:
@@ -301,7 +308,6 @@ class XnatTransport(AbstractTransport):
                 object_list = self._search_experiments(path)
             elif level == 5:
                 object_list = self._search_scans(path)
-            print('{}: object_list {}'.format(_name, object_list))
             if len(object_list) == 0:
                 raise FileNotFoundError('File {} not found.'.format(path))
             self.__tmpdir = tempfile.mkdtemp()
