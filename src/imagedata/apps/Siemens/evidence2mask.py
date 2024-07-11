@@ -82,7 +82,7 @@ def evidence2roi(im, uid_table=None, content=None):
 
     try:
         measurement = presentation_sq[0][(0x0029, 0x10a7)]
-    except KeyError:
+    except (TypeError, KeyError):
         logger.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
         # return (rois, content)
         raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
