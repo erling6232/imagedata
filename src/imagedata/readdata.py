@@ -147,6 +147,9 @@ def read(urls, order=None, opts=None, input_format=None):
         except Exception as e:
             logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
+            # import traceback, sys
+            # traceback.print_exc(file=sys.stdout)
+            # exit(1)
 
     for source in sources:
         logger.debug("{}: close archive {}".format(_name, source['archive']))
