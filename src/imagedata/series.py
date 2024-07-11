@@ -569,6 +569,10 @@ class Series(np.ndarray):
             # noinspection PyUnboundLocalVariable
             if slicing:
                 todo.append(('axes', new_axes[-ret.ndim:]))
+                todo.append(('seriesInstanceUID', self.header.seriesInstanceUID))
+            else:
+                new_uid = ret.header.new_uid()
+                ret.seriesInstanceUID = new_uid
             if reduce_dim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
@@ -577,10 +581,6 @@ class Series(np.ndarray):
                 else:
                     raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
-            new_uid = ret.header.new_uid()
-            ret.seriesInstanceUID = new_uid
-            # ret.setDicomAttribute('SeriesInstanceUID', ret.header.new_uid())
-            ret.seriesInstanceUID = new_uid
         elif isinstance(ret, np.void):
             ret = tuple(ret)
         return ret
