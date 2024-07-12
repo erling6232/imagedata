@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.5-dev0] - 2024-07-11
+## [v3.6.5] - 2024-07-12
 ### Fixed
 * Improved UID generation to guarantee unique DICOM SeriesInstanceUID,
   while keeping the SeriesInstanceUID when slicing a Series.
