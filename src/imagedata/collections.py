@@ -8,6 +8,8 @@ The Cohort class is a collection of Patient objects.
 
 """
 
+# Copyright (c) 2023-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+
 from datetime import datetime, date, time
 import argparse
 from pathlib import Path
