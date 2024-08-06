@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.6.6-dev0] - 2024-08-06
 ### Fixed
 * Series.__getitem__(): Set correct input_order when slicing 4D Series.
+* Series.__getitem__(): Accept slice discrete slice selection specified by list and tuple.
+* Series.__get_imagePositions(): Accept list and tuple indeces.
+* Series.__get_tags(): Accept list and tuple indeces.
+* Series.sliceLocations setter: Do not set slice axis.
 
 ## [v3.6.5] - 2024-07-12
 ### Fixed
