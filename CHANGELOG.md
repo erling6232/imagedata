@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.6-dev0] - 2024-08-06
+### Fixed
+* Series.__getitem__(): Set correct input_order when slicing 4D Series.
+
 ## [v3.6.5] - 2024-07-12
 ### Fixed
 * Improved UID generation to guarantee unique DICOM SeriesInstanceUID,

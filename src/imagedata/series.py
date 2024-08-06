@@ -579,7 +579,8 @@ class Series(np.ndarray):
                 if ret.axes[-ret.ndim].name in ['slice', 'row', 'column']:
                     ret.input_order = INPUT_ORDER_NONE
                 else:
-                    raise IndexError('Unexpected axis {} after slicing'.format(ret.axes[0].name))
+                    ret.input_order = ret.axes[0].name
+                    # raise IndexError('Unexpected axis "{}" after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
         elif isinstance(ret, np.void):
             ret = tuple(ret)
