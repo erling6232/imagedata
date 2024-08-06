@@ -511,6 +511,16 @@ class TestSeries(unittest.TestCase):
         si2.seriesNumber += 10
         self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
 
+    def test_slice_timeline(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time'),
+            formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', si1.input_format)
+        t = np.array([0., 2.99, 5.97])
+        np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
+        si2 = si1[:1]
+        np.testing.assert_array_equal(si1.timeline[:1], si2.timeline)
+
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si1.input_format)
