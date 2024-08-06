@@ -69,7 +69,8 @@ class UniformAxis(Axis):
     def __getitem__(self, index: slice) -> UniformAxis:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[Number, UniformAxis]:
+    def __getitem__(self, index: Union[int, slice]) ->(
+            Union)[Number, UniformAxis, VariableAxis]:
         if type(index) is Ellipsis:
             return self
         elif isinstance(index, slice):
@@ -85,6 +86,9 @@ class UniformAxis(Axis):
             if _value < self.stop:
                 return _value
             raise StopIteration
+        elif type(index) in (list, tuple):
+            _values = [self[_] for _ in index]
+            return VariableAxis(self.name, _values)
         else:
             raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
@@ -153,7 +157,8 @@ class UniformLengthAxis(UniformAxis):
     def __getitem__(self, index: slice) -> UniformLengthAxis:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) -> Union[Number, UniformLengthAxis]:
+    def __getitem__(self, index: Union[int, slice]) -> (
+            Union)[Number, UniformLengthAxis, VariableAxis]:
         start, n, step = self.start, self.n, self.step
         if type(index) is Ellipsis:
             return self
@@ -173,6 +178,9 @@ class UniformLengthAxis(UniformAxis):
             if index < n:
                 return self.start + index * self.step
             raise StopIteration
+        elif type(index) in (list, tuple):
+            _values = [self[_] for _ in index]
+            return VariableAxis(self.name, _values)
         else:
             raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
