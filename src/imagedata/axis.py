@@ -251,6 +251,8 @@ class VariableAxis(Axis):
             return VariableAxis(self.name, self.values[start:stop:step])
         elif isinstance(index, int):
             return self.values[index]
+        elif type(index) in (list, tuple):
+            return VariableAxis(self.name, self.values[index])
         else:
             raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
