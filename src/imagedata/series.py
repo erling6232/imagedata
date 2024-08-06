@@ -503,7 +503,7 @@ class Series(np.ndarray):
 
                 for _item in index_item:
                     # If any item is of unknown type, we will not slice the data
-                    if not isinstance(_items[_item], slice) and not isinstance(_items[_item], int):
+                    if not type(_items[_item]) in (slice, int, tuple, list):
                         return _slicing, _spec
                 for _dim, _item in zip(index_spec, index_item):
                     if isinstance(_items[_item], slice):
@@ -524,6 +524,10 @@ class Series(np.ndarray):
                         _step = 1
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
+                    else:
+                        # The item is an iterable like tuple or list
+                        _spec[_dim] = (_items[_item], obj.axes[_dim])
+                        _slicing = True
             return _slicing, _spec
 
         if getattr(self, 'header', None) is None:
@@ -541,12 +545,17 @@ class Series(np.ndarray):
             new_axes = []
             for i in range(self.ndim):
                 # Slice dimension i
-                start, stop, step, axis = spec[i]
-                new_axes.append(axis[start:stop:step])
+                try:
+                    start, stop, step, axis = spec[i]
+                    _slice = slice(start, stop, step)
+                    new_axes.append(axis[_slice])
+                except ValueError:
+                    _slice, axis = spec[i]
+                    new_axes.append(axis[_slice])
 
                 if axis.name == 'slice':
                     # Select slice of imagePositions
-                    sl = self.sliceLocations[start:stop:step]
+                    sl = self.sliceLocations[_slice]
                     todo.append(('sliceLocations', sl))
                     try:
                         ipp = self.__get_imagePositions(spec[i])
@@ -580,14 +589,12 @@ class Series(np.ndarray):
                     ret.input_order = INPUT_ORDER_NONE
                 else:
                     ret.input_order = ret.axes[0].name
-                    # raise IndexError('Unexpected axis "{}" after slicing'.format(ret.axes[0].name))
             _set_geometry(ret, todo)
         elif isinstance(ret, np.void):
             ret = tuple(ret)
         return ret
 
     def __get_sliceLocations(self, spec):
-        # logger.debug('__get_sliceLocations: enter')
         try:
             sl = self.sliceLocations
         except ValueError:
@@ -600,7 +607,6 @@ class Series(np.ndarray):
         if spec[2] is not None:
             step = spec[2]
         sl = np.array(sl[start:stop:step])
-        # logger.debug('__get_sliceLocations: exit')
         return sl
 
     def __get_imagePositions(self, spec):
@@ -609,6 +615,11 @@ class Series(np.ndarray):
             ipp = self.imagePositions
         except ValueError:
             return None
+        if len(spec) == 2:
+            _values =  {}
+            for i, _idx in enumerate(spec[0]):
+                _values[i] = ipp[_idx]
+            return _values
         start, stop, step = 0, self.slices, 1
         if spec[0] is not None:
             start = spec[0]
@@ -618,13 +629,11 @@ class Series(np.ndarray):
             step = spec[2]
         ippdict = {}
         j = 0
-        # logger.debug('__get_imagePositions: start,stop={},{}'.format(spec[0], stop))
         for i in range(start, stop, step):
             if i < 0:
                 raise ValueError('i < 0')
             ippdict[j] = ipp[i]
             j += 1
-        # logger.debug('__get_imagePositions: exit')
         return ippdict
 
     def __repr__(self):
@@ -683,17 +692,21 @@ class Series(np.ndarray):
         slice_spec = slice(0, self.slices, 1)
         tag_spec = slice(0, tags, 1)
         for d in specs:
-            start, stop, step, axis = specs[d]
+            try:
+                start, stop, step, axis = specs[d]
+                _indeces = [_ for _ in range(start, stop, step)]
+            except ValueError:
+                _indeces, axis = specs[d]
             if axis.name == "slice":
-                slice_spec = slice(start, stop, step)
+                slice_spec = _indeces
             elif axis.name == input_order_to_dirname_str(self.input_order):
-                tag_spec = slice(start, stop, step)
+                tag_spec = _indeces
         # tags: dict[slice] is np.array(tags)
         new_tags = {}
         j = 0
-        for s in range(slice_spec.start, slice_spec.stop, slice_spec.step):
+        for s in slice_spec:
             new_tags[j] = list()
-            for t in range(tag_spec.start, tag_spec.stop, tag_spec.step):
+            for t in tag_spec:
                 # Limit slices to the known slices. Duplicates last slice and/or tag if too few.
                 try:
                     new_tags[j].append(tmpl_tags[s][t])
@@ -954,14 +967,14 @@ class Series(np.ndarray):
     @sliceLocations.setter
     def sliceLocations(self, loc):
 
-        def _is_uniform_spacing(loc):
-            # sort slice locations
-            _locations = {}
-            _location0 = loc[0]
-            for _location in loc[1:]:
-                _locations[_location - _location0] = True
-                _location0 = _location
-            return len(_locations) == 1
+        # def _is_uniform_spacing(loc):
+        #     # sort slice locations
+        #     _locations = {}
+        #     _location0 = loc[0]
+        #     for _location in loc[1:]:
+        #         _locations[_location - _location0] = True
+        #         _location0 = _location
+        #     return len(_locations) == 1
 
         if loc is None or len(loc) < 1:
             raise ValueError('Cannot set slice locations to empty list')
@@ -970,20 +983,20 @@ class Series(np.ndarray):
                 len(loc), self.slices
             ))
         self.header.sliceLocations = loc
-        if _is_uniform_spacing(loc):
-            if len(loc) > 1:
-                ds = loc[1] - loc[0]
-            else:
-                ds = self.spacing[0]
-            _axis = UniformLengthAxis('slice', loc[0], len(loc), ds)
-        else:
-            _axis = VariableAxis('slice', loc)
-        for i, axis in enumerate(self.axes):
-            if axis.name == 'slice':
-                # Replace axis
-                self.axes[i] = _axis
-                return
-        # raise ValueError("No slice axis object exist")
+        return
+        # if _is_uniform_spacing(loc):
+        #     if len(loc) > 1:
+        #         ds = loc[1] - loc[0]
+        #     else:
+        #         ds = self.spacing[0]
+        #     _axis = UniformLengthAxis('slice', loc[0], len(loc), ds)
+        # else:
+        #     _axis = VariableAxis('slice', loc)
+        # for i, axis in enumerate(self.axes):
+        #     if axis.name == 'slice':
+        #         # Replace axis
+        #         self.axes[i] = _axis
+        #         return
 
     def get_slice_axis(self):
         """Get the slice axis instance.
