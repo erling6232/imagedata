@@ -511,15 +511,26 @@ class TestSeries(unittest.TestCase):
         si2.seriesNumber += 10
         self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
 
+    def test_slice_column_row(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time'), formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', si1.input_format)
+        selection = [0, 2, 4]
+        si2 = si1[:, :, :, selection]
+        np.testing.assert_array_equal(si1.axes[3][selection], si2.axes[3])
+        si3 = si1[:, :, selection, :]
+        np.testing.assert_array_equal(si1.axes[2][selection], si3.axes[2])
+        selection = [0, 2]
+        si4 = si1[:, selection]
+        for i, idx in enumerate(selection):
+            np.testing.assert_array_equal(si1.axes[1][idx], si4.axes[1][i])
+
     def test_slice_timeline(self):
-        si1 = Series(
-            os.path.join('data', 'dicom', 'time'),
-            formats.INPUT_ORDER_TIME)
+        si1 = Series(os.path.join('data', 'dicom', 'time'), formats.INPUT_ORDER_TIME)
         self.assertEqual('dicom', si1.input_format)
         t = np.array([0., 2.99, 5.97])
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
-        si2 = si1[:1]
-        np.testing.assert_array_equal(si1.timeline[:1], si2.timeline)
+        si2 = si1[[0, 2]]
+        np.testing.assert_array_equal(si1.timeline[[0, 2]], si2.timeline)
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
