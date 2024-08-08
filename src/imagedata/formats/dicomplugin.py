@@ -818,7 +818,10 @@ class DICOMPlugin(AbstractPlugin):
         for i, _slice in enumerate(series):
             hdr.imagePositions[i] = self.getOriginForSlice({i: [(0, series[_slice][0])]}, i)
 
-        hdr.transformationMatrix = self.__get_transformation_matrix(hdr, opts)
+        try:
+            hdr.transformationMatrix = self.__get_transformation_matrix(hdr, opts)
+        except AttributeError:
+            pass
 
     def __get_transformation_matrix(self, hdr: Header, opts: dict = None) -> np.ndarray:
         use_cross_product = False
@@ -827,7 +830,6 @@ class DICOMPlugin(AbstractPlugin):
         ds, dr, dc = hdr.spacing
         slices = len(hdr.imagePositions)
         T0 = hdr.imagePositions[0].reshape(3, 1)  # z,y,x
-        Tn = hdr.imagePositions[slices - 1].reshape(3, 1)
         orient = hdr.orientation
         colr = np.array(orient[3:]).reshape(3, 1)
         colc = np.array(orient[:3]).reshape(3, 1)
@@ -835,6 +837,7 @@ class DICOMPlugin(AbstractPlugin):
             k = np.cross(colr, colc, axis=0)
             k = k * ds
         else:
+            Tn = hdr.imagePositions[slices - 1].reshape(3, 1)
             k = (T0 - Tn) / (1 - slices)
         A = np.eye(4)
         A[:3, :4] = np.hstack([

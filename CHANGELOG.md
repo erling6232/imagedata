@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.7-dev0] - 2024-08-08
+### Fixed
+* DICOMPlugin.__get_transformation_matrix(): Fixed problem when there is one slice only.
+* DICOMPlugin._extract_dicom_attributes(): Protected for missing imagePositions.
+
 ## [v3.6.6] - 2024-08-06
 ### Fixed
 * Series.__getitem__(): Set correct input_order when slicing 4D Series.
