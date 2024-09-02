@@ -61,6 +61,33 @@ SortedHeaderDict = dict[SeriesUID, Header]
 PixelDict = dict[SeriesUID, np.ndarray]
 
 
+image_uids = [pydicom.uid.MRImageStorage,
+              pydicom.uid.CTImageStorage,
+              pydicom.uid.DICOSCTImageStorage,
+              pydicom.uid.RTImageStorage,
+              pydicom.uid.UltrasoundImageStorage,
+              pydicom.uid.UltrasoundMultiFrameImageStorage,
+              pydicom.uid.ComputedRadiographyImageStorage,
+              pydicom.uid.XRayAngiographicImageStorage,
+              pydicom.uid.XRay3DAngiographicImageStorage,
+              pydicom.uid.XRay3DCraniofacialImageStorage,
+              pydicom.uid.XRayRadiofluoroscopicImageStorage,
+              pydicom.uid.SecondaryCaptureImageStorage,
+              pydicom.uid.PositronEmissionTomographyImageStorage,
+              pydicom.uid.BreastTomosynthesisImageStorage,
+              pydicom.uid.NuclearMedicineImageStorage,
+              pydicom.uid.ParametricMapStorage,
+              pydicom.uid.EddyCurrentImageStorage,
+              pydicom.uid.EddyCurrentMultiFrameImageStorage,
+              pydicom.uid.VLEndoscopicImageStorage,
+              pydicom.uid.VideoEndoscopicImageStorage,
+              pydicom.uid.VLMicroscopicImageStorage,
+              pydicom.uid.VideoMicroscopicImageStorage,
+              pydicom.uid.VLPhotographicImageStorage,
+              pydicom.uid.VideoPhotographicImageStorage
+              ]
+
+
 class DoNotIncludeFile(Exception):
     pass
 
@@ -167,10 +194,15 @@ class DICOMPlugin(AbstractPlugin):
         dataset_dict: DatasetDict
         dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
 
+        imaging_dataset_dict: DatasetDict
+        imaging_dataset_dict = self._select_imaging_datasets(dataset_dict, opts)
+        # sr_dataset_dict: DatasetDict
+        # sr_dataset_dict = self._select_sr_datasets(dataset_dict)
+
         # sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]]
         sorted_dataset_dict: SortedDatasetDict
         sorting: dict[str]
-        sorted_dataset_dict, sorting = self._sort_datasets(dataset_dict, input_order, opts)
+        sorted_dataset_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
 
         # sorted_header_dict: dict[SeriesUID, Header]
         sorted_header_dict: SortedHeaderDict
@@ -274,6 +306,39 @@ class DICOMPlugin(AbstractPlugin):
         if len(object_list) > 0 and len(dataset_dict) < 1:
             raise NotImageError(last_message)
         return dataset_dict
+
+    def _select_imaging_datasets(self,
+                                 dataset_dict: DatasetDict,
+                                 opts: dict = None
+                                 )\
+            -> DatasetDict:
+        """Select imaging datasets only
+
+        Args:
+            self: DICOMPlugin instance
+            dataset_dict: Dict of List of Dataset (DatasetDict)
+            opts: input options (dict)
+        Returns:
+            Dict of List of Imaging Dataset
+        """
+        _name: str = '{}.{}'.format(__name__, self._select_imaging_datasets.__name__)
+
+        skip_broken_series = False
+        if 'skip_broken_series' in opts:
+            skip_broken_series = opts['skip_broken_series']
+
+        # Select datasets on SOPClassUID
+        selected_dataset_dict: DatasetDict
+        selected_dataset_dict = defaultdict(list)
+        for seriesUID in dataset_dict:
+            dataset_list = dataset_dict[seriesUID]
+            dataset: Dataset
+            dataset = dataset_list[0]
+            if dataset.SOPClassUID in image_uids:
+                # Keep imaging datasets
+                selected_dataset_dict[seriesUID] = dataset_list
+        logger.debug('{}: end with {}'.format(_name, selected_dataset_dict.keys()))
+        return selected_dataset_dict
 
     def _extract_member(self,
                         image_list: DatasetDict,
