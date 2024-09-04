@@ -833,6 +833,15 @@ class TestDicomPluginSortCriteria(unittest.TestCase):
             si1.write(d, formats=['dicom'])
 
 
+class TestDicomSR(unittest.TestCase):
+    def test_read_single_file(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'srdoc103.zip?srdoc103/report01.dcm'),
+            'none')
+        self.assertEqual(si1.input_format, 'dicom')
+        self.assertEqual(len(si1.header.datasets), 1)
+
+
 if __name__ == '__main__':
     unittest.main()
     # logging.basicConfig(level=logging.DEBUG)
