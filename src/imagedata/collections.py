@@ -74,7 +74,10 @@ def _sort_in_series(_data, _opts):
             raise UnknownInputError('No input data found.')
 
         for _uid in _hdr:
-            _series = Series(_si[_uid], opts=_opts)
+            if _uid in _si:
+                _series = Series(_si[_uid], opts=_opts)
+            else:
+                _series = Series(None, opts=_opts)
             _series.header = _hdr[_uid]
             _series_dict[_uid] = _series
     else:
