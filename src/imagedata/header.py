@@ -22,6 +22,7 @@ header_tags = ['input_format',
                'dicomTemplate', 'dicomToDo',
                'tags', 'colormap', 'colormap_norm', 'colormap_label', 'color',
                'echoNumbers', 'acquisitionNumber',
+               'datasets',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
                  'sliceLocations',
