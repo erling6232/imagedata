@@ -228,7 +228,7 @@ class DICOMPlugin(AbstractPlugin):
                         )
 
         if non_imaging_dataset_dict:
-            logger.debug('{}: going to _get_headers {}'.format(_name, sources))
+            logger.debug('{}: going to _get_non_image_headers {}'.format(_name, sources))
             non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
             # pixel_dict: dict[SeriesUID, np.ndarray]
             if not skip_pixels:
