@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.7-dev2] - 2024-09-05
+### Added
+* DICOMPlugin: Read non-image datasets (e.g. structured reports) also.
+
 ## [v3.6.7-dev1] - 2024-09-02
 ### Added
-* Prepare to read DICOM image and non-image datasets separately.
+* Read DICOM image and non-image datasets separately.
 
 ## [v3.6.7-dev0] - 2024-08-08
 ### Fixed

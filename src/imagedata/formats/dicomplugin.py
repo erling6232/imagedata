@@ -13,7 +13,7 @@ import math
 from numbers import Number
 from collections import defaultdict, namedtuple, Counter
 from functools import partial
-from typing import Union
+from typing import List, Union
 from datetime import date, datetime, timedelta, timezone
 import numpy as np
 import pydicom
@@ -915,7 +915,7 @@ class DICOMPlugin(AbstractPlugin):
         return si
 
     def _extract_dicom_attributes(self,
-                                  series: Union[SortedDatasetList|list[Dataset]],
+                                  series: Union[SortedDatasetList|List[Dataset]],
                                   hdr: Header,
                                   opts: dict = None
                                   ) -> None:
