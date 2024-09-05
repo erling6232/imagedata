@@ -915,7 +915,7 @@ class DICOMPlugin(AbstractPlugin):
         return si
 
     def _extract_dicom_attributes(self,
-                                  series: Union[SortedDatasetList|List[Dataset]],
+                                  series,  # for python 3.9 # : Union[SortedDatasetList|List[Dataset]],
                                   hdr: Header,
                                   opts: dict = None
                                   ) -> None:
