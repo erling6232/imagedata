@@ -238,10 +238,10 @@ class DICOMPlugin(AbstractPlugin):
                                                           opts, skip_pixels)
             for seriesUID in non_image_header_dict:
                 if seriesUID in sorted_header_dict:
-                    sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict
+                    sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict[seriesUID]
                 else:
                     sorted_header_dict[seriesUID] = non_image_header_dict[seriesUID]
-                    sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict
+                    sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict[seriesUID]
                 if seriesUID in pixel_dict:
                     raise IndexError('Duplicate pixel data')
                 else:
