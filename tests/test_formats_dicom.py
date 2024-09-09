@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import math
 import os.path
@@ -9,7 +7,6 @@ import logging
 import argparse
 import pydicom.filereader
 
-# from .context import imagedata
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
@@ -32,6 +29,35 @@ class TestDicomPlugin(unittest.TestCase):
             if ptype == 'dicom':
                 self.dicom_plugin = pclass
         self.assertIsNotNone(self.dicom_plugin)
+
+    def test_dicom_plugin_only(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            input_format='dicom'
+        )
+
+    def test_cannot_sort_dicom(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as self.d:
+            # Duplicate image file
+            si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
+            si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
+            with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+                _ = Series(self.d, input_format='dicom')
+
+    def test_without_dicom_plugin(self):
+        def _read_series():
+            si1 = Series(
+                os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+                'none',
+                input_format='mat'
+            )
+        self.assertRaises(formats.UnknownInputError, _read_series)
 
     # @unittest.skip("skipping test_read_single_file")
     def test_read_single_file(self):
@@ -122,18 +148,19 @@ class TestDicomPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_4D_wrong_order")
     def test_read_dicom_4D_wrong_order(self):
-        with self.assertRaises(formats.CannotSort) as context:
+        with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
-                'b',
-                self.opts)
+                input_format='dicom',
+                input_order='b',
+                opts=self.opts)
 
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
     def test_read_dicom_user_defined_TI(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'TI'),
             input_order='ti',
-            opts={'ti': 'InversionTime'})
+            opts={'ti': 'InversionTime', 'ignore_series_uid': True})
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (5, 1, 384, 384))
@@ -157,7 +184,8 @@ class TestDicomPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(d, formats=['dicom'], opts={'keep_uid': True})
+            si1.write(os.path.join(d, 'Image_00000.dcm'),
+                      formats=['dicom'], opts={'keep_uid': True})
 
             # Use pydicom as truth to verify that written copy is identical to original
             orig = pydicom.filereader.dcmread(
@@ -256,7 +284,8 @@ class TestDicomPlugin(unittest.TestCase):
         )
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image.dcm'.format(d), formats=['dicom'])
+            si1.write(os.path.join(d, 'Image.dcm'),
+                      formats=['dicom'])
             si2 = Series(d)
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
@@ -267,7 +296,8 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d), formats=['dicom'])
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
+                      formats=['dicom'])
             si2 = Series(d)
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
@@ -283,7 +313,7 @@ class TestDicomPlugin(unittest.TestCase):
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
         with tempfile.TemporaryDirectory() as d:
-            si.write(os.path.join(d, 'Image_%05d'),
+            si.write(os.path.join(d, 'Image_{:05d}.dcm'),
                      formats=['dicom'], opts=self.opts)
             newsi = Series(d,
                            formats.INPUT_ORDER_TIME,
@@ -305,7 +335,7 @@ class TestDicomPlugin(unittest.TestCase):
         logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
         logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
         with tempfile.TemporaryDirectory() as d:
-            si.write(os.path.join(d, 'Image_%05d'),
+            si.write(os.path.join(d, 'Image_{:05d}.dcm'),
                      formats=['dicom'])
             newsi = Series(d,
                            formats.INPUT_ORDER_TIME)
@@ -315,6 +345,40 @@ class TestDicomPlugin(unittest.TestCase):
         compare_headers(self, si, newsi)
         self.assertEqual(newsi.dtype, np.uint16)
         self.assertEqual(newsi.shape, (3, 3, 192, 152))
+
+    def test_write_dicom_4D_multi_slice(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual('dicom', si.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_SLICE
+            })
+            newsi = Series(d, formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', newsi.input_format)
+        self.assertEqual(si.shape, newsi.shape)
+        np.testing.assert_array_equal(si, newsi)
+        compare_headers(self, si, newsi)
+
+    def test_write_dicom_4D_multi_tag(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            formats.INPUT_ORDER_TIME,
+            self.opts)
+        self.assertEqual('dicom', si.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, opts={
+                'output_dir': 'multi',
+                'output_sort': formats.SORT_ON_TAG
+            })
+            newsi = Series(d, formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', newsi.input_format)
+        self.assertEqual(si.shape, newsi.shape)
+        np.testing.assert_array_equal(si, newsi)
+        compare_headers(self, si, newsi)
 
     def test_write_float(self):
         si = Series(np.arange(8*8*8).reshape((8, 8, 8)))
@@ -343,6 +407,18 @@ class TestDicomPlugin(unittest.TestCase):
             self.assertEqual('dicom', eye_read.input_format)
         self.assertNotEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
 
+    def test_changed_uid_on_copy(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_copy = Series(eye)
+        self.assertNotEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
+
+    def test_unchanged_uid_on_slicing(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_copy = eye[0]
+        self.assertEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
+
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
@@ -356,7 +432,7 @@ class TestDicomPlugin(unittest.TestCase):
                     si1.SOPInstanceUIDs[(_tag, _slice)]
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d),
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': True})
             si2 = Series(d)
@@ -393,7 +469,7 @@ class TestDicomPlugin(unittest.TestCase):
                 si1_sopinsuid[_slice][_tag] =\
                     si1.SOPInstanceUIDs[(_tag, _slice)]
         with tempfile.TemporaryDirectory() as d:
-            si1.write('{}?Image%05d.dcm'.format(d),
+            si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': False})
             si2 = Series(d)
@@ -412,6 +488,22 @@ class TestDicomPlugin(unittest.TestCase):
                     si1_sopinsuid[_slice][_tag],
                     si2.SOPInstanceUIDs[(_tag, _slice)]
                 )
+
+    def test_read_dicom_not_DWI(self):
+        with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+            _ = Series(
+                os.path.join('data', 'dicom', 'time'),
+                input_format='dicom',
+                input_order='b'
+            )
+
+    def test_read_dicom_not_DWI_no_CSA(self):
+        with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+            _ = Series(
+                os.path.join('data', 'dicom', 'lena_color.dcm'),
+                input_format='dicom',
+                input_order='b'
+            )
 
 
 class TestDicomZipPlugin(unittest.TestCase):
@@ -435,7 +527,7 @@ class TestDicomZipPlugin(unittest.TestCase):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
         self.assertEqual('dicom', si1.input_format)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'dicom.zip?Image_%05d.dcm'),
+            si1.write(os.path.join(d, 'dicom.zip?Image_{:05d}.dcm'),
                       formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip'))
         self.assertEqual('dicom', si2.input_format)
@@ -603,22 +695,6 @@ class TestWriteZipArchiveDicom(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
-    # @unittest.skip("skipping test_read_dicom_not_DWI")
-    def test_read_dicom_not_DWI(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            d = Series(
-                os.path.join('data', 'dicom', 'time'),
-                'b'
-            )
-
-    # @unittest.skip("skipping test_read_dicom_not_DWI_no_CSA")
-    def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            d = Series(
-                os.path.join('data', 'dicom', 'lena_color.dcm'),
-                'b'
-            )
-
 
 class TestDicomSlicing(unittest.TestCase):
     def setUp(self):
@@ -737,7 +813,7 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDicomPlugin(unittest.TestCase):
+class TestDicomPluginSortCriteria(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
         cmdline.add_argparse_options(parser)
@@ -755,6 +831,15 @@ class TestDicomPlugin(unittest.TestCase):
             })
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
+
+
+class TestDicomSR(unittest.TestCase):
+    def test_read_single_file(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'srdoc103.zip?srdoc103/report01.dcm'),
+            'none')
+        self.assertEqual(si1.input_format, 'dicom')
+        self.assertEqual(len(si1.header.datasets), 1)
 
 
 if __name__ == '__main__':

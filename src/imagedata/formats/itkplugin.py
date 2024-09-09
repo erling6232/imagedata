@@ -3,6 +3,7 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
 import logging
 import mimetypes
 import itk
@@ -87,8 +88,8 @@ class ITKPlugin(AbstractPlugin):
                 si: numpy array (multi-dimensional)
         """
 
-        logger.debug("itkplugin._read_image")
-        logger.debug("itkplugin._read_image filehandle {}".format(f))
+        _name: str = '{}.{}'.format(__name__, self._read_image.__name__)
+        logger.debug("{}: filehandle {}".format(_name, f))
         if f.endswith('.raw'):
             return None, None
 
@@ -100,18 +101,18 @@ class ITKPlugin(AbstractPlugin):
             reader = itk.imread(f)
             img = itk.GetArrayFromImage(reader)
             self._reduce_shape(img)
-            logger.info("Data shape read ITK: {}".format(img.shape))
+            logger.info("{}: Data shape read ITK: {}".format(_name, img.shape))
 
             o = reader
         except NotImageError as e:
-            logger.error('itkplugin._read_image: inner exception {}'.format(e))
+            logger.error('{}: inner exception {}'.format(_name, e))
             raise NotImageError('{} does not look like a ITK file'.format(f))
 
         # Color image?
         hdr.photometricInterpretation = 'MONOCHROME2'
         hdr.color = False
         if o.GetNumberOfComponentsPerPixel() == 3:
-            logger.debug('ITKPlugin._read_image: RGB color')
+            logger.debug('{}: RGB color'.format(_name))
             hdr.photometricInterpretation = 'RGB'
             hdr.color = True
             rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
@@ -176,6 +177,8 @@ class ITKPlugin(AbstractPlugin):
         #     v.put(2, rotation[col,2])
         #     dv.set_column(col,v)
 
+        _name: str = '{}.{}'.format(__name__, self._set_tags.__name__)
+
         o, img = image_list[0]
         spacing = o.GetSpacing()
         origin = o.GetOrigin()
@@ -183,8 +186,8 @@ class ITKPlugin(AbstractPlugin):
 
         # Set spacing
         v = spacing.GetVnlVector()
-        logger.debug('ITKPlugin._set_tags: hdr {}'.format(hdr))
-        logger.debug('ITKPlugin._set_tags: spacing {} {} {}'.format(v.get(2), v.get(1), v.get(0)))
+        logger.debug('{}: hdr {}'.format(_name, hdr))
+        logger.debug('{}: spacing {} {} {}'.format(_name, v.get(2), v.get(1), v.get(0)))
         hdr.spacing = (float(v.get(2)), float(v.get(1)), float(v.get(0)))
         if v.size() > 3:
             dt = float(v.get(3))
@@ -203,7 +206,7 @@ class ITKPlugin(AbstractPlugin):
 
         # Set image orientation
         iop = self._orientation_from_vnl_matrix(direction)
-        logger.debug('ITKPlugin._set_tags: iop=\n{}'.format(iop))
+        logger.debug('{}: iop=\n{}'.format(_name, iop))
         hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                     iop[5], iop[4], iop[3]))
 
@@ -259,7 +262,7 @@ class ITKPlugin(AbstractPlugin):
         hdr.axes = axes
         hdr.tags = tags
 
-        logger.info("Data shape read DCM: {}".format(shape_to_str(si.shape)))
+        logger.info("{}: Data shape read DCM: {}".format(_name, shape_to_str(si.shape)))
 
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as ITK file
@@ -278,11 +281,12 @@ class ITKPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_3d_numpy.__name__)
         if si.color:
             raise WriteNotImplemented(
                 "Writing color ITK images not implemented.")
 
-        logger.debug('ITKPlugin.write_3d_numpy: destination {}'.format(destination))
+        logger.debug('{}: destination {}'.format(_name, destination))
         archive: AbstractArchive = destination['archive']
         archive.set_member_naming_scheme(
             fallback='Image.mha',
@@ -299,7 +303,7 @@ class ITKPlugin(AbstractPlugin):
         self.tags = si.tags
         self.origin, self.orientation, self.normal = si.get_transformation_components_xyz()
 
-        logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
+        logger.info("{}: Data shape write: {}".format(_name, shape_to_str(si.shape)))
         assert si.ndim == 2 or si.ndim == 3, \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
 
@@ -329,11 +333,12 @@ class ITKPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_4d_numpy.__name__)
         if si.color:
             raise WriteNotImplemented(
                 "Writing color ITK images not implemented.")
 
-        logger.debug('ITKPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('{}: destination {}'.format(_name, destination))
         archive: AbstractArchive = destination['archive']
         archive.set_member_naming_scheme(
             fallback='Image_{:05d}.mha',
@@ -361,8 +366,8 @@ class ITKPlugin(AbstractPlugin):
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
-        logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
-            si.dtype, si.shape,
+        logger.debug("{}: si dtype {}, shape {}, sort {}".format(
+            _name, si.dtype, si.shape,
             sort_on_to_str(self.output_sort)))
 
         steps = si.shape[0]
@@ -376,8 +381,8 @@ class ITKPlugin(AbstractPlugin):
                 "write_4d_series: slices of dicom template ({}) differ "
                 "from input array ({}).".format(si.slices, slices))
 
-        logger.debug('write_4d_numpy: si[0,0,0,0]={}'.format(
-            si[0, 0, 0, 0]))
+        logger.debug('{}: si[0,0,0,0]={}'.format(
+            _name, si[0, 0, 0, 0]))
         if self.output_sort == SORT_ON_TAG:
             for _slice in range(slices):
                 filename = archive.construct_filename(tag=(_slice,), query=query)
@@ -404,6 +409,7 @@ class ITKPlugin(AbstractPlugin):
             filename: file name
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_numpy_itk.__name__)
         if si.ndim != 2 and si.ndim != 3:
             raise ValueError("write_numpy_itk: input dimension %d is not 2D/3D." % si.ndim)
         if np.issubdtype(si.dtype, np.floating):
@@ -411,27 +417,28 @@ class ITKPlugin(AbstractPlugin):
         else:
             arr = si.copy()
         if arr.dtype == np.int32:
-            logger.debug("write_numpy_itk: arr {}".format(arr.dtype))
+            logger.debug("{}: arr {}".format(_name, arr.dtype))
             arr = arr.astype(np.float32)
             # arr=arr.astype(np.uint16)
         if arr.dtype == np.complex64 or arr.dtype == np.complex128:
             arr = np.absolute(arr)
         if arr.dtype == np.double:
             arr = arr.astype(np.float32)
-        logger.debug("write_numpy_itk: arr {}".format(arr.dtype))
+        logger.debug("{}: arr {}".format(_name, arr.dtype))
 
         # Write it
-        logger.debug("write_numpy_itk: arr {} {}".format(arr.shape, arr.dtype))
+        logger.debug("{}: arr {} {}".format(_name, arr.shape, arr.dtype))
         image = itk.GetImageFromArray(arr)
         from_image_type = self._get_image_type(image)
         image = self.get_image_from_numpy(image)
 
-        logger.debug("write_numpy_itk: imagetype {} filename {}".format(from_image_type, filename))
+        logger.debug("{}: imagetype {} filename {}".format(_name, from_image_type, filename))
 
         with archive.new_local_file(filename) as f:
-            logger.debug('write_numpy_itk: write local file %s' % f.local_file)
+            logger.debug('{}: write local file {}'.format(_name, f.local_file))
+            os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             itk.imwrite(image, f.local_file)
-            logger.debug('write_numpy_itk: written local file %s' % f.local_file)
+            logger.debug('{}: written local file {}'.format(_name, f.local_file))
 
     @staticmethod
     def _orientation_from_vnl_matrix(direction):
@@ -443,6 +450,7 @@ class ITKPlugin(AbstractPlugin):
         return arr
 
     def set_direction_from_dicom_header(self, image):
+        _name: str = '{}.{}'.format(__name__, self.set_direction_from_dicom_header.__name__)
         orientation = self.orientation
         rotation = np.zeros([3, 3])
         # X axis
@@ -457,7 +465,7 @@ class ITKPlugin(AbstractPlugin):
         rotation[2, 0] = orientation[1] * orientation[3] - orientation[0] * orientation[4]
         rotation[2, 1] = orientation[0] * orientation[5] - orientation[2] * orientation[3]
         rotation[2, 2] = orientation[2] * orientation[4] - orientation[1] * orientation[5]
-        logger.debug('set_direction_from_dicom_header: rotation:\n{}'.format(rotation))
+        logger.debug('{}: rotation:\n{}'.format(_name, rotation))
 
         # Set direction by modifying default orientation in place
         d = image.GetDirection()
@@ -511,26 +519,28 @@ class ITKPlugin(AbstractPlugin):
                 m = np.hstack((colr, colc, coln)).reshape((3, 3))
             return m
 
+        _name: str = '{}.{}'.format(__name__, self.get_image_from_numpy.__name__)
+
         image.SetDirection(
             itkMatrix_from_orientation(
                 self.orientation, self.normal))
 
         z, y, x = self.imagePositions[0]
-        logger.debug("get_image_from_numpy: (z,y,x)=({},{},{}) ({})".format(z, y, x, type(z)))
+        logger.debug("{}: (z,y,x)=({},{},{}) ({})".format(_name, z, y, x, type(z)))
         if isinstance(z, np.int64):
-            logger.debug("get_image_from_numpy: SetOrigin int")
+            logger.debug("{}: SetOrigin int".format(_name))
             if len(self.shape) < 3:
                 image.SetOrigin([int(x), int(y)])
             else:
                 image.SetOrigin([int(x), int(y), int(z)])
         else:
-            logger.debug("get_image_from_numpy: SetOrigin float")
+            logger.debug("{}: SetOrigin float".format(_name))
             if len(self.shape) < 3:
                 image.SetOrigin([float(x), float(y)])
             else:
                 image.SetOrigin([float(x), float(y), float(z)])
 
-        logger.debug("get_image_from_numpy: SetSpacing float")
+        logger.debug("{}: SetSpacing float".format(_name))
         dz, dy, dx = self.spacing
         dx = float(dx)
         dy = float(dy)

@@ -82,6 +82,8 @@ class MatPlugin(AbstractPlugin):
                 si: numpy array (multi-dimensional)
         """
 
+        _name: str = '{}.{}'.format(__name__, self._read_image.__name__)
+
         info = {}
 
         if hdr.input_order == 'auto':
@@ -89,25 +91,27 @@ class MatPlugin(AbstractPlugin):
 
         hdr.color = False
         try:
-            logger.debug('matplugin._read_image: scipy.io.loadmat({})'.format(f))
+            logger.debug('{}: scipy.io.loadmat({})'.format(_name, f))
             mdictlist = scipy.io.whosmat(f)
             if len(mdictlist) != 1:
                 names = []
                 for name, shape, dtype in mdictlist:
                     names.append(name)
-                logger.debug('matplugin._read_image: scipy.io.loadmat len(mdict) {}'.format(
-                    len(mdictlist)))
-                logger.debug('matplugin._read_image: Multiple variables in MAT file {}'.format(f))
+                logger.debug('{}: scipy.io.loadmat len(mdict) {}'.format(
+                    _name, len(mdictlist)))
+                logger.debug('{}: Multiple variables in MAT file {}'.format(_name, f))
                 # raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}: '
                 #                                     '{}'.format(f, names))
                 raise MultipleVariablesInMatlabFile('Multiple variables in MAT file {}'.format(f))
             name, shape, dtype = mdictlist[0]
-            logger.debug('matplugin._read_image: name {} shape {} dtype {}'.format(
-                name, shape, dtype))
+            logger.debug('{}: name {} shape {} dtype {}'.format(
+                _name, name, shape, dtype))
             mdict = scipy.io.loadmat(f, variable_names=(name,))
-            logger.debug('matplugin._read_image variable {}'.format(name))
+            logger.debug('{}: variable {}'.format(_name, name))
             si = self._reorder_to_dicom(mdict[name])
-            logger.info("Data shape _read_image MAT: {} {}".format(si.shape, si.dtype))
+            logger.info("{}: Data shape _read_image MAT: {} {}".format(_name, si.shape, si.dtype))
+        except MultipleVariablesInMatlabFile:
+            raise
         except NotImageError:
             raise NotImageError('{} does not look like a MAT file'.format(f))
         return info, si
@@ -123,6 +127,8 @@ class MatPlugin(AbstractPlugin):
         Returns:
             hdr: Header
         """
+
+        _name: str = '{}.{}'.format(__name__, self._set_tags.__name__)
 
         # Set spacing
         hdr.spacing = (1.0, 1.0, 1.0)
@@ -155,8 +161,7 @@ class MatPlugin(AbstractPlugin):
                 nt)
             )
         hdr.axes = axes
-        logger.debug('matplugin._set_tags nt {}, nz {}'.format(
-            nt, nz))
+        logger.debug('{}: nt {}, nz {}'.format(_name, nt, nz))
         dt = 1
         times = np.arange(0, nt * dt, dt)
         tags = {}
@@ -182,17 +187,19 @@ class MatPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_3d_numpy.__name__)
+
         if si.color:
             raise WriteNotImplemented(
                 "Writing color MAT images not implemented.")
 
-        logger.debug('MatPlugin.write_3d_numpy: destination {}'.format(destination))
+        logger.debug('{}: destination {}'.format(_name, destination))
 
         self.slices = si.slices
         self.spacing = si.spacing
         self.tags = si.tags
 
-        logger.info("Data shape write: {}".format(shape_to_str(si.shape)))
+        logger.info("{}: Data shape write: {}".format(_name, shape_to_str(si.shape)))
         if si.ndim == 4 and si.shape[0] == 1:
             si.shape = si.shape[1:]
         assert si.ndim == 2 or si.ndim == 3, \
@@ -215,11 +222,13 @@ class MatPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_4d_numpy.__name__)
+
         if si.color:
             raise WriteNotImplemented(
                 "Writing color MAT images not implemented.")
 
-        logger.debug('MatPlugin.write_4d_numpy: destination {}'.format(destination))
+        logger.debug('{}: destination {}'.format(_name, destination))
 
         self.slices = si.slices
         self.spacing = si.spacing
@@ -233,8 +242,8 @@ class MatPlugin(AbstractPlugin):
         if si.ndim != 4:
             raise ValueError("write_4d_numpy: input dimension {} is not 4D.".format(si.ndim))
 
-        logger.debug("write_4d_numpy: si dtype {}, shape {}, sort {}".format(
-            si.dtype, si.shape,
+        logger.debug("{}: si dtype {}, shape {}, sort {}".format(
+            _name, si.dtype, si.shape,
             sort_on_to_str(self.output_sort)))
 
         steps = si.shape[0]
@@ -252,6 +261,8 @@ class MatPlugin(AbstractPlugin):
         self._write_numpy_to_mat(img, destination, opts)
 
     def _write_numpy_to_mat(self, img, destination, opts):
+        _name: str = '{}.{}'.format(__name__, self._write_numpy_to_mat.__name__)
+
         archive: AbstractArchive = destination['archive']
         archive.set_member_naming_scheme(
             fallback='Image.mat',
@@ -268,5 +279,5 @@ class MatPlugin(AbstractPlugin):
         )
 
         with archive.open(filename, 'wb') as f:
-            logger.debug("_write_numpy_to_mat: Calling savemat")
+            logger.debug("{}: Calling savemat".format(_name))
             scipy.io.savemat(f, {'A': img})

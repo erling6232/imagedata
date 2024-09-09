@@ -7,11 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v4.0.0-dev1] - 2024-06-10
+## [v3.6.7-dev4] - 2024-09-09
 ### Changed
-* Depend on numpy 2.0.0rc2 and itk-io 5.4.0.
+* Support pydicom 3.0.0.
 
-## [v4.0.0-dev0] - 2024-06-07
+## [v3.6.7-dev2] - 2024-09-05
+### Added
+* DICOMPlugin: Read non-image datasets (e.g. structured reports) also.
+
+## [v3.6.7-dev1] - 2024-09-02
+### Added
+* Read DICOM image and non-image datasets separately.
+
+## [v3.6.7-dev0] - 2024-08-08
+### Fixed
+* DICOMPlugin.__get_transformation_matrix(): Fixed problem when there is one slice only.
+* DICOMPlugin._extract_dicom_attributes(): Protected for missing imagePositions.
+
+## [v3.6.6] - 2024-08-06
+### Fixed
+* Series.__getitem__(): Set correct input_order when slicing 4D Series.
+* Series.__getitem__(): Accept discrete slice selection specified by list or tuple.
+* Series.__get_imagePositions(): Accept list and tuple indexes.
+* Series.__get_tags(): Accept list and tuple indexes.
+* Series.sliceLocations setter: Do not set slice axis.
+
+## [v3.6.5] - 2024-07-12
+### Fixed
+* Improved UID generation to guarantee unique DICOM SeriesInstanceUID,
+  while keeping the SeriesInstanceUID when slicing a Series.
+
+## [v3.6.4] - 2024-07-11
+### Fixed
+* DICOMPlugin._extract_all_tags(): Fixed error where float tag was printed with :0x formatting.
+
+## [v3.6.3] - 2024-07-11
+### Fixed
+* XNATTransport.walk(): Only return file names from the `top` down.
+
+## [v3.6.2] - 2024-07-09
+### Added
+* DICOMPlugin: Added `use_cross_product` option to demand that the z column of the transformation
+  matrix is calculated using vector cross product.
+`* XNATTransport.open(): Can now download data also at patient and experiment level.
+### Changed
+* evidence2mask: Removed functions make_mask_in_slice() and
+  transform_data_points_to_voxels().`
+
+## [v3.6.1] - 2024-06-28
+* image_data._reduce(): Corrected indexing collections classes. 
+* cmdline.DictAction: Use ast.literal_eval() to evaluate input options.
+* Collections and Series: Access input_options in opts similar to kwargs.
+* Remove exception UnevenSlicesError. Use CannotSort instead.
+
+## [v3.6.0] - 2024-06-27
+* Final release 3.6.0.
+
+## [v3.6.0-rc4] - 2024-06-25
+### Changed
+* Depend on pylibjpeg.
+* Standardized logging to log proper module and function names.
+### Fixed
+* Honor the `skip_broken_series` option.
+
+## [v3.6.0-rc3] - 2024-06-21
+* Release candidate 3.
+
+## [v3.6.0-rc2] - 2024-06-20
+* Release candidate 2.
+
+## [v3.6.0-rc0] - 2024-06-17
+* Release candidate 0.
+
+## [v3.6.0-dev2] - 2024-06-10
+## Added
+* DICOMPlugin: Print tag values in hex and keyword.
+
+## Changed
+* Series.seriesDescription: Return empty string when not defined.
+* Collections: Added possibility to index Study, Patient and Cohort by integer keys
+  in addition to uid.
+* Depend on itk-io 5.4.0 on all python versions.
+* Depend on pydicom 2.4.0 and matplotlib 3.8.0.
+
+## [v3.6.0-dev0] - 2024-06-07
 ### Changed
 * Refactored DICOMPlugin to better split series based AcquisitionNumber and/or EchoNumber.
 * Format plugin read() now return hdr and si as dicts of series.

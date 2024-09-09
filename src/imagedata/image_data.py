@@ -57,7 +57,7 @@ def dump():
             member = member[0]
             try:
                 with archive.open(member, mode='rb') as f:
-                    reader.process_member(image_dict, archive, path, f, in_opts, skip_pixels=True)
+                    reader._sort_datasets(image_dict, archive, path, f, in_opts, skip_pixels=True)
             except Exception:
                 raise
 
@@ -334,6 +334,37 @@ def show():
     return 0
 
 
+def _reduce(cohort):
+    """Reduce cohort level to the lowest level.
+    """
+    if len(cohort) > 1:
+        return cohort
+    try:
+        for patientID in cohort:
+            pass
+    except IndexError:
+        raise IndexError('No patient in cohort')
+    patient = cohort[patientID]
+    if len(patient) > 1:
+        return patient
+    try:
+        for studyInsUID in patient:
+            pass
+        # studyInsUID = patient.keys()[0]
+    except IndexError:
+        raise IndexError('No study for patient')
+    study = patient[studyInsUID]
+    if len(study) > 1:
+        return study
+    try:
+        for seriesInsUID in study:
+            pass
+    except IndexError:
+        raise IndexError('No series in study')
+    series = study[seriesInsUID]
+    return series
+
+
 def conversion():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
@@ -350,7 +381,7 @@ def conversion():
     #    args.output_format, sort_on_to_str(args.output_sort), args.output_dir))
 
     try:
-        si = Cohort(args.in_dirs, opts=args)
+        cohort = Cohort(args.in_dirs, opts=args)
         # si = Series(args.in_dirs, args.input_order, args)
     except NotImageError:
         print("Could not determine input format of %s." % args.in_dirs[0])
@@ -358,7 +389,9 @@ def conversion():
         traceback.print_exc(file=sys.stdout)
         return 1
 
-    si.write(args.out_name, opts=args)
+    selection = _reduce(cohort)
+
+    selection.write(args.out_name, opts=args)
     return 0
 
 
@@ -370,13 +403,16 @@ def image_list():
     parser.add_argument("input", help="Input URL")
     args = parser.parse_args()
     logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
 
     print('input: {}'.format(args.input))
     url_tuple = urllib.parse.urlsplit(args.input)
     netloc = '{}://{}'.format(url_tuple.scheme, url_tuple.netloc)
+    logger.debug("image_list: url_tuple {}".format(url_tuple))
     transport = Transport(args.input)
     found = False
     for root, dirs, files in transport.walk('*'):
+        logger.debug("image_list: root: {}, dirs: {}, files: {}".format(root, dirs, files))
         found = True
         for dir in dirs:
             info = transport.info('{}/{}'.format(root, dir))
@@ -385,7 +421,8 @@ def image_list():
             info = transport.info('{}/{}'.format(root, filename))
             print('{}{}/{} {}'.format(netloc, root, filename, info))
         if not args.recursive:
-            break  # Do not descend down the tree
+            if root == url_tuple.path:
+                break  # Do not descend further down the tree
     transport.close()
 
     if found:

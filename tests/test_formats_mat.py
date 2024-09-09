@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -11,6 +9,7 @@ import argparse
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
+from src.imagedata.collections import Cohort
 
 
 def list_files(startpath):
@@ -186,7 +185,7 @@ class Test3DMatPlugin(unittest.TestCase):
             'none',
             self.opts)
         with tempfile.TemporaryDirectory() as d:
-            si1.write(os.path.join(d, 'mat', 'Image_%05d.mat'), formats=['mat'])
+            si1.write(os.path.join(d, 'mat', 'Image_{:05d}.mat'), formats=['mat'])
 
     # @unittest.skip("skipping test_read_3d_mat")
     def test_write_3d_mat(self):
@@ -227,7 +226,7 @@ class Test3DMatPlugin(unittest.TestCase):
 
         s3 = si1 - si2
         with tempfile.TemporaryDirectory() as d:
-            s3.write(os.path.join(d, 'diff', 'Image_%05d.mat'), formats=['mat'], opts=self.opts)
+            s3.write(os.path.join(d, 'diff', 'Image_{:05d}.mat'), formats=['mat'], opts=self.opts)
 
 
 class Test4DMatPlugin(unittest.TestCase):
@@ -262,6 +261,11 @@ class Test4DMatPlugin(unittest.TestCase):
                 self.opts)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
+
+    def test_write_cohort(self):
+        cohort = Cohort('data/dicom/cohort.zip')
+        with tempfile.TemporaryDirectory() as d:
+            cohort.write(d, formats=['mat'])
 
 
 if __name__ == '__main__':

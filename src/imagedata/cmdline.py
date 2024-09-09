@@ -1,9 +1,10 @@
 """Add standard command line options."""
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import argparse
+import ast
 import copy
 import logging
 from . import __version__
@@ -26,7 +27,10 @@ class DictAction(argparse.Action):
 
         # noinspection PyProtectedMember
         items = copy.copy(getattr(namespace, self.dest, {}))  # Default mutables, use copy!
-        items[k] = v
+        try:
+            items[k] = ast.literal_eval(v)
+        except (ValueError, TypeError, SyntaxError, MemoryError, RecursionError):
+            items[k] = v
         setattr(namespace, self.dest, items)
 
 
@@ -135,6 +139,9 @@ def add_argparse_options(parser):
                         help="Set DICOM series description")
     parser.add_argument('--input_serinsuid',
                         help="Only read images with specified Series Instance UID",
+                        default=None)
+    parser.add_argument('--input_acquisition',
+                        help="Only read images with specified Acquisition Number",
                         default=None)
     parser.add_argument('--input_echo',
                         help="Only read images with specified Echo Number",

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -39,6 +37,19 @@ class TestSeries(unittest.TestCase):
             'data/dicom/time/time00/Image_00020.dcm')
         mi = si.max()
         self.assertEqual(type(mi), np.uint16)
+
+    def test_kwargs(self):
+        def _read_series():
+            si2 = Series(
+                'data/dicom/time/time00/Image_00020.dcm',
+                input_format='dicom',
+                input_echo=2)
+
+        si1 = Series(
+            'data/dicom/time/time00/Image_00020.dcm',
+            input_format='dicom',
+            input_echo=1)
+        self.assertRaises(formats.UnknownInputError, _read_series)
 
     def test_get_keyword(self):
         si1 = Series(
@@ -233,9 +244,9 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.input_order, a.input_order)
         for i in range(si.ndim):
             self.assertEqual(si.axes[i].name, a.axes[i].name)
-            if isinstance(si.axes[i], axis.VariableAxis):
+            try:
                 np.testing.assert_array_almost_equal(si.axes[i].values, a.axes[i].values, 4)
-            else:
+            except AttributeError:
                 self.assertEqual(si.axes[i].slice, a.axes[i].slice)
         np.testing.assert_array_equal(si.transformationMatrix, a.transformationMatrix)
         np.testing.assert_array_equal(si.spacing, a.spacing)
@@ -425,7 +436,7 @@ class TestSeries(unittest.TestCase):
         self.assertNotEqual(si.seriesNumber, si1.seriesNumber)
         # print('si after', si.getDicomAttribute('SeriesInstanceUID'), si.seriesInstanceUID)
         # print('si1', si1.getDicomAttribute('SeriesInstanceUID'), si1.seriesInstanceUID)
-        self.assertNotEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
 
         si2 = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si2.input_format)
@@ -499,6 +510,27 @@ class TestSeries(unittest.TestCase):
         si2 = copy.copy(si1)
         si2.seriesNumber += 10
         self.assertNotEqual(si1.seriesNumber, si2.seriesNumber)
+
+    def test_slice_column_row(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time'), formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', si1.input_format)
+        selection = [0, 2, 4]
+        si2 = si1[:, :, :, selection]
+        np.testing.assert_array_equal(si1.axes[3][selection], si2.axes[3])
+        si3 = si1[:, :, selection, :]
+        np.testing.assert_array_equal(si1.axes[2][selection], si3.axes[2])
+        selection = [0, 2]
+        si4 = si1[:, selection]
+        for i, idx in enumerate(selection):
+            np.testing.assert_array_equal(si1.axes[1][idx], si4.axes[1][i])
+
+    def test_slice_timeline(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time'), formats.INPUT_ORDER_TIME)
+        self.assertEqual('dicom', si1.input_format)
+        t = np.array([0., 2.99, 5.97])
+        np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
+        si2 = si1[[0, 2]]
+        np.testing.assert_array_equal(si1.timeline[[0, 2]], si2.timeline)
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')

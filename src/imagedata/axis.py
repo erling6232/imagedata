@@ -1,24 +1,26 @@
 """Axis defines a dimension of an images Series.
 """
 
-from abc import ABCMeta  # , abstractmethod, abstractproperty
-import sys
-import logging
+from __future__ import annotations
+from abc import ABCMeta
+from typing import Sequence, Union, overload, SupportsFloat
 import numbers
+import sys
 import numpy as np
 
-
-logger = logging.getLogger(__name__)
+Number = type[SupportsFloat]
 
 
 class Axis(object, metaclass=ABCMeta):
-    def __init__(self, name):
+    name: str
+
+    def __init__(self, name: str) -> None:
         self.name = name
 
-    def __repr__(self):
-        return ("{0}({1})".format(self.__class__.__name__, self.name))
+    def __repr__(self) -> str:
+        return "{0}({1})".format(self.__class__.__name__, self.name)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{0.name!s}".format(self)
 
 
@@ -29,38 +31,68 @@ class UniformAxis(Axis):
     Examples:
         >>> ax = UniformAxis('row', 0, 128)
     """
+    start: Number
+    stop: Number
+    step: Number
 
-    def __init__(self, name, start, stop, step=1):
+    def __init__(self,
+                 name: str,
+                 start: Number,
+                 stop: Number,
+                 step: Number = 1) -> None:
         super(UniformAxis, self).__init__(name)
         self.start = start
         self.stop = stop
         self.step = step
 
-    def __getitem__(self, item):
-        start, stop, step = 0, None, 1
-        # logger.debug('UniformAxis: item %s' % type(item))
-        if type(item) is Ellipsis:
-            # logger.debug('UniformAxis: Ellipsis')
+    def copy(self,
+             name: str = None,
+             start: Number = None,
+             stop: Number = None,
+             step: Number = None,
+             n: int = None
+             ) -> UniformAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        start = self.start if start is None else start
+        stop = self.stop if stop is None else stop
+        step = self.step if step is None else step
+        if n is not None:
+            stop = start + (n + 1) * step
+        return UniformAxis(name, start, stop, step)
+
+    @overload
+    def __getitem__(self, index: int) -> Number:
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> UniformAxis:
+        ...
+
+    def __getitem__(self, index: Union[int, slice]) ->(
+            Union)[Number, UniformAxis, VariableAxis]:
+        if type(index) is Ellipsis:
             return self
-        elif isinstance(item, slice):
-            # logger.debug('UniformAxis: slice')
-            start = self.start + (item.start or 0) * self.step
+        elif isinstance(index, slice):
+            start = self.start + (index.start or 0) * self.step
             stop = self.stop
-            if item.stop is not None:
-                stop = self.start + (item.stop * self.step)
+            if index.stop is not None:
+                stop = self.start + (index.stop * self.step)
             stop = min(self.stop, stop)
-            step = (item.step or 1) * self.step
-        elif isinstance(item, int):
-            _value = self.start + item * self.step
+            step = (index.step or 1) * self.step
+            return UniformAxis(self.name, start, stop, step)
+        elif isinstance(index, int):
+            _value = self.start + index * self.step
             if _value < self.stop:
                 return _value
             raise StopIteration
+        elif type(index) in (list, tuple):
+            _values = [self[_] for _ in index]
+            return VariableAxis(self.name, _values)
         else:
-            raise ValueError('Cannot slice axis with {}'.format(type(item)))
-        # logger.debug('UniformAxis: slice %d,%d,%d' % (start,stop,step))
-        return UniformAxis(self.name, start, stop, step)
+            raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
-    def __len__(self):
+    def __len__(self) -> int:
         try:
             return abs(int((self.stop - self.start) / self.step))
         except ValueError:
@@ -68,22 +100,22 @@ class UniformAxis(Axis):
         except Exception:
             raise
 
-    def __next__(self):
+    def __next__(self) -> Number:
         _value = self.start
         while _value < self.stop:
             yield _value
             _value += self.step
 
     @property
-    def slice(self):
+    def slice(self) -> slice:
         return self.start, self.stop, self.step
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{0}({1.name!s},{1.start!s},{1.stop!s},{1.step!s})".format(
             self.__class__.__name__, self
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
 
 
@@ -94,53 +126,79 @@ class UniformLengthAxis(UniformAxis):
     Examples:
         >>> ax = UniformLengthAxis('row', 0, 128)
     """
+    n: int
 
-    def __init__(self, name, start, n, step=1):
+    def __init__(self,
+                 name: str,
+                 start: Number,
+                 n: int,
+                 step: Number = 1) -> None:
         super(UniformLengthAxis, self).__init__(name, start, start + n * step, step)
         self.n = n
 
-    def __getitem__(self, item):
+    def copy(self,
+             name: str = None,
+             start: Number = None,
+             n: Number = None,
+             step: Number = None
+             ) -> UniformLengthAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        start = self.start if start is None else start
+        n = self.n if n is None else n
+        step = self.step if step is None else step
+        return UniformLengthAxis(name, start, n, step)
+
+    @overload
+    def __getitem__(self, index: int) -> Number:
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> UniformLengthAxis:
+        ...
+
+    def __getitem__(self, index: Union[int, slice]) -> (
+            Union)[Number, UniformLengthAxis, VariableAxis]:
         start, n, step = self.start, self.n, self.step
-        # logger.debug('UniformLengthAxis: item %s' % type(item))
-        if type(item) is Ellipsis:
-            # logger.debug('UniformLengthAxis: Ellipsis')
+        if type(index) is Ellipsis:
             return self
-        elif isinstance(item, slice):
-            # logger.debug('UniformLengthAxis: slice')
-            start = self.start + (item.start or 0) * self.step
-            stop = self.start + (item.stop or self.n) * self.step
-            step = (item.step or 1) * self.step
+        elif isinstance(index, slice):
+            start: Number = self.start + (index.start or 0) * self.step
+            stop: Number = self.start + (index.stop or self.n) * self.step
+            step: Number = (index.step or 1) * self.step
             try:
-                n = int(round((stop - start) / step))
+                n: int = int(round((stop - start) / step))
             except ValueError:
-                n = sys.maxsize
+                n: int = sys.maxsize
             except Exception:
                 raise
             n = min(self.n, n)
-        elif isinstance(item, int):
-            if item < n:
-                return self.start + item * self.step
+            return UniformLengthAxis(self.name, start, n, step)
+        elif isinstance(index, int):
+            if index < n:
+                return self.start + index * self.step
             raise StopIteration
+        elif type(index) in (list, tuple):
+            _values = [self[_] for _ in index]
+            return VariableAxis(self.name, _values)
         else:
-            raise ValueError('Cannot slice axis with {}'.format(type(item)))
-        # logger.debug('UniformLengthAxis: slice %d,%d,%d' % (start,stop,step))
-        return UniformLengthAxis(self.name, start, n, step)
+            raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.n
 
-    def __next__(self):
+    def __next__(self) -> Number:
         _value = self.start
         for _ in range(self.n):
             yield _value
             _value += self.step
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{0}({1.name!s},{1.start!s},{1.n!s},{1.step!s})".format(
             self.__class__.__name__, self
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
 
 
@@ -151,8 +209,10 @@ class VariableAxis(Axis):
     Examples:
         >>> ax = VariableAxis('time', [0, 1, 4, 9, 11, 13])
     """
+    values: np.ndarray
+    step: float
 
-    def __init__(self, name, values):
+    def __init__(self, name: str, values: Sequence) -> None:
         super(VariableAxis, self).__init__(name)
         self.values = np.array(values)
         if len(values) < 2:
@@ -160,7 +220,7 @@ class VariableAxis(Axis):
         elif not isinstance(values[0], numbers.Number):
             self.step = None
         else:
-            ds = values[1] - values[0]
+            ds: float = values[1] - values[0]
             for i in range(2, len(values)):
                 d = values[i] - values[i - 1]
                 if abs(d - ds) / ds > 1e-4:
@@ -168,38 +228,53 @@ class VariableAxis(Axis):
                     break
             self.step = ds
 
-    def __getitem__(self, item):
+    def copy(self,
+             name: str = None,
+             n: Number = None
+             ) -> VariableAxis:
+        """Return a copy of the axis, where the length n can be different."""
+        name = self.name if name is None else name
+        n = len(self.values) if n is None else n
+        return VariableAxis(name, self.values[:n])
+
+    @overload
+    def __getitem__(self, index: int) -> Number:
+        ...
+
+    @overload
+    def __getitem__(self, index: slice) -> VariableAxis:
+        ...
+
+    def __getitem__(self, index: Union[int, slice]) -> Union[Number, VariableAxis]:
         """Slice the axis
         - item: tuple of slice indices
         """
-        start, stop, step = 0, None, 1
-        # logger.debug('VariableAxis: item %s' % type(item))
-        if type(item) is Ellipsis:
-            # logger.debug('VariableAxis: Ellipsis')
+        if type(index) is Ellipsis:
             return self
-        elif isinstance(item, slice):
-            # logger.debug('VariableAxis: slice')
-            start = item.start or 0
-            stop = item.stop or len(self.values)
+        elif isinstance(index, slice):
+            start = index.start or 0
+            stop = index.stop or len(self.values)
             stop = min(len(self.values), stop)
-            step = item.step or 1
-        elif isinstance(item, int):
-            return self.values[item]
+            step = index.step or 1
+            return VariableAxis(self.name, self.values[start:stop:step])
+        elif isinstance(index, int):
+            return self.values[index]
+        elif type(index) in (list, tuple):
+            return VariableAxis(self.name, self.values[index])
         else:
-            raise ValueError('Cannot slice axis with {}'.format(type(item)))
-        return VariableAxis(self.name, self.values[start:stop:step])
+            raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.values)
 
-    def __next__(self):
+    def __next__(self) -> Number:
         for _ in self.values:
             yield _
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "{0}({1.name!s},{1.values!r})".format(
             self.__class__.__name__, self
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{0.name!s}: {0.values!s}".format(self)

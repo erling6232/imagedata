@@ -1,42 +1,8 @@
 """DICOM UID tool."""
 
-# Copyright (c) 2013-2021 Erling Andersen, Haukeland University Hospital
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital
 
-# import os
-import os.path
-import uuid
-import time
 import pydicom._uid_dict
-# from pydicom.uid import UID
-
-_hostid = None
-
-
-def get_hostid() -> str:
-    """Return hostid of running system.
-    """
-    global _hostid
-    if _hostid is None:
-        # _hostid = os.popen('hostid').read().strip()
-        _hostid = hex(uuid.getnode())[2:]
-    return _hostid
-
-
-def get_uid() -> str:
-    """Generator function which will return a unique UID.
-    """
-    k = 0
-    # hostid = get_hostid()[:-1]
-    hostid = get_hostid()
-    ihostid = int(hostid, 16)
-    my_root = "2.16.578.1.37.1.1.2.%d.%d.%d" % (ihostid, os.getpid(), int(time.time()))
-    while True:
-        k += 1
-        yield "%s.%d" % (my_root, k)
-
-
-def uid_append_instance(root, num) -> str:
-    return root + "." + str(num)
 
 
 def get_uid_for_storage_class(name) -> str:

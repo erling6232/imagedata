@@ -3,6 +3,7 @@
 
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
 import logging
 import mimetypes
 import math
@@ -79,7 +80,9 @@ class NiftiPlugin(AbstractPlugin):
                 si: numpy array (multi-dimensional)
         """
 
-        logger.debug("niftiplugin::read filehandle {}".format(f))
+        _name: str = '{}.{}'.format(__name__, self._read_image.__name__)
+
+        logger.debug("{}: filehandle {}".format(_name, f))
         # TODO: Read nifti directly from open file object
         #      Should be able to do something like:
         #
@@ -91,7 +94,7 @@ class NiftiPlugin(AbstractPlugin):
         #    fmap['image'].fileobj = member
         #    img = nibabel.Nifti1Image.from_file_map(fmap)
         #
-        logger.debug("niftiplugin::read load f {}".format(f))
+        logger.debug("{}: load f {}".format(_name, f))
         try:
             img = nibabel.load(f)
         except nibabel.spatialimages.ImageDataError:
@@ -143,6 +146,8 @@ class NiftiPlugin(AbstractPlugin):
             hdr: Header
         """
 
+        _name: str = '{}.{}'.format(__name__, self._set_tags.__name__)
+
         img, si = image_list[0]
         info = img.header
         _data_shape = info.get_data_shape()
@@ -152,14 +157,14 @@ class NiftiPlugin(AbstractPlugin):
             nz = _data_shape[2]
         if len(_data_shape) > 3:
             nt = _data_shape[3]
-        logger.debug("_set_tags: ny {}, nx {}, nz {}, nt {}".format(ny, nx, nz, nt))
-        logger.debug('NiftiPlugin.read: get_qform\n{}'.format(info.get_qform()))
-        logger.debug('NiftiPlugin.read: info.get_zooms() {}'.format(info.get_zooms()))
+        logger.debug("{}: ny {}, nx {}, nz {}, nt {}".format(_name, ny, nx, nz, nt))
+        logger.debug('{}: get_qform\n{}'.format(_name, info.get_qform()))
+        logger.debug('{}: info.get_zooms() {}'.format(_name, info.get_zooms()))
         _xyzt_units = info.get_xyzt_units()
         _data_zooms = info.get_zooms()
         # _dim_info = info.get_dim_info()
-        logger.debug("_set_tags: get_dim_info(): {}".format(info.get_dim_info()))
-        logger.debug("_set_tags: get_xyzt_units(): {}".format(info.get_xyzt_units()))
+        logger.debug("{}: get_dim_info(): {}".format(_name, info.get_dim_info()))
+        logger.debug("{}: get_xyzt_units(): {}".format(_name, info.get_xyzt_units()))
         dt = dz = 1
         dx, dy = _data_zooms[:2]
         if len(_data_zooms) > 2:
@@ -189,7 +194,7 @@ class NiftiPlugin(AbstractPlugin):
         # Image orientation and positions
         hdr.imagePositions = {}
         if sform is not None and scode != 0:
-            logger.debug("Method 3 - sform: orientation")
+            logger.debug("{}: Method 3 - sform: orientation".format(_name))
 
             # for c in range(4):  # NIfTI is RAS+, DICOM is LPS+
             #     for r in range(2):
@@ -223,7 +228,7 @@ class NiftiPlugin(AbstractPlugin):
                 hdr.imagePositions[_slice] = _p[::-1]
 
         elif qform is not None and qcode != 0:
-            logger.debug("Method 2 - qform: orientation")
+            logger.debug("{}: Method 2 - qform: orientation".format(_name))
             qoffset_x, qoffset_y, qoffset_z = qform[0:3, 3]
             a, b, c, d = info.get_qform_quaternion()
 
@@ -250,7 +255,7 @@ class NiftiPlugin(AbstractPlugin):
                 ])
                 hdr.imagePositions[_slice] = _p[::-1]  # Reverse x,y,z
         else:
-            logger.debug("Method 1 - assume axial: orientation")
+            logger.debug("{}: Method 1 - assume axial: orientation".format(_name))
             iop = np.array([0, 0, 1, 0, 1, 0])
             for _slice in range(nz):
                 _p = np.array([
@@ -268,7 +273,7 @@ class NiftiPlugin(AbstractPlugin):
             times = np.arange(0, nt * dt, dt)
         assert len(times) == nt, \
             "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
-        logger.debug("_set_tags: times {}".format(times))
+        logger.debug("{}: times {}".format(_name, times))
         tags = {}
         for z in range(nz):
             tags[z] = np.array(times)
@@ -359,6 +364,8 @@ class NiftiPlugin(AbstractPlugin):
             opts: Output options (dict)
         """
 
+        _name: str = '{}.{}'.format(__name__, self.write_numpy_nifti.__name__)
+
         if si.color:
             raise WriteNotImplemented(
                 "Writing color Nifti images not implemented.")
@@ -380,67 +387,9 @@ class NiftiPlugin(AbstractPlugin):
             query=query
         )
         with archive.new_local_file(filename) as f:
-            logger.debug('write_numpy_nifti: write local file %s' % f.local_file)
+            logger.debug('{}: write local file {}'.format(_name, f.local_file))
+            os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             img.to_filename(f.local_file)
-
-    # def write_numpy_nifti(self, si, destination, opts):
-    #     """Write nifti data to file
-    #
-    #     Args:
-    #         si (imagedata.Series): Series array
-    #         destination: dict of archive and filenames
-    #         opts: Output options (dict)
-    #     """
-    #
-    #     if si.color:
-    #         raise WriteNotImplemented(
-    #             "Writing color Nifti images not implemented.")
-    #
-    #     # Write NIfTI object through transport plugin
-    #     archive: AbstractArchive = destination['archive']
-    #     root: str = archive.root
-    #     filename_template = 'Image.nii.gz'
-    #     if len(destination['files']) > 0 and len(destination['files'][0]) > 0:
-    #         filename_template = destination['files'][0]
-    #         if archive.base is not None:
-    #             root = os.path.join(root, archive.base)
-    #     elif archive.base is not None:
-    #         filename_template = archive.base
-    #     try:
-    #         filename = filename_template % 0
-    #     except TypeError:
-    #         filename = filename_template
-    #
-    #     if len(os.path.splitext(filename)[1]) == 0:
-    #         filename = filename + '.nii.gz'
-    #     ext = os.path.splitext(filename)[1]
-    #     if filename.endswith('.nii.gz'):
-    #         ext = '.nii.gz'
-    #     logger.debug('write_numpy_nifti: ext %s' % ext)
-    #
-    #     logger.debug('NiftiPlugin.write_numpy_nifti: destination {}'.format(destination))
-    #     img = self._save_dicom_to_nifti(si)
-    #     if issubclass(type(archive.transport), FileTransport) and \
-    #         issubclass(type(archive), FilesystemArchive):
-    #         if root.endswith('.nii.gz') or root.endswith('.nii'):
-    #             # Short-cut for local files
-    #             os.makedirs(os.path.dirname(root), exist_ok=True)
-    #             img.to_filename(root)
-    #             return
-    #         elif filename.endswith('.nii.gz') or filename.endswith('.nii'):
-    #             # Short-cut for local files
-    #             os.makedirs(root, exist_ok=True)
-    #             img.to_filename(os.path.join(root, filename))
-    #             return
-    #
-    #     f = tempfile.NamedTemporaryFile(
-    #         suffix=ext, delete=False)
-    #     logger.debug('write_numpy_nifti: write local file %s' % f.name)
-    #     img.to_filename(f.name)
-    #     f.close()
-    #     logger.debug('write_numpy_nifti: copy to file %s' % filename)
-    #     _ = archive.add_localfile(f.name, filename)
-    #     os.unlink(f.name)
 
     def _save_dicom_to_nifti(self, si: Series) -> nibabel.Nifti1Image:
         """Convert DICOM to Nifti
@@ -1030,21 +979,30 @@ class NiftiPlugin(AbstractPlugin):
             h.set_qform(s, code=sform_code)
             return img
 
+        _name: str = '{}.{}'.format(__name__, self._nii_set_ortho.__name__)
+
         h = img.header
         s = h.get_sform()
         if isMat44Canonical(s):
-            logger.debug("Image in perfect alignment: no need to reorient")
+            logger.debug("{}: Image in perfect alignment: no need to reorient".format(_name))
             return img
         flipV = np.zeros(3)
         minMM, flipV = minCornerFlip(h)
         orient = getBestOrient(s, flipV)
         orientVec = setOrientVec(orient)
         if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
-            logger.debug("Image already near best orthogonal alignment: no need to reorient")
+            logger.debug(
+                "{}: Image already near best orthogonal alignment: no need to reorient".format(
+                _name
+            ))
             return img
         img = reOrient(img, h, orientVec, orient, minMM)
-        logger.debug("NewRotation= %d %d %d\n", orientVec[0], orientVec[1], orientVec[2])
-        logger.debug("MinCorner= %.2f %.2f %.2f\n", minMM[0], minMM[1], minMM[2])
+        logger.debug("{}: NewRotation= {} {} {}\n".format(
+            _name, orientVec[0], orientVec[1], orientVec[2]
+        ))
+        logger.debug("{}: MinCorner= {:.2f} {:.2f} {:.2f}\n".format(
+            _name, minMM[0], minMM[1], minMM[2]
+        ))
         return img
 
     def _nii_flip_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:

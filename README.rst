@@ -268,7 +268,6 @@ The command line program *image_data* can be used to convert between various ima
 
 .. |Docs Badge| image:: https://readthedocs.org/projects/imagedata/badge/
     :alt: Documentation Status
-    :scale: 100%
     :target: https://imagedata.readthedocs.io
 
 .. |buildstatus| image:: https://github.com/erling6232/imagedata/actions/workflows/python-app.yml/badge.svg?branch=master

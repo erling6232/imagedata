@@ -13,6 +13,9 @@ Each of the collection classes will take a source, and sort the images into
 appropriate instances. In each case, the input order of each Series will
 be auto-detected. There is no way to set input order explicitly.
 
+The collection classes can be indexed by UID key or by ordered integer key.
+The order is in insertion order.
+
 Note: At present, this works for DICOM data only.
 
 Reading a Study of Multiple Series
@@ -27,9 +30,8 @@ The input order of each Series is auto-detected.
 
     vibe, dce = None
     study = Study('data/dicom')
-    for uid in study:
-        series = study[uid]
-        if series.seriesDescription == 'vibe':
+    for i, uid in enumerate(study):
+        if study[i].seriesDescription == 'vibe':
             vibe = series
         ...
     If not (vibe and dce):

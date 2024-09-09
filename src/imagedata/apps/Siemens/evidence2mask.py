@@ -7,12 +7,12 @@ import math
 import numpy as np
 import logging
 from PIL import Image, ImageDraw
-from imagedata.apps.Siemens.ROI import PolygonROI, EllipseROI
+from .ROI import PolygonROI, EllipseROI
 
 logger = logging.getLogger(__name__)
 
 
-def xyz_to_zyx(polygon):
+def _xyz_to_zyx(polygon):
     """Swap (x,y,z) with (z,y,x) for each point
 
     Args:
@@ -26,6 +26,22 @@ def xyz_to_zyx(polygon):
         x, y, z = polygon[i, :]
         new_polygon[i, :] = z, y, x
     return new_polygon
+
+
+def _get_measurement_points(output, point=True, zyx=False):
+    if output.VR == "UN":
+        meas_data_points = np.fromstring(output.value, dtype='float32')
+    else:
+        meas_data_points = np.array(output.value)
+    if point:
+        points = meas_data_points.reshape((meas_data_points.size // 3, 3))
+    else:
+        points = meas_data_points
+    if point and zyx:
+        logger.debug("XYZ: {}".format(points[0]))
+        points = _xyz_to_zyx(points)
+        logger.debug("ZYX: {}".format(points[0]))
+    return points
 
 
 def evidence2roi(im, uid_table=None, content=None):
@@ -66,7 +82,7 @@ def evidence2roi(im, uid_table=None, content=None):
 
     try:
         measurement = presentation_sq[0][(0x0029, 0x10a7)]
-    except KeyError:
+    except (TypeError, KeyError):
         logger.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
         # return (rois, content)
         raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
@@ -94,7 +110,7 @@ def evidence2roi(im, uid_table=None, content=None):
         else:
             referenced_syngo_uid =\
                 referenced_frame_seq[(0x0029, 0x1038)].value.decode().split('\\')
-        if uid_table:
+        if uid_table is not None:
             stu_ins_uid = uid_table[referenced_syngo_uid[0]]
             ser_ins_uid = uid_table[referenced_syngo_uid[1]]
             sop_ins_uid = uid_table[referenced_syngo_uid[2]]
@@ -107,6 +123,10 @@ def evidence2roi(im, uid_table=None, content=None):
         meas_appl_number = int(finding[(0x0029, 0x1035)].value)
         roi_type_value = finding[(0x0029, 0x1032)].value.strip()
         try:
+            roi_type_value = roi_type_value.decode('ascii')
+        except AttributeError:
+            pass
+        try:
             roi_name = finding[(0x0029, 0x1030)].value.decode()
         except AttributeError:
             roi_name = finding[(0x0029, 0x1030)].value
@@ -114,42 +134,16 @@ def evidence2roi(im, uid_table=None, content=None):
             roi_name = 'NONAME'
         logger.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
         if roi_type_value == 'PolygonApplication3D' or roi_type_value == 'FreehandApplication3D':
-            output = finding[(0x0029, 0x1096)]
-            if output.VR == "UN":
-                meas_data_points = np.fromstring(output.value, dtype='float32')
-            else:
-                meas_data_points = np.array(output.value)
-            polygon = meas_data_points.reshape((meas_data_points.size // 3, 3))
-            logger.debug("XYZ: {}".format(polygon[0]))
-            polygon = xyz_to_zyx(polygon)
-            logger.debug("ZYX: {}".format(polygon[0]))
-
+            polygon = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
             rois.append(PolygonROI(polygon, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
             logger.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
         elif roi_type_value == 'EllipseApplication3D':
             # Ellipsis centre
-            output = finding[(0x0029, 0x1096)]
-            if output.VR == "UN":
-                meas_data_points = np.fromstring(output.value, dtype='float32')
-            else:
-                meas_data_points = np.array(output.value)
-            centre = meas_data_points.reshape((meas_data_points.size // 3, 3))
-            centre = xyz_to_zyx(centre)
+            centre = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
             # Ellipsis angles
-            output = finding[(0x0029, 0x1097)]
-            if output.VR == "UN":
-                meas_data_points = np.fromstring(output.value, dtype='float32')
-            else:
-                meas_data_points = np.array(output.value)
-            angles = meas_data_points.reshape((meas_data_points.size // 3, 3))
+            angles = _get_measurement_points(finding[(0x0029, 0x1097)])
             # Ellipsis thickness
-            output = finding[(0x0029, 0x1099)]
-            if output.VR == "UN":
-                meas_data_points = np.fromstring(output.value, dtype='float32')
-            else:
-                meas_data_points = np.array(output.value)
-            thickness = meas_data_points
-
+            thickness = _get_measurement_points(finding[(0x0029, 0x1099)], point=False)
             rois.append(EllipseROI(
                 centre, angles, thickness, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
         elif roi_type_value == 'StandaloneTextApplication3D':
@@ -159,69 +153,7 @@ def evidence2roi(im, uid_table=None, content=None):
             logger.warning("DistanceLineApplication3D ROI not implemented.")
             pass
         else:
-            raise ValueError("ROI type %s not implemented." % roi_type_value)
+            raise ValueError("ROI type {} ({}) not implemented.".format(
+                roi_type_value, type(roi_type_value)))
 
     return rois, content
-
-
-def make_mask_in_slice(roi_type, si, points, shape):
-    """Make a 3D mask [nz,ny,nx]
-    """
-
-    if roi_type == 'polygon':
-        # polygon = [(x1,y1),(x2,y2),...] or [x1,y1,x2,y2,...]
-        # width = ?
-        # height = ?
-
-        # for p in points:
-        #     save_x(p)
-        polygon = transform_data_points_to_voxels(si, points)
-        roi = None  # TODO
-        points_matrix = roi.get_points_matrix(si)  # TODO
-        """
-        print("polygon: points cm    {}".format(points))
-        print("polygon: points matrix", polygon)
-        """
-        slice = polygon.verify_all_voxels_in_slice(points_matrix)  # TODO
-
-        mask = np.zeros(shape[1:], dtype=bool)
-
-        polygon2D = []
-        for p in points_matrix:
-            z, y, x = p
-            polygon2D.append((x, y))
-
-        img = Image.new('L', (shape[3], shape[2]), 0)
-        ImageDraw.Draw(img).polygon(polygon2D, outline=0, fill=1)
-    elif roi_type == 'ellipse':
-        (centre_cm, angles, thickness) = points
-        centre = transform_data_points_to_voxels(si, centre_cm)[0]
-        slice = centre[0]
-        mask = np.zeros(shape[1:], dtype=bool)
-
-        angle1 = angles[1]
-        radius_cm = math.sqrt(angle1[0] * angle1[0] +
-                              angle1[1] * angle1[1] +
-                              angle1[2] * angle1[2])
-        adjacent_cm = centre_cm + np.array((0, 0, radius_cm))
-        # save_x((centre_cm + np.array((0, 0, radius_cm)))[0])
-        # save_x((centre_cm - np.array((0, 0, radius_cm)))[0])
-        # save_x((centre_cm + np.array((radius_cm, 0, 0)))[0])
-        # save_x((centre_cm - np.array((radius_cm, 0, 0)))[0])
-        adjacent = transform_data_points_to_voxels(si, adjacent_cm)[0]
-        radius = abs(centre[1] - adjacent[1])
-
-        yc, xc = centre[1], centre[2]
-        ellipse2D = (xc - radius, yc - radius, xc + radius, yc + radius)
-        img = Image.new('L', (shape[3], shape[2]), 0)
-        ImageDraw.Draw(img).ellipse(ellipse2D, outline=0, fill=1)
-    mask[slice, :, :] = np.array(img)
-    return mask
-
-
-def transform_data_points_to_voxels(si, meas_data_points):
-    polygon = []
-    for point in meas_data_points:
-        x, y, z = si.getVoxelForPosition(point)
-        polygon.append((z, y, x))
-    return polygon

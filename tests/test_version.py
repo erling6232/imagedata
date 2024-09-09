@@ -1,9 +1,6 @@
-#!/usr/bin/env python3
-
 import unittest
 import logging
 
-# from .context import imagedata
 import src.imagedata as imagedata
 
 
