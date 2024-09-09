@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.6.7-dev3] - 2024-09-09
 ### Changed
-* Testing pydicom 3.0.0
+* Testing pydicom 3.0.0.
+* Drop support for python 3.9.
 
 ## [v3.6.7-dev2] - 2024-09-05
 ### Added
