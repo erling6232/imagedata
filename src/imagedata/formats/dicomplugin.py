@@ -847,6 +847,8 @@ class DICOMPlugin(AbstractPlugin):
                     except NotImplementedError as e:
                         logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
                         raise
+                    except ValueError:
+                        pass  # Already decompressed
                     try:
                         logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
                         _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
@@ -1659,7 +1661,7 @@ class DICOMPlugin(AbstractPlugin):
         # else:
         #     # Store dicom set ds as file
         #     with archive.open(fn, 'wb') as f:
-        #         ds.save_as(f, write_like_original=False)
+        #         ds.save_as(f)
         raise ValueError("write_enhanced: to be implemented")
 
     # noinspection PyPep8Naming,PyArgumentList
@@ -1824,7 +1826,7 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Store dicom set ds as file
             with archive.open(filename, 'wb') as f:
-                ds.save_as(f, write_like_original=False)
+                ds.save_as(f)
 
     def construct_basic_dicom(self,
                               template: Series = None,
