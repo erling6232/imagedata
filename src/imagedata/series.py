@@ -146,7 +146,7 @@ class Series(np.ndarray):
         logger.debug('{}: data is NOT subclass of Series, type {}'.format(_name, type(data)))
 
         # Assuming data is url to input data
-        if isinstance(data, np.compat.basestring) or issubclass(type(data), PurePath):
+        if isinstance(data, str) or issubclass(type(data), PurePath):
             urls = data
         elif isinstance(data, list):
             urls = data
