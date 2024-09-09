@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.6.7-dev5] - 2024-09-09
+### Added
+* DICOMPlugin: Read non-image datasets (e.g. structured reports).
+
 ## [v3.6.7-dev4] - 2024-09-09
 ### Changed
 * Support pydicom 3.0.0.
