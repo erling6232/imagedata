@@ -1,4 +1,4 @@
-.. _Non_image_dicom_objects:
+.. _NonImageDicomObjects:
 
 Non-image DICOM objects
 =======================
