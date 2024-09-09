@@ -7,30 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.6.7-dev6] - 2024-09-09
-### Added
-* Testing python 3.13.
-
-## [v3.6.7-dev5] - 2024-09-09
+## [v3.7.0-rc0] - 2024-09-09
 ### Added
 * DICOMPlugin: Read non-image datasets (e.g. structured reports).
 
-## [v3.6.7-dev4] - 2024-09-09
 ### Changed
 * Support pydicom 3.0.0.
-* Support numpy 2.0.0.
+* Support numpy >= 2.0.0.
+* Support upcoming python 3.13.
 
-## [v3.6.7-dev2] - 2024-09-05
-### Added
-* DICOMPlugin: Read non-image datasets (e.g. structured reports) also.
-### Changed
-* Require pydicom < 3.0.0. Not ready yet.
-
-## [v3.6.7-dev1] - 2024-09-02
-### Added
-* Read DICOM image and non-image datasets separately.
-
-## [v3.6.7-dev0] - 2024-08-08
 ### Fixed
 * DICOMPlugin.__get_transformation_matrix(): Fixed problem when there is one slice only.
 * DICOMPlugin._extract_dicom_attributes(): Protected for missing imagePositions.
