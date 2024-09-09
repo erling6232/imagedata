@@ -35,7 +35,7 @@ dependencies = [
     "itk-io>=5.4.0",
     "scikit-build-core",
     "nibabel >= 5.0.0",
-    "numpy >= 1.22.2, < 1.27",
+    "numpy >= 1.22.2",
     "pandas",
     "scipy >= 1.2.4",
     "python-magic",
