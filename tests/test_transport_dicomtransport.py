@@ -98,14 +98,10 @@ class TestDicomTransport(unittest.TestCase):
         # Add the file meta to the dataset
         ds.file_meta = meta
 
-        # Set the transfer syntax attributes of the dataset
-        ds.is_little_endian = context.transfer_syntax.is_little_endian
-        ds.is_implicit_VR = context.transfer_syntax.is_implicit_VR
-
         # Save the dataset using the SOP Instance UID as the filename
         ds.save_as(
             os.path.join(scpdir.name, ds.SOPInstanceUID),
-            write_like_original=False)
+        )
 
         # Return a 'Success' status
         return 0x0000
