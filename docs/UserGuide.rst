@@ -16,7 +16,7 @@ User Guide
   Input_output
   Sorting
   DICOMAttributes
-  NonImageDicomObjects
+  Non_image_dicom_objects
   Options
   CommandLine
   Examples
