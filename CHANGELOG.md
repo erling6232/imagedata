@@ -45,7 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * DICOMPlugin: Added `use_cross_product` option to demand that the z column of the transformation
   matrix is calculated using vector cross product.
-`* XNATTransport.open(): Can now download data also at patient and experiment level.
+* XNATTransport.open(): Can now download data also at patient and experiment level.
 ### Changed
 * evidence2mask: Removed functions make_mask_in_slice() and
   transform_data_points_to_voxels().`
@@ -135,7 +135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.5.4] - 2024-04-25
 ### Added
-* Added option `input_acquisition` to Series to select a particular Acquisiton Number in a CT series.
+* Added option `input_acquisition` to Series to select a particular Acquisition Number in a CT series.
 * Added command line option --input_acquisition to select a particular Acquisition Number.
 
 ## [v3.5.3] - 2024-04-10
@@ -243,12 +243,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.3.3] - 2023-12-21
 ### Added
-* Series.get_roi() will now accept an existing Series grid as roi, in addition to a vertices dict.
+* Series.get_roi() will now accept an existing Series grid as roi, in addition to a `vertices` dict.
 * Added Series.vertices_from_grid()
 * Moved get_slice_axis() and get_tag_axis from viewer.py to series.py.
 
 ## [v3.3.1] - 2023-12-20
-* Corrected release scripts on github.
+* Corrected release scripts on GitHub.
 
 ## [v3.3.0] - 2023-12-19
 * Ready for public distribution.
@@ -289,7 +289,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.2.4-rc0] - 2023-11-15
 ### Fixed
-* Series: Handle the special case when a ufunc is called with a where= Series object used
+* Series: Handle the special case when an ufunc is called with a where= Series object used
   by NumPy >= 1.25.
 * Series.write(): Updated documentation on 'window' option.
 
@@ -300,7 +300,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from present data.
 * Viewer: Accept MONOCHROME1 photometric interpretation, using the Greys colormap.
 ### Fixed
-* Viewer: Re-enabled linked scrolling of several images series.
+* Viewer: Re-enabled linked scrolling of several image series.
 
 ## [v3.2.3] - 2023-11-09
 ### Fixed
