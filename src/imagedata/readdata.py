@@ -130,8 +130,8 @@ def read(urls, order=None, opts=None, input_format=None):
             for source in sources:
                 logger.debug("{}: close archive {}".format(_name, source['archive']))
                 source['archive'].close()
-            if 'headers_only' in in_opts and in_opts['headers_only']:
-                pass
+            # if 'headers_only' in in_opts and in_opts['headers_only']:
+            #     pass
             for seriesUID in hdr:
                 hdr[seriesUID].add_template(pre_hdr)
                 hdr[seriesUID].add_geometry(geom_hdr)

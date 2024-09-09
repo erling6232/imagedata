@@ -174,9 +174,10 @@ class Series(np.ndarray):
         if len(hdr) > 1:
             raise MultipleSeriesError('Multiple (n={}) series found in Series'.format(len(hdr)))
         hdr = hdr[next(iter(hdr))]
-        if 'headers_only' not in opts or not opts['headers_only']:
+        if 'headers_only' in opts and opts['headers_only']:
+            si = None
+        else:
             si = si[next(iter(si))]
-
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
 
