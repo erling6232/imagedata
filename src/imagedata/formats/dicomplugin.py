@@ -1936,10 +1936,6 @@ class DICOMPlugin(AbstractPlugin):
         ds.PatientID = si.header.patientID
         ds.PatientBirthDate = si.header.patientBirthDate
 
-        # Set the transfer syntax
-        ds.is_little_endian = True
-        ds.is_implicit_VR = True
-
         return ds
 
     @staticmethod
