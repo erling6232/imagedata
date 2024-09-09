@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.6.7-dev4] - 2024-09-09
 ### Changed
 * Support pydicom 3.0.0.
+* Support numpy 2.0.0.
 
 ## [v3.6.7-dev2] - 2024-09-05
 ### Added
