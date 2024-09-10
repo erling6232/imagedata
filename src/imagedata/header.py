@@ -13,7 +13,7 @@ from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE, get_uid
 header_tags = ['input_format',
                'modality', 'laterality', 'protocolName', 'bodyPartExamined',
                'seriesDate', 'seriesTime', 'seriesNumber',
-               'seriesDescription', 'imageType',  # 'frameOfReferenceUID',
+               'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
                'SOPClassUID', 'SOPInstanceUIDs',
                'accessionNumber',
@@ -25,7 +25,6 @@ header_tags = ['input_format',
                'datasets',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
-                 'frameOfReferenceUID',
                  'sliceLocations',
                  'patientPosition',
                  'photometricInterpretation', 'axes']

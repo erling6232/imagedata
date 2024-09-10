@@ -4,7 +4,7 @@ import numpy as np
 
 def compare_headers(self, hdr, newhdr, uid=True):
     compare_template_headers(self, hdr, newhdr, uid)
-    compare_geometry_headers(self, hdr, newhdr, uid)
+    compare_geometry_headers(self, hdr, newhdr)
 
 
 def compare_template_headers(self, hdr, newhdr, uid=True):
@@ -32,6 +32,7 @@ def compare_template_headers(self, hdr, newhdr, uid=True):
     if uid:
         compare_optional(self, hdr, newhdr, 'studyInstanceUID')
         # compare_optional(obj, hdr, newhdr, 'seriesInstanceUID')
+        compare_optional(self, hdr, newhdr, 'frameOfReferenceUID')
     compare_optional(self, hdr, newhdr, 'seriesNumber')
     compare_optional(self, hdr, newhdr, 'seriesDescription')
     compare_optional(self, hdr, newhdr, 'imageType')
@@ -52,7 +53,7 @@ def compare_optional(self, a, b, attr):
     self.assertEqual(a_attr, b_attr)
 
 
-def compare_geometry_headers(self, hdr, newhdr, uid=True):
+def compare_geometry_headers(self, hdr, newhdr):
     try:
         np.testing.assert_array_equal(hdr.sliceLocations, newhdr.sliceLocations)
     except ValueError:
@@ -69,8 +70,6 @@ def compare_geometry_headers(self, hdr, newhdr, uid=True):
             newhdr.imagePositions[k],
             decimal=4)
     np.testing.assert_array_almost_equal(hdr.transformationMatrix, newhdr.transformationMatrix, decimal=3)
-    if uid:
-        compare_optional(self, hdr, newhdr, 'frameOfReferenceUID')
 
 
 def compare_axes(self, axes, new_axes):
