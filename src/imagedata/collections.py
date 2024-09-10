@@ -336,6 +336,8 @@ class Study(IndexedDict):
                 if getattr(self, _attr, None) is None:
                     # _series = self[_seriesInstanceUID]
                     setattr(self, _attr, _value)
+                elif _value is None:
+                    pass
                 elif _strict_values and \
                         getattr(self, _attr, None) != _value:
                     # Study attributes differ, should be considered an exception.
