@@ -136,6 +136,9 @@ class FileTransport(AbstractTransport):
         logger.debug("{}: {} ({})".format(_name, path, mode))
         if mode[0] in ['w', 'x', 'a']:
             os.makedirs(os.path.dirname(path), exist_ok=True)
+        if path == 'data/dicom/time/time00/data/dicom/time/time00/Image_00021.dcm':
+            import sys, traceback
+            traceback.print_exc(file=sys.stdout)
         return io.FileIO(path, mode)
 
     def info(self, path) -> str:
