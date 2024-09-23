@@ -176,8 +176,10 @@ class Series(np.ndarray):
         hdr = hdr[next(iter(hdr))]
         if 'headers_only' in opts and opts['headers_only']:
             si = None
-        else:
+        elif len(si):
             si = si[next(iter(si))]
+        else:
+            si = None
         obj = np.asarray(si).view(cls)
         assert obj.header, "No Header found in obj.header"
 
