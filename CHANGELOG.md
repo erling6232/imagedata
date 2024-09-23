@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.0-dev7] - 2024-09-23
+* DICOMPlugin: Changed type definitions into classes.
+
 ## [v3.7.0-rc0] - 2024-09-09
 ### Added
 * DICOMPlugin: Read non-image datasets (e.g. structured reports).
