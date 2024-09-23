@@ -251,7 +251,8 @@ class FilesystemArchive(AbstractArchive, ABC):
             filename = member
         else:
             filename = member.filename
-        if filename == 'data/dicom/time/time00/data/dicom/time/time00/Image_00021.dcm':
+        if os.path.basename(filename) == 'Image_00021.dcm':
+            print('self.root:', self.root, ', filename:', filename)
             import sys, traceback
             traceback.print_exc(file=sys.stdout)
 
