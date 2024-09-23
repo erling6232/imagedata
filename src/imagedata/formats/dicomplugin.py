@@ -12,7 +12,7 @@ import mimetypes
 import math
 from numbers import Number
 from collections import defaultdict, namedtuple, Counter
-from functools import partial, singledispatchmethod
+from functools import partial
 from typing import List, Union
 from datetime import date, datetime, timedelta, timezone
 import numpy as np
@@ -848,7 +848,7 @@ class DICOMPlugin(AbstractPlugin):
                 raise ValueError("No DICOM images found.")
 
             try:
-                self._extract_dicom_attributes(series_dataset, hdr, opts=opts)
+                self._extract_non_image_dicom_attributes(series_dataset, hdr, opts=opts)
                 sorted_header_dict[seriesUID] = hdr
             except CannotSort:
                 if skip_broken_series:
@@ -991,9 +991,8 @@ class DICOMPlugin(AbstractPlugin):
 
         return si
 
-    @singledispatchmethod
-    def _extract_dicom_attributes(self,
-                                  series,
+    def _extract_non_image_dicom_attributes(self,
+                                  series: DatasetList,
                                   hdr: Header,
                                   opts: dict = None
                                   ) -> None:
@@ -1001,7 +1000,32 @@ class DICOMPlugin(AbstractPlugin):
 
         Args:
             self: DICOMPlugin instance
-            series:
+            series: DatasetList
+            hdr: existing header (Header)
+            opts:
+        Returns:
+            hdr: header
+                - seriesNumber
+                - seriesDescription
+                - imageType
+                - modality, laterality, protocolName, bodyPartExamined
+                - seriesDate, seriesTime
+        """
+
+        dataset = series[0]
+        DICOMPlugin._copy_attributes_to_header(dataset, hdr)
+
+
+    def _extract_dicom_attributes(self,
+                                  series: SortedDatasetList,
+                                  hdr: Header,
+                                  opts: dict = None
+                                  ) -> None:
+        """Extract DICOM attributes
+
+        Args:
+            self: DICOMPlugin instance
+            series: SortedDatasetList
             hdr: existing header (Header)
             opts:
         Returns:
@@ -1016,27 +1040,6 @@ class DICOMPlugin(AbstractPlugin):
                 - modality, laterality, protocolName, bodyPartExamined
                 - seriesDate, seriesTime, patientPosition
         """
-        raise NotImplementedError('Cannot extract DICOM attributes from type {}'.format(
-            type(series)
-        ))
-
-    @_extract_dicom_attributes.register
-    def _(self,
-          series: DatasetList,
-          hdr: Header,
-          opts: dict = None
-          ) -> None:
-
-        dataset = series[0]
-        DICOMPlugin._copy_attributes_to_header(dataset, hdr)
-
-
-    @_extract_dicom_attributes.register
-    def _(self,
-          series: SortedDatasetList,
-          hdr: Header,
-          opts: dict = None
-          ) -> None:
 
         dataset = series[next(iter(series))][0]
         DICOMPlugin._copy_attributes_to_header(dataset, hdr)
