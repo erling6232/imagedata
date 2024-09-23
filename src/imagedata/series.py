@@ -19,12 +19,13 @@ from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
 
-from .axis import UniformAxis, UniformLengthAxis, VariableAxis
+from .axis import UniformAxis, UniformLengthAxis  # , VariableAxis
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
 from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
 from .header import Header
+
 # from ._methods import (max, nanmax, min, nanmin, __sub__, multiply,
 #                        __mul__, __imul__, __rmul__, __rmatmul__, __matmul__, __truediv__, rint)
 
@@ -619,7 +620,7 @@ class Series(np.ndarray):
         except ValueError:
             return None
         if len(spec) == 2:
-            _values =  {}
+            _values = {}
             for i, _idx in enumerate(spec[0]):
                 _values[i] = ipp[_idx]
             return _values
@@ -667,16 +668,16 @@ class Series(np.ndarray):
             "  Study  Time: {} {}\n".format(
                 self.getDicomAttribute('StudyDate'),
                 self.getDicomAttribute('StudyTime')
-            ) + \
+                ) + \
             "  Series Time: {} {}\n".format(
                 self.getDicomAttribute('SeriesDate'),
                 self.getDicomAttribute('SeriesTime')
-            ) + \
+                ) + \
             "  Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
             "  Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
                 input_order_to_dirname_str(self.input_order)
-            )
+                )
 
     @staticmethod
     def __find_tag_in_hdr(hdr_list, find_tag):
@@ -953,8 +954,8 @@ class Series(np.ndarray):
             # be calculated.
             if self.header.orientation is not None and self.header.imagePositions is not None:
                 logger.debug('{}: '
-                    'sliceLocations: calculate {} slice from orientation and '
-                    'imagePositions'.format(_name, self.slices))
+                             'sliceLocations: calculate {} slice from orientation and '
+                             'imagePositions'.format(_name, self.slices))
                 loc = np.empty(self.slices)
                 normal = self.transformationMatrix[0, :3]
                 for _slice in range(self.slices):
@@ -1264,8 +1265,8 @@ class Series(np.ndarray):
                     # orientation.
                     # Set imagePositions for additional slices
                     logger.debug('{}: '
-                        'Series.imagePositions.get: 1 positions only.  Calculating the other {} '
-                        'positions'.format(_name, self.slices - 1))
+                                 'Series.imagePositions.get: 1 positions only.  Calculating the other {} '
+                                 'positions'.format(_name, self.slices - 1))
                     m = self.transformationMatrix
                     for _slice in range(1, self.slices):
                         self.header.imagePositions[_slice] = \

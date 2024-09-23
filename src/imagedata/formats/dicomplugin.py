@@ -48,10 +48,8 @@ except AttributeError:
 
 mimetypes.add_type('application/dicom', '.ima')
 
-
 SeriesUID = namedtuple('SeriesUID', 'patientID, studyInstanceUID, seriesInstanceUID, ' +
                        'acquisitionNumber, echoNumber', defaults=(None, None))
-
 
 # Type definitions
 SourceList = list[dict]
@@ -60,8 +58,10 @@ SourceList = list[dict]
 # Class definitions
 class ObjectList(list):
     """ObjectList is list[tuple[AbstractArchive, Member]]"""
+
     def __init__(self):
         super().__init__()
+
     def append(self, *args):
         for arg in args:
             assert isinstance(arg, tuple), self.__doc__
@@ -73,8 +73,10 @@ class ObjectList(list):
 
 class DatasetList(list):
     """DatasetList is list[Dataset]"""
+
     def __init__(self):
         super().__init__()
+
     def append(self, *args):
         for arg in args:
             assert isinstance(arg, Dataset), self.__doc__
@@ -83,8 +85,10 @@ class DatasetList(list):
 
 class DatasetDict(defaultdict):
     """DatasetDict is defaultdict[SeriesUID, DatasetList]"""
+
     def __init__(self):
         super().__init__(DatasetList)
+
     def __setitem__(self, key, value):
         assert isinstance(key, SeriesUID), self.__doc__
         assert isinstance(value, DatasetList), self.__doc__
@@ -93,8 +97,10 @@ class DatasetDict(defaultdict):
 
 class SortedDatasetList(defaultdict):
     """SortedDatasetList is defaultdict[float, DatasetList]"""
+
     def __init__(self):
         super().__init__(DatasetList)
+
     def __setitem__(self, key, value):
         assert isinstance(key, float), self.__doc__
         assert isinstance(value, DatasetList), self.__doc__
@@ -103,8 +109,10 @@ class SortedDatasetList(defaultdict):
 
 class SortedDatasetDict(defaultdict):
     """SortedDatasetDict is defaultdict[SeriesUID, SortedDatasetList]"""
+
     def __init__(self):
         super().__init__(lambda: SortedDatasetList)
+
     def __setitem__(self, key, value):
         assert isinstance(key, SeriesUID), self.__doc__
         assert isinstance(value, SortedDatasetList), self.__doc__
@@ -113,8 +121,10 @@ class SortedDatasetDict(defaultdict):
 
 class SortedHeaderDict(dict):
     """SortedHeaderDict is dict[SeriesUID, Header]"""
+
     def __init__(self):
         super().__init__()
+
     def __setitem__(self, key, value):
         assert isinstance(key, SeriesUID), self.__doc__
         assert isinstance(value, Header), self.__doc__
@@ -123,8 +133,10 @@ class SortedHeaderDict(dict):
 
 class PixelDict(dict):
     """PixelDict is dict[SeriesUID, np.ndarray]"""
+
     def __init__(self):
         super().__init__()
+
     def __setitem__(self, key, value):
         assert isinstance(key, SeriesUID), self.__doc__
         assert isinstance(value, np.ndarray), self.__doc__
@@ -233,7 +245,7 @@ class DICOMPlugin(AbstractPlugin):
         self.output_dir = None
         self.seriesTime = None
 
-    def read(self, sources: SourceList, pre_hdr: Header, input_order: str , opts: dict) ->(
+    def read(self, sources: SourceList, pre_hdr: Header, input_order: str, opts: dict) -> (
             tuple[SortedHeaderDict, PixelDict]):
         """Read image data
 
@@ -318,8 +330,8 @@ class DICOMPlugin(AbstractPlugin):
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
                 non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
-                                                          non_image_header_dict,
-                                                          opts, skip_pixels)
+                                                                    non_image_header_dict,
+                                                                    opts, skip_pixels)
             for seriesUID in non_image_header_dict:
                 if seriesUID in sorted_header_dict:
                     sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict[seriesUID]
@@ -429,10 +441,6 @@ class DICOMPlugin(AbstractPlugin):
         """
         _name: str = '{}.{}'.format(__name__, self._select_imaging_datasets.__name__)
 
-        skip_broken_series = False
-        if 'skip_broken_series' in opts:
-            skip_broken_series = opts['skip_broken_series']
-
         # Select datasets on SOPClassUID
         selected_dataset_dict: DatasetDict = DatasetDict()
         for seriesUID in dataset_dict:
@@ -448,7 +456,7 @@ class DICOMPlugin(AbstractPlugin):
     def _select_non_imaging_datasets(self,
                                      dataset_dict: DatasetDict,
                                      opts: dict = {}
-                                     )\
+                                     ) \
             -> DatasetDict:
         """Select non-imaging datasets only
 
@@ -460,10 +468,6 @@ class DICOMPlugin(AbstractPlugin):
             Dict of List of non-imaging Dataset
         """
         _name: str = '{}.{}'.format(__name__, self._select_non_imaging_datasets.__name__)
-
-        skip_broken_series = False
-        if 'skip_broken_series' in opts:
-            skip_broken_series = opts['skip_broken_series']
 
         # Select datasets on SOPClassUID
         selected_dataset_dict: DatasetDict = DatasetDict()
@@ -495,7 +499,7 @@ class DICOMPlugin(AbstractPlugin):
             # Verify that the DICOM object has pixel data
             if not skip_pixels:
                 try:
-                    _pixels = len(im.pixel_array)
+                    _ = len(im.pixel_array)
                 except AttributeError:
                     pass
                     # raise DoNotIncludeFile('No pixel data in DICOM object')
@@ -575,7 +579,7 @@ class DICOMPlugin(AbstractPlugin):
                     logger.debug(
                         '{}: skip_broken_series continue {}'.format(
                             _name, seriesUID
-                    ))
+                        ))
                     continue  # Next series
                 else:
                     logger.debug('{}: skip_broken_series raise'.format(_name))
@@ -594,7 +598,6 @@ class DICOMPlugin(AbstractPlugin):
                            sorted_dataset_dict: SortedDatasetList,
                            input_order: str,
                            opts: dict = None) -> str:
-
 
         def _single_slice_over_time(tags):
             """If time and slice both varies, the time stamps address slices of a single volume
@@ -823,14 +826,14 @@ class DICOMPlugin(AbstractPlugin):
                     logger.debug('{}: skip_broken_series raise'.format(_name))
                     raise
         logger.debug('{}: end with {}'.format(_name,
-                                                 sorted_header_dict.keys()
-                                                 ))
+                                              sorted_header_dict.keys()
+                                              ))
         return sorted_header_dict
 
     def _get_non_image_headers(self,
-                     dataset_dict: DatasetDict,
-                     opts: dict = None
-                     ) -> SortedHeaderDict:
+                               dataset_dict: DatasetDict,
+                               opts: dict = None
+                               ) -> SortedHeaderDict:
         """Get DICOM headers for non-image datasets"""
 
         _name: str = '{}.{}'.format(__name__, self._get_non_image_headers.__name__)
@@ -872,7 +875,7 @@ class DICOMPlugin(AbstractPlugin):
                                 skip_pixels: bool = False
                                 ) -> PixelDict:
 
-        _name: str = '{}.{}'.format(__name__, self._construct_pixel_arrays.__name__)
+        # _name: str = '{}.{}'.format(__name__, self._construct_pixel_arrays.__name__)
         pixel_dict: PixelDict = PixelDict()
         for seriesUID in sorted_header_dict:
             dataset_dict: SortedDatasetList = sorted_dataset_dict[seriesUID]
@@ -992,10 +995,10 @@ class DICOMPlugin(AbstractPlugin):
         return si
 
     def _extract_non_image_dicom_attributes(self,
-                                  series: DatasetList,
-                                  hdr: Header,
-                                  opts: dict = None
-                                  ) -> None:
+                                            series: DatasetList,
+                                            hdr: Header,
+                                            opts: dict = None
+                                            ) -> None:
         """Extract DICOM attributes
 
         Args:
@@ -1014,7 +1017,6 @@ class DICOMPlugin(AbstractPlugin):
 
         dataset = series[0]
         DICOMPlugin._copy_attributes_to_header(dataset, hdr)
-
 
     def _extract_dicom_attributes(self,
                                   series: SortedDatasetList,
@@ -1066,7 +1068,6 @@ class DICOMPlugin(AbstractPlugin):
             hdr.transformationMatrix = self.__get_transformation_matrix(hdr, opts)
         except (AttributeError, TypeError):
             pass
-
 
     @staticmethod
     def _get_attribute(im: Dataset, tag):
@@ -1219,8 +1220,8 @@ class DICOMPlugin(AbstractPlugin):
             if 'RescaleSlope' in im and 'RescaleIntercept' in im:
                 _use_float = abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
             if _use_float:
-                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) +\
-                         float(im.RescaleIntercept)
+                pixels = float(im.RescaleSlope) * im.pixel_array.astype(float) + \
+                    float(im.RescaleIntercept)
             else:
                 pixels = im.pixel_array
             if shape != pixels.shape:
@@ -1232,7 +1233,7 @@ class DICOMPlugin(AbstractPlugin):
                 elif 'NumberOfFrames' in im:
                     logger.debug('{}: NumberOfFrames: {}'.format(_name, im.NumberOfFrames))
                     if (im.NumberOfFrames,) + shape == pixels.shape:
-                        logger.debug('{}: NumberOfFrames copy pixels'.format(_name, im.NumberOfFrames))
+                        logger.debug('{}: NumberOfFrames {} copy pixels'.format(_name, im.NumberOfFrames))
                         si = pixels
                     else:
                         logger.debug('{}: NumberOfFrames pixels differ {} {}'.format(
@@ -1428,7 +1429,7 @@ class DICOMPlugin(AbstractPlugin):
         archive = destination['archive']
         archive.set_member_naming_scheme(
             fallback='Image_{:05d}.dcm',
-            level=max(0, si.ndim-2),
+            level=max(0, si.ndim - 2),
             default_extension='.dcm',
             extensions=self.extensions
         )
@@ -1561,7 +1562,7 @@ class DICOMPlugin(AbstractPlugin):
                     digits)
                 archive.set_member_naming_scheme(
                     fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
-                    level=max(0, si.ndim-2),
+                    level=max(0, si.ndim - 2),
                     default_extension='.dcm',
                     extensions=self.extensions
                 )
@@ -1597,7 +1598,7 @@ class DICOMPlugin(AbstractPlugin):
                     digits)
                 archive.set_member_naming_scheme(
                     fallback=os.path.join(dirn, 'Slice_{1:05d}.dcm'),
-                    level=max(0, si.ndim-2),
+                    level=max(0, si.ndim - 2),
                     default_extension='.dcm',
                     extensions=self.extensions
                 )
@@ -1921,7 +1922,7 @@ class DICOMPlugin(AbstractPlugin):
     def construct_basic_dicom(self,
                               template: Series = None,
                               filename: str = 'NA',
-                              sop_ins_uid:str = None
+                              sop_ins_uid: str = None
                               ) -> FileDataset:
 
         if sop_ins_uid is None:

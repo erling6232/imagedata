@@ -488,10 +488,10 @@ class NiftiPlugin(AbstractPlugin):
         affine[0, 0] = -1
         affine[1, 2] = 1
         affine[2, 1] = -1
-        affine[0, 3] = dcm.shape[-1 - dcm.color*1] / 2  # C
-        affine[1, 3] = dcm.shape[-2 - dcm.color*1] / 2  # R
+        affine[0, 3] = dcm.shape[-1 - dcm.color * 1] / 2  # C
+        affine[1, 3] = dcm.shape[-2 - dcm.color * 1] / 2  # R
         try:
-            affine[2, 3] = dcm.shape[-3 - dcm.color*1] / 2  # S
+            affine[2, 3] = dcm.shape[-3 - dcm.color * 1] / 2  # S
         except IndexError:
             # Probably a 2D image
             pass
@@ -652,13 +652,13 @@ class NiftiPlugin(AbstractPlugin):
         pos_dicom = None
         try:
             # Last slice in stack
-            pos_dicom = dcm.imagePositions[dcm.slices-1][::-1][slice_direction-1]  # zyx to xyz
+            pos_dicom = dcm.imagePositions[dcm.slices - 1][::-1][slice_direction - 1]  # zyx to xyz
         except ValueError:
             pass
-        x = np.array([0.0, 0.0, dcm.slices-1.0, 1.0])
+        x = np.array([0.0, 0.0, dcm.slices - 1.0, 1.0])
         # pos1v = np.matmul(x, r)
         pos1v = _nifti_vect44mat44_mul(x, r)
-        pos_nifti = pos1v[slice_direction-1]  # -1 as C index from 0
+        pos_nifti = pos1v[slice_direction - 1]  # -1 as C index from 0
         if pos_dicom is None:
             # Do some guess work
             orient = dcm.orientation  # in zyx
@@ -668,7 +668,7 @@ class NiftiPlugin(AbstractPlugin):
             flip = np.sum(slice_v) < 0
         else:
             # same direction? note C indices from 0
-            flip = (pos_dicom > r[slice_direction-1, 3]) != (pos_nifti > r[slice_direction-1, 3])
+            flip = (pos_dicom > r[slice_direction - 1, 3]) != (pos_nifti > r[slice_direction - 1, 3])
         if flip:
             r[:, 2] = -r[:, 2]
             slice_direction = -slice_direction
@@ -906,7 +906,7 @@ class NiftiPlugin(AbstractPlugin):
             zLUT = orthoOffsetArray(outDim[2], outInc[2])
             # Convert data
             # number of voxels in spatial dimensions [1,2,3]
-            perVol = outDim[0]*outDim[1]*outDim[2]
+            perVol = outDim[0] * outDim[1] * outDim[2]
             # o = 0  # output address
             # inbuf = (uint8_t *) malloc(bytePerVol)  # we convert 1 volume at a time
             # outbuf = (uint8_t *) img  # source image
@@ -993,8 +993,8 @@ class NiftiPlugin(AbstractPlugin):
         if orientVec[0] == 1 and orientVec[1] == 2 and orientVec[2] == 3:
             logger.debug(
                 "{}: Image already near best orthogonal alignment: no need to reorient".format(
-                _name
-            ))
+                    _name
+                ))
             return img
         img = reOrient(img, h, orientVec, orient, minMM)
         logger.debug("{}: NewRotation= {} {} {}\n".format(

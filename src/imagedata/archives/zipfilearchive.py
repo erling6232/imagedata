@@ -207,9 +207,9 @@ class ZipfileArchive(AbstractArchive, ABC):
         else:
             wanted_files = files
         if wanted_files is None or\
-                (issubclass(type(wanted_files), list) and (
-                        len(wanted_files) == 0 or
-                        len(wanted_files) > 0 and wanted_files[0] == '*')):
+            (issubclass(type(wanted_files), list) and (
+                len(wanted_files) == 0 or
+                len(wanted_files) > 0 and wanted_files[0] == '*')):
             logger.debug('{}: found files {}'.format(_name, len(self.__files)))
             return sorted(self.__files.keys())
         else:
@@ -325,9 +325,9 @@ class ZipfileArchive(AbstractArchive, ABC):
         else:
             wanted_files = files
         if wanted_files is None or \
-                (issubclass(type(wanted_files), list) and (
-                        len(wanted_files) == 0 or len(wanted_files) > 0 and
-                        wanted_files[0] == '*')):
+            (issubclass(type(wanted_files), list) and (
+                len(wanted_files) == 0 or len(wanted_files) > 0 and
+                wanted_files[0] == '*')):
             return list(self.__files.values())
         else:
             # logger.debug('ZipfileArchive.getmembers: files {}'.format(len(files)))

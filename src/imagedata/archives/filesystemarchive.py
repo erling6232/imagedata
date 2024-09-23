@@ -111,7 +111,7 @@ class FilesystemArchive(AbstractArchive, ABC):
 
         url_tuple = urllib.parse.urlsplit(url, scheme='file')
         logger.debug('{}: scheme: {}, netloc: {}'.format(
-                     _name, url_tuple.scheme, url_tuple.path
+            _name, url_tuple.scheme, url_tuple.path
         ))
 
         try:
@@ -202,10 +202,10 @@ class FilesystemArchive(AbstractArchive, ABC):
             wanted_files = [files]
         else:
             wanted_files = files
-        if wanted_files is None or\
-                (issubclass(type(wanted_files), list) and (
-                        len(wanted_files) == 0 or
-                        len(wanted_files) > 0 and wanted_files[0] == '*')):
+        if wanted_files is None or \
+            (issubclass(type(wanted_files), list) and (
+                len(wanted_files) == 0 or
+                len(wanted_files) > 0 and wanted_files[0] == '*')):
             return self._scan_subdirs(self.__path)
         else:
             filelist = list()
@@ -270,10 +270,10 @@ class FilesystemArchive(AbstractArchive, ABC):
             wanted_files = [files]
         else:
             wanted_files = files
-        if wanted_files is None or\
-                (issubclass(type(wanted_files), list) and (
-                        len(wanted_files) == 0 or
-                        len(wanted_files) > 0 and wanted_files[0] == '*')):
+        if wanted_files is None or \
+            (issubclass(type(wanted_files), list) and (
+                len(wanted_files) == 0 or
+                len(wanted_files) > 0 and wanted_files[0] == '*')):
             _files = self._scan_subdirs(self.__path)
             filelist = list()
             if self.transport.isfile(self.__path):

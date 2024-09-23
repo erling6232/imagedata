@@ -161,7 +161,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         i = 0
         for info, img in image_list:
             if 'input_sort' in opts and opts['input_sort'] == SORT_ON_TAG:
-                si[:,i] = img
+                si[:, i] = img
             else:
                 si[i] = img
             i += 1
