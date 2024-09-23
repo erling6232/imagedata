@@ -138,7 +138,7 @@ class FileTransport(AbstractTransport):
             os.makedirs(os.path.dirname(path), exist_ok=True)
         if path == 'data/dicom/time/time00/data/dicom/time/time00/Image_00021.dcm':
             import sys, traceback
-            traceback.print_exc(file=sys.stdout)
+            traceback.print_exc(file=sys.stderr)
         return io.FileIO(path, mode)
 
     def info(self, path) -> str:
