@@ -251,6 +251,10 @@ class FilesystemArchive(AbstractArchive, ABC):
             filename = member
         else:
             filename = member.filename
+        if filename == 'data/dicom/time/time00/data/dicom/time/time00/Image_00021.dcm':
+            import sys, traceback
+            traceback.print_exc(file=sys.stdout)
+
         return self.transport.open(os.path.join(self.root, filename), mode)
 
     def getmembers(self, files=None):
