@@ -407,6 +407,7 @@ class DICOMPlugin(AbstractPlugin):
                 last_message = '{}'.format(e)
             except Exception as e:
                 logger.debug('{}: Exception {}'.format(_name, e))
+                last_message = '{}'.format(e)
                 # raise
         if len(object_list) > 0 and len(dataset_dict) < 1:
             raise NotImageError(last_message)
