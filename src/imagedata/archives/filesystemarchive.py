@@ -113,6 +113,8 @@ class FilesystemArchive(AbstractArchive, ABC):
         logger.debug('{}: scheme: {}, netloc: {}'.format(
             _name, url_tuple.scheme, url_tuple.path
         ))
+        if os.path.basename(url) == 'Image_00021.dcm':
+            print('_get_transport: url_tuple:', url_tuple)
 
         try:
             self.transport = Transport(
