@@ -71,7 +71,6 @@ class FileTransport(AbstractTransport):
             root = os.path.dirname(root)
         self.__root = root
         self.__mode = mode
-        print('{}: root: {}'.format(_name, root))
 
     def close(self):
         """Close the transport
@@ -137,10 +136,6 @@ class FileTransport(AbstractTransport):
         logger.debug("{}: {} ({})".format(_name, path, mode))
         if mode[0] in ['w', 'x', 'a']:
             os.makedirs(os.path.dirname(path), exist_ok=True)
-        if os.path.basename(path) == 'Image_00021.dcm':
-            print('{}: path: {}'.format(_name, path))
-            import sys, traceback
-            traceback.print_exc(file=sys.stderr)
         return io.FileIO(path, mode)
 
     def info(self, path) -> str:

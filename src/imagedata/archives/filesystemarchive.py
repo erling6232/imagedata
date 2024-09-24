@@ -87,7 +87,6 @@ class FilesystemArchive(AbstractArchive, ABC):
             self.__path = url[:2] + urldict.path
         else:
             urldict = urllib.parse.urlsplit(url, scheme="file")
-            print('FilesystemArchive.__init__: url:', url, 'urldict:', urldict)
             if os.name == 'nt' and \
                     fnmatch.fnmatch(urldict.netloc, '[A-Za-z]:\\*'):
                 self.__netloc = ''
@@ -114,8 +113,6 @@ class FilesystemArchive(AbstractArchive, ABC):
         logger.debug('{}: scheme: {}, netloc: {}'.format(
             _name, url_tuple.scheme, url_tuple.path
         ))
-        if os.path.basename(url) == 'Image_00021.dcm':
-            print('_get_transport: url_tuple:', url_tuple)
 
         try:
             self.transport = Transport(
@@ -254,10 +251,6 @@ class FilesystemArchive(AbstractArchive, ABC):
             filename = member
         else:
             filename = member.filename
-        if os.path.basename(filename) == 'Image_00021.dcm':
-            print('FilesystemArchive.open: self.root:', self.root, ', filename:', filename)
-            import sys, traceback
-            traceback.print_exc(file=sys.stdout)
 
         return self.transport.open(os.path.join(self.root, filename), mode)
 

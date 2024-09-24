@@ -346,33 +346,23 @@ def _get_location_part(url):
 
     _name: str = '{}.{}'.format(__name__, _get_location_part.__name__)
 
-    print('{}: url: {}'.format(_name, url))
     if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without x:, then reattach drive letter
         url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
         _path = url[:2] + url_tuple.path
     else:
         url_tuple = urllib.parse.urlsplit(url, scheme="file")
-        print('{}: url_tuple: {}'.format(_name, url_tuple))
         _path = url_tuple.path
     # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
-    print('{}: urlunsplit({}, {}, {})'.format(_name, url_tuple.scheme, url_tuple.netloc,
-                                              _path))
     location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
-    # print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
-    print('{}: location[:8]: {}, url[0]: {}'.format(_name, location[:8], url[0]))
-    # if location[:8] == 'file:///' and _path[0] != '/':
     if url_tuple.scheme == 'file' and url[0] != '/':
-        print('{}: abspath: {}'.format(_name, location))
         _path = os.path.abspath(_path)
         location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
-        print('{}: to abspath: {}'.format(_name, location))
     logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
     logger.debug('{}: path {}'.format(_name, _path))
     logger.debug('{}: location {}'.format(_name, location))
-    print('{}: return location: {}'.format(_name, location))
     return location
 
 
@@ -388,7 +378,6 @@ def _get_archive(url, mode='r', opts=None):
 
     _name: str = '{}.{}'.format(__name__, _get_archive.__name__)
 
-    print('{}: url: {}'.format(_name, url))
     if opts is None:
         opts = {}
     logger.debug('{}: url {}'.format(_name, url))
@@ -526,7 +515,6 @@ def _get_sources(
     # Scan my_urls to determine the locations of the inputs
     locations = {}
     for url in my_urls:
-        print('{}: locations _get_location_part({})'.format(_name, url))
         locations[_get_location_part(url)] = True
     locations = _simplify_locations(locations)
 
@@ -537,18 +525,14 @@ def _get_sources(
         source_location = location
         source = {'files': []}
         try:
-            print('{}: calling _get_archive({})'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         except (RootIsNotDirectory,
                 ArchivePluginNotFound) as e:
             # Retry with parent directory
-            print('{}: source_location: {}, e: {}'.format(_name, source_location, e))
             source_location, filename = os.path.split(source_location)
             logger.debug('{}: retry location {}'.format(_name, source_location))
-            print('{}: retry _get_archive({})'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         for url in my_urls:
-            print('{}: _get_location_part 2({})'.format(_name, url))
             location_part = _get_location_part(url)
             logger.debug('{}: compare _get_location_part {} location {}'.format(
                          _name, location_part, source_location))
