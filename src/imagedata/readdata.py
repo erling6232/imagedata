@@ -357,6 +357,8 @@ def _get_location_part(url):
         _path = url_tuple.path
     # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
+    print('{}: urlunsplit({}, {}, {})'.format(_name, url_tuple.scheme, url_tuple.netloc,
+                                              _path))
     location = urllib.parse.urlunsplit((
         url_tuple.scheme,
         url_tuple.netloc,
