@@ -255,7 +255,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         else:
             filename = member.filename
         if os.path.basename(filename) == 'Image_00021.dcm':
-            print('self.root:', self.root, ', filename:', filename)
+            print('FilesystemArchive.open: self.root:', self.root, ', filename:', filename)
             import sys, traceback
             traceback.print_exc(file=sys.stdout)
 
