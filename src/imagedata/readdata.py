@@ -361,6 +361,7 @@ def _get_location_part(url):
         _path,
         None,
         None))
+    print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
     if location[:8] == 'file:///' and _path[0] != '/':
         location = 'file://' + os.path.abspath(location[8:])
     logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
