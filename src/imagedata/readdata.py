@@ -363,7 +363,9 @@ def _get_location_part(url):
         None))
     print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
     if location[:8] == 'file:///' and _path[0] != '/':
+        print('{}: abspath: {}'.format(_name, location))
         location = 'file://' + os.path.abspath(location[8:])
+        print('{}: to abspath: {}'.format(_name, location))
     logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
     logger.debug('{}: path {}'.format(_name, _path))
@@ -521,7 +523,7 @@ def _get_sources(
     # Scan my_urls to determine the locations of the inputs
     locations = {}
     for url in my_urls:
-        print('{}: calling _get_location_part({})'.format(_name, url))
+        print('{}: locations _get_location_part({})'.format(_name, url))
         locations[_get_location_part(url)] = True
     locations = _simplify_locations(locations)
 
