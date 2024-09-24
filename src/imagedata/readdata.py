@@ -360,7 +360,8 @@ def _get_location_part(url):
     print('{}: urlunsplit({}, {}, {})'.format(_name, url_tuple.scheme, url_tuple.netloc,
                                               _path))
     location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
-    print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
+    # print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
+    print('{}: location[:8]: {}, url[0]: {}'.format(_name, location[:8], url[0]))
     # if location[:8] == 'file:///' and _path[0] != '/':
     if location[:8] == 'file:///' and url[0] != '/':
         print('{}: abspath: {}'.format(_name, location))
