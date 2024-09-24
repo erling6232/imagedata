@@ -89,7 +89,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             urldict = urllib.parse.urlsplit(url, scheme="file")
             print('FilesystemArchive.__init__: url:', url, 'urldict:', urldict)
             import sys
-            print('FilesystemArchive.__init__: argv:', sys.argv[0])
+            print('FilesystemArchive.__init__: argv:', sys.argv)
             if os.name == 'nt' and \
                     fnmatch.fnmatch(urldict.netloc, '[A-Za-z]:\\*'):
                 self.__netloc = ''
