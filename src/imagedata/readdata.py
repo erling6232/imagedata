@@ -521,6 +521,7 @@ def _get_sources(
     # Scan my_urls to determine the locations of the inputs
     locations = {}
     for url in my_urls:
+        print('{}: calling _get_location_part({})'.format(_name, url))
         locations[_get_location_part(url)] = True
     locations = _simplify_locations(locations)
 
@@ -531,6 +532,7 @@ def _get_sources(
         source_location = location
         source = {'files': []}
         try:
+            print('{}: calling _get_archive({})'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         except (RootIsNotDirectory,
                 ArchivePluginNotFound) as e:
@@ -538,8 +540,10 @@ def _get_sources(
             print('{}: source_location: {}, e: {}'.format(_name, source_location, e))
             source_location, filename = os.path.split(source_location)
             logger.debug('{}: retry location {}'.format(_name, source_location))
+            print('{}: retry _get_archive({})'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         for url in my_urls:
+            print('{}: _get_location_part 2({})'.format(_name, url))
             location_part = _get_location_part(url)
             logger.debug('{}: compare _get_location_part {} location {}'.format(
                          _name, location_part, source_location))
