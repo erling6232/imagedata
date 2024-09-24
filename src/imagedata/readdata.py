@@ -346,12 +346,14 @@ def _get_location_part(url):
 
     _name: str = '{}.{}'.format(__name__, _get_location_part.__name__)
 
+    print('{}: url: {}'.format(_name, url))
     if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
         # Windows: Parse without x:, then reattach drive letter
         url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
         _path = url[:2] + url_tuple.path
     else:
         url_tuple = urllib.parse.urlsplit(url, scheme="file")
+        print('{}: url_tuple: {}'.format(_name, url_tuple))
         _path = url_tuple.path
     # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
