@@ -372,6 +372,7 @@ def _get_location_part(url):
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
     logger.debug('{}: path {}'.format(_name, _path))
     logger.debug('{}: location {}'.format(_name, location))
+    print('{}: return location: {}'.format(_name, location))
     return location
 
 
