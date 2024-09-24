@@ -382,6 +382,7 @@ def _get_archive(url, mode='r', opts=None):
 
     _name: str = '{}.{}'.format(__name__, _get_archive.__name__)
 
+    print('{}: url: {}'.format(_name, url))
     if opts is None:
         opts = {}
     logger.debug('{}: url {}'.format(_name, url))
