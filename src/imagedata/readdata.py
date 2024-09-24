@@ -359,16 +359,12 @@ def _get_location_part(url):
     # Strip off query and fragment parts
     print('{}: urlunsplit({}, {}, {})'.format(_name, url_tuple.scheme, url_tuple.netloc,
                                               _path))
-    location = urllib.parse.urlunsplit((
-        url_tuple.scheme,
-        url_tuple.netloc,
-        _path,
-        None,
-        None))
+    location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
     print('{}: location[:8]: {}, _path[0]: {}'.format(_name, location[:8], _path[0]))
     if location[:8] == 'file:///' and _path[0] != '/':
         print('{}: abspath: {}'.format(_name, location))
-        location = 'file://' + os.path.abspath(location[8:])
+        _path = os.path.abspath(_path)
+        location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
         print('{}: to abspath: {}'.format(_name, location))
     logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
