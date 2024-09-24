@@ -533,13 +533,10 @@ def _get_sources(
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         except (RootIsNotDirectory,
-                ArchivePluginNotFound):
+                ArchivePluginNotFound) as e:
             # Retry with parent directory
-            if os.path.basename(source_location) == 'Image_00021.dcm':
-                print('_get_sources: source_location:', source_location)
+            print('{}: source_location: {}, e: {}'.format(_name, source_location, e))
             source_location, filename = os.path.split(source_location)
-            if os.path.basename(source_location) == 'Image_00021.dcm':
-                print('_get_sources: source_location:', source_location, ', filename:', filename)
             logger.debug('{}: retry location {}'.format(_name, source_location))
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         for url in my_urls:
