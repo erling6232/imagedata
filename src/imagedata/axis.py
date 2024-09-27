@@ -23,6 +23,12 @@ class Axis(object, metaclass=ABCMeta):
     def __str__(self) -> str:
         return "{0.name!s}".format(self)
 
+    def __eq__(self, other):
+        if not issubclass(type(other), Axis):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.name == other.name
+
 
 class UniformAxis(Axis):
     """Define axis by giving start, stop and step (optional).
@@ -118,6 +124,10 @@ class UniformAxis(Axis):
     def __str__(self) -> str:
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+        (self.start, self.stop, self.step) == (other.start, other.stop, other.step)
+
 
 class UniformLengthAxis(UniformAxis):
     """Define axis by giving start, length and step (optional).
@@ -201,6 +211,10 @@ class UniformLengthAxis(UniformAxis):
     def __str__(self) -> str:
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            (self.start, self.n, self.step) == (other.start, other.n, other.step)
+
 
 class VariableAxis(Axis):
     """Define axis by giving an array of values.
@@ -278,3 +292,6 @@ class VariableAxis(Axis):
 
     def __str__(self) -> str:
         return "{0.name!s}: {0.values!s}".format(self)
+
+    def __eq__(self, other):
+        return super().__eq__(other) and self.values == other.values
