@@ -185,7 +185,7 @@ class IndexedDict(dict):
             raise IndexError('Bad index: {}'.format(item))
         super(IndexedDict, self).__setitem__(keys[0], val)
 
-    def __repr__(self, item = None):
+    def __repr__(self, item=None):
         if item is None:
             dictrepr = super(IndexedDict, self).__repr__()
             return '%s(%s)' % (type(self).__name__, dictrepr)

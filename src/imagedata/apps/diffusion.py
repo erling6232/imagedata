@@ -60,7 +60,6 @@ def get_g_vectors(img):
 
     _v = []
     # Extract pydicom dataset for first slice and each tag
-    _slice = 0
     _dwi_weighted = False
     for tag in range(img.shape[0]):
         _b = get_b_value(img, tag)
@@ -94,7 +93,6 @@ def get_b_value(img: Series) -> float:
     """
 
     # Extract pydicom dataset for given slice and tag
-    _slice = 0
     _ds: Dataset = img.dicomTemplate
 
     return get_ds_b_value(_ds)

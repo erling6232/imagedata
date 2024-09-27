@@ -69,7 +69,7 @@ class UniformAxis(Axis):
     def __getitem__(self, index: slice) -> UniformAxis:
         ...
 
-    def __getitem__(self, index: Union[int, slice]) ->(
+    def __getitem__(self, index: Union[int, slice]) -> (
             Union)[Number, UniformAxis, VariableAxis]:
         if type(index) is Ellipsis:
             return self

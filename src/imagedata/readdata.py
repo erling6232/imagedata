@@ -355,14 +355,10 @@ def _get_location_part(url):
         _path = url_tuple.path
     # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     # Strip off query and fragment parts
-    location = urllib.parse.urlunsplit((
-        url_tuple.scheme,
-        url_tuple.netloc,
-        _path,
-        None,
-        None))
-    if location[:8] == 'file:///' and _path[0] != '/':
-        location = 'file://' + os.path.abspath(location[8:])
+    location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
+    if url_tuple.scheme == 'file' and url[0] != '/':
+        _path = os.path.abspath(_path)
+        location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
     logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
     logger.debug('{}: path {}'.format(_name, _path))
@@ -531,7 +527,7 @@ def _get_sources(
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
         except (RootIsNotDirectory,
-                ArchivePluginNotFound):
+                ArchivePluginNotFound) as e:
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
             logger.debug('{}: retry location {}'.format(_name, source_location))
