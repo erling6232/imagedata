@@ -1,12 +1,10 @@
 """Read Siemens Syngo.VIA Basic Reading
 """
 
-# Copyright (c) 2017-2020 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2017-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import math
 import numpy as np
 import logging
-from PIL import Image, ImageDraw
 from .ROI import PolygonROI, EllipseROI
 
 logger = logging.getLogger(__name__)
@@ -81,15 +79,20 @@ def evidence2roi(im, uid_table=None, content=None):
         presentation_sq = im[seqkey]
 
     try:
-        measurement = presentation_sq[0][(0x0029, 0x10a7)]
+        measurements = presentation_sq[0][(0x0029, 0x10a7)]
     except (TypeError, KeyError):
-        logger.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
-        # return (rois, content)
-        raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
+        try:
+            p0_sq = presentation_sq[0][(0x0029, 0x10ee)]
+            measurements = p0_sq[0][(0x0029, 0x10a7)]
+        except (TypeError, KeyError):
+            logger.debug("get_rois: no measurement sequence (0x0029, 0x10a7)")
+            raise KeyError('No measurement sequence (0x0029, 0x10a7) in input data')
 
-    try:
-        findings = measurement[0][(0x0029, 0x1031)]
-    except KeyError:
+    findings = None
+    for measurement in measurements:
+        if (0x0029, 0x1031) in measurement:
+            findings = measurement[(0x0029, 0x1031)]
+    if findings is None:
         logger.error('get_rois: no findings attribute (0x0029, 0x1031) in input data')
         raise KeyError('No findings attribute (0x0029, 0x1031) in input data')
 
@@ -137,6 +140,9 @@ def evidence2roi(im, uid_table=None, content=None):
             polygon = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
             rois.append(PolygonROI(polygon, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
             logger.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
+        elif roi_type_value == 'MarkerApplication3D':
+            # marker = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
+            logger.warning("MarkerApplication3D ROI not implemented.")
         elif roi_type_value == 'EllipseApplication3D':
             # Ellipsis centre
             centre = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
