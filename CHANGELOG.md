@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.7.0-rc1] - 2024-09-30
+## [v3.7.0-rc2] - 2024-09-30
 * Series: timeline from time axis, not from tags.
 * Series: implement __array_function__ and a number of NumPy functions
   on Series instances.
