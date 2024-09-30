@@ -19,7 +19,7 @@ from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
 
-from .axis import UniformAxis, UniformLengthAxis  # , VariableAxis
+from .axis import UniformAxis, UniformLengthAxis , VariableAxis
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
 from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
@@ -30,6 +30,18 @@ from .header import Header
 #                        __mul__, __imul__, __rmul__, __rmatmul__, __matmul__, __truediv__, rint)
 
 logger = logging.getLogger(__name__)
+
+HANDLED_FUNCTIONS = {}  # Functions handled by __array_function__()
+
+
+def implements(numpy_function):
+    """Register an __array_function__ implementation for Series objects."""
+
+    def decorator(func):
+        HANDLED_FUNCTIONS[numpy_function] = func
+        return func
+
+    return decorator
 
 
 class DoNotSetSlicesError(Exception):
@@ -395,6 +407,15 @@ class Series(np.ndarray):
         #         results[0].header.windowWidth = _width
         #
         # return results[0] if len(results) == 1 else results
+
+    def __array_function__(self, func, types, args, kwargs):
+        if func not in HANDLED_FUNCTIONS:
+            return NotImplemented
+        # Note: this allows subclasses that don't override
+        # __array_function__ to handle Series objects
+        if not all(issubclass(t, Series) for t in types):
+            return NotImplemented
+        return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
     @staticmethod
     def _unify_headers(inputs: tuple) -> Header:
@@ -2191,9 +2212,10 @@ class Series(np.ndarray):
             ValueError: tags for dataset is not time tags
         """
         if self.input_order == INPUT_ORDER_TIME:
+            time_axis = self.find_axis('time')
             timeline = [0.0]
-            for t in range(1, len(self.tags[0])):
-                timeline.append(self.tags[0][t] - self.tags[0][0])
+            for t in range(1, len(time_axis.values)):
+                timeline.append(time_axis.values[t] - time_axis.values[0])
             return np.array(timeline)
         else:
             raise ValueError("No timeline tags are available. Input order: {}".format(
@@ -2661,7 +2683,6 @@ class Series(np.ndarray):
             return False
 
         def _float_to_rgb_series(im):
-            im = np.rint(im)
             im8 = np.empty(
                 im['R'].shape,
                 dtype=np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
@@ -2749,7 +2770,7 @@ class Series(np.ndarray):
                 img[_color] = (1.0 - alpha) * overlay[_color] + alpha * background[_color]
             else:
                 img[_color] = (1.0 - alpha) * overlay[_color] + background[_color]
-            img[_color] = np.clip(img[_color], 0, 1)
+            img[_color] = np.clip(img[_color], a_min=0, a_max=1)
             img[_color] *= 255
 
         img = _float_to_rgb_series(img)
@@ -3068,3 +3089,190 @@ class Series(np.ndarray):
                         vertices[_tag, _slice] = contour
 
         return vertices
+
+
+# -----------------------------------------------------------------------------
+#
+# Implementations of NumPy functions on Series instances
+#
+# -----------------------------------------------------------------------------
+
+
+def implements(numpy_function):
+    """Register an __array_function__ implementation for Series objects."""
+
+    def decorator(func):
+        HANDLED_FUNCTIONS[numpy_function] = func
+        return func
+
+    return decorator
+
+
+def _delegate_to_numpy(func, arrays, **kwargs):
+    if issubclass(type(arrays), tuple):
+        arr0 = arrays[0]
+        ndarrays = [arr0.view(np.ndarray)]
+        for arr in arrays[1:]:
+            ndarrays.append(arr.view(np.ndarray))
+    else:
+        arr0 = arrays
+        ndarrays = [arr0.view(np.ndarray)]
+
+    # Delegate function to numpy
+    s = func(ndarrays, **kwargs)
+    # View concatenated ndarray as Series object
+    obj = s.view(Series)
+    obj.header = copy.copy(arr0.header)
+
+    return obj
+
+def _delegate_args_to_numpy(func, *arrays, **kwargs):
+    series_template = None
+    a = []
+    for item in arrays:
+        if issubclass(type(item), Series):
+            a.append(item.view(np.ndarray))
+            series_template = item
+        else:
+            a.append(item)
+
+    # Delegate function to numpy
+    s = func(*a, **kwargs)
+    if series_template is not None and issubclass(type(s), np.ndarray):
+        # View concatenated ndarray as Series object
+        obj = s.view(Series)
+        obj.header = copy.copy(series_template.header)
+        return obj
+    return s
+
+def _delegate_a_to_numpy(func, a, **kwargs):
+    """Delegate function on single array to NumPy."""
+    if issubclass(type(a), Series) and a.dtype.fields is not None:
+        return _delegate_struct_to_numpy(func, a, **kwargs)
+    else:
+        ndarray = a.view(np.ndarray)
+        s = func(ndarray, **kwargs)
+        if issubclass(type(s), np.ndarray):
+            obj = s.view(Series)
+            obj.header = copy.copy(a.header)
+        else:
+            obj = s
+    return obj
+
+
+def _delegate_struct_to_numpy(func, a, **kwargs):
+    field_names = a.dtype.names
+    obj = {}
+    for field in field_names:
+        ndarray = a[field].view(np.ndarray)
+        s = func(ndarray, **kwargs)
+        if issubclass(type(s), np.ndarray):
+            obj[field] = s.view(Series)
+            obj[field].header = copy.copy(a.header)
+        else:
+            obj[field] = s
+    if np.isscalar(obj[field_names[0]]):
+        _list = []
+        for field in field_names:
+            _list.append(obj[field])
+        return tuple(_list)
+    return a.to_channels(
+        [obj[field] for field in field_names],
+        field_names
+    )
+
+def _delegate_a_to_numpy_out(func, a, **kwargs):
+    """Delegate function on single array to NumPy.
+    Return NumPy output unmodified."""
+    ndarray = a.view(np.ndarray)
+    return func(ndarray, **kwargs)
+
+@implements(np.minimum)
+def _minimum(a, **kwargs):
+    return _delegate_a_to_numpy(np.minimum, a, **kwargs)
+
+@implements(np.maximum)
+def _maximum(a, **kwargs):
+    return _delegate_a_to_numpy(np.maximum, a, **kwargs)
+
+@implements(np.min)
+def _min(a, **kwargs):
+    return _delegate_a_to_numpy(np.min, a, **kwargs)
+
+@implements(np.nanmin)
+def _min(a, **kwargs):
+    return _delegate_a_to_numpy(np.nanmin, a, **kwargs)
+
+@implements(np.max)
+def _max(a, **kwargs):
+    return _delegate_a_to_numpy(np.max, a, **kwargs)
+
+@implements(np.nanmax)
+def _max(a, **kwargs):
+    return _delegate_a_to_numpy(np.nanmax, a, **kwargs)
+
+@implements(np.nan_to_num)
+def _nan_to_num(a, **kwargs):
+    return _delegate_a_to_numpy(np.nan_to_num, a, **kwargs)
+@implements(np.min_scalar_type)
+def _min_scalar_type(a):
+    return _delegate_a_to_numpy(np.min_scalar_type, a)
+
+@implements(np.result_type)
+def _result_type(*a, **kwargs):
+    return _delegate_args_to_numpy(np.result_type, *a, **kwargs)
+
+@implements(np.rint)
+def _rint(a, **kwargs):
+    print('_rint: a:', type(a))
+    return _delegate_a_to_numpy(np.rint, a, **kwargs)
+
+@implements(np.zeros_like)
+def _zeros_like(a, **kwargs):
+    return _delegate_a_to_numpy(np.zeros_like, a, **kwargs)
+
+@implements(np.empty_like)
+def _empty_like(a, **kwargs):
+    return _delegate_a_to_numpy(np.empty_like, a, **kwargs)
+
+@implements(np.sum)
+def _sum(a, **kwargs):
+    return _delegate_a_to_numpy(np.sum, a, **kwargs)
+
+@implements(np.mean)
+def _mean(a, **kwargs):
+    return _delegate_a_to_numpy(np.mean, a, **kwargs)
+
+@implements(np.clip)
+def _clip(a, **kwargs):
+    return _delegate_a_to_numpy(np.clip, a, **kwargs)
+
+@implements(np.count_nonzero)
+def _count_nonzero(a, **kwargs):
+    return _delegate_a_to_numpy(np.count_nonzero, a, **kwargs)
+
+@implements(np.concatenate)
+def concatenate(arrays, axis=0, out=None):
+    # implementation of concatenate for Series objects
+    # Compare axes, except for concatenation axis
+    arr0 = arrays[0]
+    ndarrays = [arr0.view(np.ndarray)]
+    for arr in arrays[1:]:
+        ndarrays.append(arr.view(np.ndarray))
+        for i, axs in enumerate(zip(arr0.axes, arr.axes)):
+            if i == axis:
+                continue  # Skip concatenation axis
+            if axs[0] != axs[1]:
+                return ValueError('Axis {} {} differ'.format(i, axs[0].name))
+
+    # Concatenate the ndarrays
+    s = np.concatenate(ndarrays, axis=axis, out=out)
+    # View concatenated ndarray as Series object
+    obj = s.view(Series)
+    obj.header = copy.copy(arr0.header)
+
+    # Concatenate axes
+    obj.axes[axis] = arrays[0].axes[axis].copy()
+    for arr in arrays[1:]:
+        obj.axes[axis].append(arr.axes[axis])
+    return obj

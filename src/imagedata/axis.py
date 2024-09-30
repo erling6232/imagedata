@@ -23,6 +23,16 @@ class Axis(object, metaclass=ABCMeta):
     def __str__(self) -> str:
         return "{0.name!s}".format(self)
 
+    def __eq__(self, other):
+        if not issubclass(type(other), Axis):
+            # don't attempt to compare against unrelated types
+            return NotImplemented
+        return self.name == other.name
+
+    def append(self, axis: Axis):
+        """Append another axis"""
+        pass
+
 
 class UniformAxis(Axis):
     """Define axis by giving start, stop and step (optional).
@@ -118,6 +128,20 @@ class UniformAxis(Axis):
     def __str__(self) -> str:
         return "{0.name!s}: {0.start!s}:{0.stop!s}:{0.step!s}".format(self)
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+        (self.start, self.stop, self.step) == (other.start, other.stop, other.step)
+
+    def append(self, axis: Axis):
+        """Append another axis"""
+        assert self.name == axis.name, 'Cannot append axis "{}" to "{}"'.format(
+            axis.name, self.name
+        )
+        assert self.step == axis.step, 'Cannot append axis "{}" with step {} to step {}'.format(
+            axis.name, axis.step, self.step
+        )
+        self.stop += len(axis) * self.step
+
 
 class UniformLengthAxis(UniformAxis):
     """Define axis by giving start, length and step (optional).
@@ -201,6 +225,20 @@ class UniformLengthAxis(UniformAxis):
     def __str__(self) -> str:
         return "{0.name!s}: {0.n!s}*({0.start!s}:{0.step!s})".format(self)
 
+    def __eq__(self, other):
+        return super().__eq__(other) and \
+            (self.start, self.n, self.step) == (other.start, other.n, other.step)
+
+    def append(self, axis: Axis):
+        """Append another axis"""
+        assert self.name == axis.name, 'Cannot append axis "{}" to "{}"'.format(
+            axis.name, self.name
+        )
+        assert self.step == axis.step, 'Cannot append axis "{}" with step {} to step {}'.format(
+            axis.name, axis.step, self.step
+        )
+        self.n += len(axis)
+
 
 class VariableAxis(Axis):
     """Define axis by giving an array of values.
@@ -235,7 +273,7 @@ class VariableAxis(Axis):
         """Return a copy of the axis, where the length n can be different."""
         name = self.name if name is None else name
         n = len(self.values) if n is None else n
-        return VariableAxis(name, self.values[:n])
+        return VariableAxis(name, np.array(self.values[:n]))
 
     @overload
     def __getitem__(self, index: int) -> Number:
@@ -278,3 +316,15 @@ class VariableAxis(Axis):
 
     def __str__(self) -> str:
         return "{0.name!s}: {0.values!s}".format(self)
+
+    def __eq__(self, other):
+        return super().__eq__(other) and self.values == other.values
+
+    def append(self, axis: Axis):
+        """Append another axis"""
+        assert self.name == axis.name, 'Cannot append axis "{}" to "{}"'.format(
+            axis.name, self.name
+        )
+        values = self.values.tolist()
+        values.extend(axis.values)
+        self.values = np.array(values)
