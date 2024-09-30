@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.0-dev9] - 2024-09-30
+* Series: timeline from time axis, not from tags.
+* Series: implement __array_function__ and a number of NumPy functions
+  on Series instances.
+* Series.concatenate() to concatenate a number of images along specified axis.
+
 ## [v3.7.0-dev8] - 2024-09-27
 * readdata._get_location_part(): Modified behaviour to detect local file url. 
   urllib.parse.urlunparse was changed in 3.12.6.
