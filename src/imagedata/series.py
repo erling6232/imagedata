@@ -3294,8 +3294,9 @@ def concatenate(arrays, axis=0, out=None):
     # Concatenate tags
     if obj.axes[axis].name == 'slice':
         for arr in arrays[1:]:
-            for _slice in range(obj.slices, obj.slices+arr.slices):
+            for _slice in range(len(obj.tags), len(obj.tags)+arr.slices):
                 obj.tags[_slice] = obj.tags[0]
+            obj.sliceLocations = np.append(obj.sliceLocations, arr.sliceLocations)
     elif obj.axes[axis].name in ('row', 'column'):
         pass
     else:
