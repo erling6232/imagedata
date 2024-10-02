@@ -323,7 +323,7 @@ class VariableAxis(Axis):
         return "{0.name!s}: {0._values!s}".format(self)
 
     def __eq__(self, other):
-        return super().__eq__(other) and self._values == other._values
+        return super().__eq__(other) and (self._values == other._values).all()
 
     def append(self, axis: Axis):
         """Append another axis"""
