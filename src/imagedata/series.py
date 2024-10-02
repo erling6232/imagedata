@@ -716,8 +716,10 @@ class Series(np.ndarray):
             tags = len(self.tags[0])
         except ValueError:
             return None
-        slice_spec = slice(0, self.slices, 1)
-        tag_spec = slice(0, tags, 1)
+        # slice_spec = slice(0, self.slices, 1)
+        # tag_spec = slice(0, tags, 1)
+        slice_spec = [_ for _ in range(0, self.slices, 1)]
+        tag_spec = [_ for _ in range(0, tags, 1)]
         for d in specs:
             try:
                 start, stop, step, axis = specs[d]
