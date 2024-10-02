@@ -1067,6 +1067,18 @@ class Series(np.ndarray):
         except AttributeError:
             pass
         return None
+        # TODO
+        if self.axes[0].name in ('slice', 'row', 'column'):
+            return {0: np.array(0)}
+        try:
+            values = self.axes[0].values
+            tags = {}
+            for _slice in range(self.slices):
+                tags[_slice] = np.array(values)
+            return tags
+        except AttributeError:
+            pass
+        return None
 
     @tags.setter
     def tags(self, tags):
@@ -2208,34 +2220,35 @@ class Series(np.ndarray):
         """numpy.array: Timeline in seconds, as numpy array of floats.
 
         Delta time is given as seconds. First image is t=0.
-        Length of array is number of tags.
+        Length of array is length of time axis.
 
         Raises:
-            ValueError: tags for dataset is not time tags
+            ValueError: when there is no time axis
         """
-        if self.input_order == INPUT_ORDER_TIME:
+        try:
             time_axis = self.find_axis('time')
             timeline = [0.0]
             for t in range(1, len(time_axis.values)):
                 timeline.append(time_axis.values[t] - time_axis.values[0])
             return np.array(timeline)
-        else:
-            raise ValueError("No timeline tags are available. Input order: {}".format(
+        except ValueError:
+            raise ValueError("No time axis is defined. Input order: {}".format(
                 self.input_order))
 
     @property
     def bvalues(self):
         """numpy.array: b-values in s/mm2, as numpy array of floats.
 
-        Length of array is number of tags.
+        Length of array is length of b axis.
 
         Raises:
-            ValueError: tags for dataset is not b tags
+            ValueError: when there is no diffusion (b) axis
         """
-        if self.input_order == INPUT_ORDER_B:
-            return np.array(self.tags[0])
-        else:
-            raise ValueError("No b-value tags are available. Input order: {}".format(
+        try:
+            diff_axis = self.find_axis('b')
+            return np.array(diff_axis.values)
+        except ValueError:
+            raise ValueError("No b-value axis is defined. Input order: {}".format(
                 self.input_order))
 
     def getDicomAttribute(self, keyword):
@@ -3277,4 +3290,16 @@ def concatenate(arrays, axis=0, out=None):
     obj.axes[axis] = arrays[0].axes[axis].copy()
     for arr in arrays[1:]:
         obj.axes[axis].append(arr.axes[axis])
+
+    # Concatenate tags
+    if obj.axes[axis].name == 'slice':
+        for arr in arrays[1:]:
+            for _slice in range(obj.slices, obj.slices+arr.slices):
+                obj.tags[_slice] = obj.tags[0]
+    elif obj.axes[axis].name in ('row', 'column'):
+        pass
+    else:
+        for _slice in range(obj.slices):
+            for arr in arrays[1:]:
+                obj.tags[_slice] = np.append(obj.tags[_slice], arr.tags[_slice])
     return obj
