@@ -46,9 +46,82 @@ class TestSeriesUfunc(unittest.TestCase):
         tc = c.axes[0]
         self.assertEqual(6, len(tl))
         np.testing.assert_array_almost_equal(tc,
-                                             np.concatenate((si0.axes[0].values, si1.axes[0]. values)))
+                                             np.concatenate(
+                                                 (si0.axes[0].values, si1.axes[0].values))
+                                             )
         with tempfile.TemporaryDirectory() as d:
             c.write(d)
+            s = Series(d)
+        self.assertEqual(s.shape, (si0.shape[0] + si1.shape[0],
+                                   si0.shape[1], si0.shape[2], si0.shape[3])
+                         )
+
+    def test_concatenate_slices(self):
+        # Original series
+        si0 = Series('data/dicom/time/')
+        # Construct series with shifted slice positions
+        si1 = Series('data/dicom/time/')
+        sloc = si1.sliceLocations
+        ds = sloc[1] - sloc[0]
+        sloc1 = sloc[-1] + ds
+        add_loc = sloc1 - sloc[0]
+        si1.sliceLocations += add_loc
+        si1.axes[1].start += add_loc
+
+        c = np.concatenate((si0, si1), axis=1)
+        self.assertEqual(c.shape, (si0.shape[0],
+                                   si0.shape[1] + si1.shape[1],
+                                   si0.shape[2], si0.shape[3])
+                         )
+        with tempfile.TemporaryDirectory() as d:
+            c.write(d)
+            s = Series(d)
+        self.assertEqual(s.shape, (si0.shape[0],
+                                   si0.shape[1] + si1.shape[1],
+                                   si0.shape[2], si0.shape[3])
+                         )
+
+    def test_concatenate_rows(self):
+        # Original series
+        si0 = Series('data/dicom/time/')
+        # Construct series with shifted slice positions
+        si1 = Series('data/dicom/time/')
+
+        c = np.concatenate((si0, si1), axis=2)
+        self.assertEqual(c.shape, (si0.shape[0],
+                                   si0.shape[1],
+                                   si0.shape[2] + si1.shape[2],
+                                   si0.shape[3])
+                         )
+        with tempfile.TemporaryDirectory() as d:
+            c.write(d)
+            s = Series(d)
+        self.assertEqual(s.shape, (si0.shape[0],
+                                   si0.shape[1],
+                                   si0.shape[2] + si1.shape[2],
+                                   si0.shape[3])
+                         )
+
+    def test_concatenate_columns(self):
+        # Original series
+        si0 = Series('data/dicom/time/')
+        # Construct series with shifted slice positions
+        si1 = Series('data/dicom/time/')
+
+        c = np.concatenate((si0, si1), axis=3)
+        self.assertEqual(c.shape, (si0.shape[0],
+                                   si0.shape[1],
+                                   si0.shape[2],
+                                   si0.shape[3] + si1.shape[3])
+                         )
+        with tempfile.TemporaryDirectory() as d:
+            c.write(d)
+            s = Series(d)
+        self.assertEqual(s.shape, (si0.shape[0],
+                                   si0.shape[1],
+                                   si0.shape[2],
+                                   si0.shape[3] + si1.shape[3])
+                         )
 
 
 
