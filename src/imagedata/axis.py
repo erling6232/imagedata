@@ -33,6 +33,11 @@ class Axis(object, metaclass=ABCMeta):
         """Append another axis"""
         pass
 
+    @property
+    def values(self):
+        """Get all axis values as list"""
+        return [_ for _ in self]
+
 
 class UniformAxis(Axis):
     """Define axis by giving start, stop and step (optional).
@@ -247,12 +252,12 @@ class VariableAxis(Axis):
     Examples:
         >>> ax = VariableAxis('time', [0, 1, 4, 9, 11, 13])
     """
-    values: np.ndarray
+    _values: np.ndarray
     step: float
 
     def __init__(self, name: str, values: Sequence) -> None:
         super(VariableAxis, self).__init__(name)
-        self.values = np.array(values)
+        self._values = np.array(values)
         if len(values) < 2:
             self.step = 1
         elif not isinstance(values[0], numbers.Number):
@@ -272,8 +277,8 @@ class VariableAxis(Axis):
              ) -> VariableAxis:
         """Return a copy of the axis, where the length n can be different."""
         name = self.name if name is None else name
-        n = len(self.values) if n is None else n
-        return VariableAxis(name, np.array(self.values[:n]))
+        n = len(self._values) if n is None else n
+        return VariableAxis(name, np.array(self._values[:n]))
 
     @overload
     def __getitem__(self, index: int) -> Number:
@@ -291,40 +296,40 @@ class VariableAxis(Axis):
             return self
         elif isinstance(index, slice):
             start = index.start or 0
-            stop = index.stop or len(self.values)
-            stop = min(len(self.values), stop)
+            stop = index.stop or len(self._values)
+            stop = min(len(self._values), stop)
             step = index.step or 1
-            return VariableAxis(self.name, self.values[start:stop:step])
+            return VariableAxis(self.name, self._values[start:stop:step])
         elif isinstance(index, int):
-            return self.values[index]
+            return self._values[index]
         elif type(index) in (list, tuple):
-            return VariableAxis(self.name, self.values[index])
+            return VariableAxis(self.name, self._values[index])
         else:
             raise ValueError('Cannot slice axis with {}'.format(type(index)))
 
     def __len__(self) -> int:
-        return len(self.values)
+        return len(self._values)
 
     def __next__(self) -> Number:
-        for _ in self.values:
+        for _ in self._values:
             yield _
 
     def __repr__(self) -> str:
-        return "{0}({1.name!s},{1.values!r})".format(
+        return "{0}({1.name!s},{1._values!r})".format(
             self.__class__.__name__, self
         )
 
     def __str__(self) -> str:
-        return "{0.name!s}: {0.values!s}".format(self)
+        return "{0.name!s}: {0._values!s}".format(self)
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.values == other.values
+        return super().__eq__(other) and self._values == other._values
 
     def append(self, axis: Axis):
         """Append another axis"""
         assert self.name == axis.name, 'Cannot append axis "{}" to "{}"'.format(
             axis.name, self.name
         )
-        values = self.values.tolist()
-        values.extend(axis.values)
-        self.values = np.array(values)
+        values = self._values.tolist()
+        values.extend(axis._values)
+        self._values = np.array(values)
