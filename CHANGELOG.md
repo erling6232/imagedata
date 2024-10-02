@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.0-rc3] - 2024-10-02
+* Series: Let __array_function__ call numpy for functions we do not implement.
+  This will possibly return an ndarray instance, not a Series instance.
+* Axis: Added property `values` which will give all axis values.
+* DICOMPlugin.write_slice(): Added parameter tag_value which gives the tag value
+  instead of relying on tags property.
+* Series.concatenate(): Corrected behaviour.
+
 ## [v3.7.0-rc2] - 2024-09-30
 * Series: timeline from time axis, not from tags.
 * Series: implement __array_function__ and a number of NumPy functions
