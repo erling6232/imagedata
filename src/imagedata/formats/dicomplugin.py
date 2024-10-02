@@ -1413,7 +1413,7 @@ class DICOMPlugin(AbstractPlugin):
                     timesteps.min(), timesteps.max()))
         return timesteps.max()
 
-    def write_3d_numpy(self, si, destination, opts):
+    def write_3d_numpy(self, si: Series, destination, opts):
         """Write 3D Series image as DICOM files
 
         Args:
@@ -1487,7 +1487,7 @@ class DICOMPlugin(AbstractPlugin):
                         traceback.print_exc(file=sys.stdout)
                         raise
 
-    def write_4d_numpy(self, si, destination, opts):
+    def write_4d_numpy(self, si: Series, destination, opts):
         """Write 4D Series image as DICOM files
 
         si.series_number is inserted into each dicom object
@@ -1528,6 +1528,7 @@ class DICOMPlugin(AbstractPlugin):
         assert si.ndim == 4, "write_4d_series: input dimension %d is not 4D." % si.ndim
 
         steps = si.shape[0]
+        axis = si.find_axis(si.input_order)
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
@@ -1578,7 +1579,9 @@ class DICOMPlugin(AbstractPlugin):
                         ifile = 0
                     try:
                         self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
-                                         destination, ifile, sop_ins_uid=sop_ins_uid)
+                                         destination, ifile,
+                                         tag_value=axis.values[tag],
+                                         sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
@@ -1614,7 +1617,9 @@ class DICOMPlugin(AbstractPlugin):
                         ifile = 0
                     try:
                         self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
-                                         destination, ifile, sop_ins_uid=sop_ins_uid)
+                                         destination, ifile,
+                                         tag_value=axis.values[tag],
+                                         sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
@@ -1757,6 +1762,7 @@ class DICOMPlugin(AbstractPlugin):
 
     # noinspection PyPep8Naming,PyArgumentList
     def write_slice(self, input_order, tag, si, destination, ifile,
+                    tag_value=None,
                     sop_ins_uid=None):
         """Write single slice to DICOM file
 
@@ -1769,7 +1775,6 @@ class DICOMPlugin(AbstractPlugin):
             -   sliceLocations
             -   dicomTemplate
             -   dicomToDo
-            -   tags (not used)
             -   seriesNumber
             -   seriesDescription
             -   imageType
@@ -1781,6 +1786,8 @@ class DICOMPlugin(AbstractPlugin):
 
             destination: destination object
             ifile: instance number in series
+            tag_value: set tag value
+            sop_ins_uid: set SOP Instance UID
         """
 
         _name: str = '{}.{}'.format(__name__, self.write_slice.__name__)
@@ -1908,7 +1915,8 @@ class DICOMPlugin(AbstractPlugin):
 
         # Set tag
         # si will always have only the present tag
-        self._set_dicom_tag(ds, input_order, si.tags[0][0])
+        # self._set_dicom_tag(ds, input_order, si.tags[0][0])
+        self._set_dicom_tag(ds, input_order, tag_value)
 
         logger.debug("{}: filename {}".format(_name, filename))
         if archive.transport.name == 'dicom':
