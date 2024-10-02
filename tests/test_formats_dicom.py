@@ -222,7 +222,7 @@ class TestDicomPlugin(unittest.TestCase):
             self.opts)
         self.assertEqual('dicom', si1.input_format)
         del si1.dicomTemplate.SliceLocation
-        si1.axes[0].values = None
+        si1.axes[0]._values = None
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'], opts={'keep_uid': True})
 
