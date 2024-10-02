@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.0-rc4] - 2024-10-02
+* Series.__get_tags(): Corrected looping over slice objects.
+
 ## [v3.7.0-rc3] - 2024-10-02
 * Series: Let __array_function__ call numpy for functions we do not implement.
   This will possibly return an ndarray instance, not a Series instance.
