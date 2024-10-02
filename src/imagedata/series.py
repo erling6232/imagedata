@@ -410,7 +410,9 @@ class Series(np.ndarray):
 
     def __array_function__(self, func, types, args, kwargs):
         if func not in HANDLED_FUNCTIONS:
-            return NotImplemented
+            # Let NumPy handle the function, possibly returning an NdArray, not Series
+            return super().__array_function__(func, types, args, kwargs)
+            # return NotImplemented
         # Note: this allows subclasses that don't override
         # __array_function__ to handle Series objects
         if not all(issubclass(t, Series) for t in types):

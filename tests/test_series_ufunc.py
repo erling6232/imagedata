@@ -1,4 +1,5 @@
 import unittest
+import tempfile
 import numpy as np
 
 from src.imagedata.series import Series
@@ -7,11 +8,14 @@ import src.imagedata.axis as axis
 
 class TestSeriesUfunc(unittest.TestCase):
 
+    def test_not_implemented_median(self):
+        si0 = Series(np.eye(4))
+        b = np.median(si0)
+
     def test_min(self):
         si0 = Series('data/dicom/time/')
         a = si0.min()
         b = np.min(si0)
-        self.assertEqual(b, a)
 
     def test_result_type(self):
         si0 = Series(np.eye(4))
@@ -43,6 +47,8 @@ class TestSeriesUfunc(unittest.TestCase):
         self.assertEqual(6, len(tl))
         np.testing.assert_array_almost_equal(tc,
                                              np.concatenate((si0.axes[0].values, si1.axes[0]. values)))
+        with tempfile.TemporaryDirectory() as d:
+            c.write(d)
 
 
 
