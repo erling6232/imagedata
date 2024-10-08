@@ -6,6 +6,7 @@
 import os
 import logging
 import mimetypes
+from collections import namedtuple
 import itk
 import numpy as np
 from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, \
@@ -211,54 +212,53 @@ class ITKPlugin(AbstractPlugin):
                                     iop[5], iop[4], iop[3]))
 
         # Set tags
-        axes = list()
         _actual_shape = si.shape
-        # _color = False
-        # if hdr.color:
-        #     _actual_shape = si.shape[:-1]
-        #     _color = True
-        #     logger.debug('ITKPlugin.read: color')
         _actual_ndim = len(_actual_shape)
         nt = nz = 1
-        axes.append(UniformLengthAxis(
+        row_axis = UniformLengthAxis(
             'row',
             hdr.imagePositions[0][1],
             _actual_shape[-2],
-            hdr.spacing[1])
+            hdr.spacing[1]
         )
-        axes.append(UniformLengthAxis(
+        column_axis = UniformLengthAxis(
             'column',
             hdr.imagePositions[0][2],
             _actual_shape[-1],
-            hdr.spacing[2])
+            hdr.spacing[2]
         )
         if _actual_ndim > 2:
             nz = _actual_shape[-3]
-            axes.insert(0, UniformLengthAxis(
+            slice_axis = UniformLengthAxis(
                 'slice',
                 hdr.imagePositions[0][0],
                 nz,
-                hdr.spacing[0])
+                hdr.spacing[0]
             )
-        if _actual_ndim > 3:
-            nt = _actual_shape[-4]
-            axes.insert(0, UniformLengthAxis(
-                input_order_to_dirname_str(hdr.input_order),
-                0,
-                nt,
-                dt)
-            )
+            if _actual_ndim > 3:
+                nt = _actual_shape[-4]
+                tag_axis = UniformLengthAxis(
+                    input_order_to_dirname_str(hdr.input_order),
+                    0,
+                    nt,
+                    dt
+                )
+                Axes = namedtuple('Axes', [
+                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                ])
+                axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
+            else:
+                Axes = namedtuple('Axes', [
+                    'slice', 'row', 'column'
+                ])
+                axes = Axes(slice_axis, row_axis, column_axis)
+        else:
+            Axes = namedtuple('Axes', ['row', 'column'])
+            axes = Axes(row_axis, column_axis)
         times = np.arange(0, nt * dt, dt)
         tags = {}
         for _slice in range(nz):
             tags[_slice] = np.array(times)
-        # if _color:
-        #     axes.append(
-        #         VariableAxis(
-        #             'rgb',
-        #             ['r', 'g', 'b']
-        #         )
-        #     )
         hdr.axes = axes
         hdr.tags = tags
 

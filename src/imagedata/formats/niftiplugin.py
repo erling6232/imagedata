@@ -6,6 +6,7 @@
 import os
 import logging
 import mimetypes
+from collections import namedtuple
 import math
 import nibabel
 import nibabel.data
@@ -279,33 +280,44 @@ class NiftiPlugin(AbstractPlugin):
             tags[z] = np.array(times)
         hdr.tags = tags
 
-        axes = list()
-        if si.ndim > 3:
-            axes.append(UniformLengthAxis(
-                input_order_to_dirname_str(hdr.input_order),
-                0,
-                nt,
-                dt)
-            )
-        if si.ndim > 2:
-            axes.append(UniformLengthAxis(
-                'slice',
-                0,
-                nz,
-                dz)
-            )
-        axes.append(UniformLengthAxis(
+        row_axis = UniformLengthAxis(
             'row',
             0,
             ny,
-            dy)
+            dy
         )
-        axes.append(UniformLengthAxis(
+        column_axis = UniformLengthAxis(
             'column',
             0,
             nx,
-            dx)
+            dx
         )
+        if si.ndim > 2:
+            slice_axis = UniformLengthAxis(
+                'slice',
+                0,
+                nz,
+                dz
+            )
+            if si.ndim > 3:
+                tag_axis = UniformLengthAxis(
+                    input_order_to_dirname_str(hdr.input_order),
+                    0,
+                    nt,
+                    dt
+                )
+                Axes = namedtuple('Axes', [
+                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                ])
+                axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
+            else:
+                Axes = namedtuple('Axes', [
+                    'slice', 'row', 'column'
+                ])
+                axes = Axes(slice_axis, row_axis, column_axis)
+        else:
+            Axes = namedtuple('Axes', ['row', 'column'])
+            axes = Axes(row_axis, column_axis)
         hdr.axes = axes
 
         hdr.photometricInterpretation = 'MONOCHROME2'

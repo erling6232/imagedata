@@ -6,6 +6,7 @@
 import logging
 import numpy as np
 import mimetypes
+from collections import namedtuple
 import scipy
 import scipy.io
 from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, \
@@ -133,33 +134,44 @@ class MatPlugin(AbstractPlugin):
         # Set spacing
         hdr.spacing = (1.0, 1.0, 1.0)
 
-        axes = list()
-        axes.append(UniformLengthAxis(
+        row_axis = UniformLengthAxis(
             'row',
             0,
-            si.shape[-2])
+            si.shape[-2]
         )
-        axes.append(UniformLengthAxis(
+        column_axis = UniformLengthAxis(
             'column',
             0,
-            si.shape[-1])
+            si.shape[-1]
         )
         # Set tags
         nt = nz = 1
         if si.ndim > 2:
             nz = si.shape[-3]
-            axes.insert(0, UniformLengthAxis(
+            slice_axis = UniformLengthAxis(
                 'slice',
                 0,
-                nz)
+                nz
             )
-        if si.ndim > 3:
-            nt = si.shape[-4]
-            axes.insert(0, UniformLengthAxis(
-                input_order_to_dirname_str(hdr.input_order),
-                0,
-                nt)
-            )
+            if si.ndim > 3:
+                nt = si.shape[-4]
+                tag_axis = UniformLengthAxis(
+                    input_order_to_dirname_str(hdr.input_order),
+                    0,
+                    nt
+                )
+                Axes = namedtuple('Axes', [
+                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                ])
+                axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
+            else:
+                Axes = namedtuple('Axes', [
+                    'slice', 'row', 'column'
+                ])
+                axes = Axes(slice_axis, row_axis, column_axis)
+        else:
+            Axes = namedtuple('Axes', ['row', 'column'])
+            axes = Axes(row_axis, column_axis)
         hdr.axes = axes
         logger.debug('{}: nt {}, nz {}'.format(_name, nt, nz))
         dt = 1
