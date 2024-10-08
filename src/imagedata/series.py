@@ -13,13 +13,14 @@ from typing import Tuple
 import copy
 import numbers
 import argparse
+from collections import namedtuple
 import numpy as np
 import logging
 from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
 
-from .axis import UniformAxis, UniformLengthAxis , VariableAxis
+from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
 from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
@@ -90,7 +91,7 @@ class Series(np.ndarray):
         dtype (numpy.dtype): Numpy data type. Default: float.
         template (Series, array_like or URL): Input data to use as template for DICOM header.
         geometry (Series, array_like or URL): Input data to use as template for geometry.
-        axes (list of Axis): Set axes for new instance.
+        axes (namedtuple or iterable of Axis): Set axes for new instance.
         order: Row-major (C-style) or column-major (Fortran-style) order, {'C', 'F'}, optional
 
     Returns:
@@ -123,6 +124,8 @@ class Series(np.ndarray):
         if 'input_options' in opts:
             for key, value in opts['input_options'].items():
                 opts[key] = value
+        if axes is not None and type(axes) != 'Axes':
+            axes = to_namedtuple(axes)
 
         if issubclass(type(template), Series):
             template = template.header
@@ -140,6 +143,18 @@ class Series(np.ndarray):
                 obj.header.input_order = 'none'
             else:
                 obj.header.input_order = input_order
+            if obj.header.input_order != 'none':
+                try:
+                    getattr(obj.header.axes, input_order)
+                except AttributeError:
+                    # Set first axis from input_order
+                    _fields = list(obj.header.axes._fields)
+                    _fields[0] = obj.header.input_order
+                    _values = list(obj.header.axes)
+                    _values[0].name = obj.header.input_order
+                    Axes = namedtuple('Axes', _fields)
+                    obj.header.axes = Axes._make(_values)
+
 
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
@@ -176,7 +191,8 @@ class Series(np.ndarray):
                 obj.header.input_order = input_order
             obj.header.input_format = type(data)
             if np.ndim(data) == 0:
-                obj.header.axes = [UniformAxis('number', 0, 1)]
+                Axes = namedtuple('Axes', 'number')
+                obj.header.axes = Axes(UniformAxis('number', 0, 1))
             obj.header.set_default_values(obj.axes if axes is None else axes)
             obj.header.add_template(template)
             obj.header.add_geometry(geometry)
@@ -570,15 +586,18 @@ class Series(np.ndarray):
         if slicing:
             # Here we slice the header information
             new_axes = []
+            new_axes_names = []
             for i in range(self.ndim):
                 # Slice dimension i
                 try:
                     start, stop, step, axis = spec[i]
                     _slice = slice(start, stop, step)
                     new_axes.append(axis[_slice])
+                    new_axes_names.append(axis.name)
                 except ValueError:
                     _slice, axis = spec[i]
                     new_axes.append(axis[_slice])
+                    new_axes_names.append(axis.name)
 
                 if axis.name == 'slice':
                     # Select slice of imagePositions
@@ -597,6 +616,8 @@ class Series(np.ndarray):
                     todo.append(('tags', tags))
                     if len(tags[0]) == 1:
                         reduce_dim = True
+            Axes = namedtuple('Axes', new_axes_names)
+            new_axes = Axes._make(new_axes)
 
         # Slicing the ndarray is done here
         ret = super(Series, self).__getitem__(item)
@@ -911,9 +932,8 @@ class Series(np.ndarray):
             ValueError: when number of rows is not defined.
         """
         try:
-            row_axis = self.find_axis('row')
-            return len(row_axis)
-        except ValueError:
+            return len(self.axes.row)
+        except AttributeError:
             if self.ndim < 2:
                 raise ValueError("{}D dataset has no rows".format(self.ndim))
             return self.shape[-2]
@@ -926,9 +946,8 @@ class Series(np.ndarray):
             ValueError: when number of columns is not defined.
         """
         try:
-            column_axis = self.find_axis('column')
-            return len(column_axis)
-        except ValueError:
+            return len(self.axes.column)
+        except AttributeError:
             if self.ndim < 1:
                 raise ValueError("Dataset has no columns")
             return self.shape[-1]
@@ -942,11 +961,8 @@ class Series(np.ndarray):
             DoNotSetSlicesError: Always (do not set slices)
         """
         try:
-            slice_axis = self.find_axis('slice')
-            # logger.debug("Series.slices: {}D dataset slice_axis {}".format(
-            #              self.ndim, slice_axis))
-            return len(slice_axis)
-        except ValueError:
+            return len(self.axes.slice)
+        except AttributeError:
             if self.ndim < 3:
                 # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
                 # raise ValueError("{}D dataset has no slices".format(self.ndim))
@@ -1031,16 +1047,16 @@ class Series(np.ndarray):
         """Get the slice axis instance.
         """
         try:
-            return self.find_axis('slice')
-        except ValueError:
+            return self.axes.slice
+        except AttributeError:
             return None
 
     def get_tag_axis(self):
         """Get the tax axis instance.
         """
         try:
-            return self.find_axis(self.input_order)
-        except ValueError:
+            return getattr(self.axes, self.input_order)
+        except AttributeError:
             return None
 
     @property
@@ -1102,33 +1118,23 @@ class Series(np.ndarray):
         except AttributeError:
             pass
         # Calculate axes from image shape
-        self.header.axes = []
         shape = super(Series, self).shape
         if len(shape) < 1:
             return None
         _max_known_shape = min(3, len(shape))
-        _labels = ['slice', 'row', 'column'][-_max_known_shape:]
+        _labels = [self.input_order, 'slice', 'row', 'column'][-_max_known_shape:]
         while len(_labels) < self.ndim:
             _labels.insert(0, 'unknown')
 
-        i = 0
-        for d in super(Series, self).shape:
-            self.header.axes.append(
+        _axes = []
+        for i, d in enumerate(super(Series, self).shape):
+            _axes.append(
                 UniformLengthAxis(
                     _labels[i], 0, d, 1
                 )
             )
-            # if _labels[i] == 'rgb':
-            #     self.header.axes.append(
-            #         VariableAxis('rgb', ['r', 'g', 'b'])
-            #     )
-            # else:
-            #     self.header.axes.append(
-            #         UniformLengthAxis(
-            #             _labels[i], 0, d, 1
-            #         )
-            #     )
-            i += 1
+        Axes = namedtuple('Axes', _labels)
+        self.header.axes = Axes._make(_axes)
         return self.header.axes
 
     @axes.setter
@@ -1136,14 +1142,17 @@ class Series(np.ndarray):
         # Verify that axes shape match ndarray shape
         # Verify that axis names are used once only
         used_name = {}
-        for i, axis in enumerate(ax):
+        field_names = []
+        for axis in ax:
             # if len(axis) != self.shape[i]:
             #     raise IndexError("Axis length {}  must match array shape {}".format(
             #         [len(x) for x in ax], self.shape))
             if axis.name in used_name:
                 raise ValueError("Axis name {} is used multiple times.".format(axis.name))
             used_name[axis.name] = True
-        self.header.axes = ax
+            field_names.append(axis.name)
+        Axes = namedtuple('Axes', field_names)
+        self.header.axes = Axes._make(ax)
 
         # Update spacing from new axes
         try:
@@ -1152,33 +1161,11 @@ class Series(np.ndarray):
             spacing = np.array((1.0, 1.0, 1.0))
         for i, direction in enumerate(['slice', 'row', 'column']):
             try:
-                axis = self.find_axis(direction)
+                axis = getattr(self.axes, direction)
                 spacing[i] = axis.step
-            except ValueError:
+            except AttributeError:
                 pass
         self.header.spacing = spacing
-
-    def find_axis(self, name):
-        """Find axis with given name.
-
-        Args:
-            name: Axis name to search for.
-
-        Returns:
-            Axis: axis object with given name.
-
-        Raises:
-            ValueError: when no axis object has given name
-
-        Usage:
-            >>> si = Series(np.array([3, 3, 3]))
-            >>> axis = si.find_axis('slice')
-        """
-        return self.header.find_axis(name)
-        # for axis in self.axes:
-        #     if axis.name == name:
-        #         return axis
-        # raise ValueError("No axis object with name %s exist" % name)
 
     @property
     def spacing(self):
@@ -1199,7 +1186,7 @@ class Series(np.ndarray):
         try:
             # if self.header.spacing is not None:
             #    return self.header.spacing
-            slice_axis = self.find_axis('slice')
+            slice_axis = self.axes.slice
             ds = slice_axis.step
         except (AttributeError, ValueError) as e:
             if self.header.spacing is not None:
@@ -1207,10 +1194,8 @@ class Series(np.ndarray):
             else:
                 raise ValueError("Spacing is unknown: {}".format(e))
         try:
-            row_axis = self.find_axis('row')
-            column_axis = self.find_axis('column')
-            return np.array((ds, row_axis.step, column_axis.step))
-        except ValueError as e:
+            return np.array((ds, self.axes.row.step, self.axes.column.step))
+        except AttributeError as e:
             raise ValueError("Spacing is unknown: {}".format(e))
 
     @spacing.setter
@@ -1242,16 +1227,13 @@ class Series(np.ndarray):
         else:
             raise ValueError("Length of spacing in setSpacing(): %d" % len(args))
         try:
-            slice_axis = self.find_axis('slice')
-            slice_axis.step = spacing[0]
-        except ValueError:
+            self.axes.slice.step = spacing[0]
+        except (AttributeError, ValueError):
             # Assume 2D image with no slice dimension
             pass
         try:
-            row_axis = self.find_axis('row')
-            column_axis = self.find_axis('column')
-            row_axis.step = spacing[1]
-            column_axis.step = spacing[2]
+            self.axes.row.step = spacing[1]
+            self.axes.column.step = spacing[2]
             self.header.spacing = np.array(spacing)
         except ValueError as e:
             raise ValueError("Spacing cannot be set: {}".format(e))
@@ -2228,10 +2210,9 @@ class Series(np.ndarray):
             ValueError: when there is no time axis
         """
         try:
-            time_axis = self.find_axis('time')
             timeline = [0.0]
-            for t in range(1, len(time_axis.values)):
-                timeline.append(time_axis.values[t] - time_axis.values[0])
+            for t in range(1, len(self.axes.time.values)):
+                timeline.append(self.axes.time.values[t] - self.axes.time.values[0])
             return np.array(timeline)
         except ValueError:
             raise ValueError("No time axis is defined. Input order: {}".format(
@@ -2247,8 +2228,7 @@ class Series(np.ndarray):
             ValueError: when there is no diffusion (b) axis
         """
         try:
-            diff_axis = self.find_axis('b')
-            return np.array(diff_axis.values)
+            return np.array(self.axes.b.values)
         except ValueError:
             raise ValueError("No b-value axis is defined. Input order: {}".format(
                 self.input_order))
@@ -2411,9 +2391,6 @@ class Series(np.ndarray):
                 raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
 
         # Final axes for aligned series are the reference axes
-        slice_axis = reference.find_axis('slice')
-        row_axis = reference.find_axis('row')
-        column_axis = reference.find_axis('column')
 
         # Make reference grid in voxel coordinates
         cs, cr, cc = np.meshgrid(
@@ -2443,7 +2420,7 @@ class Series(np.ndarray):
                          dtype=moving.dtype),
                 input_order=moving.input_order,
                 template=moving, geometry=reference,
-                axes=[tag_axis, slice_axis, row_axis, column_axis]
+                axes=[tag_axis, reference.axes.slice, reference.axes.row, reference.axes.column]
             )
 
             # Must convert to ndarray to slice the data
@@ -2473,7 +2450,7 @@ class Series(np.ndarray):
                 np.zeros([reference.slices, reference.rows, reference.columns],
                          dtype=moving.dtype),
                 template=moving, geometry=reference,
-                axes=[slice_axis, row_axis, column_axis]
+                axes=[reference.axes.slice, reference.axes.row, reference.axes.column]
             )
 
             # Must convert to ndarray to slice the data
@@ -3273,6 +3250,7 @@ def concatenate(arrays, axis=0, out=None):
     # implementation of concatenate for Series objects
     # Compare axes, except for concatenation axis
     arr0 = arrays[0]
+    axis_name = arr0.axes[axis].name
     ndarrays = [arr0.view(np.ndarray)]
     for arr in arrays[1:]:
         ndarrays.append(arr.view(np.ndarray))
@@ -3289,9 +3267,10 @@ def concatenate(arrays, axis=0, out=None):
     obj.header = copy.copy(arr0.header)
 
     # Concatenate axes
-    obj.axes[axis] = arrays[0].axes[axis].copy()
+    new_axis = arrays[0].axes[axis].copy()
     for arr in arrays[1:]:
-        obj.axes[axis].append(arr.axes[axis])
+        new_axis.append(arr.axes[axis])
+    obj.axes._replace(**{axis_name: new_axis})
 
     # Concatenate tags
     if obj.axes[axis].name == 'slice':
