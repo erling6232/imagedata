@@ -6,6 +6,7 @@ from abc import ABCMeta
 from typing import Sequence, Union, overload, SupportsFloat
 import numbers
 import sys
+from collections import namedtuple
 import numpy as np
 
 Number = type[SupportsFloat]
@@ -333,3 +334,13 @@ class VariableAxis(Axis):
         values = self._values.tolist()
         values.extend(axis._values)
         self._values = np.array(values)
+
+
+def to_namedtuple(axes) -> namedtuple:
+    """Convert iterable (list, tuple, etc.) to namedtuple of Axes."""
+
+    _keys = []
+    for axis in axes:
+        _keys.append(axis.name)
+    Axes = namedtuple('Axes', _keys)
+    return Axes._make(axes)
