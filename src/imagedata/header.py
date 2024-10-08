@@ -4,6 +4,7 @@
 
 import copy
 import numpy as np
+from collections import namedtuple
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
@@ -62,6 +63,8 @@ class Header(object):
         __uid_generator
     """
 
+    axes: namedtuple = None
+
     def __init__(self):
         """Initialize image header attributes to defaults
 
@@ -119,10 +122,10 @@ class Header(object):
         """
         return self.__uid_generator.__next__()
 
-    def set_default_values(self, axes) -> None:
+    def set_default_values(self, axes: namedtuple) -> None:
         """Set default values.
         """
-        self.axes = []
+        self.axes = None
 
         self.spacing = np.array([1, 1, 1])
         self.orientation = np.array([0, 0, 1, 0, 1, 0], dtype=np.float32)
@@ -135,17 +138,24 @@ class Header(object):
         if axes is None:
             return
 
-        slices = tags = 1
+        try:
+            slices = len(axes.slice)
+        except AttributeError:
+            slices = 1
+        if axes[0].name not in ('slice', 'row', 'column'):
+            tags = len(axes[0])
+        else:
+            tags = 1
+
         # Construct new axes, copy to avoid crosstalk to template axes
-        for _axis in axes:
-            axis = copy.copy(_axis)
-            if axis.name == 'slice':
-                slices = len(axis)
-            elif axis.name not in {'row', 'column'}:
-                tags = len(axis)
-                if axis.name == 'unknown':
-                    axis.name = self.input_order
-            self.axes.append(axis)
+        new_axes = namedtuple('Axes', axes._fields)
+        self.axes = new_axes._make(axes)
+        if self.axes[0].name == 'unknown':
+            new_keys = [self.input_order] + list(self.axes._fields[1:])
+            values = list(self.axes)
+            values[0].name = self.input_order
+            new_axes = namedtuple('Axes', new_keys)
+            self.axes = new_axes._make(values)
 
         for _slice in range(slices):
             self.imagePositions[_slice] = np.array([_slice, 0, 0])
@@ -310,18 +320,21 @@ class Header(object):
             getattr(geometry, 'sliceLocations', None)
         )
 
-    def __set_axes_from_template(self, geometry_axes):
-        if self.axes is None:
-            ndim = 1
-            if geometry_axes is not None:
-                ndim = len(geometry_axes)
-            self.axes = [False for _ in range(ndim)]
-        for i, axis in enumerate(self.axes):
-            if geometry_axes is not None:
-                for geometry_axis in geometry_axes:
-                    if geometry_axis.name == axis.name:
-                        # Ensure geometry_axis length agree with matrix size
-                        self.axes[i] = geometry_axis.copy(axis.name, n=len(axis))
+    def __set_axes_from_template(self, geometry_axes: namedtuple):
+        if geometry_axes is None:
+            return
+        _axes = []
+        _axis_names = []
+        for axis in self.axes:
+            try:
+                geometry_axis = getattr(geometry_axes, axis.name)
+                # Ensure geometry_axis length agree with matrix size
+                _axes.append(geometry_axis.copy(axis.name, n=len(axis)))
+            except AttributeError:
+                _axes.append(axis.copy(axis.name, n=len(axis)))
+            _axis_names.append(axis.name)
+        Axes = namedtuple('Axes', _axis_names)
+        self.axes = Axes._make(_axes)
 
     def __set_slice_locations_from_template(self, geometry_sloc):
         if geometry_sloc is None:
@@ -331,35 +344,12 @@ class Header(object):
         else:
             sloc = geometry_sloc.tolist()
         try:
-            slice_axis = self.find_axis('slice')
             ds = 1
             if len(sloc) > 1:
                 ds = sloc[1] - sloc[0]  # Distance in slice location
-            while len(sloc) < len(slice_axis):
+            while len(sloc) < len(self.axes.slice):
                 sloc.append(sloc[-1] + ds)
-            sloc = sloc[:len(slice_axis)]
+            sloc = sloc[:len(self.axes.slice)]
             self.sliceLocations = np.array(sloc)
-        except ValueError:
+        except (AttributeError, ValueError):
             self.sliceLocations = geometry_sloc
-
-    def find_axis(self, name):
-        """Find axis with given name
-
-        Args:
-            name: Axis name to search for
-
-        Returns:
-            axis object with given name
-
-        Raises:
-            ValueError: when no axis object has given name
-
-        Usage:
-            >>> from imagedata.series import Series
-            >>> si = Series(np.array([3, 3, 3]))
-            >>> axis = si.find_axis('slice')
-        """
-        for axis in self.axes:
-            if axis.name == name:
-                return axis
-        raise ValueError("No axis object with name %s exist" % name)
