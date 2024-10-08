@@ -3270,7 +3270,7 @@ def concatenate(arrays, axis=0, out=None):
     new_axis = arrays[0].axes[axis].copy()
     for arr in arrays[1:]:
         new_axis.append(arr.axes[axis])
-    obj.axes._replace(**{axis_name: new_axis})
+    obj.axes = obj.axes._replace(**{axis_name: new_axis})
 
     # Concatenate tags
     if obj.axes[axis].name == 'slice':
