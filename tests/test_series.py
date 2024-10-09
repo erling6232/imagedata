@@ -1,6 +1,7 @@
 import unittest
 import os.path
 import tempfile
+from collections import namedtuple
 import pickle
 import numpy as np
 from numpy.random import default_rng
@@ -138,7 +139,7 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a1, a1, a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
 
         s_slice = s[2]
         self.assertEqual(s_slice.ndim, 2)
@@ -152,7 +153,7 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
 
         a_slice = a[:,:,3:5]
         s_slice = s[:,:,3:5]
@@ -163,7 +164,7 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
         np.testing.assert_array_equal(s[:,3,:], s[:,-1,:])
         np.testing.assert_array_equal(s[:,2,:], s[:,-2,:])
         np.testing.assert_array_equal(s[:,1,:], s[:,-3,:])
@@ -178,7 +179,7 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
 
         a_slice = a[:,3:5,...]
         s_slice = s[:,3:5,...]
@@ -190,7 +191,7 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
         np.testing.assert_array_equal(s[:,:,3], s[:,:,-1])
         np.testing.assert_array_equal(s[:,:,2], s[:,:,-2])
         np.testing.assert_array_equal(s[:,:,1], s[:,:,-3])
@@ -205,11 +206,11 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
         n = np.ones_like(a) * 4
         p = Series(n)
         p.spacing = (1,1,1)
-        p.axes[0] = axis.UniformLengthAxis('slice', 0, p.shape[0])
+        p.axes = p.axes._replace(slice=axis.UniformLengthAxis('slice', 0, p.shape[0]))
 
         a[:,3:5,...] = n[:,3:5,...]
         s[:,3:5,...] = p[:,3:5,...]
@@ -222,11 +223,11 @@ class TestSeries(unittest.TestCase):
         a.shape = (4,5,6)
         s = Series(a)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
         n = np.zeros((2,2,2), dtype=np.uint16)
         p = Series(n)
         p.spacing = (1,1,1)
-        p.axes[0] = axis.UniformLengthAxis('slice', 0, p.shape[0])
+        p.axes = p.axes._replace(slice=axis.UniformLengthAxis('slice', 0, p.shape[0]))
 
         a[1:3,2:4,2:4] = n[:]
         s[1:3,2:4,2:4] = p[:]
@@ -293,7 +294,7 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('slice', 0, s.shape[0])
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
         np.testing.assert_array_equal(s[3,:,:], s[-1,:,:])
         np.testing.assert_array_equal(s[2,:,:], s[-2,:,:])
         np.testing.assert_array_equal(s[1,:,:], s[-3,:,:])
@@ -311,8 +312,8 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         tags = {}
         k = 0
         for i in range(s.slices):
@@ -333,8 +334,8 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)))
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(none=axis.UniformLengthAxis('none', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         np.testing.assert_array_equal(s[2], s[-1])
         np.testing.assert_array_equal(s[1], s[-2])
         np.testing.assert_array_equal(s[0], s[-3])
@@ -347,16 +348,15 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         s_axes = copy.copy(s.axes)
         self.assertEqual(len(s_axes), 4)
 
         sum = np.sum(s, axis=0)
         compare_axes(self, s.axes, s_axes)
-        del sum.axes[0]  # TODO
         self.assertEqual(len(s_axes), 4)
-        compare_axes(self, s_axes[1:], sum.axes)
+        compare_axes(self, s_axes, sum.axes)
 
     def test_multiple_ellipses(self):
         a1 = np.eye(128)
@@ -366,8 +366,8 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         tags = {}
         k = 0
         for i in range(s.slices):
@@ -386,11 +386,10 @@ class TestSeries(unittest.TestCase):
         a = np.empty([4, 3,128,128])
         for i in range(4):
             a[i] = a2
-        # a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         tags = {}
         k = 0
         for i in range(s.slices):
@@ -412,8 +411,8 @@ class TestSeries(unittest.TestCase):
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
-        s.axes[0] = axis.UniformLengthAxis('time', 0, s.shape[0])
-        s.axes[1] = axis.UniformLengthAxis('slice', 0, s.shape[1])
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
         tags = {}
         k = 0
         for i in range(s.slices):
@@ -542,9 +541,11 @@ class TestSeries(unittest.TestCase):
         img[...,1] = si1[:]
         img[...,2] = si1[:]
 
+        Axes = namedtuple('Axes', si1.axes._fields + ('rgb',))
         rgb = Series(img, geometry=si1,
-                     axes=si1.axes + [axis.VariableAxis('rgb',['r', 'g', 'b'])]
-                     )
+                     axes=Axes._make(
+                         si1.axes + (axis.VariableAxis('rgb',['r', 'g', 'b']),)
+                     ))
 
 
     def test_header_axes(self):
@@ -679,7 +680,9 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         reference = Series(rng.standard_normal(80).reshape((5,4,4)))
         reference.spacing = (1, 1, 1)
-        reference.axes[0] = axis.UniformLengthAxis('slice', 0, reference.shape[0])
+        reference.axes = reference.axes._replace(
+            slice=axis.UniformLengthAxis('slice', 0, reference.shape[0])
+        )
         moving = Series(
             os.path.join('data', 'dicom', 'time', 'time01')
         )

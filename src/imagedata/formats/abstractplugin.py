@@ -9,6 +9,7 @@ Defines generic functions.
 from abc import ABCMeta, abstractmethod  # , abstractproperty
 import logging
 import numpy as np
+from collections import namedtuple
 from . import NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
 from ..header import Header
 from ..archives.abstractarchive import AbstractArchive
@@ -193,7 +194,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         return {0: hdr}, {0: si}
 
     def _need_local_file(self):
-        """Do the plugin need access to local files?
+        """Does the plugin need access to local files?
 
         Returns:
             Boolean
@@ -442,7 +443,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         im.PixelSpacing = gim.PixelSpacing
 
     @staticmethod
-    def _reduce_shape(si, axes=None):
+    def _reduce_shape(si, axes: namedtuple=None):
         """Reduce shape when leading shape(s) are 1.
 
         Will not reduce to less than 2-dimensional image.
@@ -460,7 +461,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             if si.shape[0] == 1:
                 si.shape = si.shape[1:]
                 if axes is not None:
-                    del axes[0]
+                    axes = axes[1:]
             else:
                 break
 

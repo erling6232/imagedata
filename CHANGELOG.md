@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.0] - 2024-10-09
+* Series: Axes property implementation is changed from a list to a namedtuple.
+
 ## [v3.7.0-rc4] - 2024-10-02
 * Series.__get_tags(): Corrected looping over slice objects.
 

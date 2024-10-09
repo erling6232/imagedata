@@ -778,16 +778,22 @@ class DICOMPlugin(AbstractPlugin):
                 ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
             else:
                 ipp = np.array([0, 0, 0])
-            axes = list()
+            slice_axis = UniformLengthAxis('slice', ipp[0], nz, hdr.spacing[0])
+            row_axis = UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1])
+            column_axis = UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2])
             if len(tag_list[0]) > 1:
-                axes.append(
-                    VariableAxis(
+                tag_axis = VariableAxis(
                         input_order_to_dirname_str(input_order),
                         tag_list[0])
-                )
-            axes.append(UniformLengthAxis('slice', ipp[0], nz, hdr.spacing[0]))
-            axes.append(UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1]))
-            axes.append(UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2]))
+                Axes = namedtuple('Axes', [
+                    input_order_to_dirname_str(input_order), 'slice', 'row', 'column'
+                ])
+                axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
+            else:
+                Axes = namedtuple('Axes', [
+                    'slice', 'row', 'column'
+                ])
+                axes = Axes(slice_axis, row_axis, column_axis)
             hdr.color = False
             if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
                 hdr.color = True
@@ -1528,7 +1534,7 @@ class DICOMPlugin(AbstractPlugin):
         assert si.ndim == 4, "write_4d_series: input dimension %d is not 4D." % si.ndim
 
         steps = si.shape[0]
-        axis = si.find_axis(si.input_order)
+        axis = getattr(si.axes, si.input_order)
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
