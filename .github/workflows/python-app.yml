@@ -52,7 +52,7 @@ jobs:
         export TMPDIR=${RUNNER_TEMP}
         coverage run -m unittest discover tests -t .
         coverage report -m
-        coverage xml
+        coverage xml -o junit.xml
         coverage html
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
