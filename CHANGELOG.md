@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.2-dev0] - 2024-10-10
+* Renamed collections.py to collection.py.
+
 ## [v3.7.1] - 2024-10-10
 * Support python 3.13.
 
