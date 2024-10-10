@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.1] - 2024-10-10
+* Support python 3.13.
+
 ## [v3.7.0] - 2024-10-09
 * Series: Axes property implementation is changed from a list to a namedtuple.
 
