@@ -4,7 +4,7 @@ import logging
 from importlib import import_module
 from importlib.metadata import version, entry_points
 from .series import Series
-from .collections import Study, Patient, Cohort
+from .collection import Study, Patient, Cohort
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 
