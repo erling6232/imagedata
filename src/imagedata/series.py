@@ -2824,7 +2824,7 @@ class Series(np.ndarray):
                     _ax = ax
             return _ax
 
-        notebook = mpl.get_backend()[-5:] == 'nbagg'
+        notebook = mpl.get_backend() in ['nbagg', 'widget']
 
         # im2 can be single image or list of images
         images = list()
@@ -2854,7 +2854,7 @@ class Series(np.ndarray):
             raise
         self.viewer.connect()
         plt.tight_layout()
-        plt.show()
+        plt.show(block=True)
         if not notebook:
             self.viewer.disconnect()
 

@@ -12,7 +12,7 @@ import nibabel
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
-from src.imagedata.collections import Cohort
+from src.imagedata.collection import Cohort
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):

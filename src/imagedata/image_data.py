@@ -16,7 +16,7 @@ from .formats import find_plugin, NotImageError, input_order_to_dirname_str, sha
 from .readdata import _get_sources
 from .transports import Transport
 from .series import Series
-from .collections import Cohort
+from .collection import Cohort
 
 
 def dump():
