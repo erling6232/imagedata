@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.2-dev1] - 2024-10-23
+* Fixed viewing in jupyter notebook using backend `widget`.
+
 ## [v3.7.2-dev0] - 2024-10-10
 * Renamed collections.py to collection.py.
 
