@@ -2904,8 +2904,8 @@ class Series(np.ndarray):
                   dtype ubyte. Voxel inside ROI is 1, 0 outside.
                 - vertices_dict: if vertices: Dictionary of vertices.
 
-            If running from a notebook (nbagg driver), no ROI is returned. Call get_roi_mask()
-            afterwards to get the mask.
+            If running from a notebook (widget/nbagg driver), no ROI is returned.
+            Call get_roi_mask() afterwards to get the mask.
 
         Raises:
             ValueError: when image is not a subclass of Series, or too many viewports are
@@ -2916,7 +2916,7 @@ class Series(np.ndarray):
         import matplotlib.pyplot as plt
         import matplotlib as mpl
 
-        notebook = mpl.get_backend()[-5:] == 'nbagg'
+        notebook = mpl.get_backend() in ['nbagg', 'widget']
 
         # im2 can be single image or list of images
         images = list()
