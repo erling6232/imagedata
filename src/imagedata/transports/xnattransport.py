@@ -282,7 +282,10 @@ class XnatTransport(AbstractTransport):
         for id in self.__experiment.scans:
             logger.debug('{}: locate scan id {}'.format(_name, id))
             scan = self.__experiment.scans[id]
-            if scan.quality == 'usable' and fnmatch.fnmatch(scan.id, scan_id):
+            logger.debug('{}: locate scan series description {}'.format(
+                _name, scan.series_description))
+            # if scan.quality == 'usable' and fnmatch.fnmatch(scan.id, scan_id):
+            if scan.quality == 'usable' and fnmatch.fnmatch(scan.series_description, scan_id):
                 object_list.append(scan)
         return object_list
 
