@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev0] - 2024-11-04
+* XnatTransport.open(): Corrected scan search to search for series description,
+  not series number.
+
 ## [v3.7.2] - 2024-10-28
 * Fixed viewing in jupyter notebook using backend `widget`.
 * Renamed collections.py to collection.py.
