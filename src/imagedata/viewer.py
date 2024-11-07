@@ -48,6 +48,9 @@ class Viewer(object):
     def __init__(self, images, fig=None, ax=None, follow=False,
                  colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
                  link=False, onselect=None):
+
+        _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
+
         self.fig = fig
         self.ax = ax
         if self.ax is None:
@@ -702,7 +705,7 @@ class Viewer(object):
 
         images = len(self.im)
         # Position must be in range 0:images-(rows*columns)
-        vp_idx = min(position, images - self.rows * self.columns - 1)
+        vp_idx = min(position, images - self.rows * self.columns)
         vp_idx = max(vp_idx, 0)
         if vp_idx == self.viewport_idx:
             # No change
