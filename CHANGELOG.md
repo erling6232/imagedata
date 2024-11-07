@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev1] - 2024-11-06
+* Viewer.viewport_set(): Fixed error where the viewport did not include the last image.
+
 ## [v3.7.3-dev0] - 2024-11-04
 * XnatTransport.open(): Corrected scan search to search for series description,
   not series number.
