@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev2] - 2024-11-25
+* diffusion.py: Added code to get diffusion b value from Siemens E11 format.
+
 ## [v3.7.3-dev1] - 2024-11-06
 * Viewer.viewport_set(): Fixed error where the viewport did not include the last image.
 

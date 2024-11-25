@@ -3,10 +3,12 @@
 # Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import numpy as np
+import struct
 import pandas as pd
 from pydicom import Dataset
 from typing import SupportsFloat
 from ..series import Series
+from ..formats import NotImageError
 
 Number = type[SupportsFloat]
 
@@ -118,11 +120,25 @@ def get_ds_b_value(ds: Dataset) -> float:
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
         return block[0x0c].value
 
+    def get_Siemens_E11_b_value(_ds):
+        try:
+            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
+            im_info = block[0x10].value
+            # se_info = block[0x20].value
+            if im_info[:4] == b'SV10':
+                _h = _get_CSA2_header(im_info)
+            else:
+                _h = _get_CSA1_header(im_info)
+            return float(_h['B_value'][0])
+        except Exception:
+            raise IndexError('Cannot get b value')
+
     def get_GEMS_b_value(_ds):
         block = _ds.private_block(0x0043, 'GEMS_PARM_01')
         return block[0x39].value
 
-    for _method in [get_DICOM_b_value, get_Siemens_b_value, get_GEMS_b_value]:
+    for _method in [get_DICOM_b_value, get_Siemens_b_value,
+                    get_Siemens_E11_b_value, get_GEMS_b_value]:
         try:
             return float(_method(ds))
         except (KeyError, IndexError):
@@ -159,3 +175,78 @@ def set_ds_b_value(ds: Dataset, value: Number):
         except (KeyError, IndexError):
             pass
     raise IndexError('Cannot set b value')
+
+
+def _get_CSA1_header(data):
+    values = {}
+    try:
+        (n_tags, unused2) = struct.unpack('<ii', data[:8])
+    except struct.error as e:
+        raise NotImageError('{}'.format(e))
+    except Exception as e:
+        # logging.debug('{}: exception\n{}'.format(_name, e))
+        raise NotImageError('{}'.format(e))
+    pos = 8
+    for t in range(n_tags):
+        try:
+            (name, vm, vr, syngodt, nitems, xx
+             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+            pos += 84
+            i = name.find(b'\0')
+            name = name[:i]
+            name = name.decode("utf-8")
+            values[name] = []
+            for _item in range(nitems):
+                (item_len, xx1, xx2, xx3
+                 ) = struct.unpack('<4i', data[pos:pos+16])
+                pos += 16
+                if item_len > 0:
+                    value = data[pos:pos+item_len]
+                    value = value.decode("utf-8").split('\0')[0].strip()
+                    pos += (item_len // 4) * 4
+                    if item_len % 4 > 0:
+                        pos += 4
+                    values[name].append(value)
+        except struct.error as e:
+            raise NotImageError('{}'.format(e))
+        except Exception as e:
+            raise
+    return values
+
+
+def _get_CSA2_header(data):
+    values = {}
+    try:
+        (hdr_id, unused1,
+         n_tags, unused2) = struct.unpack('<4siii', data[:16])
+    except struct.error as e:
+        raise NotImageError('{}'.format(e))
+    except Exception as e:
+        # logging.debug('{}: exception\n{}'.format(_name, e))
+        raise NotImageError('{}'.format(e))
+    pos = 16
+    for t in range(n_tags):
+        try:
+            (name, vm, vr, syngodt, nitems, xx
+             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+            pos += 84
+            i = name.find(b'\0')
+            name = name[:i]
+            name = name.decode("utf-8")
+            values[name] = []
+            for _item in range(nitems):
+                (item_len, xx1, xx2, xx3
+                 ) = struct.unpack('<4i', data[pos:pos+16])
+                pos += 16
+                if item_len > 0:
+                    value = data[pos:pos+item_len]
+                    value = value.decode("utf-8").split('\0')[0].strip()
+                    pos += (item_len // 4) * 4
+                    if item_len % 4 > 0:
+                        pos += 4
+                    values[name].append(value)
+        except struct.error as e:
+            raise NotImageError('{}'.format(e))
+        except Exception as e:
+            raise
+    return values
