@@ -9,7 +9,7 @@ import mimetypes
 from collections import namedtuple
 import scipy
 import scipy.io
-from . import NotImageError, input_order_to_dirname_str, WriteNotImplemented, \
+from . import NotImageError, WriteNotImplemented, \
     shape_to_str, sort_on_to_str, SORT_ON_SLICE
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -156,12 +156,12 @@ class MatPlugin(AbstractPlugin):
             if si.ndim > 3:
                 nt = si.shape[-4]
                 tag_axis = UniformLengthAxis(
-                    input_order_to_dirname_str(hdr.input_order),
+                    hdr.input_order,
                     0,
                     nt
                 )
                 Axes = namedtuple('Axes', [
-                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                    hdr.input_order, 'slice', 'row', 'column'
                 ])
                 axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
             else:
