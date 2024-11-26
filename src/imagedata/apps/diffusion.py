@@ -4,11 +4,12 @@
 
 import numpy as np
 import struct
+import warnings
 import pandas as pd
 from pydicom import Dataset
 from typing import SupportsFloat
 from ..series import Series
-from ..formats import NotImageError
+from ..formats import NotImageError, CannotSort
 
 Number = type[SupportsFloat]
 
@@ -100,6 +101,74 @@ def get_b_value(img: Series) -> float:
     return get_ds_b_value(_ds)
 
 
+def get_ds_b_vectors(ds: Dataset) -> np.ndarray:
+    """Get diffusion b vector from Dataset
+
+    Getting diffusion b vector has been tested on MRI data from some major vendors.
+
+    Args:
+        ds: Input dataset
+    Returns:
+        b vector
+
+    """
+
+    def get_DICOM_b_vector(_ds):
+        # Attempt to address standard DICOM attribute
+        raise NotImplementedError('get_DICOM_b_vector not implemented')
+        return _ds['DiffusionBValue'].value
+
+    def get_Siemens_b_vector(_ds):
+        raise NotImplementedError('get_Siemens_b_vector not implemented')
+        block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
+        return block[0x0c].value
+
+    def get_Siemens_CSA_b_vector(_ds):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            import nibabel.nicom.csareader as csa
+        try:
+            csa_head = csa.get_csa_header(_ds)
+        except csa.CSAReadError:
+            raise CannotSort("Unable to extract b value from header.")
+        if 'tags' in csa_head and 'DiffusionGradientDirection' in csa_head['tags']:
+            bvec = csa_head['tags']['DiffusionGradientDirection']['items']
+            return np.array(bvec)
+        raise CannotSort("Unable to extract b value from header.")
+
+    def get_Siemens_E11_b_vector(_ds):
+        try:
+            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
+            im_info = block[0x10].value
+            # se_info = block[0x20].value
+            if im_info[:4] == b'SV10':
+                _h = _get_CSA2_header(im_info)
+            else:
+                _h = _get_CSA1_header(im_info)
+            return np.array(_h['DiffusionGradientDirection'])
+        except Exception:
+            raise IndexError('Cannot get b vector')
+
+    def get_GEMS_b_vector(_ds):
+        raise NotImplementedError('get_GEMS_b_vector not implemented')
+        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
+        return block[0x39].value
+
+    errmsg = ""
+    for _method in [get_DICOM_b_vector,
+                    get_Siemens_b_vector, get_Siemens_CSA_b_vector,
+                    get_Siemens_E11_b_vector,
+                    get_GEMS_b_vector]:
+        try:
+            return _method(ds)
+        except (KeyError, IndexError) as e:
+            errmsg = '{}'.format(e)
+            pass
+        except NotImplementedError:
+            pass
+    raise IndexError('Cannot get b vector: {}'.format(errmsg))
+
+
 def get_ds_b_value(ds: Dataset) -> float:
     """Get diffusion b value from Dataset
 
@@ -120,6 +189,22 @@ def get_ds_b_value(ds: Dataset) -> float:
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
         return block[0x0c].value
 
+    def get_Siemens_CSA_b_value(_ds):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            import nibabel.nicom.csareader as csa
+        try:
+            csa_head = csa.get_csa_header(_ds)
+        except csa.CSAReadError:
+            raise CannotSort("Unable to extract b value from header.")
+        if csa_head is None:
+            raise CannotSort("Unable to extract b value from header.")
+        try:
+            value = csa.get_b_value(csa_head)
+        except TypeError:
+            raise CannotSort("Unable to extract b value from header.")
+        return value
+
     def get_Siemens_E11_b_value(_ds):
         try:
             block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
@@ -137,13 +222,17 @@ def get_ds_b_value(ds: Dataset) -> float:
         block = _ds.private_block(0x0043, 'GEMS_PARM_01')
         return block[0x39].value
 
-    for _method in [get_DICOM_b_value, get_Siemens_b_value,
-                    get_Siemens_E11_b_value, get_GEMS_b_value]:
+    errmsg = ""
+    for _method in [get_DICOM_b_value,
+                    get_Siemens_b_value, get_Siemens_CSA_b_value,
+                    get_Siemens_E11_b_value,
+                    get_GEMS_b_value]:
         try:
             return float(_method(ds))
-        except (KeyError, IndexError):
+        except (KeyError, IndexError) as e:
+            errmsg = '{}'.format(e)
             pass
-    raise IndexError('Cannot get b value')
+    raise IndexError('Cannot get b value: {}'.format(errmsg))
 
 
 def set_ds_b_value(ds: Dataset, value: Number):
