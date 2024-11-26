@@ -813,6 +813,39 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
+class TestDicom5DSort(unittest.TestCase):
+
+    @unittest.skip("skipping test_ep2d_bvec")
+    def test_ep2d_bvec(self):
+        si = Series(
+            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
+            'b,bvector',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+    @unittest.skip("skipping test_ep2d_rsi")
+    def test_ep2d_rsi(self):
+        si = Series(
+            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
+            'rsi',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+    @unittest.skip("skipping test_t1_de_te")
+    def test_t1_de_te(self):
+        si = Series(
+            os.path.join('data', 'dicom', '5D.zip?t1_fl2d_DE_4TEs'),
+            'time,te',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+
 class TestDicomPluginSortCriteria(unittest.TestCase):
     def setUp(self):
         parser = argparse.ArgumentParser()
