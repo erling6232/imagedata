@@ -20,6 +20,7 @@ INPUT_ORDER_AUTO = 'auto'
 INPUT_ORDER_NONE = 'none'
 INPUT_ORDER_TIME = 'time'
 INPUT_ORDER_B = 'b'
+INPUT_ORDER_BVECTOR = 'bvector'
 INPUT_ORDER_FA = 'fa'
 INPUT_ORDER_TE = 'te'
 INPUT_ORDER_FAULTY = 'faulty'
@@ -111,6 +112,8 @@ def input_order_to_str(input_order):
         return "INPUT_ORDER_TIME"
     elif input_order == INPUT_ORDER_B:
         return "INPUT_ORDER_B"
+    elif input_order == INPUT_ORDER_BVECTOR:
+        return "INPUT_ORDER_BVECTOR"
     elif input_order == INPUT_ORDER_FA:
         return "INPUT_ORDER_FA"
     elif input_order == INPUT_ORDER_TE:
@@ -130,6 +133,8 @@ def input_order_to_dirname_str(input_order):
         return "time"
     elif input_order == INPUT_ORDER_B:
         return "b"
+    elif input_order == INPUT_ORDER_BVECTOR:
+        return "bvector"
     elif input_order == INPUT_ORDER_FA:
         return "fa"
     elif input_order == INPUT_ORDER_TE:
