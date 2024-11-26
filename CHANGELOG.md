@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev3] - 2024-11-26
+* Working on n-dimensional sorting.
+* Added code to sort series on diffusion gradient direction (b-vector),
+  and specifically diffusion RSI data.
+
 ## [v3.7.3-dev2] - 2024-11-25
 * diffusion.py: Added code to get diffusion b value from Siemens E11 format.
 
