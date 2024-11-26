@@ -12,7 +12,7 @@ import pathlib
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
-from .formats import INPUT_ORDER_NONE, input_order_to_str, find_plugin, get_plugins_list
+from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list
 from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
 from .transports import RootIsNotDirectory
 from .archives import find_mimetype_plugin, ArchivePluginNotFound
@@ -88,7 +88,7 @@ def read(urls, order=None, opts=None, input_format=None):
     if order != 'none':
         input_order = order
     logger.info("{}: Input order: {}.".format(
-        _name, input_order_to_str(input_order)))
+        _name, input_order))
 
     # Pre-fetch DICOM template
     pre_hdr = None
