@@ -24,16 +24,17 @@ import pydicom.uid
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
-from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, input_order_to_dirname_str, \
+from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, \
     SORT_ON_SLICE, \
     INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, \
+    INPUT_ORDER_BVECTOR, INPUT_ORDER_RSI, \
     INPUT_ORDER_AUTO
 from ..series import Series
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
-from ..apps.diffusion import get_ds_b_value, set_ds_b_value
+from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value
 
 logger = logging.getLogger(__name__)
 try:
@@ -553,6 +554,7 @@ class DICOMPlugin(AbstractPlugin):
 
         # Sort datasets on sloc
         sorted_dataset_dict: SortedDatasetDict = SortedDatasetDict()  # defaultdict(lambda: defaultdict(list))
+        sorting: dict[SeriesUID, str]
         sorting = {}
         for seriesUID in image_dict:
             sorting[seriesUID] = 'none'
@@ -585,10 +587,11 @@ class DICOMPlugin(AbstractPlugin):
                     logger.debug('{}: skip_broken_series raise'.format(_name))
                     raise
             # Sort the dataset on selected key for each sloc
-            for sloc in sorted_dataset.keys():
-                sorted_dataset[sloc].sort(
-                    key=partial(self._get_tag, input_order=sorting[seriesUID], opts=opts)
-                )
+            for sort_key in sorting[seriesUID].split(sep=','):
+                for sloc in sorted_dataset.keys():
+                    sorted_dataset[sloc].sort(
+                        key=partial(self._get_tag, input_order=sort_key, opts=opts)
+                    )
             # Catalog images with seriesUID and sloc as keys
             sorted_dataset_dict[seriesUID] = sorted_dataset
         logger.debug('{}: end with {}'.format(_name, sorted_dataset_dict.keys()))
@@ -700,32 +703,33 @@ class DICOMPlugin(AbstractPlugin):
                 accept_uneven_slices = True
             tag_list = defaultdict(list)
             for islice, sloc in enumerate(sorted(series)):
-                i = 0
-                for im in series[sloc]:
-                    try:
-                        tag = self._get_tag(im, input_order, opts)
-                    except KeyError:
-                        if input_order == INPUT_ORDER_FAULTY:
-                            tag = i
+                for order in input_order.split(sep=','):
+                    i = 0
+                    for im in series[sloc]:
+                        try:
+                            tag = self._get_tag(im, order, opts)
+                        except KeyError:
+                            if order == INPUT_ORDER_FAULTY:
+                                tag = i
+                            else:
+                                raise CannotSort('Tag {} not found in dataset'.format(
+                                    order
+                                ))
+                        except CannotSort:
+                            raise
+                        except Exception:
+                            raise
+                        if tag is None:
+                            raise CannotSort("Tag {} not found in data".format(order))
+                        if tag not in tag_list[islice] or accept_duplicate_tag:
+                            tag_list[islice].append(tag)
+                        elif accept_uneven_slices:
+                            # Drop duplicate images
+                            logger.warning("{}: dropping duplicate image: {} {}".format(
+                                _name, islice, sloc))
                         else:
-                            raise CannotSort('Tag {} not found in dataset'.format(
-                                input_order
-                            ))
-                    except CannotSort:
-                        raise
-                    except Exception:
-                        raise
-                    if tag is None:
-                        raise CannotSort("Tag {} not found in data".format(input_order))
-                    if tag not in tag_list[islice] or accept_duplicate_tag:
-                        tag_list[islice].append(tag)
-                    elif accept_uneven_slices:
-                        # Drop duplicate images
-                        logger.warning("{}: dropping duplicate image: {} {}".format(
-                            _name, islice, sloc))
-                    else:
-                        raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
-                    i += 1
+                            raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
+                        i += 1
             for islice in tag_list.keys():
                 tag_list[islice] = sorted(tag_list[islice])
             # Sort images based on position in tag_list
@@ -737,32 +741,33 @@ class DICOMPlugin(AbstractPlugin):
             rows = columns = 0
             i = 0
             for islice, sloc in enumerate(sorted(series)):
-                # Pre-fill sorted_headers
-                sorted_headers[islice] = [False for _ in range(slice_count[islice])]
-                for im in series[sloc]:
-                    if input_order == INPUT_ORDER_FAULTY:
-                        tag = i
-                    else:
-                        try:
-                            tag = self._get_tag(im, input_order, opts)
-                        except CannotSort:
-                            raise
-                    idx = tag_list[islice].index(tag)
-                    if sorted_headers[islice][idx]:
-                        # Duplicate tag
-                        if accept_duplicate_tag:
-                            while sorted_headers[islice][idx]:
-                                idx += 1
+                for order in input_order.split(sep=','):
+                    # Pre-fill sorted_headers
+                    sorted_headers[islice] = [False for _ in range(slice_count[islice])]
+                    for im in series[sloc]:
+                        if order == INPUT_ORDER_FAULTY:
+                            tag = i
                         else:
-                            print("WARNING: Duplicate tag", tag)
-                    sorted_headers[islice][idx] = (tag, im)
-                    SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
-                    rows = max(rows, im.Rows)
-                    columns = max(columns, im.Columns)
-                    if 'NumberOfFrames' in im:
-                        frames = im.NumberOfFrames
-                    last_im = im
-                    i += 1
+                            try:
+                                tag = self._get_tag(im, order, opts)
+                            except CannotSort:
+                                raise
+                        idx = tag_list[islice].index(tag)
+                        if sorted_headers[islice][idx]:
+                            # Duplicate tag
+                            if accept_duplicate_tag:
+                                while sorted_headers[islice][idx]:
+                                    idx += 1
+                            else:
+                                print("WARNING: Duplicate tag", tag)
+                        sorted_headers[islice][idx] = (tag, im)
+                        SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
+                        rows = max(rows, im.Rows)
+                        columns = max(columns, im.Columns)
+                        if 'NumberOfFrames' in im:
+                            frames = im.NumberOfFrames
+                        last_im = im
+                        i += 1
             self.DicomHeaderDict = sorted_headers
             hdr.dicomTemplate = series[next(iter(series))][0]
             hdr.SOPInstanceUIDs = SOPInstanceUIDs
@@ -783,10 +788,10 @@ class DICOMPlugin(AbstractPlugin):
             column_axis = UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2])
             if len(tag_list[0]) > 1:
                 tag_axis = VariableAxis(
-                        input_order_to_dirname_str(input_order),
+                        input_order.split(sep=',')[0],
                         tag_list[0])
                 Axes = namedtuple('Axes', [
-                    input_order_to_dirname_str(input_order), 'slice', 'row', 'column'
+                    input_order.split(sep=',')[0], 'slice', 'row', 'column'
                 ])
                 axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
             else:
@@ -912,34 +917,35 @@ class DICOMPlugin(AbstractPlugin):
         def _copy_pixels(_si, _hdr, _image_dict):
             _name: str = '{}.{}'.format(__name__, _copy_pixels.__name__)
             for _slice, _sloc in enumerate(sorted(_image_dict)):
-                _done = [False for x in range(len(_image_dict[_sloc]))]
-                for im in _image_dict[_sloc]:
-                    tag = self._get_tag(im, _hdr.input_order, opts)
-                    tgs = _hdr.tags[_slice]
-                    idx = np.where(tgs == tag)[0][0]
-                    if _done[idx] and accept_duplicate_tag:
-                        while _done[idx]:
-                            idx += 1
-                    _done[idx] = True
-                    idx = (idx, _slice)
-                    # Simplify index when image is 3D, remove tag index
-                    logger.debug("{}: si.ndim {}, idx {}".format(_name, _si.ndim, idx))
-                    if _si.ndim == 3:
-                        idx = idx[1:]
-                    try:
-                        im.decompress()
-                    except NotImplementedError as e:
-                        logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
-                        raise
-                    except ValueError:
-                        pass  # Already decompressed
-                    try:
-                        logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
-                        _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
-                    except Exception as e:
-                        logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
-                        raise
-                    del im
+                for order in _hdr.input_order.split(sep=','):
+                    _done = [False for x in range(len(_image_dict[_sloc]))]
+                    for im in _image_dict[_sloc]:
+                        tag = self._get_tag(im, order, opts)
+                        tgs = _hdr.tags[_slice]
+                        idx = np.where(tgs == tag)[0][0]
+                        if _done[idx] and accept_duplicate_tag:
+                            while _done[idx]:
+                                idx += 1
+                        _done[idx] = True
+                        idx = (idx, _slice)
+                        # Simplify index when image is 3D, remove tag index
+                        logger.debug("{}: si.ndim {}, idx {}".format(_name, _si.ndim, idx))
+                        if _si.ndim == 3:
+                            idx = idx[1:]
+                        try:
+                            im.decompress()
+                        except NotImplementedError as e:
+                            logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
+                            raise
+                        except ValueError:
+                            pass  # Already decompressed
+                        try:
+                            logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
+                            _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
+                        except Exception as e:
+                            logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
+                            raise
+                        del im
 
         def _copy_pixels_from_frames(_si, _hdr, _image_dict):
             _name: str = '{}.{}'.format(__name__, _copy_pixels_from_frames.__name__)
@@ -1565,7 +1571,7 @@ class DICOMPlugin(AbstractPlugin):
             else:  # self.output_dir == 'multi'
                 digits = len("{}".format(steps))
                 dirn = "{0}{{0:0{1}}}".format(
-                    input_order_to_dirname_str(si.input_order),
+                    si.input_order,
                     digits)
                 archive.set_member_naming_scheme(
                     fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
@@ -2273,34 +2279,12 @@ class DICOMPlugin(AbstractPlugin):
                 return get_ds_b_value(im)
             except IndexError:
                 raise CannotSort("Unable to extract b value from header.")
-            b_tag = self._choose_tag('b', 'DiffusionBValue')
+        elif input_order == INPUT_ORDER_BVECTOR:
             try:
-                return float(im.data_element(b_tag).value)
-            except (KeyError, TypeError):
-                pass
-            b_tag = self._choose_tag('b', 'csa_header')
-            if b_tag == 'csa_header':
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", category=UserWarning)
-                    import nibabel.nicom.csareader as csa
-                try:
-                    csa_head = csa.get_csa_header(im)
-                except csa.CSAReadError:
-                    raise CannotSort("Unable to extract b value from header.")
-                if csa_head is None:
-                    raise CannotSort("Unable to extract b value from header.")
-                try:
-                    value = csa.get_b_value(csa_head)
-                except TypeError:
-                    raise CannotSort("Unable to extract b value from header.")
-            else:
-                try:
-                    value = float(im.data_element(b_tag).value)
-                except ValueError:
-                    raise CannotSort("Unable to extract b value from header.")
-            if value is None:
+                bvec = get_ds_b_vectors(im)
+                return bvec
+            except IndexError:
                 raise CannotSort("Unable to extract b value from header.")
-            return value
         elif input_order == INPUT_ORDER_FA:
             fa_tag = self._choose_tag('fa', 'FlipAngle')
             try:
