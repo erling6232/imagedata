@@ -425,6 +425,8 @@ class Patient(IndexedDict):
                    'patientIdentityRemoved', 'deidentificationMethod'
                    ]
 
+    _strict_attributes = ['patientName', 'patientID', 'patientBirthDate', 'patientSex']
+
     def __init__(self, data, opts=None, **kwargs):
 
         super(Patient, self).__init__()
@@ -478,6 +480,7 @@ class Patient(IndexedDict):
                 if getattr(self, _attr, None) is None:
                     setattr(self, _attr, _value)
                 elif _strict_values and \
+                        _attr in self._strict_attributes and \
                         getattr(self, _attr, None) != _value:
                     # Patient attributes differ, should be considered an exception.
                     raise ValueError('Patient attribute "{}" differ ("{}" vs. "{}")'.format(
