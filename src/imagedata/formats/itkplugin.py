@@ -9,7 +9,7 @@ import mimetypes
 from collections import namedtuple
 import itk
 import numpy as np
-from . import NotImageError, input_order_to_dirname_str, shape_to_str, WriteNotImplemented, \
+from . import NotImageError, shape_to_str, WriteNotImplemented, \
     SORT_ON_SLICE, SORT_ON_TAG, sort_on_to_str
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -238,13 +238,13 @@ class ITKPlugin(AbstractPlugin):
             if _actual_ndim > 3:
                 nt = _actual_shape[-4]
                 tag_axis = UniformLengthAxis(
-                    input_order_to_dirname_str(hdr.input_order),
+                    hdr.input_order,
                     0,
                     nt,
                     dt
                 )
                 Axes = namedtuple('Axes', [
-                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                    hdr.input_order, 'slice', 'row', 'column'
                 ])
                 axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
             else:

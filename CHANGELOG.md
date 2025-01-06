@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev6] - 2024-12-13
+* Series.__getitem__(): Accept tuple slicing specification, like ((2,),(2,),(2,)).
+
+## [v3.7.3-dev5] - 2024-12-12
+* Patient class: Limit the strict check of patient attributes to
+  patientName, patientID, patientBirthDate
+  and patientSex.
+
+## [v3.7.3-dev4] - 2024-12-04
+* evidence2roi: Do not raise exception for unknown roi type. Log a warning instead.
+
+## [v3.7.3-dev3] - 2024-11-26
+* Working on n-dimensional sorting.
+* Added code to sort series on diffusion gradient direction (b-vector),
+  and specifically diffusion RSI data.
+
+## [v3.7.3-dev2] - 2024-11-25
+* diffusion.py: Added code to get diffusion b value from Siemens E11 format.
+
 ## [v3.7.3-dev1] - 2024-11-06
 * Viewer.viewport_set(): Fixed error where the viewport did not include the last image.
 

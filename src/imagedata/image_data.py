@@ -2,7 +2,7 @@
 
 """Read/write image data to file(s). Handles DICOM, Nifti, VTI and mhd."""
 
-# Copyright (c) 2013-2023 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import os.path
@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, date, time
 import numpy as np
 from .cmdline import add_argparse_options
-from .formats import find_plugin, NotImageError, input_order_to_dirname_str, shape_to_str
+from .formats import find_plugin, NotImageError, shape_to_str
 from .readdata import _get_sources
 from .transports import Transport
 from .series import Series
@@ -264,7 +264,7 @@ def statistics(cmdline=None):
                     series.seriesNumber, series.modality,
                     _seriesDescription,
                     shape_to_str(series.shape), series.dtype,
-                    input_order_to_dirname_str(series.input_order)
+                    series.input_order
                 ))
                 print_statistics(series, mask, bash=args.bash)
 

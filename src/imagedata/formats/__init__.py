@@ -20,10 +20,13 @@ INPUT_ORDER_AUTO = 'auto'
 INPUT_ORDER_NONE = 'none'
 INPUT_ORDER_TIME = 'time'
 INPUT_ORDER_B = 'b'
+INPUT_ORDER_BVECTOR = 'bvector'
+INPUT_ORDER_RSI = 'rsi'
 INPUT_ORDER_FA = 'fa'
 INPUT_ORDER_TE = 'te'
 INPUT_ORDER_FAULTY = 'faulty'
-input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA,
+input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_BVECTOR,
+                   INPUT_ORDER_RSI, INPUT_ORDER_FA,
                    INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
 
@@ -102,63 +105,6 @@ def str_to_dtype(s):
         return np.double
     else:
         raise (ValueError("Output data type {} not implemented.".format(s)))
-
-
-def input_order_to_str(input_order):
-    if input_order == INPUT_ORDER_NONE:
-        return "INPUT_ORDER_NONE"
-    elif input_order == INPUT_ORDER_TIME:
-        return "INPUT_ORDER_TIME"
-    elif input_order == INPUT_ORDER_B:
-        return "INPUT_ORDER_B"
-    elif input_order == INPUT_ORDER_FA:
-        return "INPUT_ORDER_FA"
-    elif input_order == INPUT_ORDER_TE:
-        return "INPUT_ORDER_TE"
-    elif input_order == INPUT_ORDER_FAULTY:
-        return "INPUT_ORDER_FAULTY"
-    elif issubclass(type(input_order), str):
-        return input_order
-    else:
-        raise (UnknownTag("Unknown numerical input_order {:d}.".format(input_order)))
-
-
-def input_order_to_dirname_str(input_order):
-    if input_order == INPUT_ORDER_NONE:
-        return "none"
-    elif input_order == INPUT_ORDER_TIME:
-        return "time"
-    elif input_order == INPUT_ORDER_B:
-        return "b"
-    elif input_order == INPUT_ORDER_FA:
-        return "fa"
-    elif input_order == INPUT_ORDER_TE:
-        return "te"
-    elif input_order == INPUT_ORDER_FAULTY:
-        return "faulty"
-    elif issubclass(type(input_order), str):
-        keepcharacters = ('-', '_', '.', ' ')
-        return ''.join([c for c in input_order if c.isalnum() or c in keepcharacters]).rstrip()
-    else:
-        raise (UnknownTag("Unknown numerical input_order {:d}.".format(input_order)))
-
-
-def str_to_input_order(s):
-    if s == "none":
-        return INPUT_ORDER_NONE
-    elif s == "time":
-        return INPUT_ORDER_TIME
-    elif s == "b":
-        return INPUT_ORDER_B
-    elif s == "fa":
-        return INPUT_ORDER_FA
-    elif s == "te":
-        return INPUT_ORDER_TE
-    elif s == "faulty":
-        return INPUT_ORDER_FAULTY
-    else:
-        # raise (UnknownTag("Unknown input order {}.".format(s)))
-        return s
 
 
 def shape_to_str(shape):

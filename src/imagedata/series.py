@@ -22,7 +22,7 @@ import pydicom.datadict
 
 from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
-from .formats import input_order_to_dirname_str, shape_to_str, input_order_set, sort_on_set
+from .formats import shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
 from .header import Header
@@ -74,12 +74,14 @@ class Series(np.ndarray):
         data (array_like or URL): Input data, either explicit as np.ndarray, np.uint16, np.float32,
             or by URL to input data.
 
-        input_order (str): How to sort the input data. Typical values are:
+        input_order (str or tuple[str]): How to sort the input data. Typical values are:
 
             - 'auto' : auto-detect sort criteria (default).
             - 'none' : 3D volume or 2D slice.
             - 'time' : Time-resolved data.
             - 'b' : Diffusion data with variable b values.
+            - 'bvector' : Diffusion data with variable gradient directions
+            - 'rsi' : Diffusion data with variable b values and gradient directions
             - 'te' : Varying echo times.
             - 'fa' : Varying flip angles.
 
@@ -559,8 +561,12 @@ class Series(np.ndarray):
                             _stop = obj.shape[_dim] + _stop
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
-                    elif isinstance(_items[_item], int):
-                        _start = _items[_item] or _spec[_dim][0]
+                    elif isinstance(_items[_item], (int, tuple)):
+                        if isinstance(_items[_item], tuple):
+                            _it = _items[_item][0]
+                        else:
+                            _it = _items[_item]
+                        _start = _it or _spec[_dim][0]
                         if _start < 0:
                             _start = obj.shape[_dim] + _start
                         _stop = _start + 1
@@ -610,7 +616,7 @@ class Series(np.ndarray):
                             todo.append(('imagePositions', ipp))
                     except KeyError:
                         pass
-                elif axis.name == input_order_to_dirname_str(self.input_order):
+                elif axis.name == self.input_order:
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
@@ -720,7 +726,7 @@ class Series(np.ndarray):
             "  Series #{} {}: {}\n".format(seriesNumber, modality, seriesDescription) + \
             "  Shape: {}, dtype: {}, input order: {}".format(
                 shape_to_str(self.shape), self.dtype,
-                input_order_to_dirname_str(self.input_order)
+                self.input_order
                 )
 
     @staticmethod
@@ -749,7 +755,7 @@ class Series(np.ndarray):
                 _indeces, axis = specs[d]
             if axis.name == "slice":
                 slice_spec = _indeces
-            elif axis.name == input_order_to_dirname_str(self.input_order):
+            elif axis.name == self.input_order:
                 tag_spec = _indeces
         # tags: dict[slice] is np.array(tags)
         new_tags = {}
@@ -843,10 +849,10 @@ class Series(np.ndarray):
 
     @input_order.setter
     def input_order(self, order):
-        if order in input_order_set:
-            self.header.input_order = order
-        else:
-            raise ValueError("Unknown input order: {}".format(order))
+        for component in order.split(sep=','):
+            if component not in input_order_set:
+                raise ValueError("Unknown input order: {}".format(order))
+        self.header.input_order = order
 
     @property
     def input_format(self):

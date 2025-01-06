@@ -8,7 +8,7 @@ import ast
 import copy
 import logging
 from . import __version__
-from .formats import str_to_sort_on, str_to_input_order, str_to_dtype
+from .formats import str_to_sort_on, str_to_dtype
 from .formats import SORT_ON_SLICE
 from .formats import INPUT_ORDER_AUTO
 
@@ -80,7 +80,7 @@ class InputOrderAction(argparse.Action):
 
     def __call__(self, _parser, namespace, values, option_string=None):
         # print('%r %r %r' % (namespace, values, option_string))
-        input_order = str_to_input_order(values)
+        input_order = values
         setattr(namespace, self.dest, input_order)
 
 

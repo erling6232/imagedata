@@ -13,7 +13,7 @@ import nibabel.data
 import nibabel.spatialimages
 from ..series import Series
 import numpy as np
-from . import NotImageError, WriteNotImplemented, input_order_to_dirname_str
+from . import NotImageError, WriteNotImplemented
 from ..axis import UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive
@@ -301,13 +301,13 @@ class NiftiPlugin(AbstractPlugin):
             )
             if si.ndim > 3:
                 tag_axis = UniformLengthAxis(
-                    input_order_to_dirname_str(hdr.input_order),
+                    hdr.input_order,
                     0,
                     nt,
                     dt
                 )
                 Axes = namedtuple('Axes', [
-                    input_order_to_dirname_str(hdr.input_order), 'slice', 'row', 'column'
+                    hdr.input_order, 'slice', 'row', 'column'
                 ])
                 axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
             else:
