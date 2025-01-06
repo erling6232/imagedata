@@ -46,7 +46,9 @@ class TestDicomPlugin(unittest.TestCase):
         with tempfile.TemporaryDirectory() as self.d:
             # Duplicate image file
             si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
-            si.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
+            si1 = si + 1
+            si1.seriesInstanceUID = si.seriesInstanceUID
+            si1.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
             with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
                 _ = Series(self.d, input_format='dicom')
 
@@ -840,6 +842,17 @@ class TestDicom5DSort(unittest.TestCase):
         si = Series(
             os.path.join('data', 'dicom', '5D.zip?t1_fl2d_DE_4TEs'),
             'time,te',
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+    @unittest.skip("skipping test_ep2d_1bvec")
+    def test_ep2d_1bvec(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'b,bvector',
+            # 'rsi',
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
