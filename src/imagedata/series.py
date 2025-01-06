@@ -561,8 +561,12 @@ class Series(np.ndarray):
                             _stop = obj.shape[_dim] + _stop
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
-                    elif isinstance(_items[_item], int):
-                        _start = _items[_item] or _spec[_dim][0]
+                    elif isinstance(_items[_item], (int, tuple)):
+                        if isinstance(_items[_item], tuple):
+                            _it = _items[_item][0]
+                        else:
+                            _it = _items[_item]
+                        _start = _it or _spec[_dim][0]
                         if _start < 0:
                             _start = obj.shape[_dim] + _start
                         _stop = _start + 1
