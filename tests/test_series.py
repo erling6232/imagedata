@@ -88,6 +88,13 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.slices, 1)
         np.testing.assert_array_equal(si.spacing, np.array((1, 1, 1)))
 
+    def test_get_float_voxel(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(64).reshape((4,4,4)), dtype=np.float64)
+        v = s[2, 2, 2]
+        t = s[((2,), (2,), (2,))]
+        pass
+
     def test_copy_series(self):
         a = np.eye(128)
         si1 = Series(a)
