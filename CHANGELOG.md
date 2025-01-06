@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-rc0] - 2025-01-06
+* Release candidate 3.7.3-rc0
+
 ## [v3.7.3-dev6] - 2024-12-13
 * Series.__getitem__(): Accept tuple slicing specification, like ((2,),(2,),(2,)).
 
