@@ -546,6 +546,13 @@ class DICOMPlugin(AbstractPlugin):
                     pass
             return 0.0
 
+        def _get_tag_value(im: Dataset, input_order: str, opts: dict = None) -> Number:
+            _object = self._get_tag(im, input_order, opts)
+            if issubclass(type(_object), tuple) and issubclass(type(_object[1]), np.ndarray):
+                return _object[0] + np.sum(np.square(_object[1]))
+            else:
+                return _object
+
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
 
         skip_broken_series = False
@@ -589,9 +596,12 @@ class DICOMPlugin(AbstractPlugin):
             # Sort the dataset on selected key for each sloc
             for sort_key in sorting[seriesUID].split(sep=','):
                 for sloc in sorted_dataset.keys():
-                    sorted_dataset[sloc].sort(
-                        key=partial(self._get_tag, input_order=sort_key, opts=opts)
-                    )
+                    try:
+                        sorted_dataset[sloc].sort(
+                            key=partial(_get_tag_value, input_order=sort_key, opts=opts)
+                        )
+                    except Exception as e:
+                        print(e)
             # Catalog images with seriesUID and sloc as keys
             sorted_dataset_dict[seriesUID] = sorted_dataset
         logger.debug('{}: end with {}'.format(_name, sorted_dataset_dict.keys()))
@@ -721,14 +731,23 @@ class DICOMPlugin(AbstractPlugin):
                             raise
                         if tag is None:
                             raise CannotSort("Tag {} not found in data".format(order))
-                        if tag not in tag_list[islice] or accept_duplicate_tag:
+                        try:
+                            if tag not in tag_list[islice] or accept_duplicate_tag:
+                                tag_list[islice].append(tag)
+                            elif accept_uneven_slices:
+                                # Drop duplicate images
+                                logger.warning("{}: dropping duplicate image: {} {}".format(
+                                    _name, islice, sloc))
+                            else:
+                                raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
+                        except ValueError:
+                            for t, x in tag_list[islice]:
+                                if t == tag[0] and np.array_equal(x, tag[1]):
+                                    raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
                             tag_list[islice].append(tag)
-                        elif accept_uneven_slices:
-                            # Drop duplicate images
-                            logger.warning("{}: dropping duplicate image: {} {}".format(
-                                _name, islice, sloc))
-                        else:
-                            raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
+
+                        except Exception as e:
+                            print(e)
                         i += 1
             for islice in tag_list.keys():
                 tag_list[islice] = sorted(tag_list[islice])
@@ -886,7 +905,10 @@ class DICOMPlugin(AbstractPlugin):
                                 skip_pixels: bool = False
                                 ) -> PixelDict:
 
-        # _name: str = '{}.{}'.format(__name__, self._construct_pixel_arrays.__name__)
+        _name: str = '{}.{}'.format(__name__, self._construct_pixel_arrays.__name__)
+        skip_broken_series = False
+        if 'skip_broken_series' in opts:
+            skip_broken_series = opts['skip_broken_series']
         pixel_dict: PixelDict = PixelDict()
         for seriesUID in sorted_header_dict:
             dataset_dict: SortedDatasetList = sorted_dataset_dict[seriesUID]
@@ -902,6 +924,16 @@ class DICOMPlugin(AbstractPlugin):
                     )
                 except TypeError:
                     pass
+                except Exception:
+                    if skip_broken_series:
+                        logger.debug(
+                            '{}: skip_broken_series continue {}'.format(
+                                _name, seriesUID
+                            ))
+                        continue
+                    else:
+                        logger.debug('{}: skip_broken_series raise'.format(_name))
+                        raise
 
             if si is not None:
                 pixel_dict[seriesUID] = si
@@ -2283,6 +2315,13 @@ class DICOMPlugin(AbstractPlugin):
             try:
                 bvec = get_ds_b_vectors(im)
                 return bvec
+            except IndexError:
+                raise CannotSort("Unable to extract b vector from header.")
+        elif input_order == INPUT_ORDER_RSI:
+            try:
+                bvalue = get_ds_b_value(im)
+                bvec = get_ds_b_vectors(im)
+                return (bvalue, bvec)
             except IndexError:
                 raise CannotSort("Unable to extract b value from header.")
         elif input_order == INPUT_ORDER_FA:
