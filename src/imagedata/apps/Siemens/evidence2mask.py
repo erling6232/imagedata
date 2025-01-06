@@ -135,8 +135,28 @@ def evidence2roi(im, uid_table=None, content=None):
             roi_name = finding[(0x0029, 0x1030)].value
         except KeyError:
             roi_name = 'NONAME'
+        if roi_type_value not in (
+            'PolygonApplication3D', 'FreehandApplication3D',
+            'MarkerApplication3D', 'EllipseApplication3D',
+            'StandaloneTextApplication3D', 'DistanceLineApplication3D'
+        ):
+            # Attempt to find roi type in advanced presentation sequence (0029,1091)
+            try:
+                adv_pres_seq = finding[(0x0029, 0x1091)][0]
+                try:
+                    roi_type_value = adv_pres_seq[(0x0029, 0x108e)].value.decode()
+                    roi_name = finding[(0x0029, 0x1032)].value.decode()
+                except AttributeError:
+                    roi_type_value = adv_pres_seq[(0x0029, 0x108e)].value
+                    roi_name = finding[(0x0029, 0x1032)].value
+            except KeyError:
+                pass
         logger.info("Finding: {} {} {}".format(content['creator'], roi_name, roi_type_value))
-        if roi_type_value == 'PolygonApplication3D' or roi_type_value == 'FreehandApplication3D':
+        if roi_type_value in ('PolygonApplication3D', 'FreehandApplication3D', 'ROI2D'):
+            polygon = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
+            rois.append(PolygonROI(polygon, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
+            logger.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
+        elif roi_type_value == 'ROI2D':
             polygon = _get_measurement_points(finding[(0x0029, 0x1096)], zyx=True)
             rois.append(PolygonROI(polygon, roi_name, stu_ins_uid, ser_ins_uid, sop_ins_uid))
             logger.debug('ROI {}: {} points'.format(meas_appl_number, len(polygon) // 3))
@@ -159,7 +179,9 @@ def evidence2roi(im, uid_table=None, content=None):
             logger.warning("DistanceLineApplication3D ROI not implemented.")
             pass
         else:
-            raise ValueError("ROI type {} ({}) not implemented.".format(
-                roi_type_value, type(roi_type_value)))
+            logging.warning(
+                "ROI type {} ({}) not implemented.".format(
+                    roi_type_value, type(roi_type_value))
+            )
 
     return rois, content
