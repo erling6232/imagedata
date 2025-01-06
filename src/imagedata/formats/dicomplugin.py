@@ -745,7 +745,8 @@ class DICOMPlugin(AbstractPlugin):
                                 if t == tag[0] and np.array_equal(x, tag[1]):
                                     raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
                             tag_list[islice].append(tag)
-
+                        except CannotSort:
+                            raise
                         except Exception as e:
                             print(e)
                         i += 1
