@@ -47,7 +47,7 @@ class TestDicomColor(unittest.TestCase):
         self.assertEqual(si1.dtype, np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]))
         self.assertEqual(si1.shape, (512, 512))
         with tempfile.TemporaryDirectory() as d:
-            si1.write(d, formats=['dicom'])
+            si1.write(os.path.join(d, 'Image.dcm'), formats=['dicom'])
             si2 = Series(d)
             self.assertEqual('dicom', si2.input_format)
         d = si1 - si2
