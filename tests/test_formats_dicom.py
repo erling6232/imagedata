@@ -404,7 +404,7 @@ class TestDicomPlugin(unittest.TestCase):
         eye = Series(np.eye(128, dtype=np.uint16))
         eye_seriesInstanceUID = eye.seriesInstanceUID
         with tempfile.TemporaryDirectory() as d:
-            eye.write(d, formats=['dicom'])
+            eye.write(os.path.join(d, 'Image.dcm'), formats=['dicom'])
             eye_read = Series(d)
             self.assertEqual('dicom', eye_read.input_format)
         self.assertNotEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
