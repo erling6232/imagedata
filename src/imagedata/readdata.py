@@ -350,6 +350,10 @@ def _get_location_part(url):
         # Windows: Parse without x:, then reattach drive letter
         url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
         _path = url[:2] + url_tuple.path
+    elif os.name == 'nt' and fnmatch.fnmatch(url, '//*'):
+        # Windows: Parse UNC without leading /, then reattach
+        url_tuple = urllib.parse.urlsplit(url[1:], scheme="file")
+        _path = url[:1] + url_tuple.path
     else:
         url_tuple = urllib.parse.urlsplit(url, scheme="file")
         _path = url_tuple.path

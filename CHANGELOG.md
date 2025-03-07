@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.7.3-dev8] - 2025-03-07
+* Corrected parsing windows UNC path names with leading double slash.
+
 ## [v3.7.3-dev7] - 2025-03-07
 * ZipFileArchive: Windows: Do not complain when temporary local file cannot be removed.
 * Improved some test suites to run better on Windows.
