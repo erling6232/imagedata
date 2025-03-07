@@ -64,7 +64,10 @@ class WriteFileIO(io.FileIO):
         ret = super(WriteFileIO, self).close()
         if isinstance(self.__local_file, str):
             self.__archive.write(self.__local_file, self.__filename)
-            os.remove(self.__local_file)
+            try:
+                os.remove(self.__local_file)
+            except PermissionError:
+                pass
         else:
             self.__local_file.close()
             logger.debug("{}: zip {} as {}".format(
@@ -74,7 +77,10 @@ class WriteFileIO(io.FileIO):
             logger.debug("{}: remove {}".format(
                 _name, self.__local_file.name)
             )
-            os.remove(self.__local_file.name)
+            try:
+                os.remove(self.__local_file.name)
+            except PermissionError:
+                pass
         return ret
 
     def __enter__(self):

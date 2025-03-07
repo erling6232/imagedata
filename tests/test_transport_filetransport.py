@@ -53,7 +53,7 @@ class TestFiletransport(unittest.TestCase):
         f = tree.open('data/text.txt')
         contents = f.read()
         self.assertEqual(len(contents),
-                         408347 if os.name == 'nt' else 13)
+                         14 if os.name == 'nt' else 13)
         f.close()
 
     # @unittest.skip("test_open_file")
