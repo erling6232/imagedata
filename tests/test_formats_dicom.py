@@ -837,15 +837,50 @@ class TestDicom5DSort(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
 
-    @unittest.skip("skipping test_t1_de_te")
-    def test_t1_de_te(self):
+    #@unittest.skip("skipping test_t1_de_te")
+    def test_5D_time_te(self):
         si = Series(
             os.path.join('data', 'dicom', '5D.zip?t1_fl2d_DE_4TEs'),
             'time,te',
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
+            si.write(os.path.join(d, 'slice', 'single'), formats=['dicom'],
+                     opts={'output_sort': 0, 'output_dir': 'single'}
+                     )
+            si1 = Series(os.path.join(d, 'slice', 'single'),
+                         'time,te',
+                         input_format='dicom'
+            )
+            np.testing.assert_array_equal(si1, si)
+            np.testing.assert_array_equal(si1.tags[0], si.tags[0])
+            si.write(os.path.join(d, 'slice', 'multi'), formats=['dicom'],
+                     opts={'output_sort': 0, 'output_dir': 'multi'}
+                     )
+            si2 = Series(os.path.join(d, 'slice', 'multi'),
+                         'time,te',
+                         input_format='dicom'
+                         )
+            np.testing.assert_array_equal(si2, si)
+            np.testing.assert_array_equal(si2.tags[0], si.tags[0])
+            si.write(os.path.join(d, 'tag', 'single'), formats=['dicom'],
+                     opts={'output_sort': 1, 'output_dir': 'single'}
+            )
+            si3 = Series(os.path.join(d, 'tag', 'single'),
+                         'time,te',
+                         input_format='dicom'
+                         )
+            np.testing.assert_array_equal(si3, si)
+            np.testing.assert_array_equal(si3.tags[0], si.tags[0])
+            si.write(os.path.join(d, 'tag', 'multi'), formats=['dicom'],
+                     opts={'output_sort': 1, 'output_dir': 'multi'}
+                     )
+            si4 = Series(os.path.join(d, 'tag', 'multi'),
+                         'time,te',
+                         input_format='dicom'
+                         )
+            np.testing.assert_array_equal(si4, si)
+            np.testing.assert_array_equal(si4.tags[0], si.tags[0])
 
     @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
