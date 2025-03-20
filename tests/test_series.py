@@ -81,6 +81,20 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.dtype, np.float64)
         self.assertEqual(si.shape, (128, 128))
 
+    def test_create_series_5D(self):
+        from numpy.random import default_rng
+        rng = default_rng()
+        s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
+
+    def test_slicing_series_5D(self):
+        from numpy.random import default_rng
+        rng = default_rng()
+        s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
+        s1 = s[1]
+        self.assertEqual(s1.axes, s.axes)
+        s2 = s[:,1]
+        self.assertEqual(s2.axes, s.axes)
+
     def test_print_header(self):
         a = np.eye(128)
         si = Series(a)

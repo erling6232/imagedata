@@ -151,9 +151,10 @@ class Series(np.ndarray):
                 except AttributeError:
                     # Set first axis from input_order
                     _fields = list(obj.header.axes._fields)
-                    _fields[0] = obj.header.input_order
                     _values = list(obj.header.axes)
-                    _values[0].name = obj.header.input_order
+                    for i, order in enumerate(obj.header.input_order.split(',')):
+                        _fields[i] = order
+                        _values[i].name = order
                     Axes = namedtuple('Axes', _fields)
                     obj.header.axes = Axes._make(_values)
 
@@ -616,12 +617,16 @@ class Series(np.ndarray):
                             todo.append(('imagePositions', ipp))
                     except KeyError:
                         pass
-                elif axis.name == self.input_order:
+                elif axis.name in self.input_order.split(','):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
-                    if len(tags[0]) == 1:
-                        reduce_dim = True
+                    try:
+                        # if len(tags[0]) == 1:
+                        if len(next(iter(tags))) == 1:
+                            reduce_dim = True
+                    except KeyError:
+                        pass
             Axes = namedtuple('Axes', new_axes_names)
             new_axes = Axes._make(new_axes)
 
@@ -739,36 +744,24 @@ class Series(np.ndarray):
     def __get_tags(self, specs):
         try:
             tmpl_tags = self.tags
-            _ = len(self.tags) - 1  # known_slices might be less than actual data shape
-            tags = len(self.tags[0])
+            tags = self.tags[0].shape
         except ValueError:
             return None
-        # slice_spec = slice(0, self.slices, 1)
-        # tag_spec = slice(0, tags, 1)
         slice_spec = [_ for _ in range(0, self.slices, 1)]
-        tag_spec = [_ for _ in range(0, tags, 1)]
+        tag_spec = tuple()
         for d in specs:
             try:
                 start, stop, step, axis = specs[d]
-                _indeces = [_ for _ in range(start, stop, step)]
+                _indices = [_ for _ in range(start, stop, step)]
             except ValueError:
-                _indeces, axis = specs[d]
+                _indices, axis = specs[d]
             if axis.name == "slice":
-                slice_spec = _indeces
-            elif axis.name == self.input_order:
-                tag_spec = _indeces
-        # tags: dict[slice] is np.array(tags)
+                slice_spec = _indices
+            elif axis.name in self.input_order.split(','):
+                tag_spec += (slice(start, stop, step),)
         new_tags = {}
-        j = 0
         for s in slice_spec:
-            new_tags[j] = list()
-            for t in tag_spec:
-                # Limit slices to the known slices. Duplicates last slice and/or tag if too few.
-                try:
-                    new_tags[j].append(tmpl_tags[s][t])
-                except IndexError:
-                    raise IndexError("Could not get tag for slice {}, tag {}".format(s, t))
-            j += 1
+            new_tags[s] = self.tags[s][tag_spec]
         return new_tags
 
     def __calculate_window(self):
@@ -1128,9 +1121,13 @@ class Series(np.ndarray):
         if len(shape) < 1:
             return None
         _max_known_shape = min(3, len(shape))
-        _labels = [self.input_order, 'slice', 'row', 'column'][-_max_known_shape:]
+        _labels = self.input_order.split(sep=',')
+        _labels += ['slice', 'row', 'column'][-_max_known_shape:]
+        _labels = _labels[-_max_known_shape:]
+        i = 0
         while len(_labels) < self.ndim:
-            _labels.insert(0, 'unknown')
+            _labels.insert(0, 'unknown{}'.format(i))
+            i += 1
 
         _axes = []
         for i, d in enumerate(super(Series, self).shape):

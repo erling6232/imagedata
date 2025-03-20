@@ -142,15 +142,18 @@ class Header(object):
             slices = len(axes.slice)
         except AttributeError:
             slices = 1
-        if axes[0].name not in ('slice', 'row', 'column'):
-            tags = len(axes[0])
-        else:
-            tags = 1
+        tags = (1,)
+        axis_tags = tuple()
+        for axis in axes:
+            if axis.name not in ('slice', 'row', 'column'):
+                axis_tags += (len(axis),)
+        if len(axis_tags):
+            tags = axis_tags
 
         # Construct new axes, copy to avoid crosstalk to template axes
         new_axes = namedtuple('Axes', axes._fields)
         self.axes = new_axes._make(axes)
-        if self.axes[0].name == 'unknown':
+        if self.axes[0].name[:7] == 'unknown':
             new_keys = [self.input_order] + list(self.axes._fields[1:])
             values = list(self.axes)
             values[0].name = self.input_order
@@ -162,7 +165,10 @@ class Header(object):
         if self.tags is None:
             self.tags = {}
             for _slice in range(slices):
-                self.tags[_slice] = np.arange(tags)
+                _tags = np.empty(tags, dtype=tuple)
+                for tag in np.ndindex(tags):
+                    _tags[tag] = tag
+                self.tags[_slice] = _tags
 
     # noinspection PyPep8Naming
     def empty_ds(self) -> pydicom.dataset.Dataset:
@@ -209,14 +215,15 @@ class Header(object):
         # Make sure tags are set last. Template may be None
         self.__set_tags_from_template(template)
 
-    def __get_tags_and_slices(self):  # -> tuple[int, int]:
-        slices = tags = 1
+    def __get_tags_and_slices(self) -> tuple[tuple[int], int]:
+        tags = tuple()
+        slices = 1
         if self.axes is not None:
             for axis in self.axes:
                 if axis.name == 'slice':
                     slices = len(axis)
                 elif axis.name not in {'row', 'column'}:
-                    tags = len(axis)
+                    tags += (len(axis),)
         return tags, slices
 
     def __set_tags_from_template(self, template) -> None:
@@ -229,28 +236,41 @@ class Header(object):
         Raises:
             ValueError: when no tag axis is found
         """
+        def tuple_to_rectangle(shape: tuple[int]) -> tuple[slice]:
+            rectangle = tuple()
+            for s in shape:
+                rectangle += (slice(0, s),)
+            return rectangle
+
         self.tags = {}
-        _last_tags = []
+        _last_tags = np.array([])
         tags, slices = self.__get_tags_and_slices()
-        new_tag_list = self.__construct_tags_from_axis(template)
+        new_tag_list = self.__construct_tags_from_template_axes(template)
         for _slice in range(slices):
+            # for tag in np.ndindex(tags):
             _tags = []
             try:
                 if issubclass(type(template.tags[_slice]), dict):
-                    template_tag_list = list(template.tags[_slice].values())
-                else:
-                    template_tag_list = list(template.tags[_slice])
+                    raise ValueError('Should not be here')
+                    template_tags = list(template.tags[_slice].values())
+                template_tags = template.tags[_slice]
+                if template_tags.ndim == 0:
+                    template_tags = _last_tags
             except (TypeError, KeyError):
-                template_tag_list = _last_tags
+                template_tags = _last_tags
             # Use original template tags when possible, otherwise calculated tags
-            if len(template_tag_list) >= tags:
-                _tags = template_tag_list[:tags]
+            if template_tags.shape >= tags:
+                _tags = template_tags[tuple_to_rectangle(tags)]
             else:
                 _tags = new_tag_list
-            self.tags[_slice] = np.array(_tags)
+            # self.tags[_slice] = np.array(_tags).squeeze()
+            if _tags.ndim > 1:
+                self.tags[_slice] = _tags.squeeze()
+            else:
+                self.tags[_slice] = _tags
             _last_tags = self.tags[_slice].copy()
 
-    def __construct_tags_from_axis(self, template) -> np.ndarray:
+    def __construct_tags_from_template_axes(self, template) -> np.ndarray:
         """Construct tag_list from self and template.
         Extend tag_list when template has to few tags.
 
@@ -262,17 +282,31 @@ class Header(object):
         Raises:
             ValueError: when no tag axis is found
         """
-        def tag_increment(tag_list):
-            if len(tag_list) < 2:
-                return 1.0
-            else:
-                return tag_list[-1] - tag_list[-2]  # Difference of last to tags
+        def previous_tag(tag: tuple[int], axis: int) -> tuple[int]:
+            if tag is None or tag[axis] < 1:
+                return None
+            pre_tag = tuple()
+            for i, t in enumerate(tag):
+                if i == axis:
+                    pre_tag += (tag[i]-1,)
+                else:
+                    pre_tag += (tag[i],)
+            return pre_tag
+
+        def tag_increment(tag: tuple[int], tag_list: np.ndarray[tuple[int]]) \
+                -> tuple[float]:
+            diff = tuple()
+            for i, t in enumerate(tag):
+                try:
+                    pre1 = previous_tag(tag, i)
+                    pre2 = previous_tag(pre1, i)
+                    diff += (tag_list[pre1] - tag_list[pre2],)
+                except IndexError:
+                    diff += (1.0,)
+            return diff
 
         if template.tags is None:
             return np.ndarray([])
-
-        tags, slices = self.__get_tags_and_slices()
-        tag_list = {}
 
         if self.input_order == 'none':
             # There will be one tag only per slice
@@ -290,11 +324,17 @@ class Header(object):
             return tag_list
 
         # Multiple tags
-        # new_tags = [template.axes[0][_].values[0] for _ in range(len(template.axes[0]))]
-        new_tags = [_ for _ in template.axes[0]]
-        while len(new_tags) < tags:
-            new_tags.append(new_tags[-1] + tag_increment(new_tags))
-        return np.array(new_tags)
+        tags, slices = self.__get_tags_and_slices()
+        new_tags = np.empty(tags, dtype=tuple)
+        # new_tags = [_ for _ in template.axes[0]]
+        for tag in np.ndindex(tags):
+            try:
+                new_tags[tag] = [
+                    template.axes[_].values[tag[_]] for _ in range(len(tags))
+                ]
+            except IndexError:
+                new_tags[tag] = tag_increment(tag, new_tags)
+        return new_tags
 
     def add_geometry(self, geometry):
         """Add geometry data to obj header.
