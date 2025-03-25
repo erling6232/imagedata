@@ -1,7 +1,7 @@
 """Read/Write Matlab-compatible MAT files
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 import numpy as np
@@ -53,7 +53,7 @@ class MatPlugin(AbstractPlugin):
     name = "mat"
     description = "Read and write MAT files."
     authors = "Erling Andersen"
-    version = "1.0.0"
+    version = "1.1.0"
     url = "www.helse-bergen.no"
     extensions = [".mat"]
 
@@ -175,12 +175,10 @@ class MatPlugin(AbstractPlugin):
         hdr.axes = axes
         logger.debug('{}: nt {}, nz {}'.format(_name, nt, nz))
         dt = 1
-        times = np.arange(0, nt * dt, dt)
-        tags = {}
+        times = [(_,) for _ in np.arange(0, nt * dt, dt)]
+        hdr.tags = {}
         for slice in range(nz):
-            tags[slice] = np.array(times)
-        hdr.tags = tags
-        # logger.debug('matplugin._set_tags tags {}'.format(tags))
+            hdr.tags[slice] = np.array(times, dtype=tuple)
 
         hdr.photometricInterpretation = 'MONOCHROME2'
         hdr.color = False

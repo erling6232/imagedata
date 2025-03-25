@@ -301,13 +301,18 @@ class TestDicomGeometryTemplate(unittest.TestCase):
             template=template, geometry=template)
         # Compare constructed series si1 to original series template
         for _slice in range(si1.slices):
-            # Append one slice location to template
-            ds = template.tags[_slice][1] - template.tags[_slice][0]
-            ns = template.tags[_slice][-1] + ds
-            template_list = template.tags[_slice].tolist()
-            template_list.append(ns)
-            template_tags = np.array(template_list)
-            np.testing.assert_array_almost_equal(template_tags, si1.tags[_slice], decimal=4)
+            # Append one time point to template
+            ds = template.tags[_slice][1][0] - template.tags[_slice][0][0]
+            ns = template.tags[_slice][-1][0] + ds
+            si1_tags_arr = np.empty(si1.shape[0], dtype=float)
+            for _ in range(si1.shape[0]):
+                si1_tags_arr[_] = si1.tags[_slice][_][0]
+            template_arr = np.empty(template.shape[0]+1, dtype=float)
+            for _ in range(template.shape[0]):
+                template_arr[_] = template.tags[_slice][_][0]
+            template_arr[-1] = ns
+            np.testing.assert_array_almost_equal(si1_tags_arr, template_arr, decimal=4)
+            np.testing.assert_array_almost_equal(si1.axes[0].values, template_arr, decimal=4)
 
 
 if __name__ == '__main__':

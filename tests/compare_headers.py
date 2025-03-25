@@ -90,6 +90,37 @@ def compare_axes(self, axes, new_axes):
             self.assertEqual(_axis.step, _new_axis.step)
 
 
+def compare_tags(self, tags, new_tags, axis=None, slicing=None):
+    if axis is None:
+        raise ValueError('Axis direction must be defined')
+    for _slice in tags.keys():
+        if isinstance(axis, tuple):
+            _t = tags[_slice]
+            for i in reversed(axis):
+                _slicing = slicing[i]
+                if i == 2:
+                    _t = _t[:, :, _slicing]
+                elif i == 1:
+                    _t = _t[:, _slicing]
+                elif i == 0:
+                    _t = _t[_slicing]
+                else:
+                    raise ValueError('Too many axes')
+        elif axis == 0:
+            _t = tags[_slice][ slicing]
+        elif axis == 1:
+            _t = tags[_slice][:, slicing]
+        elif axis == 2:
+            _t = tags[_slice][:, :, slicing]
+        else:
+            raise ValueError('Axis direction must be defined')
+        for tag in np.ndindex(new_tags[_slice].shape):
+            self.assertAlmostEqual(
+                _t[tag],
+                new_tags[_slice][tag]
+            )
+
+
 def compare_pydicom(self, orig, temp, uid=False):
     dont_verify = ['Content Date', 'Content Time', 'Instance Number',
                    'Largest Pixel Value in Series', 'Window Center',

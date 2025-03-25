@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import sys
@@ -21,6 +21,7 @@ import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
+from numpy.core.numeric import inf
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
@@ -223,7 +224,7 @@ class DICOMPlugin(AbstractPlugin):
     name = "dicom"
     description = "Read and write DICOM files."
     authors = "Erling Andersen"
-    version = "2.0.0"
+    version = "2.1.0"
     url = "www.helse-bergen.no"
     extensions = [".dcm", ".ima"]
 
@@ -594,7 +595,7 @@ class DICOMPlugin(AbstractPlugin):
                     logger.debug('{}: skip_broken_series raise'.format(_name))
                     raise
             # Sort the dataset on selected key for each sloc
-            for sort_key in sorting[seriesUID].split(sep=','):
+            for sort_key in reversed(sorting[seriesUID].split(sep=',')):
                 for sloc in sorted_dataset.keys():
                     try:
                         sorted_dataset[sloc].sort(
@@ -700,6 +701,85 @@ class DICOMPlugin(AbstractPlugin):
                 )
             return slice_count
 
+        def _structure_tags(tag_list: defaultdict[list])\
+                -> defaultdict[tuple]:
+
+            def _increase_idx(idx, order):
+                idx1 = idx[:order]; idx2 = (idx[order] + 1,); idx3 = idx[order + 1:]
+                idx = idx[:order] + (idx[order] + 1,) + idx[order + 1:]
+                return idx
+
+            def _jump_idx(idx, order):
+                tags = len(idx)
+                if order == 0:
+                    new_idx = (idx[0]+1,)
+                    for _ in range(tags-1):
+                        new_idx += (0,)
+                # elif order == tags-1:
+                else:
+                    if order == 1:
+                        new_idx = (idx[0]+1,)
+                    else:
+                        new_idx = idx[:order-1] + (idx[order-1]+1,)
+                    while len(new_idx) < tags:
+                        new_idx += (0,)
+                # else:
+                #     new_idx = idx[:order] + (idx[order]+1,) + idx[order+1:]
+                return new_idx
+
+            if len(tag_list) == 0:
+                return defaultdict(list)
+            tags = len(tag_list[0])
+            # if size == tags:
+            #     return sorted(tag_list)
+            # Some tag values are not unique, need to do a better sort
+            size = {}
+            strides = {tags-1: 1}
+            stride = 1
+            for index in reversed(range(tags)):
+                size[index] = len(sorted(set(_extract_tuple_index(tag_list, index))))
+                if size[index] >= len(tag_list):
+                    # Extract every nth value
+                    size[index] = len(tag_list) // stride
+                stride *= size[index]
+                strides[index-1] = stride
+            struct_tag_list = defaultdict(list)
+            for index in range(tags):
+                # Extract every nth value
+                values = []
+                for i in range(0, size[index]*strides[index], strides[index]):
+                    values.append(tag_list[i][index])
+                struct_tag_list[index] = values
+            tag_dict = defaultdict(tuple)
+            idx = last_tuple = tuple()
+            for _ in range(tags-1):
+                idx += (0,)
+                last_tuple += (-np.inf,)
+            idx += (-1,)
+            last_tuple += (-np.inf,)
+            for tag_tuple in tag_list:
+                for order in reversed(range(tags)):
+                    if tag_tuple[order] >= last_tuple[order]:
+                        idx = _increase_idx(idx, order)
+                    else:  # tag_tuple[order] < last_tuple[order]:
+                        # Reset order index, increase more significant index
+                        idx = _jump_idx(idx, order)
+                    break
+                # for i, tag in enumerate(tag_tuple):
+                #     ix = struct_tag_list[i].index(tag)
+                #     idx += (struct_tag_list[i].index(tag),)
+                tag_dict[tag_tuple] = idx
+                last_tuple = tag_tuple
+            return struct_tag_list, tag_dict
+
+        def _extract_tuple_index(tag_list, i) -> np.ndarray[float]:
+            # return sorted(tag_list, key=lambda tup: tup[i])
+            # tag_list.sort(key=lambda tup: tup[i])
+            result_list = []
+            for tag in tag_list:
+                result_list.append(tag[i])
+            return result_list
+
         def _extract_all_tags(hdr: Header,
                               series: SortedDatasetList,
                               input_order: str,
@@ -712,46 +792,42 @@ class DICOMPlugin(AbstractPlugin):
             if 'accept_uneven_slices' in opts and opts['accept_uneven_slices']:
                 accept_uneven_slices = True
             tag_list = defaultdict(list)
+            faulty = 0
             for islice, sloc in enumerate(sorted(series)):
-                for order in input_order.split(sep=','):
-                    i = 0
-                    for im in series[sloc]:
-                        try:
-                            tag = self._get_tag(im, order, opts)
-                        except KeyError:
-                            if order == INPUT_ORDER_FAULTY:
-                                tag = i
-                            else:
-                                raise CannotSort('Tag {} not found in dataset'.format(
-                                    order
-                                ))
-                        except CannotSort:
-                            raise
-                        except Exception:
-                            raise
-                        if tag is None:
-                            raise CannotSort("Tag {} not found in data".format(order))
-                        try:
-                            if tag not in tag_list[islice] or accept_duplicate_tag:
-                                tag_list[islice].append(tag)
-                            elif accept_uneven_slices:
-                                # Drop duplicate images
-                                logger.warning("{}: dropping duplicate image: {} {}".format(
-                                    _name, islice, sloc))
-                            else:
-                                raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
-                        except ValueError:
-                            for t, x in tag_list[islice]:
-                                if t == tag[0] and np.array_equal(x, tag[1]):
-                                    raise CannotSort("Duplicate tag ({}): {}".format(order, tag))
+                for i, im in enumerate(series[sloc]):
+                    tag = self._extract_tag_tuple(im, faulty, input_order, opts)
+                    faulty += 1
+                    try:
+                        if tag not in tag_list[islice] or accept_duplicate_tag:
                             tag_list[islice].append(tag)
-                        except CannotSort:
-                            raise
-                        except Exception as e:
-                            print(e)
-                        i += 1
+                        elif accept_uneven_slices:
+                            # Drop duplicate images
+                            logger.warning("{}: dropping duplicate image: {} {}".format(
+                                _name, islice, sloc))
+                        else:
+                            raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                    except ValueError:
+                        for t, x in tag_list[islice]:
+                            if t == tag[0] and np.array_equal(x, tag[1]):
+                                raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                        tag_list[islice].append(tag)
+                    except CannotSort:
+                        raise
+                    except Exception as e:
+                        print(e)
+            struct_tag_list = defaultdict()
+            tag_dict = defaultdict()
             for islice in tag_list.keys():
-                tag_list[islice] = sorted(tag_list[islice])
+                struct_tag_list[islice], tag_dict[islice] = _structure_tags(tag_list[islice])
+            shape = tuple()
+            for _ in sorted(struct_tag_list[0].keys()):
+                shape += (len(struct_tag_list[0][_]),)
+            hdr.tags = {}
+            for _slice in tag_dict.keys():
+                hdr.tags[_slice] = np.empty(shape, dtype=tuple)
+                for _tag in tag_dict[_slice]:
+                    idx = tag_dict[_slice][_tag]
+                    hdr.tags[_slice][idx] = _tag
             # Sort images based on position in tag_list
             sorted_headers = {}
             SOPInstanceUIDs = {}
@@ -761,18 +837,13 @@ class DICOMPlugin(AbstractPlugin):
             rows = columns = 0
             i = 0
             for islice, sloc in enumerate(sorted(series)):
-                for order in input_order.split(sep=','):
-                    # Pre-fill sorted_headers
-                    sorted_headers[islice] = [False for _ in range(slice_count[islice])]
-                    for im in series[sloc]:
-                        if order == INPUT_ORDER_FAULTY:
-                            tag = i
-                        else:
-                            try:
-                                tag = self._get_tag(im, order, opts)
-                            except CannotSort:
-                                raise
-                        idx = tag_list[islice].index(tag)
+                # Pre-fill sorted_headers
+                sorted_headers[islice] = {}  # [False for _ in range(slice_count[islice])]
+                for im in series[sloc]:
+                    tag = self._extract_tag_tuple(im, i, input_order, opts)
+                    # idx = tag_list[islice].index(tag)
+                    idx = self._index_from_tag(tag, hdr.tags[islice])
+                    try:
                         if sorted_headers[islice][idx]:
                             # Duplicate tag
                             if accept_duplicate_tag:
@@ -780,20 +851,20 @@ class DICOMPlugin(AbstractPlugin):
                                     idx += 1
                             else:
                                 print("WARNING: Duplicate tag", tag)
-                        sorted_headers[islice][idx] = (tag, im)
-                        SOPInstanceUIDs[(idx, islice)] = im.SOPInstanceUID
-                        rows = max(rows, im.Rows)
-                        columns = max(columns, im.Columns)
-                        if 'NumberOfFrames' in im:
-                            frames = im.NumberOfFrames
-                        last_im = im
-                        i += 1
+                    except KeyError:
+                        pass
+                    sorted_headers[islice][idx] = (tag, im)
+                    SOPInstanceUIDs[idx + (islice,)] = im.SOPInstanceUID
+                    # SOPInstanceUIDs[tag + (islice,)] = im.SOPInstanceUID
+                    rows = max(rows, im.Rows)
+                    columns = max(columns, im.Columns)
+                    if 'NumberOfFrames' in im:
+                        frames = im.NumberOfFrames
+                    last_im = im
+                    i += 1
             self.DicomHeaderDict = sorted_headers
             hdr.dicomTemplate = series[next(iter(series))][0]
             hdr.SOPInstanceUIDs = SOPInstanceUIDs
-            hdr.tags = {}
-            for _slice in tag_list.keys():
-                hdr.tags[_slice] = np.array(tag_list[_slice])
             nz = len(series)
             if frames is not None and frames > 1:
                 nz = frames
@@ -807,13 +878,15 @@ class DICOMPlugin(AbstractPlugin):
             row_axis = UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1])
             column_axis = UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2])
             if len(tag_list[0]) > 1:
-                tag_axis = VariableAxis(
-                        input_order.split(sep=',')[0],
-                        tag_list[0])
-                Axes = namedtuple('Axes', [
-                    input_order.split(sep=',')[0], 'slice', 'row', 'column'
-                ])
-                axes = Axes(tag_axis, slice_axis, row_axis, column_axis)
+                tag_axes = []
+                for i, order in enumerate(input_order.split(sep=',')):
+                    tag_axes.append(
+                        VariableAxis(order, struct_tag_list[0][i])
+                    )
+                axis_names = input_order.split(sep=',')
+                axis_names.extend(['slice', 'row', 'column'])
+                Axes = namedtuple('Axes', axis_names)
+                axes = Axes(*tag_axes, slice_axis, row_axis, column_axis)
             else:
                 Axes = namedtuple('Axes', [
                     'slice', 'row', 'column'
@@ -948,37 +1021,42 @@ class DICOMPlugin(AbstractPlugin):
                                ) -> np.ndarray:
 
         def _copy_pixels(_si, _hdr, _image_dict):
+
             _name: str = '{}.{}'.format(__name__, _copy_pixels.__name__)
+            faulty = 0
             for _slice, _sloc in enumerate(sorted(_image_dict)):
-                for order in _hdr.input_order.split(sep=','):
-                    _done = [False for x in range(len(_image_dict[_sloc]))]
-                    for im in _image_dict[_sloc]:
-                        tag = self._get_tag(im, order, opts)
-                        tgs = _hdr.tags[_slice]
-                        idx = np.where(tgs == tag)[0][0]
-                        if _done[idx] and accept_duplicate_tag:
-                            while _done[idx]:
+                _done = {}
+                tgs = _hdr.tags[_slice]
+                for im in _image_dict[_sloc]:
+                    tag = self._extract_tag_tuple(im, faulty, _hdr.input_order, opts)
+                    idx = self._index_from_tag(tag, tgs)
+                    if idx in _done:
+                        if accept_duplicate_tag:
+                            while idx in _done:
                                 idx += 1
-                        _done[idx] = True
-                        idx = (idx, _slice)
-                        # Simplify index when image is 3D, remove tag index
-                        logger.debug("{}: si.ndim {}, idx {}".format(_name, _si.ndim, idx))
-                        if _si.ndim == 3:
-                            idx = idx[1:]
-                        try:
-                            im.decompress()
-                        except NotImplementedError as e:
-                            logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
-                            raise
-                        except ValueError:
-                            pass  # Already decompressed
-                        try:
-                            logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
-                            _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
-                        except Exception as e:
-                            logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
-                            raise
-                        del im
+                        else:
+                            logger.warning("{}: Overwriting data at index {}".format(_name, idx))
+                    _done[idx] = True
+                    idx += (_slice,)
+                    # Simplify index when image is 3D, remove tag index
+                    logger.debug("{}: si.ndim {}, idx {}".format(_name, _si.ndim, idx))
+                    if _si.ndim == 3:
+                        idx = idx[len(tag):]
+                    try:
+                        im.decompress()
+                    except NotImplementedError as e:
+                        logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
+                        raise
+                    except ValueError:
+                        pass  # Already decompressed
+                    try:
+                        logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
+                        _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
+                    except Exception as e:
+                        logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
+                        raise
+                    del im
+                    faulty += 1
 
         def _copy_pixels_from_frames(_si, _hdr, _image_dict):
             _name: str = '{}.{}'.format(__name__, _copy_pixels_from_frames.__name__)
@@ -1227,7 +1305,10 @@ class DICOMPlugin(AbstractPlugin):
         """
         # logger.debug("getDicomAttribute: tag", tag, ", slice", slice)
         assert dictionary is not None, "dicomplugin.getDicomAttribute: dictionary is None"
-        _, im = dictionary[slice][0]
+        try:
+            _, im = dictionary[slice][next(iter(dictionary[slice]))]
+        except TypeError:
+            _, im = dictionary[slice][0]
         if tag in im:
             return im[tag].value
         else:
@@ -1570,10 +1651,13 @@ class DICOMPlugin(AbstractPlugin):
         self.instanceNumber = 0
 
         logger.debug('{}: orig shape {}, len {}'.format(_name, si.shape, si.ndim))
-        assert si.ndim == 4, "write_4d_series: input dimension %d is not 4D." % si.ndim
+        assert si.ndim >= 4, "write_4d_series: input dimension %d is less than 4D." % si.ndim
 
-        steps = si.shape[0]
-        axis = getattr(si.axes, si.input_order)
+        tags = si.tags[0].ndim
+        # steps = si.shape[0]
+        steps = si.shape[:tags]
+        # axis = getattr(si.axes, si.input_order)
+        axes = si.axes[:tags]
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
@@ -1595,6 +1679,7 @@ class DICOMPlugin(AbstractPlugin):
         # Either legacy CT/MR, or another modality
         if self.output_sort == SORT_ON_SLICE:
             if self.output_dir == 'single':
+                # Filenames: Image_00000.dcm, sort slice fastest
                 archive.set_member_naming_scheme(
                     fallback='Image_{:05d}.dcm',
                     level=1,
@@ -1602,30 +1687,43 @@ class DICOMPlugin(AbstractPlugin):
                     extensions=self.extensions
                 )
             else:  # self.output_dir == 'multi'
-                digits = len("{}".format(steps))
-                dirn = "{0}{{0:0{1}}}".format(
-                    si.input_order,
-                    digits)
+                # Filenames: Tag0/../TagN/Image_00000.dcm, sort slice fastest
+                dirn = []
+                for i, order in enumerate(si.input_order.split(',')):
+                    digits = len("{}".format(steps[i]))
+                    dirn.append(
+                        "{0}{{{1}:0{2}}}".format(
+                            order,
+                            i,
+                            digits)
+                    )
                 archive.set_member_naming_scheme(
-                    fallback=os.path.join(dirn, 'Image_{1:05d}.dcm'),
+                    fallback=os.path.join(
+                        *dirn,
+                        'Image_{' + '{}'.format(len(dirn)) + ':05d}.dcm'),
                     level=max(0, si.ndim - 2),
                     default_extension='.dcm',
                     extensions=self.extensions
                 )
             ifile = 0
-            for tag in range(steps):
+            for tag in np.ndindex(steps):
                 for _slice in range(si.slices):
+                    _tag = tag + (_slice,)
                     if self.keep_uid:
-                        sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                        sop_ins_uid = si.SOPInstanceUIDs[tag + (_slice,)]
                     else:
                         sop_ins_uid = si.header.new_uid()
                     if self.output_dir == 'multi' and _slice == 0:
                         # Restart file number in each subdirectory
                         ifile = 0
+                    if self.output_dir == 'multi':
+                        _file_tag = _tag
+                    else:
+                        _file_tag = (ifile,)
                     try:
-                        self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
+                        self.write_slice(si.input_order, _file_tag, si[_tag],
                                          destination, ifile,
-                                         tag_value=axis.values[tag],
+                                         tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
@@ -1634,36 +1732,55 @@ class DICOMPlugin(AbstractPlugin):
                     ifile += 1
         else:  # self.output_sort == SORT_ON_TAG:
             if self.output_dir == 'single':
+                # Filenames: Image_00000.dcm, sort tags fastest
                 archive.set_member_naming_scheme(
-                    fallback=self.input_order + '_{1:05d}.dcm',
+                    fallback='Image_{:05d}.dcm',
                     level=1,
                     default_extension='.dcm',
                     extensions=self.extensions
                 )
             else:  # self.output_dir == 'multi'
+                # Filenames: slice/tag0/../tagN/Image_00000.dcm, sort tags fastest
                 digits = len("{}".format(si.slices))
-                dirn = "slice{{0:0{0}}}".format(
-                    digits)
+                dirn = ["slice{{0:0{0}}}".format(digits)]
+                for i, order in enumerate(si.input_order.split(',')[:-1]):
+                    digits = len("{}".format(steps[i]))
+                    dirn.append(
+                        "{0}{{{1}:0{2}}}".format(
+                            order,
+                            i+1,
+                            digits
+                        )
+                    )
+                order = si.input_order.split(',')[-1]
+                digits = len("{}".format(steps[-1]))
                 archive.set_member_naming_scheme(
-                    fallback=os.path.join(dirn, 'Slice_{1:05d}.dcm'),
+                    fallback=os.path.join(
+                        *dirn,
+                        order + '{' + '{}'.format(len(dirn)) + ':0{}'.format(digits) + '}.dcm'),
                     level=max(0, si.ndim - 2),
                     default_extension='.dcm',
                     extensions=self.extensions
                 )
             ifile = 0
             for _slice in range(si.slices):
-                for tag in range(steps):
+                for tag in np.ndindex(steps):
+                    _tag = (_slice,) + tag
                     if self.keep_uid:
-                        sop_ins_uid = si.SOPInstanceUIDs[(tag, _slice)]
+                        sop_ins_uid = si.SOPInstanceUIDs[tag + (_slice,)]
                     else:
                         sop_ins_uid = si.header.new_uid()
                     if self.output_dir == 'multi' and tag == 0:
                         # Restart file number in each subdirectory
                         ifile = 0
+                    if self.output_dir == 'multi':
+                        _file_tag = _tag
+                    else:
+                        _file_tag = (ifile,)
                     try:
-                        self.write_slice(si.input_order, (tag, _slice), si[tag, _slice],
+                        self.write_slice(si.input_order, _file_tag, si[tag + (_slice,)],
                                          destination, ifile,
-                                         tag_value=axis.values[tag],
+                                         tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
                         print('DICOMPlugin.write_slice Exception: {}'.format(e))
@@ -1839,42 +1956,19 @@ class DICOMPlugin(AbstractPlugin):
 
         archive: AbstractArchive = destination['archive']
         query = None
-        # if destination['files'] is not None and len(destination['files']):
         if destination['files'] and len(destination['files']):
             query = destination['files'][0]
-        if self.output_dir == 'single':
-            filename = archive.construct_filename(
-                tag=(ifile,),
-                query=query
-            )
-        else:
-            filename = archive.construct_filename(
-                tag=tag,
-                query=query
-            )
+        filename = archive.construct_filename(
+            tag=tag,
+            query=query
+        )
         logger.debug("{}: {} {}".format(_name, filename, self.serInsUid))
 
-        # try:
-        #     logger.debug("write_slice slice {}, tag {}".format(slice, tag))
-        #     # logger.debug("write_slice {}".format(si.DicomHeaderDict))
-        #     tg, member_name, im = si.DicomHeaderDict[0][0]
-        #     # tg,member_name,image = si.DicomHeaderDict[slice][tag]
-        # except (KeyError, IndexError, TypeError):
-        #     print('DICOMPlugin.write_slice: DicomHeaderDict: {}'.format(si.DicomHeaderDict))
-        #     raise IndexError("Cannot address dicom_template.DicomHeaderDict[slice=%d][tag=%d]"
-        #                      % (slice, tag))
-        # except AttributeError:
-        # except ValueError:
-        #     raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
         try:
             ds = self.construct_dicom(filename, si.dicomTemplate, si, sop_ins_uid=sop_ins_uid)
         except ValueError:
             ds = self.construct_basic_dicom(si, sop_ins_uid=sop_ins_uid)
             ds.SeriesInstanceUID = si.header.seriesInstanceUID
-            # raise NoDICOMAttributes("Cannot write DICOM object when no DICOM attributes exist.")
-        # logger.debug("write_slice member_name {}".format(member_name))
-        # self._copy_dicom_group(0x21, im, ds)
-        # self._copy_dicom_group(0x29, im, ds)
 
         # Add header information
         try:
@@ -2275,6 +2369,27 @@ class DICOMPlugin(AbstractPlugin):
         tnew = tnow + tadd
         return tnew.strftime("%H%M%S.%f")
 
+    def _extract_tag_tuple(self, im: Dataset, faulty: int, input_order: str, opts: dict[str]) -> tuple:
+        tag_list = []
+        for order in input_order.split(sep=','):
+            try:
+                tag = self._get_tag(im, order, opts)
+            except KeyError:
+                if order == INPUT_ORDER_FAULTY:
+                    tag = faulty
+                else:
+                    raise CannotSort('Tag {} not found in dataset'.format(
+                        order
+                    ))
+            except CannotSort:
+                raise
+            except Exception:
+                raise
+            if tag is None:
+                raise CannotSort("Tag {} not found in data".format(order))
+            tag_list.append(tag)
+        return tuple(tag_list)
+
     def _get_tag(self, im: Dataset, input_order: str, opts: dict = None) -> Number:
 
         if input_order is None:
@@ -2356,58 +2471,63 @@ class DICOMPlugin(AbstractPlugin):
         else:
             return default
 
-    def _set_dicom_tag(self, im, input_order, value):
-        if input_order is None:
-            pass
-        elif input_order == INPUT_ORDER_NONE:
-            pass
-        elif input_order == INPUT_ORDER_TIME:
-            # AcquisitionTime
-            time_tag = self._choose_tag("time", "AcquisitionTime")
-            if time_tag not in im:
-                VR = pydicom.datadict.dictionary_VR(time_tag)
-                if VR == 'TM':
-                    im.add_new(time_tag, VR,
-                               datetime.fromtimestamp(
-                                   float(0.0), timezone.utc
-                               ).strftime("%H%M%S.%f")
-                               )
+    def _set_dicom_tag(self, im, input_order, values):
+        if input_order is None or values is None:
+            return
+        try:
+            _ = len(values)
+        except TypeError:
+            values = [values]
+        for order, value in zip(input_order.split(sep=','), values):
+            if order == INPUT_ORDER_NONE:
+                pass
+            elif order == INPUT_ORDER_TIME:
+                # AcquisitionTime
+                time_tag = self._choose_tag("time", "AcquisitionTime")
+                if time_tag not in im:
+                    VR = pydicom.datadict.dictionary_VR(time_tag)
+                    if VR == 'TM':
+                        im.add_new(time_tag, VR,
+                                   datetime.fromtimestamp(
+                                       float(0.0), timezone.utc
+                                   ).strftime("%H%M%S.%f")
+                                   )
+                    else:
+                        im.add_new(time_tag, VR, 0.0)
+                    # elem = pydicom.dataelem.DataElement(time_tag, 'TM', 0)
+                    # im.add(elem)
+                if im.data_element(time_tag).VR == 'TM':
+                    time_str = datetime.fromtimestamp(float(value), timezone.utc).strftime("%H%M%S.%f")
+                    im.data_element(time_tag).value = time_str
                 else:
-                    im.add_new(time_tag, VR, 0.0)
-                # elem = pydicom.dataelem.DataElement(time_tag, 'TM', 0)
-                # im.add(elem)
-            if im.data_element(time_tag).VR == 'TM':
-                time_str = datetime.fromtimestamp(float(value), timezone.utc).strftime("%H%M%S.%f")
-                im.data_element(time_tag).value = time_str
-            else:
-                im.data_element(time_tag).value = float(value)
-        elif input_order == INPUT_ORDER_B:
-            set_ds_b_value(im, value)
-        elif input_order == INPUT_ORDER_FA:
-            fa_tag = self._choose_tag('fa', 'FlipAngle')
-            if fa_tag not in im:
-                VR = pydicom.datadict.dictionary_VR(fa_tag)
-                im.add_new(fa_tag, VR, float(value))
-            else:
-                im.data_element(fa_tag).value = float(value)
-        elif input_order == INPUT_ORDER_TE:
-            te_tag = self._choose_tag('te', 'EchoTime')
-            if te_tag not in im:
-                VR = pydicom.datadict.dictionary_VR(te_tag)
-                im.add_new(te_tag, VR, float(value))
-            else:
-                im.data_element(te_tag).value = float(value)
-        else:
-            # User-defined tag
-            if input_order in self.input_options:
-                _tag = self.input_options[input_order]
-                if _tag not in im:
-                    VR = pydicom.datadict.dictionary_VR(_tag)
-                    im.add_new(_tag, VR, float(value))
+                    im.data_element(time_tag).value = float(value)
+            elif order == INPUT_ORDER_B:
+                set_ds_b_value(im, value)
+            elif order == INPUT_ORDER_FA:
+                fa_tag = self._choose_tag('fa', 'FlipAngle')
+                if fa_tag not in im:
+                    VR = pydicom.datadict.dictionary_VR(fa_tag)
+                    im.add_new(fa_tag, VR, float(value))
                 else:
-                    im.data_element(_tag).value = float(value)
+                    im.data_element(fa_tag).value = float(value)
+            elif order == INPUT_ORDER_TE:
+                te_tag = self._choose_tag('te', 'EchoTime')
+                if te_tag not in im:
+                    VR = pydicom.datadict.dictionary_VR(te_tag)
+                    im.add_new(te_tag, VR, float(value))
+                else:
+                    im.data_element(te_tag).value = float(value)
             else:
-                raise (UnknownTag("Unknown input_order {}.".format(input_order)))
+                # User-defined tag
+                if order in self.input_options:
+                    _tag = self.input_options[order]
+                    if _tag not in im:
+                        VR = pydicom.datadict.dictionary_VR(_tag)
+                        im.add_new(_tag, VR, float(value))
+                    else:
+                        im.data_element(_tag).value = float(value)
+                else:
+                    raise (UnknownTag("Unknown input_order {}.".format(order)))
 
     def simulateAffine(self):
         # shape = (
@@ -2541,3 +2661,16 @@ class DICOMPlugin(AbstractPlugin):
             return np.inner(_normal, ipp)
         except ValueError as e:
             raise ValueError('Cannot calculate slice location: %s' % e)
+
+    @staticmethod
+    def _index_from_tag(tag, tags):
+        _name: str = '{}.{}'.format(__name__, '_index_from_tag')
+        _tag = np.zeros(1, dtype=tuple)
+        _tag[0] = tag
+        idx_tuple = np.where(tags == _tag)
+        idx = tuple()
+        for _ in idx_tuple:
+            assert len(_) == 1, "{}: Too many indexes found".format(_name)
+            idx += (_[0],)
+        return idx
+
