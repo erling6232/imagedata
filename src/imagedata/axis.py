@@ -279,7 +279,11 @@ class VariableAxis(Axis):
         """Return a copy of the axis, where the length n can be different."""
         name = self.name if name is None else name
         n = len(self._values) if n is None else n
-        return VariableAxis(name, np.array(self._values[:n]))
+        _values = self._values.tolist()
+        while len(_values) < n:
+            delta = _values[-1] - _values[-2] if len(_values) >= 2 else 1
+            _values.append(_values[-1] + delta)
+        return VariableAxis(name, _values[:n])
 
     @overload
     def __getitem__(self, index: int) -> Number:

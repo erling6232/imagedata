@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import sys
@@ -224,7 +224,7 @@ class DICOMPlugin(AbstractPlugin):
     name = "dicom"
     description = "Read and write DICOM files."
     authors = "Erling Andersen"
-    version = "2.0.0"
+    version = "2.1.0"
     url = "www.helse-bergen.no"
     extensions = [".dcm", ".ima"]
 

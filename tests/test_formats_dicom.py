@@ -10,7 +10,7 @@ import pydicom.filereader
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
-from .compare_headers import compare_headers, compare_pydicom
+from .compare_headers import compare_headers, compare_pydicom, compare_tags
 
 
 class TestDicomPlugin(unittest.TestCase):
@@ -431,7 +431,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] = \
-                    si1.SOPInstanceUIDs[(_tag, _slice)]
+                    si1.SOPInstanceUIDs[_tag + (_slice,)]
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
@@ -450,13 +450,13 @@ class TestDicomPlugin(unittest.TestCase):
             for _tag in si1.tags[0]:
                 # si1 SOPInstanceUIDs should be identical to si2
                 self.assertEqual(
-                    si1.SOPInstanceUIDs[(_tag, _slice)],
-                    si2.SOPInstanceUIDs[(_tag, _slice)]
+                    si1.SOPInstanceUIDs[_tag + (_slice,)],
+                    si2.SOPInstanceUIDs[_tag + (_slice,)]
                 )
                 # si2 SOPInstanceUIDs should also be identical to original si1
                 self.assertEqual(
                     si1_sopinsuid[_slice][_tag],
-                    si2.SOPInstanceUIDs[(_tag, _slice)]
+                    si2.SOPInstanceUIDs[_tag + (_slice,)]
                 )
 
     def test_write_no_keep_uid(self):
@@ -469,7 +469,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] =\
-                    si1.SOPInstanceUIDs[(_tag, _slice)]
+                    si1.SOPInstanceUIDs[_tag + (_slice,)]
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
@@ -488,7 +488,7 @@ class TestDicomPlugin(unittest.TestCase):
                 # si2 SOPInstanceUIDs should differ from original si1
                 self.assertNotEqual(
                     si1_sopinsuid[_slice][_tag],
-                    si2.SOPInstanceUIDs[(_tag, _slice)]
+                    si2.SOPInstanceUIDs[_tag + (_slice,)]
                 )
 
     def test_read_dicom_not_DWI(self):
@@ -758,7 +758,7 @@ class TestDicomSlicing(unittest.TestCase):
         self.assertEqual(len(si2.imagePositions), 2)
         np.testing.assert_array_equal(si2.imagePositions[0], si1.imagePositions[1])
         np.testing.assert_array_equal(si2.imagePositions[1], si1.imagePositions[2])
-        self.assertEqual(len(si2.tags[0]), 2)
+        self.assertEqual(len(si2.tags[1]), 2)
 
     # @unittest.skip("skipping test_slice_ellipsis_first")
     def test_slice_ellipsis_first(self):
@@ -881,6 +881,61 @@ class TestDicom5DSort(unittest.TestCase):
                          )
             np.testing.assert_array_equal(si4, si)
             np.testing.assert_array_equal(si4.tags[0], si.tags[0])
+
+    def test_slice_5D_time_te(self):
+        si = Series(
+            os.path.join('data', 'dicom', '5D.zip?t1_fl2d_DE_4TEs'),
+            'time,te',
+            input_format='dicom'
+        )
+        # Slice row/column
+        si1 = si[..., 10:40, 20:30]
+        self.assertAlmostEqual(si.axes.time.values, si1.axes.time.values)
+        self.assertAlmostEqual(si.axes.te.values, si1.axes.te.values)
+        self.assertAlmostEqual(si.axes.slice.values, si1.axes.slice.values)
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.row.values[10:40]), np.array(si1.axes.row.values))
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.column.values[20:30]), np.array(si1.axes.column.values))
+        # Slice slice direction
+        si2 = si[..., 1:, :, :]
+        self.assertAlmostEqual(si.axes.time.values, si2.axes.time.values)
+        self.assertAlmostEqual(si.axes.te.values, si2.axes.te.values)
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.slice.values[1:]), np.array(si2.axes.slice.values))
+        np.testing.assert_array_almost_equal(si2.sliceLocations, si.sliceLocations[1:])
+        self.assertAlmostEqual(si.axes.row.values, si2.axes.row.values)
+        self.assertAlmostEqual(si.axes.column.values, si2.axes.column.values)
+        # Slice TE
+        si3 = si[:, 1:, ...]
+        self.assertAlmostEqual(si.axes.time.values, si3.axes.time.values)
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.te.values[1:]), np.array(si3.axes.te.values))
+        self.assertAlmostEqual(si.axes.slice.values, si3.axes.slice.values)
+        self.assertAlmostEqual(si.axes.row.values, si3.axes.row.values)
+        self.assertAlmostEqual(si.axes.column.values, si3.axes.column.values)
+        compare_tags(self, si.tags, si3.tags, axis=1, slicing=slice(1, None))
+        # Slice time
+        si4 = si[1:]
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.time.values[1:]), np.array(si4.axes.time.values))
+        self.assertAlmostEqual(si.axes.te.values, si1.axes.te.values)
+        self.assertAlmostEqual(si.axes.slice.values, si4.axes.slice.values)
+        self.assertAlmostEqual(si.axes.row.values, si4.axes.row.values)
+        self.assertAlmostEqual(si.axes.column.values, si4.axes.column.values)
+        compare_tags(self, si.tags, si4.tags, axis=0, slicing=slice(1, None))
+        # Slice time and TE
+        si5 = si[1:, 1:, ...]
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.time.values[1:]), np.array(si5.axes.time.values))
+        np.testing.assert_array_almost_equal(
+            np.array(si.axes.te.values[1:]), np.array(si5.axes.te.values))
+        self.assertAlmostEqual(si.axes.slice.values, si5.axes.slice.values)
+        self.assertAlmostEqual(si.axes.row.values, si5.axes.row.values)
+        self.assertAlmostEqual(si.axes.column.values, si5.axes.column.values)
+        compare_tags(self, si.tags, si5.tags,
+                     axis=(0, 1), slicing=(slice(1, None), slice(1, None))
+                     )
 
     @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):

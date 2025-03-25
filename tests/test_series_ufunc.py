@@ -37,8 +37,11 @@ class TestSeriesUfunc(unittest.TestCase):
         t1 = time0[-1] + dt
         add_time = t1 - time0[0]
         si1.axes = si1.axes._replace(time=axis.VariableAxis(time0.name, si1.axes[0] + add_time))
+        for _slice in range(si1.slices):
+            # si1.tags[_slice] = np.append(si1.tags[_slice], si0.tags[_slice])
+            si1.tags[_slice] = np.array([(_,) for _ in si1.axes.time.values], dtype=tuple)
 
-        c = np.concatenate((si0, si1), axis=0)
+        c: Series = np.concatenate((si0, si1), axis=0)
         self.assertEqual(c.shape, (si0.shape[0] + si1.shape[0],
                                    si0.shape[1], si0.shape[2], si0.shape[3])
                          )

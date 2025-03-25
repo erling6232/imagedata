@@ -589,22 +589,24 @@ class Series(np.ndarray):
         slicing, spec = _calculate_spec(self, items)
 
         todo = []  # Collect header changes, apply after ndarray slicing
-        reduce_dim = False  # Whether the slicing reduces the dimension
+        new_axes_names = []
         if slicing:
             # Here we slice the header information
             new_axes = []
-            new_axes_names = []
             for i in range(self.ndim):
-                # Slice dimension i
+                # Slice along axis i
                 try:
                     start, stop, step, axis = spec[i]
                     _slice = slice(start, stop, step)
-                    new_axes.append(axis[_slice])
-                    new_axes_names.append(axis.name)
+                    if axis.name not in ['slice', 'row', 'column'] and len(axis.values[_slice]) <= 1:
+                        continue
                 except ValueError:
                     _slice, axis = spec[i]
-                    new_axes.append(axis[_slice])
-                    new_axes_names.append(axis.name)
+                    if len(_slice) <= 1:
+                        continue
+
+                new_axes.append(axis[_slice])
+                new_axes_names.append(axis.name)
 
                 if axis.name == 'slice':
                     # Select slice of imagePositions
@@ -621,12 +623,6 @@ class Series(np.ndarray):
                     # Select slice of tags
                     tags = self.__get_tags(spec)
                     todo.append(('tags', tags))
-                    try:
-                        # if len(tags[0]) == 1:
-                        if len(next(iter(tags))) == 1:
-                            reduce_dim = True
-                    except KeyError:
-                        pass
             Axes = namedtuple('Axes', new_axes_names)
             new_axes = Axes._make(new_axes)
 
@@ -636,18 +632,21 @@ class Series(np.ndarray):
         if issubclass(type(ret), Series):
             # noinspection PyUnboundLocalVariable
             if slicing:
-                todo.append(('axes', new_axes[-ret.ndim:]))
+                todo.append(('axes', new_axes))
                 todo.append(('seriesInstanceUID', self.header.seriesInstanceUID))
             else:
                 new_uid = ret.header.new_uid()
                 ret.seriesInstanceUID = new_uid
-            if reduce_dim:
+            if ret.ndim < self.ndim:
                 # Must copy the ret object before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
-                if ret.axes[-ret.ndim].name in ['slice', 'row', 'column']:
-                    ret.input_order = INPUT_ORDER_NONE
-                else:
-                    ret.input_order = ret.axes[0].name
+                ret.input_order = INPUT_ORDER_NONE
+                _names = []
+                for _name in new_axes_names:
+                    if _name not in ['slice', 'row', 'column']:
+                        _names.append(_name)
+                if len(_names) > 0:
+                    ret.input_order = ','.join(_names)
             _set_geometry(ret, todo)
         elif isinstance(ret, np.void):
             ret = tuple(ret)
@@ -742,6 +741,7 @@ class Series(np.ndarray):
         return None
 
     def __get_tags(self, specs):
+        tags, slices = self.header.get_tags_and_slices()
         try:
             tmpl_tags = self.tags
             tags = self.tags[0].shape
@@ -754,11 +754,15 @@ class Series(np.ndarray):
                 start, stop, step, axis = specs[d]
                 _indices = [_ for _ in range(start, stop, step)]
             except ValueError:
+                start, stop, step = None, None, None
                 _indices, axis = specs[d]
             if axis.name == "slice":
                 slice_spec = _indices
             elif axis.name in self.input_order.split(','):
-                tag_spec += (slice(start, stop, step),)
+                if start is None:
+                    tag_spec += (_indices,)
+                else:
+                    tag_spec += (slice(start, stop, step),)
         new_tags = {}
         for s in slice_spec:
             new_tags[s] = self.tags[s][tag_spec]
@@ -1084,7 +1088,6 @@ class Series(np.ndarray):
         except AttributeError:
             pass
         return None
-        # TODO
         if self.axes[0].name in ('slice', 'row', 'column'):
             return {0: np.array(0)}
         try:

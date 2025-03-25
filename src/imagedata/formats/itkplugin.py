@@ -1,7 +1,7 @@
 """Read/Write image files using ITK
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -42,7 +42,7 @@ class ITKPlugin(AbstractPlugin):
     name = "itk"
     description = "Read and write ITK files."
     authors = "Erling Andersen"
-    version = "2.0.0"
+    version = "2.1.0"
     url = "www.helse-bergen.no"
     extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff"]
 
@@ -255,12 +255,11 @@ class ITKPlugin(AbstractPlugin):
         else:
             Axes = namedtuple('Axes', ['row', 'column'])
             axes = Axes(row_axis, column_axis)
-        times = np.arange(0, nt * dt, dt)
-        tags = {}
+        times = [(_,) for _ in np.arange(0, nt * dt, dt)]
+        hdr.tags = {}
         for _slice in range(nz):
-            tags[_slice] = np.array(times)
+            hdr.tags[_slice] = np.array(times, dtype=tuple)
         hdr.axes = axes
-        hdr.tags = tags
 
         logger.info("{}: Data shape read DCM: {}".format(_name, shape_to_str(si.shape)))
 

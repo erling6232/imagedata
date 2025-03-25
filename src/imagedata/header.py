@@ -21,13 +21,15 @@ header_tags = ['input_format',
                'patientName', 'patientID', 'patientBirthDate',
                # 'windowCenter', 'windowWidth',
                'dicomTemplate', 'dicomToDo',
-               'tags', 'colormap', 'colormap_norm', 'colormap_label', 'color',
+               # 'tags',
+               'colormap', 'colormap_norm', 'colormap_label', 'color',
                'echoNumbers', 'acquisitionNumber',
                'datasets',
                'input_sort']
 geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
                  'sliceLocations',
                  'patientPosition',
+                 'tags',
                  'photometricInterpretation', 'axes']
 
 
@@ -112,10 +114,10 @@ class Header(object):
     def shape(self) -> tuple:
         """Return matrix shape as given by axes properties.
         """
-        shape = []
-        for axis in self.axes:
-            shape.append(len(axis))
-        return tuple(shape)
+        _shape = tuple()
+        for _ in self.axes:
+            _shape += (len(_),)
+        return _shape
 
     def new_uid(self) -> str:
         """Return the next available UID from the UID generator.
@@ -213,9 +215,9 @@ class Header(object):
                 setattr(self, 'seriesInstanceUID', value)
 
         # Make sure tags are set last. Template may be None
-        self.__set_tags_from_template(template)
+        # self.__set_tags_from_template(template)
 
-    def __get_tags_and_slices(self) -> tuple[tuple[int], int]:
+    def get_tags_and_slices(self) -> tuple[tuple[int], int]:
         tags = tuple()
         slices = 1
         if self.axes is not None:
@@ -244,15 +246,11 @@ class Header(object):
 
         self.tags = {}
         _last_tags = np.array([])
-        tags, slices = self.__get_tags_and_slices()
+        tags, slices = self.get_tags_and_slices()
         new_tag_list = self.__construct_tags_from_template_axes(template)
         for _slice in range(slices):
-            # for tag in np.ndindex(tags):
             _tags = []
             try:
-                if issubclass(type(template.tags[_slice]), dict):
-                    raise ValueError('Should not be here')
-                    template_tags = list(template.tags[_slice].values())
                 template_tags = template.tags[_slice]
                 if template_tags.ndim == 0:
                     template_tags = _last_tags
@@ -263,7 +261,6 @@ class Header(object):
                 _tags = template_tags[tuple_to_rectangle(tags)]
             else:
                 _tags = new_tag_list
-            # self.tags[_slice] = np.array(_tags).squeeze()
             if _tags.ndim > 1:
                 self.tags[_slice] = _tags.squeeze()
             else:
@@ -295,15 +292,16 @@ class Header(object):
 
         def tag_increment(tag: tuple[int], tag_list: np.ndarray[tuple[int]]) \
                 -> tuple[float]:
-            diff = tuple()
+            new_tag = tuple()
             for i, t in enumerate(tag):
                 try:
                     pre1 = previous_tag(tag, i)
                     pre2 = previous_tag(pre1, i)
-                    diff += (tag_list[pre1] - tag_list[pre2],)
+                    diff = tag_list[pre1][i] - tag_list[pre2][i]
                 except IndexError:
-                    diff += (1.0,)
-            return diff
+                    diff = 1.0
+                new_tag += (tag_list[pre1][i] + diff,)
+            return new_tag
 
         if template.tags is None:
             return np.ndarray([])
@@ -324,14 +322,13 @@ class Header(object):
             return tag_list
 
         # Multiple tags
-        tags, slices = self.__get_tags_and_slices()
+        tags, slices = self.get_tags_and_slices()
         new_tags = np.empty(tags, dtype=tuple)
-        # new_tags = [_ for _ in template.axes[0]]
         for tag in np.ndindex(tags):
             try:
-                new_tags[tag] = [
-                    template.axes[_].values[tag[_]] for _ in range(len(tags))
-                ]
+                new_tags[tag] = tuple()
+                for _ in range(len(tags)):
+                    new_tags[tag] += (template.axes[_].values[tag[_]],)
             except IndexError:
                 new_tags[tag] = tag_increment(tag, new_tags)
         return new_tags
@@ -359,6 +356,7 @@ class Header(object):
         self.__set_slice_locations_from_template(
             getattr(geometry, 'sliceLocations', None)
         )
+        self.__set_tags_from_template(geometry)
 
     def __set_axes_from_template(self, geometry_axes: namedtuple):
         if geometry_axes is None:

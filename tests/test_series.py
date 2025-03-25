@@ -91,9 +91,10 @@ class TestSeries(unittest.TestCase):
         rng = default_rng()
         s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
         s1 = s[1]
-        self.assertEqual(s1.axes, s.axes)
+        self.assertEqual(s.axes[1:], s1.axes)
         s2 = s[:,1]
-        self.assertEqual(s2.axes, s.axes)
+        s_axes = tuple([s.axes[_] for _ in (0, 2, 3, 4)])
+        self.assertEqual(s_axes, s2.axes)
 
     def test_print_header(self):
         a = np.eye(128)
@@ -164,9 +165,9 @@ class TestSeries(unittest.TestCase):
 
         s_slice = s[2]
         self.assertEqual(s_slice.ndim, 2)
-        self.assertEqual(len(s_slice.axes), 2)
-        self.assertEqual(s_slice.axes[0].name, 'row')
-        self.assertEqual(s_slice.axes[1].name, 'column')
+        self.assertEqual(len(s_slice.axes), 3)
+        self.assertEqual(s_slice.axes[1].name, 'row')
+        self.assertEqual(s_slice.axes[2].name, 'column')
 
     def test_slicing_y(self):
         a1 = np.eye(128)

@@ -1,7 +1,7 @@
 """Read/Write Nifti-1 files
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -40,7 +40,7 @@ class NiftiPlugin(AbstractPlugin):
     name = "nifti"
     description = "Read and write Nifti-1 files."
     authors = "Erling Andersen"
-    version = "2.0.0"
+    version = "2.1.0"
     url = "www.helse-bergen.no"
     extensions = [".nii", ".nii.gz"]
 
@@ -269,16 +269,15 @@ class NiftiPlugin(AbstractPlugin):
 
         self.shape = si.shape
 
-        times = [0]
+        times = [(0,)]
         if nt > 1:
-            times = np.arange(0, nt * dt, dt)
+            times = [(_,) for _ in np.arange(0, nt * dt, dt)]
         assert len(times) == nt, \
             "Wrong timeline calculated (times={}) (nt={})".format(len(times), nt)
         logger.debug("{}: times {}".format(_name, times))
-        tags = {}
+        hdr.tags = {}
         for z in range(nz):
-            tags[z] = np.array(times)
-        hdr.tags = tags
+            hdr.tags[z] = np.array(times, dtype=tuple)
 
         row_axis = UniformLengthAxis(
             'row',
