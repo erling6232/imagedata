@@ -549,8 +549,14 @@ class DICOMPlugin(AbstractPlugin):
 
         def _get_tag_value(im: Dataset, input_order: str, opts: dict = None) -> Number:
             _object = self._get_tag(im, input_order, opts)
-            if issubclass(type(_object), tuple) and issubclass(type(_object[1]), np.ndarray):
-                return _object[0] + np.sum(np.square(_object[1]))
+            if issubclass(type(_object), tuple):
+                _sum = 0
+                for _item in _object:
+                    if issubclass(type(_item), np.ndarray):
+                        _sum += np.sum(np.square(_item))
+                    else:
+                        _sum += _item
+                return _sum
             else:
                 return _object
 
@@ -601,6 +607,8 @@ class DICOMPlugin(AbstractPlugin):
                         sorted_dataset[sloc].sort(
                             key=partial(_get_tag_value, input_order=sort_key, opts=opts)
                         )
+                    except ValueError:
+                        pass
                     except Exception as e:
                         print(e)
             # Catalog images with seriesUID and sloc as keys
@@ -727,6 +735,18 @@ class DICOMPlugin(AbstractPlugin):
                 #     new_idx = idx[:order] + (idx[order]+1,) + idx[order+1:]
                 return new_idx
 
+            def _count_unique_ndarrays(tags: list) -> int:
+                output = []
+                for x in tags:
+                    exists = False
+                    for y in output:
+                        if x.shape == y.shape and np.allclose(x, y, rtol=1e-3, atol=1e-2):
+                            exists = True
+                            break
+                    if not exists:
+                        output.append(x)
+                return len(output)
+
             if len(tag_list) == 0:
                 return defaultdict(list)
             tags = len(tag_list[0])
@@ -737,7 +757,16 @@ class DICOMPlugin(AbstractPlugin):
             strides = {tags-1: 1}
             stride = 1
             for index in reversed(range(tags)):
-                size[index] = len(sorted(set(_extract_tuple_index(tag_list, index))))
+                # Count number of unique tags
+                try:
+                    size[index] = len(list(dict.fromkeys(
+                        _extract_tuple_index(tag_list, index)
+                    )))
+                except TypeError:
+                    # Resort to more tedious sorting - possibly sorting np.ndarray objects
+                    size[index] = _count_unique_ndarrays(
+                        _extract_tuple_index(tag_list, index)
+                    )
                 if size[index] >= len(tag_list):
                     # Extract every nth value
                     size[index] = len(tag_list) // stride
@@ -780,6 +809,37 @@ class DICOMPlugin(AbstractPlugin):
                 result_list.append(tag[i])
             return result_list
 
+        def _append_tag(tag_list, tag, accept_duplicate_tag=False, accept_uneven_slices=False):
+            _name: str = '{}.{}'.format(__name__, _append_tag.__name__)
+            exist = True
+            try:
+                exist = tag in tag_list
+            except ValueError:
+                try:
+                    for t in tag_list:
+                        for _, _t in enumerate(t):
+                            if issubclass(type(_t), np.ndarray):
+                                if _t.size == 0:
+                                    exist = exist and tag[_].size == 0
+                                else:
+                                    exist = (exist and _t.shape == tag[_].shape and
+                                             np.allclose(_t, tag[_], rtol=1e-3, atol=1e-2))
+                            else:
+                                exist = exist and _t == tag[_]
+                except Exception as e:
+                    print(e)
+            # except TypeError:
+                # exist = exist and np.array_equal(_t, tag[_])
+            except Exception as e:
+                print(e)
+            if not exist or accept_duplicate_tag:
+                tag_list.append(tag)
+            elif accept_uneven_slices:
+                # Drop duplicate images
+                logger.warning("{}: dropping duplicate image: {}".format(_name, tag))
+            else:
+                raise CannotSort("{}: duplicate tag ({}): {}".format(_name, input_order, tag))
+
         def _extract_all_tags(hdr: Header,
                               series: SortedDatasetList,
                               input_order: str,
@@ -794,27 +854,13 @@ class DICOMPlugin(AbstractPlugin):
             tag_list = defaultdict(list)
             faulty = 0
             for islice, sloc in enumerate(sorted(series)):
-                for i, im in enumerate(series[sloc]):
+                for im in series[sloc]:
                     tag = self._extract_tag_tuple(im, faulty, input_order, opts)
                     faulty += 1
                     try:
-                        if tag not in tag_list[islice] or accept_duplicate_tag:
-                            tag_list[islice].append(tag)
-                        elif accept_uneven_slices:
-                            # Drop duplicate images
-                            logger.warning("{}: dropping duplicate image: {} {}".format(
-                                _name, islice, sloc))
-                        else:
-                            raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
-                    except ValueError:
-                        for t, x in tag_list[islice]:
-                            if t == tag[0] and np.array_equal(x, tag[1]):
-                                raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
-                        tag_list[islice].append(tag)
+                        _append_tag(tag_list[islice], tag, accept_duplicate_tag, accept_uneven_slices)
                     except CannotSort:
                         raise
-                    except Exception as e:
-                        print(e)
             struct_tag_list = defaultdict()
             tag_dict = defaultdict()
             for islice in tag_list.keys():

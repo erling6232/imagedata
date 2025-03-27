@@ -937,13 +937,25 @@ class TestDicom5DSort(unittest.TestCase):
                      axis=(0, 1), slicing=(slice(1, None), slice(1, None))
                      )
 
-    @unittest.skip("skipping test_ep2d_1bvec")
+    # @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
             # 'rsi',
             input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+
+    # @unittest.skip("skipping test_ep2d_6D")
+    def test_ep2d_6D(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'RSI_6D.zip?RSI_6D/ep2d_RSI_b0_50_100_200_TE_?5'),
+            'b,bvector,te',
+            input_format='dicom',
+            opts={'ignore_series_uid': True}
         )
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
