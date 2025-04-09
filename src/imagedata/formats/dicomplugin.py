@@ -12,6 +12,7 @@ import mimetypes
 import math
 from numbers import Number
 from collections import defaultdict, namedtuple, Counter
+from hashlib import sha1
 from functools import partial
 from typing import List, Union
 from datetime import date, datetime, timedelta, timezone
@@ -709,6 +710,161 @@ class DICOMPlugin(AbstractPlugin):
                 )
             return slice_count
 
+        def _structure_tags_2(tag_list: defaultdict[list])\
+                -> defaultdict[tuple]:
+
+            def _count_tags(tag_list, index) -> defaultdict:
+                # Count the tags
+                dict_depth = lambda: defaultdict(dict_depth)
+                d = dict_depth()
+                tags = [_ for _ in range(len(tag_list[0]))]
+                tags.remove(index)
+                tags.insert(0, index)  # Ensure index comes first
+                for tag in tag_list:
+                    _ = d  # Pointer to present level in dict structure
+                    for t in tags:
+                        try:
+                            _ = _[tag[t]]
+                        except TypeError as e:
+                            _ = _[tuple(tag[t].tolist())]
+                        except Exception as e:
+                            raise
+                    try:
+                        _[0] += 1
+                    except (KeyError, TypeError):
+                        _[0] = 1
+                return d
+
+            def _catalog_tags(tag_list: list[tuple]) -> dict[defaultdict]:
+                # Catalog the tags and count them
+                d = {}
+                for index in range(tags):
+                    d[index] = _count_tags(tag_list, index)
+                return(
+                    dict(sorted(d.items(), key=lambda item: len(item[1])))
+                )
+
+            def _find_tag_element(catalog: defaultdict, shape: tuple, tag: tuple, p: tuple, index: int) -> int:
+                _name: str = '{}.{}'.format(__name__, _find_tag_element.__name__)
+                c_tuple = (catalog[index],)
+                try:
+                    # _ = catalog[p[0]]
+                    _ = catalog[0]
+                    for i, _p in enumerate(p):
+                        if _p in _:
+                            _ = _[_p]
+                        elif tag[i] in _:
+                            _ = _[tag[i]]
+                        else:
+                            pass
+                    # _t = _[tag[p[-1]]]
+                    # c_tuple += (_[tag[p[-1]]],)
+                    # c_tuple += (_[tag[index]],)
+                    c_tuple += (_,)
+                except IndexError:
+                    pass
+                for c in c_tuple:
+                    try:
+                        keys = list(c.keys())
+                        return keys.index(tag[index]) % shape[index]
+                    except ValueError:
+                        keys = np.array(keys)
+                        # dt1 = np.median(keys[1:] - keys[:-1])
+                        # dt = np.median(np.diff(keys))
+                        _values, _counts = np.unique(keys[1:] - keys[:-1], return_counts=True)
+                        _dt = _values[np.argmax(_counts)]
+                        _pos = min(range(len(keys)), key=lambda i: abs(keys[i] - tag[index]))
+                        _eps = abs(keys[_pos] - tag[index])
+                        if _eps > _dt:
+                            continue
+                        # return min(range(len(keys)), key=lambda i: abs(keys[i] - tag[index])) % shape[index]
+                        return _pos % shape[index]
+                    except Exception as e:
+                        pass
+                        # keys = list(_.keys())
+                        # p = keys.index(tag[index]) % len(catalog[index])
+                    # if i == index:
+                    #     pass
+                    # else:
+                    #     _ = _[tag[index]]
+                raise IndexError('{}: Cannot find tag {}'.format(_name, tag))
+
+
+            def _position(catalog: defaultdict, shape: tuple, tag: tuple) -> tuple[int]:
+                # catalog[tuple index][tag0]...[tagN]
+                p = tuple()
+                for index in range(len(tag)):
+                    p += (_find_tag_element(catalog, shape, tag, p, index),)
+                return p
+
+            def _calculate_size(catalog: dict) -> int:
+                p = 1
+                for _ in catalog:
+                    p *= len(catalog[_])
+                return p
+
+            def _calculate_shape(struct_tag_list: defaultdict) -> tuple[int]:
+                s = ()
+                for tag in sorted(struct_tag_list):
+                    s += (len(struct_tag_list[tag]),)
+                return s
+
+            def _recalculate_catalog(catalog: dict, tag_list: list[tuple]) -> dict:
+                for _ in catalog:
+                    if len(catalog[_]) >= len(tag_list):
+                        catalog[_] = _find_candidate(catalog, _, tag_list)
+                return catalog
+
+            def _find_candidate(catalog: dict, index: int, tag_list: list[tuple]) -> defaultdict[dict]:
+                # Vary index tag, keep other tags constant, and find candidate for reduced tag size
+                oldcat = catalog.copy()
+                find = tag_list[0]
+                new_list = []
+                dict_depth = lambda: defaultdict(dict_depth)
+                new_tag_dict = dict_depth()
+                # new_tag_dict = defaultdict(lambda: defaultdict(dict))
+                for tag in tag_list:
+                    found = True
+                    for i, t in enumerate(tag):
+                        if i != index:
+                            found = found and t == find[i]
+                    if found:
+                        new_list.append(tag[index])
+                        # new_tag_dict[tag[index]][0] = True
+                        new_tag_dict[tag[index]] = catalog[index][tag[index]]
+                return new_tag_dict
+
+            if len(tag_list) == 0:
+                return defaultdict(list)
+            tags = len(tag_list[0])
+            # Catalog the tags, count and sort them
+            catalog = _catalog_tags(tag_list)
+            size = _calculate_size(catalog)
+            previous_size = size + 1
+            i = 0
+            while len(tag_list) < size < previous_size:
+                # Some tag values are not unique, need to do a better sort
+                catalog = _recalculate_catalog(catalog, tag_list)
+                previous_size = size  # Did recalculation improve sorting?
+                size = _calculate_size(catalog)
+                i += 1
+                if i > 2 * len(tag_list):  # Stop criteria
+                    raise CannotSort('{}: Too many iterations to sort headers'.format(_name))
+            struct_tag_list = defaultdict(list)
+            for index in catalog.keys():
+                # values = []
+                # for tag in tag_list:
+                #     if tag[index] not in values:
+                #         values.append(tag[index])
+                # struct_tag_list[index] = values
+                values = catalog[index].keys()
+                struct_tag_list[index] = values
+            shape = _calculate_shape(struct_tag_list)
+            tag_dict = defaultdict(tuple)
+            for tag in tag_list:
+                tag_dict[tag] = _position(catalog, shape, tag)
+            return struct_tag_list, tag_dict
+
         def _structure_tags(tag_list: defaultdict[list])\
                 -> defaultdict[tuple]:
 
@@ -736,6 +892,19 @@ class DICOMPlugin(AbstractPlugin):
                 return new_idx
 
             def _count_unique_ndarrays(tags: list) -> int:
+                pass
+                # d = {}
+                # # # for x, y, z in tags:
+                # for x in tags:
+                #     try:
+                #         dd = d.get(x, 0)
+                #         d[x] = d.get(x, 0) + 1
+                #     except TypeError:
+                #         pass
+                #     except Exception as e:
+                #         pass
+                # c = Counter(elem[0] for elem in tags)
+                # c = Counter(elem for elem in tags)
                 output = []
                 for x in tags:
                     exists = False
@@ -861,10 +1030,14 @@ class DICOMPlugin(AbstractPlugin):
                         _append_tag(tag_list[islice], tag, accept_duplicate_tag, accept_uneven_slices)
                     except CannotSort:
                         raise
+                    except Exception as e:
+                        raise
             struct_tag_list = defaultdict()
             tag_dict = defaultdict()
             for islice in tag_list.keys():
-                struct_tag_list[islice], tag_dict[islice] = _structure_tags(tag_list[islice])
+                struct_tag_list[islice], tag_dict[islice] = _structure_tags_2(tag_list[islice])
+            # for islice in tag_list.keys():
+            #     struct_tag_list[islice], tag_dict[islice] = _structure_tags(tag_list[islice])
             shape = tuple()
             for _ in sorted(struct_tag_list[0].keys()):
                 shape += (len(struct_tag_list[0][_]),)
@@ -927,7 +1100,7 @@ class DICOMPlugin(AbstractPlugin):
                 tag_axes = []
                 for i, order in enumerate(input_order.split(sep=',')):
                     tag_axes.append(
-                        VariableAxis(order, struct_tag_list[0][i])
+                        VariableAxis(order, list(struct_tag_list[0][i]))
                     )
                 axis_names = input_order.split(sep=',')
                 axis_names.extend(['slice', 'row', 'column'])

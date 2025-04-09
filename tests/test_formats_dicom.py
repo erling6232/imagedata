@@ -815,7 +815,7 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDicom5DSort(unittest.TestCase):
+class TestDicomNDSort(unittest.TestCase):
 
     @unittest.skip("skipping test_ep2d_bvec")
     def test_ep2d_bvec(self):
@@ -936,6 +936,17 @@ class TestDicom5DSort(unittest.TestCase):
         compare_tags(self, si.tags, si5.tags,
                      axis=(0, 1), slicing=(slice(1, None), slice(1, None))
                      )
+
+    # @unittest.skip("skipping test_6D_te_time_fa")
+    def test_6D_te_time_fa(self):
+        si = Series(
+            os.path.join('data', 'dicom', '6D_TE_TIME_FA.zip'),
+            'te,time,fa',
+            input_format='dicom',
+            opts = {'ignore_series_uid': True}
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
 
     # @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
