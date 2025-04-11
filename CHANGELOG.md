@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.0-dev2] - 2025-04-11
+## [v3.8.0-rc1] - 2025-04-11
 * Novel sorting routine for n-dimensional DICOM datasets.
 
 ## [v3.7.3-dev8] - 2025-03-07
