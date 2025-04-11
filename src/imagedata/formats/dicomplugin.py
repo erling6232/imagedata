@@ -802,7 +802,6 @@ class DICOMPlugin(AbstractPlugin):
                             continue
                 raise IndexError('{}: Cannot find tag {}'.format(_name, tag))
 
-
             def _position(catalog: defaultdict, shape: tuple, tag: tuple) -> tuple[int]:
                 # catalog[tuple index][tag0]...[tagN]
                 p = tuple()
@@ -907,14 +906,6 @@ class DICOMPlugin(AbstractPlugin):
                             _ += (_t,)
                     tag_dict[_] = _pos
             return struct_tag_list, tag_dict
-
-        def _extract_tuple_index(tag_list, i) -> np.ndarray[float]:
-            # return sorted(tag_list, key=lambda tup: tup[i])
-            # tag_list.sort(key=lambda tup: tup[i])
-            result_list = []
-            for tag in tag_list:
-                result_list.append(tag[i])
-            return result_list
 
         def _append_tag(tag_list: list[tuple], tag: tuple,
                         accept_duplicate_tag: bool=False,
