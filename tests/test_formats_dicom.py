@@ -10,7 +10,7 @@ import pydicom.filereader
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
 from src.imagedata.series import Series
-from .compare_headers import compare_headers, compare_pydicom, compare_tags
+from .compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
 
 
 class TestDicomPlugin(unittest.TestCase):
@@ -815,27 +815,7 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDicom5DSort(unittest.TestCase):
-
-    @unittest.skip("skipping test_ep2d_bvec")
-    def test_ep2d_bvec(self):
-        si = Series(
-            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
-            'b,bvector',
-            input_format='dicom'
-        )
-        with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
-
-    @unittest.skip("skipping test_ep2d_rsi")
-    def test_ep2d_rsi(self):
-        si = Series(
-            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
-            'rsi',
-            input_format='dicom'
-        )
-        with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
+class TestDicomNDSort(unittest.TestCase):
 
     #@unittest.skip("skipping test_t1_de_te")
     def test_5D_time_te(self):
@@ -914,7 +894,7 @@ class TestDicom5DSort(unittest.TestCase):
         self.assertAlmostEqual(si.axes.slice.values, si3.axes.slice.values)
         self.assertAlmostEqual(si.axes.row.values, si3.axes.row.values)
         self.assertAlmostEqual(si.axes.column.values, si3.axes.column.values)
-        compare_tags(self, si.tags, si3.tags, axis=1, slicing=slice(1, None))
+        compare_tags_in_slice(self, si.tags, si3.tags, axis=1, slicing=slice(1, None))
         # Slice time
         si4 = si[1:]
         np.testing.assert_array_almost_equal(
@@ -923,7 +903,7 @@ class TestDicom5DSort(unittest.TestCase):
         self.assertAlmostEqual(si.axes.slice.values, si4.axes.slice.values)
         self.assertAlmostEqual(si.axes.row.values, si4.axes.row.values)
         self.assertAlmostEqual(si.axes.column.values, si4.axes.column.values)
-        compare_tags(self, si.tags, si4.tags, axis=0, slicing=slice(1, None))
+        compare_tags_in_slice(self, si.tags, si4.tags, axis=0, slicing=slice(1, None))
         # Slice time and TE
         si5 = si[1:, 1:, ...]
         np.testing.assert_array_almost_equal(
@@ -933,20 +913,46 @@ class TestDicom5DSort(unittest.TestCase):
         self.assertAlmostEqual(si.axes.slice.values, si5.axes.slice.values)
         self.assertAlmostEqual(si.axes.row.values, si5.axes.row.values)
         self.assertAlmostEqual(si.axes.column.values, si5.axes.column.values)
-        compare_tags(self, si.tags, si5.tags,
+        compare_tags_in_slice(self, si.tags, si5.tags,
                      axis=(0, 1), slicing=(slice(1, None), slice(1, None))
                      )
 
-    @unittest.skip("skipping test_ep2d_1bvec")
+    # @unittest.skip("skipping test_6D_te_time_fa")
+    def test_6D_te_time_fa(self):
+        si = Series(
+            os.path.join('data', 'dicom', '6D_TE_TIME_FA.zip'),
+            'te,time,fa',
+            input_format='dicom',
+            opts = {'ignore_series_uid': True}
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+
+    # @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
-            # 'rsi',
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
+            si1 = Series(d, 'b,bvector', input_format='dicom')
+            compare_tags(self, si.tags, si1.tags)
+
+
+    # @unittest.skip("skipping test_ep2d_6D")
+    def test_ep2d_6D(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'RSI_6D.zip?RSI_6D/ep2d_RSI_b0_50_100_200_TE_?5'),
+            'b,bvector,te',
+            input_format='dicom',
+            opts={'ignore_series_uid': True, 'accept_duplicate_tag': True}
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            si1 = Series(d, 'b,bvector,te', input_format='dicom')
+            compare_tags(self, si.tags, si1.tags)
 
 
 class TestDicomPluginSortCriteria(unittest.TestCase):

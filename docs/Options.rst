@@ -61,6 +61,11 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |times for dynamic      |
 |                         |                         |     |series                 |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |ignore_series_uid        |str  |Ignore Series Instance |
+|                         |                         |     |UID, i.e. do not sort  |
+|                         |                         |     |images into different  |
+|                         |                         |     |Series                 |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_serinsuid          |str  |Filter input files on  |
 |                         |                         |     |specified              |
 |                         |                         |     |Series Instance UID    |

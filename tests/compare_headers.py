@@ -90,7 +90,7 @@ def compare_axes(self, axes, new_axes):
             self.assertEqual(_axis.step, _new_axis.step)
 
 
-def compare_tags(self, tags, new_tags, axis=None, slicing=None):
+def compare_tags_in_slice(self, tags, new_tags, axis=None, slicing=None):
     if axis is None:
         raise ValueError('Axis direction must be defined')
     for _slice in tags.keys():
@@ -115,10 +115,31 @@ def compare_tags(self, tags, new_tags, axis=None, slicing=None):
         else:
             raise ValueError('Axis direction must be defined')
         for tag in np.ndindex(new_tags[_slice].shape):
-            self.assertAlmostEqual(
-                _t[tag],
-                new_tags[_slice][tag]
-            )
+            if _t[tag] is None and new_tags[_slice][tag] is None:
+                continue
+            for t,n in zip(_t[tag], new_tags[_slice][tag]):
+                if issubclass(type(t), np.ndarray):
+                    if t.size == n.size == 0:
+                        continue
+                    else:
+                        np.testing.assert_array_almost_equal(t, n)
+                else:
+                    self.assertAlmostEqual(t, n)
+
+
+def compare_tags(self, tags, new_tags):
+    for _slice in tags.keys():
+        for tag in np.ndindex(new_tags[_slice].shape):
+            if tags[_slice][tag] is None and new_tags[_slice][tag] is None:
+                continue
+            for t,n in zip(tags[_slice][tag], new_tags[_slice][tag]):
+                if issubclass(type(t), np.ndarray):
+                    if t.size == n.size == 0:
+                        continue
+                    else:
+                        np.testing.assert_array_almost_equal(t, n)
+                else:
+                    self.assertAlmostEqual(t, n)
 
 
 def compare_pydicom(self, orig, temp, uid=False):

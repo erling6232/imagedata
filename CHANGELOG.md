@@ -7,8 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.0-rc0] - 2025-03-25
-* Implemented n-dimensional Series data, axes and tags.
+## [v3.8.0-dev2] - 2025-04-11
+* Novel sorting routine for n-dimensional DICOM datasets.
 
 ## [v3.7.3-dev8] - 2025-03-07
 * Corrected parsing windows UNC path names with leading double slash.
