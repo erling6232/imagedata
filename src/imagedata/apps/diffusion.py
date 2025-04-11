@@ -115,8 +115,7 @@ def get_ds_b_vectors(ds: Dataset) -> np.ndarray:
 
     def get_DICOM_b_vector(_ds):
         # Attempt to address standard DICOM attribute
-        raise NotImplementedError('get_DICOM_b_vector not implemented')
-        return _ds['DiffusionBValue'].value
+        return np.array(_ds['DiffusionGradientOrientation'].value)
 
     def get_Siemens_b_vector(_ds):
         raise NotImplementedError('get_Siemens_b_vector not implemented')
@@ -130,11 +129,11 @@ def get_ds_b_vectors(ds: Dataset) -> np.ndarray:
         try:
             csa_head = csa.get_csa_header(_ds)
         except csa.CSAReadError:
-            raise CannotSort("Unable to extract b value from header.")
+            raise CannotSort("Unable to extract b vector from header.")
         if 'tags' in csa_head and 'DiffusionGradientDirection' in csa_head['tags']:
             bvec = csa_head['tags']['DiffusionGradientDirection']['items']
             return np.array(bvec)
-        raise CannotSort("Unable to extract b value from header.")
+        raise CannotSort("Unable to extract b vector from header.")
 
     def get_Siemens_E11_b_vector(_ds):
         try:
@@ -278,8 +277,8 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
 
     def set_DICOM_b_vector(_ds, _value):
         # Attempt to address standard DICOM attribute
-        raise NotImplementedError('set_DICOM_b_vector not implemented')
-        _ds.DiffusionBValue = _value
+        # raise NotImplementedError('set_DICOM_b_vector not implemented')
+        _ds.DiffusionGradientOrientation = list(_value)
 
     def set_Siemens_b_vector(_ds, _value):
         raise NotImplementedError('set_Siemens_b_vector not implemented')
@@ -319,7 +318,6 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
         block[0x39].value = _value
 
     _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
-    raise NotImplementedError('set_ds_b_vector not implemented')
 
     for _method in [set_Siemens_E11_b_vector, set_Siemens_CSA_b_vector,
                     set_Siemens_b_vector,
@@ -328,9 +326,12 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
         try:
             _method(ds, value)
             return
-        except (KeyError, IndexError):
+        except (KeyError, IndexError) as e:
+            errmsg = '{}'.format(e)
             pass
-    raise IndexError('Cannot set b vectors')
+        except NotImplementedError:
+            pass
+    raise IndexError('Cannot set b vector: {}'.format(errmsg))
 
 
 

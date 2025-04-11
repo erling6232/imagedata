@@ -756,7 +756,7 @@ class DICOMPlugin(AbstractPlugin):
                                 idx = i
                                 min_diff = vdiff
                     return idx
-                    idx = np.array([np.linalg.norm(x + y) for (x, y) in array - value]).argmin()
+                    # idx = np.array([np.linalg.norm(x + y) for (x, y) in array - value]).argmin()
                     idx = np.searchsorted(array, value, side="left")
                     if idx > 0 and (
                             idx == len(array) or math.fabs(value - array[idx - 1]) < math.fabs(value - array[idx])):
@@ -2593,6 +2593,8 @@ class DICOMPlugin(AbstractPlugin):
         elif input_order == INPUT_ORDER_BVECTOR:
             try:
                 bvec = get_ds_b_vectors(im)
+                if bvec.ndim == 0:
+                    bvec = np.array([])
                 return bvec
             except IndexError:
                 raise CannotSort("Unable to extract b vector from header.")
