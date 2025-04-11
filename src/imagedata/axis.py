@@ -258,7 +258,14 @@ class VariableAxis(Axis):
 
     def __init__(self, name: str, values: Sequence) -> None:
         super(VariableAxis, self).__init__(name)
-        self._values = np.array(values)
+        if issubclass(type(values[0]), Sequence):
+            self._values = np.ndarray(len(values), dtype=np.ndarray)
+            for i, value in enumerate(values):
+                self._values[i] = np.array(value)
+        elif issubclass(type(values[0]), np.ndarray):
+            self._values = np.array(values, dtype=np.ndarray)
+        else:
+            self._values = np.array(values)
         if len(values) < 2:
             self.step = 1
         elif not isinstance(values[0], numbers.Number):

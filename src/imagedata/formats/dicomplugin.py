@@ -22,7 +22,7 @@ import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
-from numpy.core.numeric import inf
+# from numpy.core.numeric import inf
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
@@ -36,7 +36,7 @@ from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
-from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value
+from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, set_ds_b_vector
 
 logger = logging.getLogger(__name__)
 try:
@@ -725,9 +725,9 @@ class DICOMPlugin(AbstractPlugin):
                     for t in tags:
                         try:
                             _ = _[tag[t]]
-                        except TypeError as e:
+                        except TypeError:
                             _ = _[tuple(tag[t].tolist())]
-                        except Exception as e:
+                        except Exception:
                             raise
                     try:
                         _[0] += 1
@@ -745,10 +745,28 @@ class DICOMPlugin(AbstractPlugin):
                 )
 
             def _find_tag_element(catalog: defaultdict, shape: tuple, tag: tuple, p: tuple, index: int) -> int:
+
+                def find_nearest_vector(array, value):
+                    idx = None
+                    min_diff = np.inf
+                    for i in range(len(array)):
+                        if array[i].size == value.size:
+                            vdiff = np.linalg.norm(abs(array[i] - value))
+                            if vdiff < min_diff:
+                                idx = i
+                                min_diff = vdiff
+                    return idx
+                    idx = np.array([np.linalg.norm(x + y) for (x, y) in array - value]).argmin()
+                    idx = np.searchsorted(array, value, side="left")
+                    if idx > 0 and (
+                            idx == len(array) or math.fabs(value - array[idx - 1]) < math.fabs(value - array[idx])):
+                        return array[idx - 1]
+                    else:
+                        return array[idx]
+
                 _name: str = '{}.{}'.format(__name__, _find_tag_element.__name__)
                 c_tuple = (catalog[index],)
                 try:
-                    # _ = catalog[p[0]]
                     _ = catalog[0]
                     for i, _p in enumerate(p):
                         if _p in _:
@@ -757,36 +775,31 @@ class DICOMPlugin(AbstractPlugin):
                             _ = _[tag[i]]
                         else:
                             pass
-                    # _t = _[tag[p[-1]]]
-                    # c_tuple += (_[tag[p[-1]]],)
-                    # c_tuple += (_[tag[index]],)
                     c_tuple += (_,)
-                except IndexError:
+                except (IndexError, TypeError):
                     pass
                 for c in c_tuple:
-                    try:
-                        keys = list(c.keys())
-                        return keys.index(tag[index]) % shape[index]
-                    except ValueError:
-                        keys = np.array(keys)
-                        # dt1 = np.median(keys[1:] - keys[:-1])
-                        # dt = np.median(np.diff(keys))
-                        _values, _counts = np.unique(keys[1:] - keys[:-1], return_counts=True)
-                        _dt = _values[np.argmax(_counts)]
-                        _pos = min(range(len(keys)), key=lambda i: abs(keys[i] - tag[index]))
-                        _eps = abs(keys[_pos] - tag[index])
-                        if _eps > _dt:
-                            continue
-                        # return min(range(len(keys)), key=lambda i: abs(keys[i] - tag[index])) % shape[index]
+                    if issubclass(type(tag[index]), np.ndarray):
+                        keys = np.empty(len(c), dtype=np.ndarray)
+                        nonzero = 0
+                        for i, k in enumerate(c.keys()):
+                            keys[i] = np.array(list(k))
+                            if keys[i].size > 0:
+                                nonzero += 1
+                        nonzero_keys = np.empty(nonzero, dtype=np.ndarray)
+                        i = 0
+                        for key in keys:
+                            if key.size > 0:
+                                nonzero_keys[i] = key
+                                i += 1
+                        _pos = find_nearest_vector(keys, tag[index])
                         return _pos % shape[index]
-                    except Exception as e:
-                        pass
-                        # keys = list(_.keys())
-                        # p = keys.index(tag[index]) % len(catalog[index])
-                    # if i == index:
-                    #     pass
-                    # else:
-                    #     _ = _[tag[index]]
+                    else:
+                        keys = list(c.keys())
+                        try:
+                            return keys.index(tag[index]) % shape[index]
+                        except ValueError:
+                            continue
                 raise IndexError('{}: Cannot find tag {}'.format(_name, tag))
 
 
@@ -815,14 +828,27 @@ class DICOMPlugin(AbstractPlugin):
                         catalog[_] = _find_candidate(catalog, _, tag_list)
                 return catalog
 
-            def _find_candidate(catalog: dict, index: int, tag_list: list[tuple]) -> defaultdict[dict]:
+            def _recalculate_catalog_2(catalog: dict, tag_list: list[tuple]) -> dict:
+                for _ in catalog:
+                    if len(catalog[_]) >= len(tag_list):
+                        longest = {}
+                        for tag in tag_list:
+                            _f = _find_candidate(catalog, _, tag_list, base=tag)
+                            if len(_f) > len(longest):
+                                longest = _f
+                        catalog[_] = longest
+                return catalog
+
+
+
+            def _find_candidate(catalog: dict, index: int, tag_list: list[tuple], base: tuple = None) -> defaultdict[dict]:
                 # Vary index tag, keep other tags constant, and find candidate for reduced tag size
-                oldcat = catalog.copy()
                 find = tag_list[0]
+                if base is not None:
+                    find = base
                 new_list = []
                 dict_depth = lambda: defaultdict(dict_depth)
                 new_tag_dict = dict_depth()
-                # new_tag_dict = defaultdict(lambda: defaultdict(dict))
                 for tag in tag_list:
                     found = True
                     for i, t in enumerate(tag):
@@ -830,8 +856,14 @@ class DICOMPlugin(AbstractPlugin):
                             found = found and t == find[i]
                     if found:
                         new_list.append(tag[index])
-                        # new_tag_dict[tag[index]][0] = True
-                        new_tag_dict[tag[index]] = catalog[index][tag[index]]
+                        try:
+                            new_tag_dict[tag[index]] = catalog[index][tag[index]]
+                        except TypeError:
+                            if issubclass(type(tag[index]), np.ndarray):
+                                _ = tuple(tag[index].tolist())
+                                new_tag_dict[_] = catalog[index][_]
+                            else:
+                                raise
                 return new_tag_dict
 
             if len(tag_list) == 0:
@@ -842,11 +874,12 @@ class DICOMPlugin(AbstractPlugin):
             size = _calculate_size(catalog)
             previous_size = size + 1
             i = 0
+            _catalog = catalog.copy()
             while len(tag_list) < size < previous_size:
                 # Some tag values are not unique, need to do a better sort
-                catalog = _recalculate_catalog(catalog, tag_list)
+                _catalog = _recalculate_catalog(_catalog, tag_list)
                 previous_size = size  # Did recalculation improve sorting?
-                size = _calculate_size(catalog)
+                size = _calculate_size(_catalog)
                 i += 1
                 if i > 2 * len(tag_list):  # Stop criteria
                     raise CannotSort('{}: Too many iterations to sort headers'.format(_name))
@@ -862,112 +895,17 @@ class DICOMPlugin(AbstractPlugin):
             shape = _calculate_shape(struct_tag_list)
             tag_dict = defaultdict(tuple)
             for tag in tag_list:
-                tag_dict[tag] = _position(catalog, shape, tag)
-            return struct_tag_list, tag_dict
-
-        def _structure_tags(tag_list: defaultdict[list])\
-                -> defaultdict[tuple]:
-
-            def _increase_idx(idx, order):
-                idx1 = idx[:order]; idx2 = (idx[order] + 1,); idx3 = idx[order + 1:]
-                idx = idx[:order] + (idx[order] + 1,) + idx[order + 1:]
-                return idx
-
-            def _jump_idx(idx, order):
-                tags = len(idx)
-                if order == 0:
-                    new_idx = (idx[0]+1,)
-                    for _ in range(tags-1):
-                        new_idx += (0,)
-                # elif order == tags-1:
-                else:
-                    if order == 1:
-                        new_idx = (idx[0]+1,)
-                    else:
-                        new_idx = idx[:order-1] + (idx[order-1]+1,)
-                    while len(new_idx) < tags:
-                        new_idx += (0,)
-                # else:
-                #     new_idx = idx[:order] + (idx[order]+1,) + idx[order+1:]
-                return new_idx
-
-            def _count_unique_ndarrays(tags: list) -> int:
-                pass
-                # d = {}
-                # # # for x, y, z in tags:
-                # for x in tags:
-                #     try:
-                #         dd = d.get(x, 0)
-                #         d[x] = d.get(x, 0) + 1
-                #     except TypeError:
-                #         pass
-                #     except Exception as e:
-                #         pass
-                # c = Counter(elem[0] for elem in tags)
-                # c = Counter(elem for elem in tags)
-                output = []
-                for x in tags:
-                    exists = False
-                    for y in output:
-                        if x.shape == y.shape and np.allclose(x, y, rtol=1e-3, atol=1e-2):
-                            exists = True
-                            break
-                    if not exists:
-                        output.append(x)
-                return len(output)
-
-            if len(tag_list) == 0:
-                return defaultdict(list)
-            tags = len(tag_list[0])
-            # if size == tags:
-            #     return sorted(tag_list)
-            # Some tag values are not unique, need to do a better sort
-            size = {}
-            strides = {tags-1: 1}
-            stride = 1
-            for index in reversed(range(tags)):
-                # Count number of unique tags
+                _pos = _position(catalog, shape, tag)
                 try:
-                    size[index] = len(list(dict.fromkeys(
-                        _extract_tuple_index(tag_list, index)
-                    )))
+                    tag_dict[tag] = _pos
                 except TypeError:
-                    # Resort to more tedious sorting - possibly sorting np.ndarray objects
-                    size[index] = _count_unique_ndarrays(
-                        _extract_tuple_index(tag_list, index)
-                    )
-                if size[index] >= len(tag_list):
-                    # Extract every nth value
-                    size[index] = len(tag_list) // stride
-                stride *= size[index]
-                strides[index-1] = stride
-            struct_tag_list = defaultdict(list)
-            for index in range(tags):
-                # Extract every nth value
-                values = []
-                for i in range(0, size[index]*strides[index], strides[index]):
-                    values.append(tag_list[i][index])
-                struct_tag_list[index] = values
-            tag_dict = defaultdict(tuple)
-            idx = last_tuple = tuple()
-            for _ in range(tags-1):
-                idx += (0,)
-                last_tuple += (-np.inf,)
-            idx += (-1,)
-            last_tuple += (-np.inf,)
-            for tag_tuple in tag_list:
-                for order in reversed(range(tags)):
-                    if tag_tuple[order] >= last_tuple[order]:
-                        idx = _increase_idx(idx, order)
-                    else:  # tag_tuple[order] < last_tuple[order]:
-                        # Reset order index, increase more significant index
-                        idx = _jump_idx(idx, order)
-                    break
-                # for i, tag in enumerate(tag_tuple):
-                #     ix = struct_tag_list[i].index(tag)
-                #     idx += (struct_tag_list[i].index(tag),)
-                tag_dict[tag_tuple] = idx
-                last_tuple = tag_tuple
+                    _ = tuple()
+                    for _t in tag:
+                        if issubclass(type(_t), np.ndarray):
+                            _ += (tuple(_t.tolist()),)
+                        else:
+                            _ += (_t,)
+                    tag_dict[_] = _pos
             return struct_tag_list, tag_dict
 
         def _extract_tuple_index(tag_list, i) -> np.ndarray[float]:
@@ -978,29 +916,29 @@ class DICOMPlugin(AbstractPlugin):
                 result_list.append(tag[i])
             return result_list
 
-        def _append_tag(tag_list, tag, accept_duplicate_tag=False, accept_uneven_slices=False):
+        def _append_tag(tag_list: list[tuple], tag: tuple,
+                        accept_duplicate_tag: bool=False,
+                        accept_uneven_slices: bool=False) -> None:
             _name: str = '{}.{}'.format(__name__, _append_tag.__name__)
+            if len(tag_list) == 0:
+                tag_list.append(tag)
+                return
             exist = True
             try:
-                exist = tag in tag_list
-            except ValueError:
-                try:
-                    for t in tag_list:
-                        for _, _t in enumerate(t):
-                            if issubclass(type(_t), np.ndarray):
-                                if _t.size == 0:
-                                    exist = exist and tag[_].size == 0
-                                else:
-                                    exist = (exist and _t.shape == tag[_].shape and
-                                             np.allclose(_t, tag[_], rtol=1e-3, atol=1e-2))
+                for t in tag_list:
+                    for _, _t in enumerate(t):
+                        if issubclass(type(_t), np.ndarray):
+                            if _t.size == 0:
+                                exist = exist and tag[_].size == 0
                             else:
-                                exist = exist and _t == tag[_]
-                except Exception as e:
-                    print(e)
-            # except TypeError:
-                # exist = exist and np.array_equal(_t, tag[_])
+                                exist = (exist and _t.shape == tag[_].shape and
+                                         np.allclose(_t, tag[_], rtol=1e-3, atol=1e-2))
+                        else:
+                            exist = exist and _t == tag[_]
             except Exception as e:
                 print(e)
+            # except TypeError:
+            # exist = exist and np.array_equal(_t, tag[_])
             if not exist or accept_duplicate_tag:
                 tag_list.append(tag)
             elif accept_uneven_slices:
@@ -1046,7 +984,13 @@ class DICOMPlugin(AbstractPlugin):
                 hdr.tags[_slice] = np.empty(shape, dtype=tuple)
                 for _tag in tag_dict[_slice]:
                     idx = tag_dict[_slice][_tag]
-                    hdr.tags[_slice][idx] = _tag
+                    new_value = tuple()
+                    for _t in _tag:
+                        if issubclass(type(_t), tuple):
+                            new_value += (np.array(_t),)
+                        else:
+                            new_value += (_t,)
+                    hdr.tags[_slice][idx] = new_value
             # Sort images based on position in tag_list
             sorted_headers = {}
             SOPInstanceUIDs = {}
@@ -1066,8 +1010,9 @@ class DICOMPlugin(AbstractPlugin):
                         if sorted_headers[islice][idx]:
                             # Duplicate tag
                             if accept_duplicate_tag:
-                                while sorted_headers[islice][idx]:
-                                    idx += 1
+                                pass
+                                # while sorted_headers[islice][idx]:
+                                #     idx += 1
                             else:
                                 print("WARNING: Duplicate tag", tag)
                     except KeyError:
@@ -1250,11 +1195,14 @@ class DICOMPlugin(AbstractPlugin):
                     tag = self._extract_tag_tuple(im, faulty, _hdr.input_order, opts)
                     idx = self._index_from_tag(tag, tgs)
                     if idx in _done:
-                        if accept_duplicate_tag:
-                            while idx in _done:
-                                idx += 1
-                        else:
-                            logger.warning("{}: Overwriting data at index {}".format(_name, idx))
+                        # logger.warning("{}: Overwriting data at index {}, tag {}".format(
+                        # _name, idx, tag))
+                        logger.warning("Overwriting data at index {}, tag {}".format(idx, tag))
+                        # if accept_duplicate_tag:
+                        #     while idx in _done:
+                        #         idx += 1
+                        # else:
+                        #     logger.warning("{}: Overwriting data at index {}".format(_name, idx))
                     _done[idx] = True
                     idx += (_slice,)
                     # Simplify index when image is 3D, remove tag index
@@ -1940,6 +1888,9 @@ class DICOMPlugin(AbstractPlugin):
                     else:
                         _file_tag = (ifile,)
                     try:
+                        _t = si.header.tags[_slice][tag]
+                        if _t is None:
+                            continue
                         self.write_slice(si.input_order, _file_tag, si[_tag],
                                          destination, ifile,
                                          tag_value=si.header.tags[_slice][tag],
@@ -1997,6 +1948,9 @@ class DICOMPlugin(AbstractPlugin):
                     else:
                         _file_tag = (ifile,)
                     try:
+                        _t = si.header.tags[_slice][tag]
+                        if _t is None:
+                            continue
                         self.write_slice(si.input_order, _file_tag, si[tag + (_slice,)],
                                          destination, ifile,
                                          tag_value=si.header.tags[_slice][tag],
@@ -2273,7 +2227,6 @@ class DICOMPlugin(AbstractPlugin):
 
         # Set tag
         # si will always have only the present tag
-        # self._set_dicom_tag(ds, input_order, si.tags[0][0])
         self._set_dicom_tag(ds, input_order, tag_value)
 
         logger.debug("{}: filename {}".format(_name, filename))
@@ -2722,6 +2675,8 @@ class DICOMPlugin(AbstractPlugin):
                     im.data_element(time_tag).value = float(value)
             elif order == INPUT_ORDER_B:
                 set_ds_b_value(im, value)
+            elif order == INPUT_ORDER_BVECTOR:
+                set_ds_b_vector(im, value)
             elif order == INPUT_ORDER_FA:
                 fa_tag = self._choose_tag('fa', 'FlipAngle')
                 if fa_tag not in im:
@@ -2882,14 +2837,28 @@ class DICOMPlugin(AbstractPlugin):
             raise ValueError('Cannot calculate slice location: %s' % e)
 
     @staticmethod
-    def _index_from_tag(tag, tags):
+    def _index_from_tag(tag, tags) -> tuple[int]:
         _name: str = '{}.{}'.format(__name__, '_index_from_tag')
-        _tag = np.zeros(1, dtype=tuple)
-        _tag[0] = tag
-        idx_tuple = np.where(tags == _tag)
-        idx = tuple()
-        for _ in idx_tuple:
-            assert len(_) == 1, "{}: Too many indexes found".format(_name)
-            idx += (_[0],)
-        return idx
+        for idx in np.ndindex(tags.shape):
+            if tags[idx] is not None:
+                found = True
+                for i in range(len(tag)):
+                    if issubclass(type(tag[i]), np.ndarray):
+                        found = found and (tag[i] == tags[idx][i]).all()
+                    else:
+                        found = found and (tag[i] == tags[idx][i])
+                if found:
+                    return idx
+        raise ValueError('{}: Tag {:08x} ({}) not found'.format(_name, tag, tags))
+        # _tag = np.zeros(1, dtype=tuple)
+        # _tag[0] = tag
+        # idx_tuple = np.where(tags == _tag)
+        # idx = tuple()
+        # for _ in idx_tuple:
+        #     if len(_) > 0:
+        #         assert len(_) == 1, "{}: Too many indexes found".format(_name)
+        #         idx += (_[0],)
+        #     else:
+        #         idx += (0,)
+        # return idx
 

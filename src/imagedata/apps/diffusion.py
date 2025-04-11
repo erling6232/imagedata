@@ -7,7 +7,7 @@ import struct
 import warnings
 import pandas as pd
 from pydicom import Dataset
-from typing import SupportsFloat
+from typing import Sequence, SupportsFloat
 from ..series import Series
 from ..formats import NotImageError, CannotSort
 
@@ -264,6 +264,74 @@ def set_ds_b_value(ds: Dataset, value: Number):
         except (KeyError, IndexError):
             pass
     raise IndexError('Cannot set b value')
+
+
+def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
+    """Set diffusion b vector
+
+    Setting diffusion b vector has been tested on MRI data from some major vendors.
+
+    Args:
+        ds (pydicom.Dataset): Dataset
+        value: b vector
+    """
+
+    def set_DICOM_b_vector(_ds, _value):
+        # Attempt to address standard DICOM attribute
+        raise NotImplementedError('set_DICOM_b_vector not implemented')
+        _ds.DiffusionBValue = _value
+
+    def set_Siemens_b_vector(_ds, _value):
+        raise NotImplementedError('set_Siemens_b_vector not implemented')
+        block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
+        block[0x0c].value = _value
+
+    def set_Siemens_E11_b_vector(_ds, _value):
+        raise NotImplementedError('set_Siemens_E11_b_vector not implemented')
+        try:
+            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
+            im_info = block[0x10].value
+            # se_info = block[0x20].value
+            if im_info[:4] == b'SV10':
+                _h = _get_CSA2_header(im_info)
+            else:
+                _h = _get_CSA1_header(im_info)
+            _h['DiffusionGradientDirection'] = _value.tolist()
+        except Exception:
+            raise IndexError('Cannot set b vector')
+
+    def set_Siemens_CSA_b_vector(_ds, _value):
+        raise NotImplementedError('set_Siemens_CSA_b_vector not implemented')
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            import nibabel.nicom.csareader as csa
+        try:
+            csa_head = csa.get_csa_header(_ds)
+        except csa.CSAReadError:
+            raise CannotSort("Unable to set b vector in header.")
+        if 'tags' in csa_head and 'DiffusionGradientDirection' in csa_head['tags']:
+            csa_head['tags']['DiffusionGradientDirection']['items'] = _value.tolist()
+        raise CannotSort("Unable to set b vector in header.")
+
+    def set_GEMS_b_vector(_ds, _value):
+        raise NotImplementedError('set_GEMS_b_vector not implemented')
+        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
+        block[0x39].value = _value
+
+    _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
+    raise NotImplementedError('set_ds_b_vector not implemented')
+
+    for _method in [set_Siemens_E11_b_vector, set_Siemens_CSA_b_vector,
+                    set_Siemens_b_vector,
+                    set_GEMS_b_vector,
+                    set_DICOM_b_vector]:
+        try:
+            _method(ds, value)
+            return
+        except (KeyError, IndexError):
+            pass
+    raise IndexError('Cannot set b vectors')
+
 
 
 def _get_CSA1_header(data):

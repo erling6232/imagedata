@@ -817,26 +817,6 @@ class TestDicomSlicing(unittest.TestCase):
 
 class TestDicomNDSort(unittest.TestCase):
 
-    @unittest.skip("skipping test_ep2d_bvec")
-    def test_ep2d_bvec(self):
-        si = Series(
-            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
-            'b,bvector',
-            input_format='dicom'
-        )
-        with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
-
-    @unittest.skip("skipping test_ep2d_rsi")
-    def test_ep2d_rsi(self):
-        si = Series(
-            os.path.join('data', 'dicom', '5D.zip?ep2d_RSI_b0_500_1500_6dir'),
-            'rsi',
-            input_format='dicom'
-        )
-        with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
-
     #@unittest.skip("skipping test_t1_de_te")
     def test_5D_time_te(self):
         si = Series(
@@ -953,11 +933,15 @@ class TestDicomNDSort(unittest.TestCase):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
-            # 'rsi',
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
+            with self.assertRaises((NotImplementedError, OSError)) as context:
+                si.write(d, formats=['dicom'])
+                si1 = Series(d, 'b,bvector', input_format='dicom')
+                compare_tags(self, si.tags, si1.tags,
+                     axis=(0, 1), slicing=(slice(1, None), slice(1, None))
+                     )
 
 
     # @unittest.skip("skipping test_ep2d_6D")
@@ -966,10 +950,15 @@ class TestDicomNDSort(unittest.TestCase):
             os.path.join('data', 'dicom', 'RSI_6D.zip?RSI_6D/ep2d_RSI_b0_50_100_200_TE_?5'),
             'b,bvector,te',
             input_format='dicom',
-            opts={'ignore_series_uid': True}
+            opts={'ignore_series_uid': True, 'accept_duplicate_tag': True}
         )
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, formats=['dicom'])
+            with self.assertRaises((NotImplementedError, OSError)) as context:
+                si.write(d, formats=['dicom'])
+                si1 = Series(d, 'b,bvector,te', input_format='dicom')
+                compare_tags(self, si.tags, si1.tags,
+                             axis=(0, 1), slicing=(slice(1, None), slice(1, None))
+                             )
 
 
 class TestDicomPluginSortCriteria(unittest.TestCase):
