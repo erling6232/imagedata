@@ -6,6 +6,8 @@ import numpy as np
 import logging
 import argparse
 import pydicom.filereader
+from numbers import Number
+from pydicom.dataset import Dataset
 
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
@@ -162,6 +164,7 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'TI'),
             input_order='ti',
+            input_format='dicom',
             opts={'ti': 'InversionTime', 'ignore_series_uid': True})
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
@@ -178,6 +181,20 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.shape, si2.shape)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
+
+    # @unittest.skip("skipping test_read_dicom_user_function_TI")
+    def test_read_dicom_user_function_TI(self):
+
+        def _get_TI(im: Dataset) -> float:
+            return float(im.data_element('InversionTime').value)
+
+        si1 = Series(
+            os.path.join('data', 'dicom', 'TI'),
+            input_order='ti',
+            input_format='dicom',
+            ti=_get_TI, ignore_series_uid=True)
+            # opts={'ti': _get_TI, 'ignore_series_uid': True})
+        self.assertEqual('dicom', si1.input_format)
 
     def test_verify_correct_slice(self):
         si1 = Series(
@@ -939,7 +956,17 @@ class TestDicomNDSort(unittest.TestCase):
             si.write(d, formats=['dicom'])
             si1 = Series(d, 'b,bvector', input_format='dicom')
             compare_tags(self, si.tags, si1.tags)
-
+        tags = si.tags[0]
+        for idx in np.ndindex(tags.shape):
+            try:
+                b, bvector = tags[idx]
+            except TypeError:
+                continue
+            rsi = si[idx]
+            if b < 1:
+                self.assertEqual(len(bvector), 0)
+            else:
+                self.assertEqual(len(bvector), 3)
 
     # @unittest.skip("skipping test_ep2d_6D")
     def test_ep2d_6D(self):
