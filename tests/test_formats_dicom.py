@@ -6,6 +6,8 @@ import numpy as np
 import logging
 import argparse
 import pydicom.filereader
+from numbers import Number
+from pydicom.dataset import Dataset
 
 import src.imagedata.cmdline as cmdline
 import src.imagedata.formats as formats
@@ -162,7 +164,8 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'TI'),
             input_order='ti',
-            opts={'ti': 'InversionTime', 'ignore_series_uid': True})
+            input_format='dicom',
+            ti='InversionTime', ignore_series_uid=True)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (5, 1, 384, 384))
@@ -172,10 +175,32 @@ class TestDicomPlugin(unittest.TestCase):
                       opts={'ti': 'InversionTime'})
             si2 = Series(d,
                          input_order='ti',
-                         opts={'ti': 'InversionTime'})
+                         ti='InversionTime')
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
+        np.testing.assert_array_equal(si1, si2)
+
+    # @unittest.skip("skipping test_read_dicom_user_function_TI")
+    def test_read_dicom_user_function_TI(self):
+
+        def _get_TI(im: Dataset) -> float:
+            return float(im.data_element('InversionTime').value)
+
+        si1 = Series(
+            os.path.join('data', 'dicom', 'TI'),
+            input_order='ti',
+            input_format='dicom',
+            ti=_get_TI, ignore_series_uid=True)
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d,
+                      formats=['dicom'],
+                      opts={'ti': 'InversionTime'})
+            si2 = Series(d,
+                         input_order='ti',
+                         input_format='dicom',
+                         ti='InversionTime')
+        self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
 
@@ -939,7 +964,17 @@ class TestDicomNDSort(unittest.TestCase):
             si.write(d, formats=['dicom'])
             si1 = Series(d, 'b,bvector', input_format='dicom')
             compare_tags(self, si.tags, si1.tags)
-
+        tags = si.tags[0]
+        for idx in np.ndindex(tags.shape):
+            try:
+                b, bvector = tags[idx]
+            except TypeError:
+                continue
+            rsi = si[idx]
+            if b < 1:
+                self.assertEqual(len(bvector), 0)
+            else:
+                self.assertEqual(len(bvector), 3)
 
     # @unittest.skip("skipping test_ep2d_6D")
     def test_ep2d_6D(self):

@@ -150,11 +150,8 @@ def add_argparse_options(parser):
                         help="Set DICOM image type, comma-separated list")
     parser.add_argument('--input_options', action=DictAction,
                         help="Set input options (e.g. time=TriggerTime)",
-                        default={
-                            'time': 'AcquisitionTime',
-                            'fa': 'FlipAngle',
-                            'te': 'EchoTime'
-                        })
+                        default={}
+                        )
     parser.add_argument('--calling_aet',
                         help='Calling AEtitle',
                         default=None)

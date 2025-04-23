@@ -191,6 +191,62 @@ attributes: List[str] = [
 ]
 
 
+def _get_float(im: Dataset, tag: str) -> float:
+    if im.data_element(tag).VR == 'TM':
+        time_str = im.data_element(tag).value
+        try:
+            if '.' in time_str:
+                tm = datetime.strptime(time_str, "%H%M%S.%f")
+            else:
+                tm = datetime.strptime(time_str, "%H%M%S")
+        except ValueError:
+            raise CannotSort("Unable to extract time value from header.")
+        td = timedelta(hours=tm.hour,
+                       minutes=tm.minute,
+                       seconds=tm.second,
+                       microseconds=tm.microsecond)
+        return td.total_seconds()
+    else:
+        try:
+            return float(im.data_element(tag).value)
+        except ValueError:
+            raise CannotSort("Unable to extract value from header.")
+
+
+def _get_no_value(im: Dataset) -> Number:
+    return 0
+
+
+def _get_acquisition_time(im: Dataset) -> Number:
+    return _get_float(im, 'AcquisitionTime')
+
+
+def _get_b_value(im: Dataset) -> Number:
+    try:
+        return get_ds_b_value(im)
+    except IndexError:
+        raise CannotSort("Unable to extract b value from header.")
+
+
+def _get_b_vector(im: Dataset) -> np.ndarray:
+    try:
+        bvec = get_ds_b_vectors(im)
+        if bvec.ndim == 0:
+            bvec = np.array([])
+        return bvec
+    except IndexError:
+        raise CannotSort("Unable to extract b vector from header.")
+
+
+def _get_echo_time(im: Dataset) -> Number:
+    return _get_float(im, 'EchoTime')
+
+
+def _get_flip_angle(im: Dataset) -> Number:
+    fa_tag = 'FlipAngle'
+    return _get_float(im, 'FlipAngle')
+
+
 class DoNotIncludeFile(Exception):
     pass
 
@@ -280,6 +336,17 @@ class DICOMPlugin(AbstractPlugin):
         _name: str = '{}.{}'.format(__name__, self.read.__name__)
 
         self.input_order = input_order
+        self.input_options = {
+            INPUT_ORDER_NONE: _get_no_value,
+            INPUT_ORDER_TIME: _get_acquisition_time,
+            INPUT_ORDER_B: _get_b_value,
+            INPUT_ORDER_BVECTOR: _get_b_vector,
+            INPUT_ORDER_TE: _get_echo_time,
+            INPUT_ORDER_FA: _get_flip_angle,
+            'auto_sort': ['time', 'b', 'fa', 'te']
+        }
+        for key, value in opts.items():  # Copy opts to self.input_options
+            self.input_options[key] = value
 
         skip_pixels = False
         if 'headers_only' in opts and opts['headers_only']:
@@ -645,7 +712,7 @@ class DICOMPlugin(AbstractPlugin):
         im = None
         for sloc in sorted_dataset_dict.keys():
             for im in sorted_dataset_dict[sloc]:
-                for order in ['time', 'b', 'fa', 'te']:
+                for order in self.input_options['auto_sort']:
                     try:
                         tag = self._get_tag(im, order, opts)
                         if tag is None:
@@ -1740,7 +1807,8 @@ class DICOMPlugin(AbstractPlugin):
             si.header.seriesInstanceUID = si.header.new_uid()
         self.serInsUid = si.header.seriesInstanceUID
         logger.debug("{}: {}".format(_name, self.serInsUid))
-        self.input_options = opts
+        for key, value in opts.items():  # Copy opts to self.input_options
+            self.input_options[key] = value
 
         if pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedMRImageStorage' or \
                 pydicom.uid.UID(si.SOPClassUID).keyword == 'EnhancedCTImageStorage':
@@ -2555,79 +2623,15 @@ class DICOMPlugin(AbstractPlugin):
 
     def _get_tag(self, im: Dataset, input_order: str, opts: dict = None) -> Number:
 
-        if input_order is None:
-            return 0
-        if input_order == INPUT_ORDER_NONE:
-            return 0
-        elif input_order == INPUT_ORDER_TIME:
-            time_tag = self._choose_tag('time', 'AcquisitionTime')
-            # if 'TriggerTime' in opts:
-            #    return(float(image.TriggerTime))
-            # elif 'InstanceNumber' in opts:
-            #    return(float(image.InstanceNumber))
-            # else:
-            if im.data_element(time_tag).VR == 'TM':
-                time_str = im.data_element(time_tag).value
-                try:
-                    if '.' in time_str:
-                        tm = datetime.strptime(time_str, "%H%M%S.%f")
-                    else:
-                        tm = datetime.strptime(time_str, "%H%M%S")
-                except ValueError:
-                    raise CannotSort("Unable to extract time value from header.")
-                td = timedelta(hours=tm.hour,
-                               minutes=tm.minute,
-                               seconds=tm.second,
-                               microseconds=tm.microsecond)
-                return td.total_seconds()
-            else:
-                try:
-                    return float(im.data_element(time_tag).value)
-                except ValueError:
-                    raise CannotSort("Unable to extract time value from header.")
-        elif input_order == INPUT_ORDER_B:
+        try:
+            return self.input_options[input_order](im)
+        except (KeyError, TypeError):
             try:
-                return get_ds_b_value(im)
-            except IndexError:
-                raise CannotSort("Unable to extract b value from header.")
-        elif input_order == INPUT_ORDER_BVECTOR:
-            try:
-                bvec = get_ds_b_vectors(im)
-                if bvec.ndim == 0:
-                    bvec = np.array([])
-                return bvec
-            except IndexError:
-                raise CannotSort("Unable to extract b vector from header.")
-        elif input_order == INPUT_ORDER_RSI:
-            try:
-                bvalue = get_ds_b_value(im)
-                bvec = get_ds_b_vectors(im)
-                return (bvalue, bvec)
-            except IndexError:
-                raise CannotSort("Unable to extract b value from header.")
-        elif input_order == INPUT_ORDER_FA:
-            fa_tag = self._choose_tag('fa', 'FlipAngle')
-            try:
-                return float(im.data_element(fa_tag).value)
-            except ValueError:
-                raise CannotSort("Unable to extract FA value from header.")
-        elif input_order == INPUT_ORDER_TE:
-            te_tag = self._choose_tag('te', 'EchoTime')
-            try:
-                return float(im.data_element(te_tag).value)
-            except ValueError:
-                raise CannotSort("Unable to extract TE value from header.")
-        elif input_order == INPUT_ORDER_AUTO:
-            pass
-        else:
-            # User-defined tag
-            if input_order in opts:
-                _tag = opts[input_order]
-                try:
-                    return float(im.data_element(_tag).value)
-                except ValueError:
-                    raise CannotSort("Unable to extract {} value from header.".format(input_order))
-        raise (UnknownTag("Unknown input_order {}.".format(input_order)))
+                return _get_float(im, self.input_options[input_order])
+            except (AttributeError, KeyError, TypeError):
+                raise CannotSort('Tag {} not found in data'.format(input_order))
+            except (IndexError, ValueError):
+                raise CannotSort('Tag {} cannot be extracted from data'.format(input_order))
 
     def _choose_tag(self, tag, default):
         # Example: _tag = choose_tag('b', 'csa_header')
