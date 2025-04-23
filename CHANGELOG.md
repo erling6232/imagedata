@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.0-rc2] - 2025-04-23
+* Allow user-defined sorting criteria, and overriding default sorting.
+
 ## [v3.8.0-rc1] - 2025-04-11
 * Novel sorting routine for n-dimensional DICOM datasets.
 
