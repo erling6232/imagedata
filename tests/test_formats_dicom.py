@@ -165,7 +165,7 @@ class TestDicomPlugin(unittest.TestCase):
             os.path.join('data', 'dicom', 'TI'),
             input_order='ti',
             input_format='dicom',
-            opts={'ti': 'InversionTime', 'ignore_series_uid': True})
+            ti='InversionTime', ignore_series_uid=True)
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (5, 1, 384, 384))
@@ -175,10 +175,9 @@ class TestDicomPlugin(unittest.TestCase):
                       opts={'ti': 'InversionTime'})
             si2 = Series(d,
                          input_order='ti',
-                         opts={'ti': 'InversionTime'})
+                         ti='InversionTime')
         self.assertEqual('dicom', si2.input_format)
         self.assertEqual(si1.dtype, si2.dtype)
-        self.assertEqual(si1.shape, si2.shape)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
 
@@ -193,8 +192,17 @@ class TestDicomPlugin(unittest.TestCase):
             input_order='ti',
             input_format='dicom',
             ti=_get_TI, ignore_series_uid=True)
-            # opts={'ti': _get_TI, 'ignore_series_uid': True})
-        self.assertEqual('dicom', si1.input_format)
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d,
+                      formats=['dicom'],
+                      opts={'ti': 'InversionTime'})
+            si2 = Series(d,
+                         input_order='ti',
+                         input_format='dicom',
+                         ti='InversionTime')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+        np.testing.assert_array_equal(si1, si2)
 
     def test_verify_correct_slice(self):
         si1 = Series(
