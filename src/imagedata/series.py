@@ -2223,6 +2223,15 @@ class Series(np.ndarray):
         except ValueError:
             raise ValueError("No time axis is defined. Input order: {}".format(
                 self.input_order))
+        except AttributeError:
+            try:
+                timeline = [0.0]
+                for t in range(1, len(self.axes.triggertime.values)):
+                    timeline.append(self.axes.triggertime.values[t] - self.axes.triggertime.values[0])
+                return np.array(timeline)
+            except ValueError:
+                raise ValueError("No time axis is defined. Input order: {}".format(
+                    self.input_order))
 
     @property
     def bvalues(self):
