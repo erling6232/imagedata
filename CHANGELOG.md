@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Sort on Trigger Time also.
 * Added code to sort series on diffusion gradient direction (b-vector),
   and specifically diffusion RSI data.
-* 
+
 ### Changed
+* Image tags property (tags) is now a multi-dimensional array when the image dimension > 4.
+  In this case the image tags will be tuples.
 * diffusion.py: Added code to get diffusion b value from Siemens E11 format.
 * Patient class: Limit the strict check of patient attributes to
   patientName, patientID, patientBirthDate

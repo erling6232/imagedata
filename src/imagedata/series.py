@@ -1071,6 +1071,8 @@ class Series(np.ndarray):
             - diffusion weightings (b values)
             - flip angles
 
+        Image tags will be tuples when image dimension > 4.
+
         tags is a dict with (slice keys, tag array)
 
         dict[slice] is np.ndarray(tags)
