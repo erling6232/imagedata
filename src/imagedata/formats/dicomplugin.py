@@ -29,7 +29,7 @@ from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, \
     SORT_ON_SLICE, \
     INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, \
-    INPUT_ORDER_BVECTOR, INPUT_ORDER_RSI, \
+    INPUT_ORDER_BVECTOR, INPUT_ORDER_RSI, INPUT_ORDER_TRIGGERTIME, \
     INPUT_ORDER_AUTO
 from ..series import Series
 from ..axis import VariableAxis, UniformLengthAxis
@@ -221,6 +221,10 @@ def _get_acquisition_time(im: Dataset) -> Number:
     return _get_float(im, 'AcquisitionTime')
 
 
+def _get_trigger_time(im: Dataset) -> Number:
+    return _get_float(im, 'TriggerTime') / 1000.
+
+
 def _get_b_value(im: Dataset) -> Number:
     try:
         return get_ds_b_value(im)
@@ -339,11 +343,12 @@ class DICOMPlugin(AbstractPlugin):
         self.input_options = {
             INPUT_ORDER_NONE: _get_no_value,
             INPUT_ORDER_TIME: _get_acquisition_time,
+            INPUT_ORDER_TRIGGERTIME: _get_trigger_time,
             INPUT_ORDER_B: _get_b_value,
             INPUT_ORDER_BVECTOR: _get_b_vector,
             INPUT_ORDER_TE: _get_echo_time,
             INPUT_ORDER_FA: _get_flip_angle,
-            'auto_sort': ['time', 'b', 'fa', 'te']
+            'auto_sort': ['time', 'triggertime', 'b', 'fa', 'te']
         }
         for key, value in opts.items():  # Copy opts to self.input_options
             self.input_options[key] = value
@@ -730,7 +735,7 @@ class DICOMPlugin(AbstractPlugin):
         actual_order = None
         for order in found_tags:
             if len(found_tags[order]) > 1:
-                if actual_order == 'time' and order in ['b', 'te']:
+                if actual_order in ('time', 'triggertime') and order in ['b', 'te']:
                     # DWI images will typically have varying time.
                     # Let b values override time stamps.
                     actual_order = order
@@ -743,7 +748,8 @@ class DICOMPlugin(AbstractPlugin):
                                      )
         if actual_order is None:
             actual_order = INPUT_ORDER_NONE
-        elif actual_order == INPUT_ORDER_TIME and _single_slice_over_time(extended_tags['time']):
+        elif actual_order in (INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME) and \
+            _single_slice_over_time(extended_tags[actual_order]):
             actual_order = INPUT_ORDER_NONE
         return actual_order
 
