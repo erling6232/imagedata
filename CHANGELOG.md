@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.0-rc3] - 2025-04-28
+* Added sort on TriggerTime
+
 ## [v3.8.0-rc2] - 2025-04-23
 * Allow user-defined sorting criteria, and overriding default sorting.
 
