@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.0] - 2025-04-28
+### Added
+* Novel sorting routine for n-dimensional DICOM datasets.
+* Allow user-defined sorting criteria, and overriding default sorting.
+* Sort on Trigger Time also.
+* Added code to sort series on diffusion gradient direction (b-vector),
+  and specifically diffusion RSI data.
+* 
+### Changed
+* diffusion.py: Added code to get diffusion b value from Siemens E11 format.
+* Patient class: Limit the strict check of patient attributes to
+  patientName, patientID, patientBirthDate
+  and patientSex.
+* Series.__getitem__(): Accept tuple slicing specification, like ((2,),(2,),(2,)).
+* Improved some test suites to run better on Windows.
+
+### Fixed
+* Corrected parsing windows UNC path names with leading double slash.
+* ZipFileArchive: Windows: Do not complain when temporary local file cannot be removed.
+* XnatTransport.open(): Corrected scan search to search for series description,
+  not series number.
+* Viewer.viewport_set(): Fixed error where the viewport did not include the last image.
+* evidence2roi: Do not raise exception for unknown roi type. Log a warning instead.
+
 ## [v3.8.0-rc3] - 2025-04-28
 * Added sort on TriggerTime
 
