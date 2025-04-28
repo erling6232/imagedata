@@ -33,6 +33,7 @@ Several sort criteria are predefined:
 * none: No sorting (2D/3D datasets only)
 * auto: Determine sorting criteria automatically (default) (see below)
 * time: Sort on Acquisition Time
+* triggertime: Sort on Trigger Time
 * b: Sort on MR diffusion b-value
 * bvector: Sort on MR diffusion b vector
 * fa: Sort on MR Flip Angle
@@ -45,7 +46,7 @@ Auto-sorting
 attempting to sort on `time`, `b`-value, echo time or flip angle.
 
 The exact list of sorting criteria can be set using the `auto_sort` list.
-The default auto sort list is ['time', 'b', 'fa', 'te'].
+The default auto sort list is ['time', 'triggertime', 'b', 'fa', 'te'].
 
 .. code-block:: python
 
@@ -79,6 +80,9 @@ Notice how the get_TriggerTime() function overloads the standard `time`
 definition. This allow to treat the acquired series as a time series with
 the `timeline` property.
 
+NOTICE: Trigger Time is now implemented in the standard library.
+This discussion remains here to document the possible uses.
+
 .. code-block:: python
 
     def get_TriggerTime(im: Dataset) -> float:
@@ -98,7 +102,7 @@ Trigger Time is the sorting criteria:
     )
 
 N-dimensional sorting
-=====================
+---------------------
 
 While 4D data can be sorted automatically, higher dimensions must be defined explicitly.
 The `input_order` parameter can be a comma-separated list of sorting criteria.
