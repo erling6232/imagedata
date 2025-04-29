@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v3.8.1] - 2025-04-29
 ### Fixed
-* Series.__getitem__
+* Series.__getitem__(): Do not index on ndarray and Series indexes.
+* Series: Properly slice arrays on np.int64 in addition to int.
+
 ## [v3.8.0] - 2025-04-28
 ### Added
 * Novel sorting routine for n-dimensional DICOM datasets.
