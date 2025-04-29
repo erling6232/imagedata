@@ -9,6 +9,7 @@ methods and attributes.
 
 """
 
+import collections.abc
 from typing import Tuple
 import copy
 import numbers
@@ -547,10 +548,6 @@ class Series(np.ndarray):
                     raise IndexError('Index problem: spec length %d, items length %d' %
                                      (len(index_spec), len(index_item)))
 
-                for _item in index_item:
-                    # If any item is of unknown type, we will not slice the data
-                    if not type(_items[_item]) in (slice, int, tuple, list):
-                        return _slicing, _spec
                 for _dim, _item in zip(index_spec, index_item):
                     if isinstance(_items[_item], slice):
                         _start = _items[_item].start or _spec[_dim][0]
@@ -562,11 +559,27 @@ class Series(np.ndarray):
                             _stop = obj.shape[_dim] + _stop
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
-                    elif isinstance(_items[_item], (int, tuple)):
-                        if isinstance(_items[_item], tuple):
-                            _it = _items[_item][0]
+                    elif issubclass(type(_items[_item]), str):
+                        _spec[_dim] = (_items[_item], obj.axes[_dim])
+                        _slicing = True
+                    elif isinstance(_items[_item], (np.ndarray, Series)):
+                        continue
+                    elif isinstance(_items[_item], collections.abc.Sequence):
+                        # The item is an iterable like tuple or list
+                        if isinstance(_items[_item], tuple) and len(_items[_item]) == 1:
+                            _it = int(_items[_item][0])
+                            _start = _it or _spec[_dim][0]
+                            if _start < 0:
+                                _start = obj.shape[_dim] + _start
+                            _stop = _start + 1
+                            _step = 1
+                            _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         else:
-                            _it = _items[_item]
+                            _slice = [_ for _ in _items[_item]]
+                            _spec[_dim] = (_slice, obj.axes[_dim])
+                        _slicing = True
+                    elif np.issubdtype(type(_items[_item]), np.integer):
+                        _it = int(_items[_item])
                         _start = _it or _spec[_dim][0]
                         if _start < 0:
                             _start = obj.shape[_dim] + _start

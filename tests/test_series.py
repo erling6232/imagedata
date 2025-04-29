@@ -552,6 +552,8 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_almost_equal(t, si1.timeline, decimal=2)
         si2 = si1[[0, 2]]
         np.testing.assert_array_equal(si1.timeline[[0, 2]], si2.timeline)
+        a = np.array(si1.axes.time.values)
+        np.testing.assert_array_equal(a[[0, 2]], si2.axes.time.values)
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
