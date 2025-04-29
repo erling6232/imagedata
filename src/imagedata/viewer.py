@@ -1161,6 +1161,11 @@ def build_info(im, colormap, norm, colorbar, window, level):
     tag_axis = im.get_tag_axis()
     slice_axis = im.get_slice_axis()
 
+    try:
+        tags = len(im.tags[0])
+    except TypeError:
+        tags = 0
+
     return {
         'im': im,  # Image Series instance
         'input_order': im.input_order,
@@ -1175,7 +1180,7 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
         'taggable': tag_axis is not None,  # Can we slide through tags?
-        'tags': len(im.tags[0]),  # Number of tags
+        'tags': tags,  # Number of tags
         'slices': im.slices,  # Number of slices
         'rows': im.rows,  # Number of rows
         'columns': im.columns,  # Number of columns
