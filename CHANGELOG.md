@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.2-dev0] - 2025-04-29
+## [v3.8.2] - 2025-04-30
 ### Fixed
 * Viewer.build_info(): Fixed error prohibiting display of 3D Series.
 
