@@ -70,6 +70,7 @@ user function which returns a value for each Dataset:
 
 .. code-block:: python
 
+    from pydicom.dataset import Dataset
     def get_TI(im: Dataset) -> float:
         return float(im.data_element('InversionTime').value)
 
@@ -85,6 +86,7 @@ This discussion remains here to document the possible uses.
 
 .. code-block:: python
 
+    from pydicom.dataset import Dataset
     def get_TriggerTime(im: Dataset) -> float:
         return float(im.data_element('TriggerTime').value / 1000.)
 
@@ -98,7 +100,7 @@ Trigger Time is the sorting criteria:
 .. code-block:: python
 
     img = Series('dicomdata', auto_sort=['time', 'trigger'],
-        input_order='trigger', trigger=get_TriggerTime)
+        trigger=get_TriggerTime)
     )
 
 N-dimensional sorting
