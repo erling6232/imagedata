@@ -2230,23 +2230,19 @@ class Series(np.ndarray):
         Raises:
             ValueError: when there is no time axis
         """
-        try:
-            timeline = [0.0]
-            for t in range(1, len(self.axes.time.values)):
-                timeline.append(self.axes.time.values[t] - self.axes.time.values[0])
-            return np.array(timeline)
-        except ValueError:
-            raise ValueError("No time axis is defined. Input order: {}".format(
-                self.input_order))
-        except AttributeError:
-            try:
-                timeline = [0.0]
-                for t in range(1, len(self.axes.triggertime.values)):
-                    timeline.append(self.axes.triggertime.values[t] - self.axes.triggertime.values[0])
-                return np.array(timeline)
-            except ValueError:
-                raise ValueError("No time axis is defined. Input order: {}".format(
-                    self.input_order))
+
+        timeline = [0.0]
+        for axis in self.axes:
+            if axis.name in ['time', 'triggertime']:
+                try:
+                    values = axis.values
+                    for t in range(1, len(values)):
+                        timeline.append(values[t] - values[0])
+                    return np.array(timeline)
+                except ValueError:
+                    raise ValueError("No time axis is defined. Input order: {}".format(
+                        self.input_order))
+        raise ValueError("No time axis is defined. Input order: {}".format(self.input_order))
 
     @property
     def bvalues(self):
