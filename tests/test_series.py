@@ -776,6 +776,26 @@ class TestSeries(unittest.TestCase):
         s = np.sum(diff)
         self.assertLess(s, 100, "Too many mismatch pixels")
 
+    def test_write_default_keep_uid_false(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time01'))
+        serInsUid = si.seriesInstanceUID
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            self.assertEqual(serInsUid, si.seriesInstanceUID)
+            check = Series(d, input_format='dicom')
+            self.assertNotEqual(serInsUid, check.seriesInstanceUID)
+
+    def test_write_kwargs(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time01'))
+        serInsUid = si.seriesInstanceUID
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'true'), formats=['dicom'], keep_uid=True)
+            self.assertEqual(serInsUid, si.seriesInstanceUID)
+            si.write(os.path.join(d, 'false'), formats=['dicom'], keep_uid=False)
+            true = Series(os.path.join(d, 'true'), input_format='dicom')
+            false = Series(os.path.join(d, 'false'), input_format='dicom')
+            self.assertEqual(si.seriesInstanceUID, true.seriesInstanceUID)
+            self.assertNotEqual(si.seriesInstanceUID, false.seriesInstanceUID)
 
 if __name__ == '__main__':
     unittest.main()
