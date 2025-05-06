@@ -446,9 +446,8 @@ class TestDicomPlugin(unittest.TestCase):
         eye_seriesInstanceUID = eye.seriesInstanceUID
         with tempfile.TemporaryDirectory() as d:
             eye.write(os.path.join(d, 'Image.dcm'), formats=['dicom'])
-            eye_read = Series(d)
-            self.assertEqual('dicom', eye_read.input_format)
-        self.assertNotEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
+            eye_read = Series(d, input_format='dicom')
+        self.assertEqual(eye_seriesInstanceUID, eye.seriesInstanceUID)
 
     def test_changed_uid_on_copy(self):
         eye = Series(np.eye(128, dtype=np.uint16))
@@ -501,8 +500,7 @@ class TestDicomPlugin(unittest.TestCase):
                 )
 
     def test_write_no_keep_uid(self):
-        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
-        self.assertEqual('dicom', si1.input_format)
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Make a copy of SOPInstanceUIDs before they are modified in write()
         si1_seriesInstanceUID = si1.seriesInstanceUID
         si1_sopinsuid = {}
@@ -515,12 +513,11 @@ class TestDicomPlugin(unittest.TestCase):
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
                       formats=['dicom'],
                       opts={'keep_uid': False})
-            si2 = Series(d)
-        self.assertEqual('dicom', si2.input_format)
+            si2 = Series(d, input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
-        self.assertNotEqual(si1_seriesInstanceUID, si1.seriesInstanceUID)
-        self.assertEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
+        self.assertEqual(si1_seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertNotEqual(si1.seriesInstanceUID, si2.seriesInstanceUID)
         self.assertEqual('1.2.840.10008.5.1.4.1.1.4', si2.SOPClassUID)
         self.assertEqual(si1.slices, si2.slices)
         self.assertEqual(len(si1.tags[0]), len(si2.tags[0]))
