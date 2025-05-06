@@ -1115,11 +1115,16 @@ class DICOMPlugin(AbstractPlugin):
                 axis_names.extend(['slice', 'row', 'column'])
                 Axes = namedtuple('Axes', axis_names)
                 axes = Axes(*tag_axes, slice_axis, row_axis, column_axis)
-            else:
+            elif nz > 1:
                 Axes = namedtuple('Axes', [
                     'slice', 'row', 'column'
                 ])
                 axes = Axes(slice_axis, row_axis, column_axis)
+            else:
+                Axes = namedtuple('Axes', [
+                    'row', 'column'
+                ])
+                axes = Axes(row_axis, column_axis)
             hdr.color = False
             if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
                 hdr.color = True
@@ -1282,7 +1287,10 @@ class DICOMPlugin(AbstractPlugin):
                         pass  # Already decompressed
                     try:
                         logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
-                        _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
+                        if _si.ndim > 2:
+                            _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
+                        else:
+                            _si[...] = self._get_pixels_with_shape(im, _si.shape)
                     except Exception as e:
                         logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
                         raise
