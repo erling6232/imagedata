@@ -1809,9 +1809,7 @@ class DICOMPlugin(AbstractPlugin):
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Set series instance UID when writing
-        if not self.keep_uid:
-            si.header.seriesInstanceUID = si.header.new_uid()
-        self.serInsUid = si.header.seriesInstanceUID
+        self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
         logger.debug("{}: {}".format(_name, self.serInsUid))
         for key, value in opts.items():  # Copy opts to self.input_options
             self.input_options[key] = value
