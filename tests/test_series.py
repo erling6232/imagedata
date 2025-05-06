@@ -175,9 +175,9 @@ class TestSeries(unittest.TestCase):
 
         s_slice = s[2]
         self.assertEqual(s_slice.ndim, 2)
-        self.assertEqual(len(s_slice.axes), 3)
-        self.assertEqual(s_slice.axes[1].name, 'row')
-        self.assertEqual(s_slice.axes[2].name, 'column')
+        self.assertEqual(len(s_slice.axes), 2)
+        self.assertEqual(s_slice.axes[0].name, 'row')
+        self.assertEqual(s_slice.axes[1].name, 'column')
 
     def test_slicing_y(self):
         a1 = np.eye(128)
