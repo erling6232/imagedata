@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-
-# import nose.tools
 import unittest
+import os.path
 import numpy as np
 import copy
 import tempfile
@@ -23,6 +21,26 @@ class TestViewer(unittest.TestCase):
     def tearDown(self):
         self.tmpdir.cleanup()
 
+    def test_view_2D(self):
+        si = Series('data/dicom/time/time00', input_format='dicom')[0]
+        fig = plt.figure()
+        axes = default_layout(fig, 1)
+        # _ = Viewer([si], fig=fig, ax=axes)
+        si.show(ax=axes)
+        with tempfile.TemporaryDirectory() as d:
+            plt.savefig(os.path.join(d, 'view.png'))
+            pass
+
+    def test_view_3D(self):
+        si = Series('data/dicom/time/time00')
+        fig = plt.figure()
+        axes = default_layout(fig, 1)
+        # _ = Viewer([si], fig=fig, ax=axes)
+        si.show(ax=axes)
+        with tempfile.TemporaryDirectory() as d:
+            plt.savefig(os.path.join(d, 'view.png'))
+            pass
+
     def test_get_rgb_voxel(self):
         si = Series('data/dicom/time/time00')
 
@@ -31,7 +49,8 @@ class TestViewer(unittest.TestCase):
         fig = plt.figure()
         axes = default_layout(fig, 1)
         _ = Viewer([rgb], fig=fig, ax=axes)
-        plt.savefig(self.tmpdir.name + 'show.png')
+        with tempfile.TemporaryDirectory() as d:
+            plt.savefig(os.path.join(d, 'show.png'))
 
         _slice = rgb[1]
         voxel = _slice[1, 1]
