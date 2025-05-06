@@ -87,16 +87,11 @@ The following plugin options are known at the time of writing:
 |read                     |<input_order>            |str  |User-defined input     |
 |                         |                         |     |order                  |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |keep_uid                 |bool |When True, create new  |
+|write                    |keep_uid                 |bool |When False, create     |
+|                         |                         |     |new                    |
 |                         |                         |     |Instance UIDs when     |
-|                         |                         |     |writing                |
-+-------------------------+-------------------------+-----+-----------------------+
-|write                    |window                   |str  |When "original":       |
-|                         |                         |     |keep original          |
-|                         |                         |     |center/level values.   |
-|                         |                         |     |Otherwise, calculate   |
-|                         |                         |     |window center/level    |
-|                         |                         |     |from present data.     |
+|                         |                         |     |writing.               |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
 |write                    |output_sort              |str  |Which tag will sort    |
 |                         |                         |     |the output images,     |
