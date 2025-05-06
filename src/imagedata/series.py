@@ -661,6 +661,7 @@ class Series(np.ndarray):
                 if len(_names) > 0:
                     ret.input_order = ','.join(_names)
             _set_geometry(ret, todo)
+            ret.axes = ret.axes[-ret.ndim:]
         elif isinstance(ret, np.void):
             ret = tuple(ret)
         return ret
