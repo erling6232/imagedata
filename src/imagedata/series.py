@@ -811,7 +811,7 @@ class Series(np.ndarray):
             _level = np.float32((_min_value + _max_value) / 2)
         return _level, _width
 
-    def write(self, url, opts=None, formats=None):
+    def write(self, url, opts=None, formats=None, **kwargs):
         """Write Series image
 
         Args:
@@ -838,6 +838,13 @@ class Series(np.ndarray):
         logger.debug('{}: url    : {}'.format(_name, url))
         logger.debug('{}: formats: {}'.format(_name, formats))
         logger.debug('{}: opts   : {}'.format(_name, opts))
+
+        if opts is None:
+            opts = {}
+        elif issubclass(type(opts), argparse.Namespace):
+            opts = vars(opts)
+        for key, value in kwargs.items():
+            opts[key] = value
         r_write(self, url, formats=formats, opts=opts)
 
     @property
