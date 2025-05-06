@@ -48,6 +48,22 @@ class Test3DMatPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    def test_dtype_int64(self):
+        si1 = Series(
+            os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
+            'none',
+            dtype=int,
+            input_format='mat')
+        self.assertEqual(si1.dtype, np.int64)
+
+    def test_dtype_float(self):
+        si1 = Series(
+            os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
+            'none',
+            dtype=float,
+            input_format='mat')
+        self.assertEqual(si1.dtype, np.float64)
+
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
         si1 = Series(

@@ -110,6 +110,16 @@ class TestSeries(unittest.TestCase):
         t = s[((2,), (2,), (2,))]
         pass
 
+    def test_dtype_int(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(64).reshape((4,4,4))*100, dtype=int)
+        self.assertEqual(s.dtype, int)
+
+    def test_dtype_float64(self):
+        rng = default_rng()
+        s = Series((rng.standard_normal(64).reshape((4,4,4))*100).astype(int), dtype=np.float64)
+        self.assertEqual(s.dtype, np.float64)
+
     def test_copy_series(self):
         a = np.eye(128)
         si1 = Series(a)

@@ -73,6 +73,22 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 
+    def test_dtype_int64(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            dtype=int,
+            input_format='dicom')
+        self.assertEqual(si1.dtype, np.int64)
+
+    def test_dtype_float(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            'none',
+            dtype=float,
+            input_format='dicom')
+        self.assertEqual(si1.dtype, np.float64)
+
     # @unittest.skip("skipping test_read_two_files")
     def test_read_two_files(self):
         si1 = Series(

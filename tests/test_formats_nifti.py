@@ -214,6 +214,22 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
+    def test_dtype_int64(self):
+        si1 = Series(
+            os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            'none',
+            dtype=int,
+            input_format='nifti')
+        self.assertEqual(si1.dtype, np.int64)
+
+    def test_dtype_float(self):
+        si1 = Series(
+            os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            'none',
+            dtype=float,
+            input_format='nifti')
+        self.assertEqual(si1.dtype, np.float64)
+
     # @unittest.skip("skipping test_qform_3D")
     def test_qform_3D(self):
         dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'))

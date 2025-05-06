@@ -91,7 +91,7 @@ class Series(np.ndarray):
 
         input_format (str): Specify a particular input format. Default: None (auto-detect).
         shape (tuple of ints): Specifying shape of input data.
-        dtype (numpy.dtype): Numpy data type. Default: float.
+        dtype (numpy.dtype): Numpy data type. Default: inferred from the input data.
         template (Series, array_like or URL): Input data to use as template for DICOM header.
         geometry (Series, array_like or URL): Input data to use as template for geometry.
         axes (namedtuple or iterable of Axis): Set axes for new instance.
@@ -104,14 +104,14 @@ class Series(np.ndarray):
     name = "Series"
     description = "Image series"
     authors = "Erling Andersen"
-    version = "1.3.0"
+    version = "1.4.0"
     url = "www.helse-bergen.no"
 
     viewer = None
     latest_roi_parameters = None
 
     def __new__(cls, data, input_order='auto', opts=None,
-                input_format=None, shape=(0,), dtype=float, buffer=None, offset=0,
+                input_format=None, shape=(0,), dtype=None, buffer=None, offset=0,
                 strides=None, order=None,
                 template=None, geometry=None, axes=None,
                 **kwargs):
@@ -136,7 +136,7 @@ class Series(np.ndarray):
             geometry = geometry.header
         if issubclass(type(data), np.ndarray):
             logger.debug('{}: data ({}) is subclass of np.ndarray'.format(_name, type(data)))
-            obj = np.asarray(data).view(cls)
+            obj = np.asarray(data, dtype).view(cls)
             # Initialize attributes to defaults
             # cls.__init_attributes(cls, obj)
             # obj.header = Header() # Already set in __array_finalize__
@@ -184,9 +184,9 @@ class Series(np.ndarray):
             urls = data
         else:
             if np.ndim(data) == 0:
-                obj = np.asarray([data]).view(cls)
+                obj = np.asarray([data], dtype).view(cls)
             else:
-                obj = np.asarray(data).view(cls)
+                obj = np.asarray(data, dtype).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             if input_order == 'auto':
@@ -213,7 +213,7 @@ class Series(np.ndarray):
             si = si[next(iter(si))]
         else:
             si = None
-        obj = np.asarray(si).view(cls)
+        obj = np.asarray(si, dtype).view(cls)
         assert obj.header, "No Header found in obj.header"
 
         # Copy attributes from hdr dict to newly created obj
