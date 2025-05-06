@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.3] - 2025-05-06
+### Added
+* Series honors the `dtype` parameter. Added tests to verify usage.
+* Series.write(): Accept kwargs options.
+### Fixed
+* Removed outdated documentation on `window` option.
+### Changed
+* Series.seriesInstanceUID: Modified behaviour depending on `keep_uid` option. Default: False.
+* Improved Series.timeline.
+
 ## [v3.8.3-dev2] - 2025-05-06
 * Series honors the dtype parameter. Added tests to verify usage.
 * Series.seriesInstanceUID: Modified behaviour depending on keep_uid option. Default: False.
