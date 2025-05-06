@@ -72,6 +72,7 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.input_format, 'dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
+        self.assertEqual(len(si1.axes), 2)
 
     def test_dtype_int64(self):
         si1 = Series(
