@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Series.__getitem__(): Limit number of axes to ndim.
 * DICOMPlugin: Limit number of axes to ndim.
 * Updated tests to accept correct number of axes.
+* Require setuptools >= 70.0.0
 
 ## [v3.8.3] - 2025-05-06
 ### Added
