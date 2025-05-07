@@ -5,7 +5,7 @@ pynetdicom
 itk-io
 scikit-build
 nibabel
-numpy
+numpy>=1.22.2
 pandas
 scipy
 python-magic
