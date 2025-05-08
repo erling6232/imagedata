@@ -2387,7 +2387,7 @@ class Series(np.ndarray):
         # z,y,x
         return (r + 0.5).astype(int)[:3]
 
-    def align(moving, reference, interpolation='linear', force=False):
+    def align(moving, reference, interpolation='linear', force=False, fill_value=0):
         """Align moving series (self) to reference.
         The moving series is resampled on the grid of the reference series.
         In effect the moving series is reformatted to the slices of the reference series.
@@ -2409,6 +2409,7 @@ class Series(np.ndarray):
                 Default: 'linear'.
 
             force (bool): Override check on FrameOfReferenceUID when True. Default: False.
+            fill_value (Numeric): value to fill voxels outside field-of-view. Default: 0.
         Returns:
             Series: Aligned series.
         Raises:
@@ -2469,7 +2470,7 @@ class Series(np.ndarray):
                     moving[i],
                     method=interpolation,
                     bounds_error=False,
-                    fill_value=0
+                    fill_value=fill_value
                 )
 
                 # Apply interpolator
@@ -2498,7 +2499,7 @@ class Series(np.ndarray):
                 moving,
                 method=interpolation,
                 bounds_error=False,
-                fill_value=0
+                fill_value=fill_value
             )
 
             # Apply interpolator

@@ -7,10 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.4-dev1] - 2025-05-06
+### Added
+* Series.align: Added optional `fill_value` for voxels outside field-of-view.
+
 ## [v3.8.4-dev0] - 2025-05-06
+### Fixed
 * Series.__getitem__(): Limit number of axes to ndim.
 * DICOMPlugin: Limit number of axes to ndim.
 * Updated tests to accept correct number of axes.
+### Changed
 * Require setuptools >= 78.1.1
 
 ## [v3.8.3] - 2025-05-06
