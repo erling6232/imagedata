@@ -225,8 +225,8 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
             'none',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            self.opts,
+            input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image_00000.dcm'),
                       formats=['dicom'], opts={'keep_uid': True})
