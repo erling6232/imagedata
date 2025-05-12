@@ -7,12 +7,10 @@ import os
 import sys
 import logging
 import traceback
-import warnings
 import mimetypes
 import math
 from numbers import Number
 from collections import defaultdict, namedtuple, Counter
-from hashlib import sha1
 from functools import partial
 from typing import List, Union
 from datetime import date, datetime, timedelta, timezone
@@ -22,14 +20,13 @@ import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
-# from numpy.core.numeric import inf
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
 from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, \
     SORT_ON_SLICE, \
     INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, \
-    INPUT_ORDER_BVECTOR, INPUT_ORDER_RSI, INPUT_ORDER_TRIGGERTIME, \
+    INPUT_ORDER_BVECTOR, INPUT_ORDER_TRIGGERTIME, \
     INPUT_ORDER_AUTO
 from ..series import Series
 from ..axis import VariableAxis, UniformLengthAxis
@@ -292,6 +289,8 @@ class DICOMPlugin(AbstractPlugin):
     root = "2.16.578.1.37.1.1.4"
     smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8', 'int16')
     keep_uid = False
+    slice_tolerance = 1e-5
+    dir_cosine_tolerance = 0.0
 
     def __init__(self):
         super(DICOMPlugin, self).__init__(self.name, self.description,
@@ -356,6 +355,10 @@ class DICOMPlugin(AbstractPlugin):
         skip_pixels = False
         if 'headers_only' in opts and opts['headers_only']:
             skip_pixels = True
+        if 'slice_tolerance' in self.input_options:
+            self.slice_tolerance = float(opts['slice_tolerance'])
+        if 'dir_cosine_tolerance' in self.input_options:
+            self.dir_cosine_tolerance = float(opts['dir_cosine_tolerance'])
 
         # Read DICOM headers
         logger.debug('{}: sources {}'.format(_name, sources))
@@ -1477,21 +1480,104 @@ class DICOMPlugin(AbstractPlugin):
 
     def __get_voxel_spacing(self, dictionary):
         # Spacing
-        pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
         dy = 1.0
         dx = 1.0
-        if pixel_spacing is not None:
-            # Notice that DICOM row spacing comes first, column spacing second!
-            dy = float(pixel_spacing[0])
-            dx = float(pixel_spacing[1])
         try:
-            dz = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
+            pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
+            if pixel_spacing is not None:
+                # Notice that DICOM row spacing comes first, column spacing second!
+                dy = float(pixel_spacing[0])
+                dx = float(pixel_spacing[1])
+        except AttributeError:
+            pass
+        try:
+            slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
         except TypeError:
             try:
-                dz = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceThickness")))
+                slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceThickness")))
             except TypeError:
-                dz = 1.0
-        return np.array([dz, dy, dx])
+                slice_spacing = 1.0
+        try:
+            gantry = self.getDicomAttributeValues(dictionary, tag_for_keyword("GantryDetectorTilt"))
+            if len(gantry) > 1:
+                raise CannotSort('More than one Gantry/Detector Tilt')
+            elif len(gantry) == 1:
+                if gantry[0] != 0.0:
+                    raise CannotSort('Gantry/Detector Tilt is not zero')
+        except Exception as e:
+            raise
+
+        # iops = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
+        orients = []
+        for s in range(len(dictionary)):
+            try:
+                iop = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
+            except ValueError:
+                iop = [0, 0, 1, 0, 1, 0]
+            if iop is not None:
+                orient = np.array((iop[2], iop[1], iop[0],
+                                   iop[5], iop[4], iop[3]))
+                orients.append(orient)
+
+        if self.dir_cosine_tolerance == 0.0:
+            if len(orients) != 1:
+                found = None
+                for it in orients:
+                    if found is None:
+                        found = it
+                    elif (it!=found).all():
+                        raise CannotSort('More than one IOP. Try changing DirCosTolerance')
+                if found is None:
+                    raise CannotSort('No IOP.')
+
+        frames = self.getDicomAttributeValues(dictionary, tag_for_keyword("FrameOfReferenceUID"))
+        frames = sorted(set(frames))
+        if len(frames) != 1:
+            logger.warning('Odd number of Frame Of Reference UID')
+
+        # Calculate slice normal from IOP, will be same for all slices
+        orient = orients[0]
+        colr = np.array(orient[3:]).reshape(3, 1)
+        colc = np.array(orient[:3]).reshape(3, 1)
+        colr = colr / np.linalg.norm(colr)
+        colc = colc / np.linalg.norm(colc)
+        normal = np.cross(colr, colc, axis=0)
+        # For each slice, calculate distance along the slice normal using IPP
+        distances = []
+        for _slice in dictionary:
+            ipp = self.getOriginForSlice(dictionary, _slice)
+            if self.dir_cosine_tolerance != 0.0:
+                orient2 = orients[_slice]
+                colr2 = np.array(orient2[3:]).reshape(3, 1)
+                colc2 = np.array(orient2[:3]).reshape(3, 1)
+                colr2 = colr2 / np.linalg.norm(colr2)
+                colc2 = colc2 / np.linalg.norm(colc2)
+                normal2 = np.cross(colr2, colc2, axis=0)
+                cd = sum(normal[:] * normal2[:])[0]
+                if np.fabs(1 - cd) > self.dir_cosine_tolerance:
+                    raise CannotSort('Problem with DirCosTolerance')
+            dist = np.sum(normal * ipp)
+            if dist in distances:
+                raise CannotSort('Distance {} for slice {} already found'.format(dist, _slice))
+            distances.append(dist)
+        distances = sorted(distances)
+        # Verify spacing
+        spacings = []
+        spacing_is_good = True
+        prev = distances[0]
+        if len(distances) > 1:
+            current = distances[1]
+            slice_spacing = current - prev
+            for it in range(1, len(distances)):
+                current = distances[it]
+                spacings.append(abs(current - prev))
+                if abs(current - prev) - slice_spacing > self.slice_tolerance:
+                    logger.warning('Slice spacing differs too much. Decrease SliceTolerance')
+                    spacing_is_good = False
+                prev = current
+        if not spacing_is_good:
+            raise CannotSort('Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(distances, spacings))
+        return np.array([slice_spacing, dy, dx])
 
     def getOriginForSlice(self, dictionary, slice):
         """Get origin of given slice.
@@ -1532,6 +1618,14 @@ class DICOMPlugin(AbstractPlugin):
                         im.add_new(tag, VR, value)
                     else:
                         im[tag].value = value
+
+    def getDicomAttributeValues(self, dictionary, tag) -> list:
+        values = []
+        for s in range(len(dictionary)):
+            value = self.getDicomAttribute(dictionary, tag, s)
+            if value is not None:
+                values.append(value)
+        return values
 
     def getDicomAttribute(self, dictionary, tag, slice=0):
         """Get DICOM attribute from first image for given slice.

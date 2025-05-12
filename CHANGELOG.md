@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.4-dev1] - 2025-05-06
+## [v3.8.4-dev2] - 2025-05-12
 ### Added
 * Series.align: Added optional `fill_value` for voxels outside field-of-view.
+* DICOMPlugin: Added options `slice_tolerance`and `dir_cosine_tolerance`.
+* DICOMPlugin.__get_voxel_spacing(): New implementation to calculate slice position from `Image Position (Patient)` attribute.
+* DICOMPlugin.getDicomAttributeValues(): New function to return a list of values for all slices.
 
 ## [v3.8.4-dev0] - 2025-05-06
 ### Fixed
