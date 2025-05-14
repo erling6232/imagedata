@@ -12,7 +12,7 @@ class TestStudy(unittest.TestCase):
     def test_read_study(self):
         # study = Study('data/dicom')
         # study = Study('data/dicom/cohort.zip?p2/20221220-094921.932000')
-        study = Study('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
+        study = Study('data/dicom/cohort.zip?cohort/P2/S1')
 
         for uid in study:
             series = study[uid]
@@ -28,7 +28,7 @@ class TestStudy(unittest.TestCase):
 
     def test_write_study(self):
         # study = Study('data/dicom')
-        study = Study('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
+        study = Study('data/dicom/cohort.zip?cohort/P2/S1')
         with tempfile.TemporaryDirectory() as d:
             study.write(d)
 
@@ -71,7 +71,7 @@ class TestStudy(unittest.TestCase):
 class TestPatient(unittest.TestCase):
 
     def test_read_patient(self):
-        patient = Patient('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
+        patient = Patient('data/dicom/cohort.zip?cohort/P2')
 
         for uid in patient:
             study = patient[uid]
@@ -82,7 +82,7 @@ class TestPatient(unittest.TestCase):
         self.assertIsNotNone(patient.patientID)
 
     def test_write_patient(self):
-        patient = Patient('data/dicom/cohort.zip?cohort/IMAGEDATA_P2.MR.ERLING_IMAGEDATA*')
+        patient = Patient('data/dicom/cohort.zip?cohort/P2')
         with tempfile.TemporaryDirectory() as d:
             patient.write(d)
 

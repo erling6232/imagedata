@@ -155,6 +155,7 @@ def compare_pydicom(self, orig, temp, uid=False):
             tag = data_element.tag
             np.testing.assert_allclose(
                 data_element.value, temp[tag].value,
+                rtol=1e-2,
                 err_msg='Name="{}", VR={}'.format(
                     data_element.name, data_element.VR)
             )

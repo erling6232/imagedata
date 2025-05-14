@@ -84,6 +84,16 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |z column of the        |
 |                         |                         |     |transformation matrix  |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |slice_tolerance          |float|Slice distance         |
+|                         |                         |     |tolerance when sorting.|
+|                         |                         |     |Default: 1E-5          |
++-------------------------+-------------------------+-----+-----------------------+
+|read                     |dir_cosine_tolerance     |float|Tolerance for          |
+|                         |                         |     |difference in          |
+|                         |                         |     |directional cosine     |
+|                         |                         |     |tolerance.             |
+|                         |                         |     |Default: 0.0           |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |<input_order>            |str  |User-defined input     |
 |                         |                         |     |order                  |
 +-------------------------+-------------------------+-----+-----------------------+

@@ -72,6 +72,9 @@ class TestSeriesUfunc(unittest.TestCase):
         si1.axes[1].start += add_loc
 
         c = np.concatenate((si0, si1), axis=1)
+        for s in range(c.slices):
+            c.imagePositions = {s: c.getPositionForVoxel(np.array([s, 0, 0]))}
+
         self.assertEqual(c.shape, (si0.shape[0],
                                    si0.shape[1] + si1.shape[1],
                                    si0.shape[2], si0.shape[3])

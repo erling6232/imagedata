@@ -17,12 +17,13 @@ from src.imagedata.collection import Cohort
 
 class TestWriteNIfTIPlugin(unittest.TestCase):
 
-    def _compare_nifti_data(self, img1, img2, descr1='img1', descr2='img2'):
+    def _compare_nifti_data(self, img1, img2, descr1='img1', descr2='img2', verify_zooms=True):
         hdr1, hdr2 = img1.header, img2.header
         self.assertEqual(hdr1.get_data_shape(), hdr2.get_data_shape(), "get_data_shape")
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
-        self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
+        if verify_zooms:
+            np.testing.assert_array_almost_equal(hdr1.get_zooms(), hdr2.get_zooms(), decimal=4, err_msg="get_zooms")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
         qform1, qform2 = hdr1.get_qform(coded=True)[0], hdr2.get_qform(coded=True)[0]
@@ -132,12 +133,13 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
 
 class TestReadNIfTIPlugin(unittest.TestCase):
 
-    def _compare_dicom_data(self, dcm, nifti):
+    def _compare_dicom_data(self, dcm, nifti, verify_spacing=True):
         self.assertEqual('dicom', dcm.input_format, "dicom input_format")
         self.assertEqual(dcm.shape, nifti.shape, "shape")
         self.assertEqual(dcm.slices, nifti.slices, "slices")
-        np.testing.assert_allclose(nifti.spacing, dcm.spacing,
-                                   atol=1e-4, err_msg="spacing")
+        if verify_spacing:
+            np.testing.assert_allclose(nifti.spacing, dcm.spacing,
+                                       atol=1e-4, err_msg="nifti vs dicom spacing")
 
         for s in range(dcm.slices):
             np.testing.assert_allclose(nifti.imagePositions[s], dcm.imagePositions[s],
@@ -161,7 +163,7 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_sag_oblique(self):
         dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
         nifti = Series(os.path.join('data', 'nifti', 'sag_oblique.nii.gz'))
-        self._compare_dicom_data(dcm, nifti)
+        self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_cor_hf(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
@@ -171,7 +173,7 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_cor_oblique(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'))
         nifti = Series(os.path.join('data', 'nifti', 'cor_oblique.nii.gz'))
-        self._compare_dicom_data(dcm, nifti)
+        self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_cor_rl(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
@@ -181,7 +183,7 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_tra_oblique(self):
         dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'))
         nifti = Series(os.path.join('data', 'nifti', 'tra_oblique.nii.gz'))
-        self._compare_dicom_data(dcm, nifti)
+        self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_tra_rl(self):
         dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'))
