@@ -56,7 +56,7 @@ jobs:
         coverage html
     - name: Upload test results to Codecov
       if: ${{ !cancelled() }}
-      uses: codecov/test-results-action@v1
+      uses: codecov/test-results-action@latest
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
 #    - name: Upload coverage to Codecov
