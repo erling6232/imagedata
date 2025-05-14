@@ -484,9 +484,9 @@ class NiftiPlugin(AbstractPlugin):
         hdr.set_data_shape(dcm.shape[::-1])
         # hdr.set_slope_inter(slope, inter)
         ds, dr, dc = dcm.spacing
-        if (dcm.ndim - dcm.color * 1) < 3:
+        if dcm.ndim < 3:
             hdr.set_zooms((dc, dr))
-        elif (dcm.ndim - dcm.color * 1) < 4:
+        elif dcm.ndim < 4:
             hdr.set_zooms((dc, dr, ds))
         else:
             if dcm.input_order == 'time':
@@ -499,10 +499,10 @@ class NiftiPlugin(AbstractPlugin):
         affine[0, 0] = -1
         affine[1, 2] = 1
         affine[2, 1] = -1
-        affine[0, 3] = dcm.shape[-1 - dcm.color * 1] / 2  # C
-        affine[1, 3] = dcm.shape[-2 - dcm.color * 1] / 2  # R
+        affine[0, 3] = dcm.shape[-1] / 2  # C
+        affine[1, 3] = dcm.shape[-2] / 2  # R
         try:
-            affine[2, 3] = dcm.shape[-3 - dcm.color * 1] / 2  # S
+            affine[2, 3] = dcm.shape[-3] / 2  # S
         except IndexError:
             # Probably a 2D image
             pass
