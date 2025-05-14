@@ -23,7 +23,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         self.assertEqual(hdr1.get_dim_info(), hdr2.get_dim_info(), "get_dim_info")
         self.assertEqual(hdr1.get_xyzt_units(), hdr2.get_xyzt_units(), "get_xyzt_units")
         if verify_zooms:
-            self.assertEqual(hdr1.get_zooms(), hdr2.get_zooms(), "get_zooms")
+            np.testing.assert_array_almost_equal(hdr1.get_zooms(), hdr2.get_zooms(), decimal=4, err_msg="get_zooms")
         sform1, sform2 = hdr1.get_sform(coded=True)[0], hdr2.get_sform(coded=True)[0]
         np.testing.assert_array_almost_equal(sform1, sform2, decimal=4)
         qform1, qform2 = hdr1.get_qform(coded=True)[0], hdr2.get_qform(coded=True)[0]
@@ -56,7 +56,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin', verify_zooms=False)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_hf(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
@@ -80,7 +80,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin', verify_zooms=False)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_rl(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
@@ -104,7 +104,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin', verify_zooms=False)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_sag_hf(self):
         dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'))
@@ -116,7 +116,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin', verify_zooms=False)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_sag_oblique(self):
         dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
@@ -128,7 +128,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
-            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin', verify_zooms=False)
+            self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
 
 class TestReadNIfTIPlugin(unittest.TestCase):
