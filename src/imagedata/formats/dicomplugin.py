@@ -289,7 +289,7 @@ class DICOMPlugin(AbstractPlugin):
     root = "2.16.578.1.37.1.1.4"
     smallint = ('bool8', 'byte', 'ubyte', 'ushort', 'uint16', 'int8', 'uint8', 'int16')
     keep_uid = False
-    slice_tolerance = 1e-5
+    slice_tolerance = 1e-4
     dir_cosine_tolerance = 0.0
 
     def __init__(self):
@@ -1482,6 +1482,7 @@ class DICOMPlugin(AbstractPlugin):
         # Spacing
         dy = 1.0
         dx = 1.0
+        slice_spacing = 1.0
         try:
             pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
             if pixel_spacing is not None:
@@ -1541,7 +1542,7 @@ class DICOMPlugin(AbstractPlugin):
         colc = np.array(orient[:3]).reshape(3, 1)
         colr = colr / np.linalg.norm(colr)
         colc = colc / np.linalg.norm(colc)
-        normal = np.cross(colr, colc, axis=0)
+        normal = np.cross(colr, colc, axis=0).reshape(3)
         # For each slice, calculate distance along the slice normal using IPP
         distances = []
         for _slice in dictionary:
@@ -1556,7 +1557,8 @@ class DICOMPlugin(AbstractPlugin):
                 cd = sum(normal[:] * normal2[:])[0]
                 if np.fabs(1 - cd) > self.dir_cosine_tolerance:
                     raise CannotSort('Problem with DirCosTolerance')
-            dist = np.sum(normal * ipp)
+            dist = np.dot(normal, ipp)
+            # dist = np.sum(normal * ipp)
             if dist in distances:
                 raise CannotSort('Distance {} for slice {} already found'.format(dist, _slice))
             distances.append(dist)
