@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.4] - 2025-05-14
+### Added
+* DICOMPlugin: Calculate slice spacing from actual slice locations. Not from SliceThickness
+  nor from SpacingBetweenSlices.
+* Series.align: Added optional `fill_value` for voxels outside field-of-view.
+
 ## [v3.8.4-rc0] - 2025-05-14
 * Release candidate 3.8.4-rc0
 
