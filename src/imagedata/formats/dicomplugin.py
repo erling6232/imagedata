@@ -1558,7 +1558,6 @@ class DICOMPlugin(AbstractPlugin):
                 if np.fabs(1 - cd) > self.dir_cosine_tolerance:
                     raise CannotSort('Problem with DirCosTolerance')
             dist = np.dot(normal, ipp)
-            # dist = np.sum(normal * ipp)
             if dist in distances:
                 raise CannotSort('Distance {} for slice {} already found'.format(dist, _slice))
             distances.append(dist)
