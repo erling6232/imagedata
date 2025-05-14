@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.4-rc0] - 2025-05-14
+* Release candidate 3.8.4-rc0
+
 ## [v3.8.4-dev3] - 2025-05-14
 ### Added
 * Series.align: Added optional `fill_value` for voxels outside field-of-view.
