@@ -98,7 +98,7 @@ class TestDicomPlugin(unittest.TestCase):
                 os.path.join('data', 'dicom', 'time', 'time00', 'Image_00021.dcm')
             ],
             'none',
-            self.opts)
+            self.opts, input_format='dicom')
         self.assertEqual('dicom', si1.input_format)
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 192, 152))
@@ -138,8 +138,8 @@ class TestDicomPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
             'auto',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            self.opts,
+            input_format='dicom')
         self.assertEqual(formats.INPUT_ORDER_TIME, si1.input_order)
         self.assertEqual((3, 3, 192, 152), si1.shape)
         self.assertEqual(4, len(si1.axes))
@@ -280,6 +280,34 @@ class TestDicomPlugin(unittest.TestCase):
                 )
                 compare_pydicom(self, orig, temp)
 
+    def test_verify_image_positions_and_transformation_matrix(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'sag_ap.zip'),
+            'none',
+            self.opts,
+            input_format='dicom')
+        M = si1.transformationMatrix
+        T0 = M[:3, 3]
+        ipp = np.array(T0)
+        for s in range(si1.slices):
+            np.testing.assert_allclose(si1.imagePositions[s], ipp,
+                                       atol=1e-3, err_msg='imagePositions[{}]'.format(s))
+            ipp += M[:3, 0]
+
+    def test_verify_image_positions_and_transformation_matrix2(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time_all'),
+            'time',
+            self.opts,
+            input_format='dicom')
+        M = si1.transformationMatrix
+        T0 = M[:3, 3]
+        ipp = np.array(T0)
+        for s in range(si1.slices):
+            np.testing.assert_allclose(si1.imagePositions[s], ipp,
+                                       atol=1e-3, err_msg='imagePositions[{}]'.format(s))
+            ipp += M[:3, 0]
+
     def test_verify_correct_4D(self):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
@@ -351,18 +379,16 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_dicom_4D(self):
         si = Series(
             os.path.join('data', 'dicom', 'time_all'),
-            formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual('dicom', si.input_format)
-        logging.debug("si.sliceLocations: {}".format(si.sliceLocations))
-        logging.debug("si.imagePositions.keys(): {}".format(si.imagePositions.keys()))
+            'time',
+            self.opts,
+            input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si.write(os.path.join(d, 'Image_{:05d}.dcm'),
                      formats=['dicom'], opts=self.opts)
             newsi = Series(d,
-                           formats.INPUT_ORDER_TIME,
-                           self.opts)
-        self.assertEqual('dicom', newsi.input_format)
+                           'time',
+                           self.opts,
+                           input_format='dicom')
         self.assertEqual(si.shape, newsi.shape)
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)

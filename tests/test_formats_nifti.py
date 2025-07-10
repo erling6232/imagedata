@@ -44,6 +44,8 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             for entry in os.scandir(path=d):
                 filename = entry.path
             check = nibabel.load(filename)
+            diff = Series(nii.dataobj) - Series(check.dataobj)
+            # diff.write(d, formats=['dicom'])
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_tra_oblique(self):
@@ -131,6 +133,37 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
 
+class TestReadWriteNIfTIPlugin(unittest.TestCase):
+
+
+    def _compare_dicom_data(self, dcm, nifti, verify_spacing=True):
+        self.assertEqual('dicom', dcm.input_format, "dicom input_format")
+        self.assertEqual(dcm.shape, nifti.shape, "shape")
+        self.assertEqual(dcm.slices, nifti.slices, "slices")
+        if verify_spacing:
+            np.testing.assert_allclose(nifti.spacing, dcm.spacing,
+                                       atol=1e-4, err_msg="nifti vs dicom spacing")
+
+        for s in range(dcm.slices):
+            calc = dcm.getPositionForVoxel(np.array([s, 0, 0]))
+            dpos = dcm.imagePositions[s]
+            npos = nifti.imagePositions[s]
+            np.testing.assert_allclose(nifti.imagePositions[s].reshape(3), dcm.imagePositions[s].reshape(3),
+                                       atol=1e-3, err_msg="imagePositions[{}]".format(s))
+        np.testing.assert_allclose(nifti.orientation, dcm.orientation,
+                                   atol=1e-6, err_msg="orientation")
+        np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix,
+                                   atol=1e-2, err_msg="transformationMatrix")
+        np.testing.assert_array_equal(nifti, dcm, err_msg="voxel values")
+
+    def test_compare_sag_ap(self):
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            nifti = Series(d, input_format='nifti')
+        self._compare_dicom_data(dcm, nifti)
+
+
 class TestReadNIfTIPlugin(unittest.TestCase):
 
     def _compare_dicom_data(self, dcm, nifti, verify_spacing=True):
@@ -142,8 +175,10 @@ class TestReadNIfTIPlugin(unittest.TestCase):
                                        atol=1e-4, err_msg="nifti vs dicom spacing")
 
         for s in range(dcm.slices):
-            np.testing.assert_allclose(nifti.imagePositions[s], dcm.imagePositions[s],
-                                       atol=1e-3, err_msg="imagePositions[{}]".format(s))
+            np.testing.assert_allclose(
+                np.sort(nifti.imagePositions[s]),
+                np.sort(dcm.imagePositions[s]),
+                atol=1e-3, err_msg="imagePositions[{}]".format(s))
         np.testing.assert_allclose(nifti.orientation, dcm.orientation,
                                    atol=1e-6, err_msg="orientation")
         np.testing.assert_allclose(nifti.transformationMatrix, dcm.transformationMatrix,
@@ -151,43 +186,56 @@ class TestReadNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_equal(nifti, dcm, err_msg="voxel values")
 
     def test_compare_sag_ap(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'), input_format='nifti')
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(os.path.join(d, 'orig'), formats=['dicom'])
+            nifti.write(os.path.join(d, 'new'), formats=['dicom'])
+            diff = dcm - nifti
+            diff.write(os.path.join(d, 'diff'), formats=['dicom'])
+            pass
         self._compare_dicom_data(dcm, nifti)
 
     def test_compare_sag_hf(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'sag_hf.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'sag_hf.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti)
 
     def test_compare_sag_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'sag_oblique.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'sag_oblique.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_cor_hf(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'cor_hf.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'cor_hf.nii.gz'), input_format='nifti')
+        corr = nifti.align(dcm, force=True)
+        diff = dcm - corr
+        with tempfile.TemporaryDirectory() as d:
+            diff.write(os.path.join(d, 'diff'), formats=['dicom'])
+            corr.write(os.path.join(d, 'corr'), formats=['dicom'])
+            pass
         self._compare_dicom_data(dcm, nifti)
+        self._compare_dicom_data(dcm, corr)
 
     def test_compare_cor_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'cor_oblique.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'cor_oblique.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_cor_rl(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'cor_rl.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'cor_rl.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti)
 
     def test_compare_tra_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'tra_oblique.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'tra_oblique.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti, verify_spacing=False)
 
     def test_compare_tra_rl(self):
-        dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'))
-        nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'))
+        dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'), input_format='dicom')
+        nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti)
 
 
@@ -234,11 +282,11 @@ class Test3DNIfTIPlugin(unittest.TestCase):
 
     # @unittest.skip("skipping test_qform_3D")
     def test_qform_3D(self):
-        dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         self.assertEqual('dicom', dcm.input_format)
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
-            n = Series(d)
+            n = Series(d, input_format='nifti')
         self.assertEqual('nifti', n.input_format)
         self.assertEqual(dcm.shape, n.shape)
         self.assertEqual(dcm.dtype, n.dtype)
@@ -248,11 +296,13 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     def test_compare_qform_to_dicom(self):
         dcm = Series(
             os.path.join('data', 'dicom', 'time'),
-            'time')
+            'time',
+            input_format='dicom')
         self.assertEqual('dicom', dcm.input_format)
         n = Series(
             os.path.join('data', 'nifti', 'time', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
-            'time')
+            'time',
+            input_format='nifti')
         self.assertEqual('nifti', n.input_format)
         self.assertEqual(dcm.shape, n.shape)
         # obj.assertEqual(dcm.dtype, n.dtype)
