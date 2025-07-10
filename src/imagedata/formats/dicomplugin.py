@@ -651,7 +651,7 @@ class DICOMPlugin(AbstractPlugin):
             sorting[seriesUID] = 'none'
             dataset_dict: DatasetList
             dataset_dict = image_dict[seriesUID]
-            sorted_dataset = self._sort_dataset_geometry(dataset_dict)
+            sorted_dataset = self._sort_dataset_geometry(dataset_dict, opts)
 
             # Determine (automatic) sorting
             try:
@@ -1393,14 +1393,8 @@ class DICOMPlugin(AbstractPlugin):
             hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                         iop[5], iop[4], iop[3]))
 
-        # Extract imagePositions
-        hdr.imagePositions = {}
-        try:
-            for i, _slice in enumerate(series):
-                hdr.imagePositions[i] = series.imagePositions[i]
-        except TypeError:
-            pass
-
+        # Extract imagePositions and transformationMatrix
+        hdr.imagePositions = series.imagePositions
         hdr.transformationMatrix = series.transformationMatrix
 
         # Testing IPP and transformationMatrix
@@ -1408,11 +1402,10 @@ class DICOMPlugin(AbstractPlugin):
         ipp = np.array(T0)
         warned = False
         for i in range(len(series)):
-            if not warned and not np.allclose(ipp, hdr.imagePositions[i], atol=1e-3):
+            if not warned and not np.allclose(ipp, hdr.imagePositions[i], rtol=1e-3):
                 logger.warning('DICOM ImagePosition is inconsistent with ImageOrientation')
                 warned = True
             ipp += hdr.transformationMatrix[:3, 0]
-            pass
 
     @staticmethod
     def _get_attribute(im: Dataset, tag):
@@ -1434,7 +1427,7 @@ class DICOMPlugin(AbstractPlugin):
             except ValueError:
                 pass
 
-    def _sort_dataset_geometry(self, dictionary: DatasetList) -> SortedDatasetList:
+    def _sort_dataset_geometry(self, dictionary: DatasetList, opts: dict = None) -> SortedDatasetList:
         def _get_spacing(dictionary: DatasetList) -> np.ndarray:
             # Spacing
             dr = dc = 1.0
@@ -1497,8 +1490,13 @@ class DICOMPlugin(AbstractPlugin):
             if len(frames) != 1:
                 logger.warning('Multiple values of FrameOfReferenceUID')
 
-        def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray)\
+        def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray,
+                                 opts: dict = None)\
                 -> list[np.ndarray, np.ndarray]:
+            _name: str = '{}.{}'.format(__name__, _calculate_distances.__name__)
+            sort_on_slice_location = False
+            if 'sort_on_slice_location' in opts:
+                sort_on_slice_location = opts['sort_on_slice_location']
             # Calculate slice normal from IOP, will be same for all slices
             colr = np.array(orient[:3]).reshape(3, 1)
             colc = np.array(orient[3:]).reshape(3, 1)
@@ -1508,7 +1506,7 @@ class DICOMPlugin(AbstractPlugin):
             # For each slice, calculate distance along the slice normal using IPP
             distances = []
             ipps = []
-            for _slice in dictionary:
+            for _slice in range(len(dictionary)):
                 ipp = self.getOriginForSlice(dictionary, _slice)
                 if self.dir_cosine_tolerance != 0.0:
                     orient2 = orient[_slice]
@@ -1523,24 +1521,32 @@ class DICOMPlugin(AbstractPlugin):
                 dist = np.dot(normal, ipp)
                 distances.append(dist)
                 ipps.append(ipp)
-            # How to determine direction of normal vector
+            # Determine sorting of the slices based on distance
             distances = np.array(distances)
             distance_idx = np.argsort(distances)
             unique_distances = np.unique(distances)
 
             # Construct transformationMatrix
-            slice0 = np.where(distance_idx == 0)[0][0]
-            slicen = np.where(distance_idx == len(distances) - 1)[0][0]
-            slices = len(np.unique(distances))
-            T0 = ipps[slice0]
-            Tn = ipps[slicen]
-            k = ((Tn - T0) / (slices - 1)).reshape(3, 1)
+            slices = len(unique_distances)
+            T0 = ipps[distance_idx[0]]
+            Tn = ipps[distance_idx[-1]]
+            k = ((Tn - T0) / (slices - 1))
             transform = np.eye(4)
             transform[:3, :4] = np.hstack([
-                k,
+                k.reshape(3, 1),
                 colc.reshape(3, 1) * spacing[1],
                 colr.reshape(3, 1) * spacing[2],
                 T0.reshape(3, 1)])
+
+            if sort_on_slice_location:
+                # If we do not trust sorting on ipp, repeat with slice locations
+                distances = []
+                for _slice in range(len(dictionary)):
+                    dist = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceLocation"), _slice))
+                    distances.append(dist)
+                distances = np.array(distances)
+                distance_idx = np.argsort(distances)
+                unique_distances = np.unique(distances)
 
             # Sort imagePositions
             imagePositions = {}
@@ -1572,7 +1578,7 @@ class DICOMPlugin(AbstractPlugin):
         _verify_no_gantry_tilt(dictionary)
         orient = _get_orientation(dictionary)
         _verify_single_frame_of_reference(dictionary)
-        distances, distance_idx, transform, ipps = _calculate_distances(dictionary, orient, spacing)
+        distances, distance_idx, transform, ipps = _calculate_distances(dictionary, orient, spacing, opts)
         _verify_spacing(distances)
 
         # Sort dataset on distances
@@ -1598,6 +1604,15 @@ class DICOMPlugin(AbstractPlugin):
             z,y,x: coordinate for origin of given slice (np.array)
         """
 
+        try:
+            origin = self.getDicomAttribute(dictionary, tag_for_keyword("ImagePositionPatient"), slice)
+            if origin is not None:
+                x = float(origin[0])
+                y = float(origin[1])
+                z = float(origin[2])
+                return np.array([z, y, x])
+        except TypeError:
+            pass
         if issubclass(type(slice), Dataset):
             d = slice
             s = 0
