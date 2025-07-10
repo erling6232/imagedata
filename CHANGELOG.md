@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.5-rc0] - 2025-07-10
+### Changed
+* DICOMPlugin: Corrected calculation of tranformationMatrix and imagePositions.
+* DICOMPlugin: Added option `sort_on_slice_location` to sort stack on slice location,
+  not on distance along normal vector. Default: False.
+### Fixed
+* UniformLenghtAxis: Use absolute value of `n` as axis length.
+
 ## [v3.8.4] - 2025-05-14
 ### Added
 * DICOMPlugin: Calculate slice spacing from actual slice locations. Not from SliceThickness
