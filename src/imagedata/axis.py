@@ -164,7 +164,7 @@ class UniformLengthAxis(UniformAxis):
                  n: int,
                  step: Number = 1) -> None:
         super(UniformLengthAxis, self).__init__(name, start, start + n * step, step)
-        self.n = n
+        self.n = abs(n)
 
     def copy(self,
              name: str = None,
