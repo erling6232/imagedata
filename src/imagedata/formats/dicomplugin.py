@@ -100,6 +100,9 @@ class SortedDatasetList(defaultdict):
 
     def __init__(self):
         super().__init__(DatasetList)
+        self.spacing = None
+        self.transformationMatrix = None
+        self.imagePositions = None
 
     def __setitem__(self, key, value):
         assert isinstance(key, float), self.__doc__
@@ -363,10 +366,8 @@ class DICOMPlugin(AbstractPlugin):
         # Read DICOM headers
         logger.debug('{}: sources {}'.format(_name, sources))
         # pydicom.config.debug(True)
-        # object_list: list[tuple[AbstractArchive, Member]]
         object_list: ObjectList = self._get_dicom_files(sources)
 
-        # dataset_dict: defaultdict[SeriesUID, list[Dataset]]
         dataset_dict: DatasetDict
         dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
 
@@ -379,16 +380,13 @@ class DICOMPlugin(AbstractPlugin):
         pixel_dict: PixelDict = PixelDict()
 
         if imaging_dataset_dict:
-            # sorted_dataset_dict: defaultdict[SeriesUID, defaultdict[float, list[Dataset]]]
             sorted_dataset_dict: SortedDatasetDict
             sorting: dict[str]
             sorted_dataset_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
 
-            # sorted_header_dict: dict[SeriesUID, Header]
             logger.debug('{}: going to _get_headers {}'.format(_name, sources))
             sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
 
-            # pixel_dict: dict[SeriesUID, np.ndarray]
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
                 pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
@@ -404,7 +402,6 @@ class DICOMPlugin(AbstractPlugin):
             logger.debug('{}: going to _get_non_image_headers {}'.format(_name, sources))
             non_image_header_dict: SortedHeaderDict
             non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
-            # pixel_dict: dict[SeriesUID, np.ndarray]
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
                 non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
@@ -498,7 +495,6 @@ class DICOMPlugin(AbstractPlugin):
             except Exception as e:
                 logger.debug('{}: Exception {}'.format(_name, e))
                 last_message = '{}'.format(e)
-                # raise
         if len(object_list) > 0 and len(dataset_dict) < 1:
             raise NotImageError(last_message)
         return dataset_dict
@@ -553,7 +549,6 @@ class DICOMPlugin(AbstractPlugin):
             dataset_list = dataset_dict[seriesUID]
             dataset: Dataset
             dataset = dataset_list[0]
-            # if dataset.SOPClassUID in sr_uids:
             if dataset.SOPClassUID not in image_uids:
                 # Keep non-imaging datasets
                 selected_dataset_dict[seriesUID] = dataset_list
@@ -629,12 +624,18 @@ class DICOMPlugin(AbstractPlugin):
                 _sum = 0
                 for _item in _object:
                     if issubclass(type(_item), np.ndarray):
-                        _sum += np.sum(np.square(_item))
+                        # Typical array value is the MRI diffusion b-vector
+                        # To ensure consistent sorting of b-vectors, the different directions are
+                        # weighted (arbitrarily) by the position index in the vector
+                        _sum += np.dot(_item, np.array(np.arange(_item.size) + 1))
                     else:
                         _sum += _item
                 return _sum
             else:
-                return _object
+                if issubclass(type(_object), np.ndarray):
+                    return np.dot(_object, np.array(np.arange(_object.size) + 1))
+                else:
+                    return _object
 
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
 
@@ -648,15 +649,10 @@ class DICOMPlugin(AbstractPlugin):
         sorting = {}
         for seriesUID in image_dict:
             sorting[seriesUID] = 'none'
+            dataset_dict: DatasetList
             dataset_dict = image_dict[seriesUID]
-            dataset: Dataset
-            sorted_dataset: SortedDatasetList = SortedDatasetList()
-            for dataset in dataset_dict:
-                # logger.debug('{}: process_member {}'.format(_name, dataset))
-                sloc = _get_sloc(dataset)
+            sorted_dataset = self._sort_dataset_geometry(dataset_dict)
 
-                # Catalog images with sloc as key
-                sorted_dataset[sloc].append(dataset)
             # Determine (automatic) sorting
             try:
                 sorting[seriesUID] = self._determine_sorting(
@@ -678,7 +674,7 @@ class DICOMPlugin(AbstractPlugin):
                     raise
             # Sort the dataset on selected key for each sloc
             for sort_key in reversed(sorting[seriesUID].split(sep=',')):
-                for sloc in sorted_dataset.keys():
+                for sloc in sorted(sorted_dataset.keys()):
                     try:
                         sorted_dataset[sloc].sort(
                             key=partial(_get_tag_value, input_order=sort_key, opts=opts)
@@ -832,7 +828,6 @@ class DICOMPlugin(AbstractPlugin):
                                 idx = i
                                 min_diff = vdiff
                     return idx
-                    # idx = np.array([np.linalg.norm(x + y) for (x, y) in array - value]).argmin()
                     idx = np.searchsorted(array, value, side="left")
                     if idx > 0 and (
                             idx == len(array) or math.fabs(value - array[idx - 1]) < math.fabs(value - array[idx])):
@@ -914,8 +909,6 @@ class DICOMPlugin(AbstractPlugin):
                         catalog[_] = longest
                 return catalog
 
-
-
             def _find_candidate(catalog: dict, index: int, tag_list: list[tuple], base: tuple = None) -> defaultdict[dict]:
                 # Vary index tag, keep other tags constant, and find candidate for reduced tag size
                 find = tag_list[0]
@@ -960,11 +953,6 @@ class DICOMPlugin(AbstractPlugin):
                     raise CannotSort('{}: Too many iterations to sort headers'.format(_name))
             struct_tag_list = defaultdict(list)
             for index in catalog.keys():
-                # values = []
-                # for tag in tag_list:
-                #     if tag[index] not in values:
-                #         values.append(tag[index])
-                # struct_tag_list[index] = values
                 values = catalog[index].keys()
                 struct_tag_list[index] = values
             shape = _calculate_shape(struct_tag_list)
@@ -1004,8 +992,6 @@ class DICOMPlugin(AbstractPlugin):
                             exist = exist and _t == tag[_]
             except Exception as e:
                 print(e)
-            # except TypeError:
-            # exist = exist and np.array_equal(_t, tag[_])
             if not exist or accept_duplicate_tag:
                 tag_list.append(tag)
             elif accept_uneven_slices:
@@ -1019,7 +1005,9 @@ class DICOMPlugin(AbstractPlugin):
                               input_order: str,
                               slice_count: Counter
                               ) -> None:
+
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
+
             accept_duplicate_tag = accept_uneven_slices = False
             if 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']:
                 accept_duplicate_tag = True
@@ -1041,8 +1029,6 @@ class DICOMPlugin(AbstractPlugin):
             tag_dict = defaultdict()
             for islice in tag_list.keys():
                 struct_tag_list[islice], tag_dict[islice] = _structure_tags_2(tag_list[islice])
-            # for islice in tag_list.keys():
-            #     struct_tag_list[islice], tag_dict[islice] = _structure_tags(tag_list[islice])
             shape = tuple()
             for _ in sorted(struct_tag_list[0].keys()):
                 shape += (len(struct_tag_list[0][_]),)
@@ -1068,25 +1054,21 @@ class DICOMPlugin(AbstractPlugin):
             i = 0
             for islice, sloc in enumerate(sorted(series)):
                 # Pre-fill sorted_headers
-                sorted_headers[islice] = {}  # [False for _ in range(slice_count[islice])]
+                sorted_headers[islice] = {}
                 for im in series[sloc]:
                     tag = self._extract_tag_tuple(im, i, input_order, opts)
-                    # idx = tag_list[islice].index(tag)
                     idx = self._index_from_tag(tag, hdr.tags[islice])
                     try:
                         if sorted_headers[islice][idx]:
                             # Duplicate tag
                             if accept_duplicate_tag:
                                 pass
-                                # while sorted_headers[islice][idx]:
-                                #     idx += 1
                             else:
                                 print("WARNING: Duplicate tag", tag)
                     except KeyError:
                         pass
                     sorted_headers[islice][idx] = (tag, im)
                     SOPInstanceUIDs[idx + (islice,)] = im.SOPInstanceUID
-                    # SOPInstanceUIDs[tag + (islice,)] = im.SOPInstanceUID
                     rows = max(rows, im.Rows)
                     columns = max(columns, im.Columns)
                     if 'NumberOfFrames' in im:
@@ -1099,12 +1081,12 @@ class DICOMPlugin(AbstractPlugin):
             nz = len(series)
             if frames is not None and frames > 1:
                 nz = frames
-            hdr.spacing = self.__get_voxel_spacing(sorted_headers)
             ipp = self.getDicomAttribute(self.DicomHeaderDict, tag_for_keyword('ImagePositionPatient'))
             if ipp is not None:
                 ipp = np.array(list(map(float, ipp)))[::-1]  # Reverse xyz
             else:
                 ipp = np.array([0, 0, 0])
+            hdr.spacing = series.spacing
             slice_axis = UniformLengthAxis('slice', ipp[0], nz, hdr.spacing[0])
             row_axis = UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1])
             column_axis = UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2])
@@ -1135,6 +1117,7 @@ class DICOMPlugin(AbstractPlugin):
             self._extract_dicom_attributes(series, hdr, opts=opts)
 
         _name: str = '{}.{}'.format(__name__, self._get_headers.__name__)
+
         skip_broken_series = False
         if 'skip_broken_series' in opts:
             skip_broken_series = opts['skip_broken_series']
@@ -1144,9 +1127,7 @@ class DICOMPlugin(AbstractPlugin):
             hdr = Header()
             hdr.input_format = 'dicom'
             hdr.input_order = input_order[seriesUID]
-            sliceLocations = sorted(series_dataset.keys())
-            # hdr.slices = len(sliceLocations)
-            hdr.sliceLocations = np.array(sliceLocations)
+            hdr.sliceLocations = np.array(sorted(series_dataset.keys()))
 
             if len(series_dataset) == 0:
                 raise ValueError("No DICOM images found.")
@@ -1267,14 +1248,7 @@ class DICOMPlugin(AbstractPlugin):
                     tag = self._extract_tag_tuple(im, faulty, _hdr.input_order, opts)
                     idx = self._index_from_tag(tag, tgs)
                     if idx in _done:
-                        # logger.warning("{}: Overwriting data at index {}, tag {}".format(
-                        # _name, idx, tag))
                         logger.warning("Overwriting data at index {}, tag {}".format(idx, tag))
-                        # if accept_duplicate_tag:
-                        #     while idx in _done:
-                        #         idx += 1
-                        # else:
-                        #     logger.warning("{}: Overwriting data at index {}".format(_name, idx))
                     _done[idx] = True
                     idx += (_slice,)
                     # Simplify index when image is 3D, remove tag index
@@ -1304,9 +1278,6 @@ class DICOMPlugin(AbstractPlugin):
             _name: str = '{}.{}'.format(__name__, _copy_pixels_from_frames.__name__)
             assert len(_image_dict) == 1, "Do not know how to unpack frames and slices"
             for im in _image_dict[next(iter(_image_dict))]:
-                # tag = self._get_tag(im, _hdr.input_order, opts)
-                # tgs = _hdr.tags[0]
-                # idx = np.where(tgs == tag)[0][0]
                 try:
                     im.decompress()
                 except NotImplementedError as e:
@@ -1321,6 +1292,7 @@ class DICOMPlugin(AbstractPlugin):
                 del im
 
         _name: str = '{}.{}'.format(__name__, self._construct_pixel_array.__name__)
+
         opts = {} if opts is None else opts
         accept_duplicate_tag = False
         if 'accept_duplicate_tag' in opts:
@@ -1425,13 +1397,21 @@ class DICOMPlugin(AbstractPlugin):
         hdr.imagePositions = {}
         try:
             for i, _slice in enumerate(series):
-                hdr.imagePositions[i] = self.getOriginForSlice({i: [(0, series[_slice][0])]}, i)
+                hdr.imagePositions[i] = series.imagePositions[i]
         except TypeError:
             pass
 
-        try:
-            hdr.transformationMatrix = self.__get_transformation_matrix(hdr, opts)
-        except (AttributeError, TypeError):
+        hdr.transformationMatrix = series.transformationMatrix
+
+        # Testing IPP and transformationMatrix
+        T0 = hdr.transformationMatrix[:3, 3]
+        ipp = np.array(T0)
+        warned = False
+        for i in range(len(series)):
+            if not warned and not np.allclose(ipp, hdr.imagePositions[i], atol=1e-3):
+                logger.warning('DICOM ImagePosition is inconsistent with ImageOrientation')
+                warned = True
+            ipp += hdr.transformationMatrix[:3, 0]
             pass
 
     @staticmethod
@@ -1454,131 +1434,158 @@ class DICOMPlugin(AbstractPlugin):
             except ValueError:
                 pass
 
-    def __get_transformation_matrix(self, hdr: Header, opts: dict = None) -> np.ndarray:
-        use_cross_product = False
-        if 'use_cross_product' in opts:
-            use_cross_product = opts['use_cross_product']
-        ds, dr, dc = hdr.spacing
-        slices = len(hdr.imagePositions)
-        T0 = hdr.imagePositions[0].reshape(3, 1)  # z,y,x
-        orient = hdr.orientation
-        colr = np.array(orient[3:]).reshape(3, 1)
-        colc = np.array(orient[:3]).reshape(3, 1)
-        if slices == 1 or use_cross_product:
-            k = np.cross(colr, colc, axis=0)
-            k = k * ds
-        else:
-            Tn = hdr.imagePositions[slices - 1].reshape(3, 1)
-            k = (T0 - Tn) / (1 - slices)
-        A = np.eye(4)
-        A[:3, :4] = np.hstack([
-            k,
-            colr * dr,
-            colc * dc,
-            T0])
-        return A
-
-    def __get_voxel_spacing(self, dictionary):
-        # Spacing
-        dy = 1.0
-        dx = 1.0
-        slice_spacing = 1.0
-        try:
-            pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
-            if pixel_spacing is not None:
-                # Notice that DICOM row spacing comes first, column spacing second!
-                dy = float(pixel_spacing[0])
-                dx = float(pixel_spacing[1])
-        except AttributeError:
-            pass
-        try:
-            slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
-        except TypeError:
+    def _sort_dataset_geometry(self, dictionary: DatasetList) -> SortedDatasetList:
+        def _get_spacing(dictionary: DatasetList) -> np.ndarray:
+            # Spacing
+            dr = dc = 1.0
             try:
-                slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceThickness")))
+                pixel_spacing = self.getDicomAttribute(dictionary, tag_for_keyword("PixelSpacing"))
+                if pixel_spacing is not None:
+                    # Notice that DICOM row spacing comes first, column spacing second!
+                    dr = float(pixel_spacing[0])
+                    dc = float(pixel_spacing[1])
+            except AttributeError:
+                pass
+            try:
+                slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
             except TypeError:
-                slice_spacing = 1.0
-        try:
-            gantry = self.getDicomAttributeValues(dictionary, tag_for_keyword("GantryDetectorTilt"))
-            if len(gantry) > 1:
-                raise CannotSort('More than one Gantry/Detector Tilt')
-            elif len(gantry) == 1:
-                if gantry[0] != 0.0:
-                    raise CannotSort('Gantry/Detector Tilt is not zero')
-        except Exception as e:
-            raise
+                try:
+                    slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceThickness")))
+                except TypeError:
+                    slice_spacing = 1.0
+            return np.array([slice_spacing, dr, dc])
 
-        # iops = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
-        orients = []
-        for s in range(len(dictionary)):
+        def _verify_no_gantry_tilt(dictionary: DatasetList):
             try:
-                iop = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
-            except ValueError:
-                iop = [0, 0, 1, 0, 1, 0]
-            if iop is not None:
-                orient = np.array((iop[2], iop[1], iop[0],
-                                   iop[5], iop[4], iop[3]))
-                orients.append(orient)
+                gantry = self.getDicomAttributeValues(dictionary, tag_for_keyword("GantryDetectorTilt"))
+                if len(gantry) > 1:
+                    raise CannotSort('More than one Gantry/Detector Tilt')
+                elif len(gantry) == 1:
+                    if gantry[0] != 0.0:
+                        raise CannotSort('Gantry/Detector Tilt is not zero')
+            except Exception:
+                raise
 
-        if self.dir_cosine_tolerance == 0.0:
-            if len(orients) != 1:
-                found = None
-                for it in orients:
+        def _get_orientation(dictionary: DatasetList) -> list[np.ndarray]:
+            # iops = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
+            orients = []
+            for s in range(len(dictionary)):
+                try:
+                    iop = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
+                except ValueError:
+                    iop = [0, 0, 1, 0, 1, 0]
+                if iop is not None:
+                    orient = np.array((iop[2], iop[1], iop[0],
+                                       iop[5], iop[4], iop[3]))
+                    orients.append(orient)
+
+            if self.dir_cosine_tolerance == 0.0:
+                if len(orients) != 1:
+                    found = None
+                    for it in orients:
+                        if found is None:
+                            found = it
+                        elif (it!=found).all():
+                            raise CannotSort('More than one IOP. Try changing DirCosTolerance')
                     if found is None:
-                        found = it
-                    elif (it!=found).all():
-                        raise CannotSort('More than one IOP. Try changing DirCosTolerance')
-                if found is None:
-                    raise CannotSort('No IOP.')
+                        raise CannotSort('No IOP.')
+            return orients[0]
 
-        frames = self.getDicomAttributeValues(dictionary, tag_for_keyword("FrameOfReferenceUID"))
-        frames = sorted(set(frames))
-        if len(frames) != 1:
-            logger.warning('Odd number of Frame Of Reference UID')
+        def _verify_single_frame_of_reference(dictionary: DatasetList):
+            frames = self.getDicomAttributeValues(dictionary, tag_for_keyword("FrameOfReferenceUID"))
+            frames = sorted(set(frames))
+            if len(frames) != 1:
+                logger.warning('Multiple values of FrameOfReferenceUID')
 
-        # Calculate slice normal from IOP, will be same for all slices
-        orient = orients[0]
-        colr = np.array(orient[3:]).reshape(3, 1)
-        colc = np.array(orient[:3]).reshape(3, 1)
-        colr = colr / np.linalg.norm(colr)
-        colc = colc / np.linalg.norm(colc)
-        normal = np.cross(colr, colc, axis=0).reshape(3)
-        # For each slice, calculate distance along the slice normal using IPP
-        distances = []
-        for _slice in dictionary:
-            ipp = self.getOriginForSlice(dictionary, _slice)
-            if self.dir_cosine_tolerance != 0.0:
-                orient2 = orients[_slice]
-                colr2 = np.array(orient2[3:]).reshape(3, 1)
-                colc2 = np.array(orient2[:3]).reshape(3, 1)
-                colr2 = colr2 / np.linalg.norm(colr2)
-                colc2 = colc2 / np.linalg.norm(colc2)
-                normal2 = np.cross(colr2, colc2, axis=0)
-                cd = sum(normal[:] * normal2[:])[0]
-                if np.fabs(1 - cd) > self.dir_cosine_tolerance:
-                    raise CannotSort('Problem with DirCosTolerance')
-            dist = np.dot(normal, ipp)
-            if dist in distances:
-                raise CannotSort('Distance {} for slice {} already found'.format(dist, _slice))
-            distances.append(dist)
-        distances = sorted(distances)
-        # Verify spacing
-        spacings = []
-        spacing_is_good = True
-        prev = distances[0]
-        if len(distances) > 1:
-            current = distances[1]
-            slice_spacing = current - prev
-            for it in range(1, len(distances)):
-                current = distances[it]
-                spacings.append(abs(current - prev))
-                if abs(current - prev) - slice_spacing > self.slice_tolerance:
-                    logger.warning('Slice spacing differs too much. Decrease SliceTolerance')
-                    spacing_is_good = False
-                prev = current
-        if not spacing_is_good:
-            raise CannotSort('Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(distances, spacings))
-        return np.array([slice_spacing, dy, dx])
+        def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray)\
+                -> list[np.ndarray, np.ndarray]:
+            # Calculate slice normal from IOP, will be same for all slices
+            colr = np.array(orient[:3]).reshape(3, 1)
+            colc = np.array(orient[3:]).reshape(3, 1)
+            colr = colr / np.linalg.norm(colr)
+            colc = colc / np.linalg.norm(colc)
+            normal = np.cross(colc, colr, axis=0).reshape(3)
+            # For each slice, calculate distance along the slice normal using IPP
+            distances = []
+            ipps = []
+            for _slice in dictionary:
+                ipp = self.getOriginForSlice(dictionary, _slice)
+                if self.dir_cosine_tolerance != 0.0:
+                    orient2 = orient[_slice]
+                    colr2 = np.array(orient2[:3]).reshape(3, 1)
+                    colc2 = np.array(orient2[3:]).reshape(3, 1)
+                    colr2 = colr2 / np.linalg.norm(colr2)
+                    colc2 = colc2 / np.linalg.norm(colc2)
+                    normal2 = np.cross(colr2, colc2, axis=0)
+                    cd = sum(normal[:] * normal2[:])[0]
+                    if np.fabs(1 - cd) > self.dir_cosine_tolerance:
+                        raise CannotSort('Problem with DirCosTolerance')
+                dist = np.dot(normal, ipp)
+                distances.append(dist)
+                ipps.append(ipp)
+            # How to determine direction of normal vector
+            distances = np.array(distances)
+            distance_idx = np.argsort(distances)
+            unique_distances = np.unique(distances)
+
+            # Construct transformationMatrix
+            slice0 = np.where(distance_idx == 0)[0][0]
+            slicen = np.where(distance_idx == len(distances) - 1)[0][0]
+            slices = len(np.unique(distances))
+            T0 = ipps[slice0]
+            Tn = ipps[slicen]
+            k = ((Tn - T0) / (slices - 1)).reshape(3, 1)
+            transform = np.eye(4)
+            transform[:3, :4] = np.hstack([
+                k,
+                colc.reshape(3, 1) * spacing[1],
+                colr.reshape(3, 1) * spacing[2],
+                T0.reshape(3, 1)])
+
+            # Sort imagePositions
+            imagePositions = {}
+            for i in range(slices):
+                pos = np.where(distances == unique_distances[i])[0][0]
+                imagePositions[i] = ipps[pos]
+            return distances, distance_idx, transform, imagePositions
+
+        def _verify_spacing(distances: np.ndarray):
+            # Verify spacing
+            spacings = []
+            spacing_is_good = True
+            d = np.unique(distances)
+            prev = d[0]
+            if len(d) > 1:
+                current = d[1]
+                slice_spacing = current - prev
+                for it in range(1, len(d)):
+                    current = d[it]
+                    spacings.append(abs(current - prev))
+                    if abs(current - prev) - slice_spacing > self.slice_tolerance:
+                        logger.warning('Slice spacing differs too much. Decrease SliceTolerance')
+                        spacing_is_good = False
+                    prev = current
+            if not spacing_is_good:
+                raise CannotSort('Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(distances, spacings))
+
+        spacing = _get_spacing(dictionary)
+        _verify_no_gantry_tilt(dictionary)
+        orient = _get_orientation(dictionary)
+        _verify_single_frame_of_reference(dictionary)
+        distances, distance_idx, transform, ipps = _calculate_distances(dictionary, orient, spacing)
+        _verify_spacing(distances)
+
+        # Sort dataset on distances
+        sorted_dataset: SortedDatasetList = SortedDatasetList()
+        sorted_dataset.spacing = spacing
+        sorted_dataset.transformationMatrix = transform
+        sorted_dataset.imagePositions = ipps
+        for idx in distance_idx:
+            distance = distances[idx]
+            # Catalog images with distance (sloc) as key
+            sorted_dataset[distance].append(dictionary[idx])
+
+        return sorted_dataset
 
     def getOriginForSlice(self, dictionary, slice):
         """Get origin of given slice.
@@ -1591,7 +1598,23 @@ class DICOMPlugin(AbstractPlugin):
             z,y,x: coordinate for origin of given slice (np.array)
         """
 
-        origin = self.getDicomAttribute(dictionary, tag_for_keyword("ImagePositionPatient"), slice)
+        if issubclass(type(slice), Dataset):
+            d = slice
+            s = 0
+        else:
+            d = dictionary
+            s = slice
+        while not issubclass(type(d), Dataset):
+            if issubclass(type(d), dict):
+                d = d[next(iter(d))]
+            elif issubclass(type(d), (tuple, list)):
+                for d in d:
+                    if issubclass(type(d), Dataset):
+                        break
+        try:
+            origin = self.getDicomAttribute(d, tag_for_keyword("ImagePositionPatient"), s)
+        except TypeError:
+            origin = self.getDicomAttribute(slice, tag_for_keyword("ImagePositionPatient"), 0)
         if origin is not None:
             x = float(origin[0])
             y = float(origin[1])
@@ -1637,12 +1660,19 @@ class DICOMPlugin(AbstractPlugin):
             tag: DICOM tag of requested attribute.
             slice: which slice to access. Default: slice=0
         """
-        # logger.debug("getDicomAttribute: tag", tag, ", slice", slice)
         assert dictionary is not None, "dicomplugin.getDicomAttribute: dictionary is None"
         try:
             _, im = dictionary[slice][next(iter(dictionary[slice]))]
         except TypeError:
-            _, im = dictionary[slice][0]
+            try:
+                _, im = dictionary[slice][0]
+            except TypeError:
+                im = dictionary[slice]
+        except KeyError:
+            try:
+                im = dictionary[slice]
+            except KeyError:
+                im = dictionary
         if tag in im:
             return im[tag].value
         else:
@@ -1676,7 +1706,6 @@ class DICOMPlugin(AbstractPlugin):
         _name: str = '{}.{}'.format(__name__, '_get_pixels_with_shape')
         _use_float = False
         try:
-            # logger.debug("Set si[{}]".format(idx))
             if 'RescaleSlope' in im and 'RescaleIntercept' in im:
                 _use_float = abs(im.RescaleSlope - 1) > 1e-4 or abs(im.RescaleIntercept) > 1e-4
             if _use_float:
@@ -1689,7 +1718,6 @@ class DICOMPlugin(AbstractPlugin):
                     # RGB image
                     rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
                     si = pixels.copy().view(dtype=rgb_dtype).reshape(pixels.shape[:-1])
-                    # si = pixels
                 elif 'NumberOfFrames' in im:
                     logger.debug('{}: NumberOfFrames: {}'.format(_name, im.NumberOfFrames))
                     if (im.NumberOfFrames,) + shape == pixels.shape:
@@ -1723,11 +1751,6 @@ class DICOMPlugin(AbstractPlugin):
                 logger.debug(
                     "{}: Binary image, image.shape={}, image shape=({},{},{})".format(
                         _name, im.shape, im.NumberOfFrames, im.Rows, im.Columns))
-                # try:
-                #    image.decompress()
-                # except NotImplementedError as e:
-                #    logger.error("Cannot decompress pixel data: {}".format(e))
-                #    raise
                 _myarr = np.frombuffer(im.PixelData, dtype=np.uint8)
                 # Reverse bit order, and copy the array to get a
                 # contiguous array
@@ -1835,7 +1858,6 @@ class DICOMPlugin(AbstractPlugin):
         for _slice in self.DicomHeaderDict:
             t = 0
             for tg, im in self.DicomHeaderDict[_slice]:
-                # logger.debug(_slice, tg)
                 acq[_slice, t] = tg
                 t += 1
 
@@ -1987,10 +2009,7 @@ class DICOMPlugin(AbstractPlugin):
         assert si.ndim >= 4, "write_4d_series: input dimension %d is less than 4D." % si.ndim
 
         tags = si.tags[0].ndim
-        # steps = si.shape[0]
         steps = si.shape[:tags]
-        # axis = getattr(si.axes, si.input_order)
-        axes = si.axes[:tags]
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
@@ -2313,7 +2332,7 @@ class DICOMPlugin(AbstractPlugin):
         try:
             ds.SliceLocation = pydicom.valuerep.format_number_as_ds(float(si.sliceLocations[0]))
         except (AttributeError, ValueError):
-            # Dont know the SliceLocation, so will set this to be the slice index
+            # Do not know the SliceLocation, so will set this to be the slice index
             if tag is None:
                 ds.SliceLocation = 0
             else:
@@ -2389,7 +2408,6 @@ class DICOMPlugin(AbstractPlugin):
         ds.Rows = si.rows
         ds.Columns = si.columns
         self._insert_pixel_data(ds, si)
-        # logger.debug("write_slice: filename {}".format(filename))
 
         # Set tag
         # si will always have only the present tag
@@ -2418,10 +2436,6 @@ class DICOMPlugin(AbstractPlugin):
         if sop_class_uid is None:
             sop_class_uid = '1.2.840.10008.5.1.4.1.1.7'
         file_meta.MediaStorageSOPClassUID = sop_class_uid
-        # if template is not None and 'SOPClassUID' in template:
-        #     file_meta.MediaStorageSOPClassUID = template.SOPClassUID
-        # else:
-        #     file_meta.MediaStorageSOPClassUID = '1.2.840.10008.5.1.4.1.1.7'
         if sop_ins_uid is not None:
             file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
         else:
@@ -2445,8 +2459,6 @@ class DICOMPlugin(AbstractPlugin):
         ds.StudyDate = self.today
         ds.StudyTime = '000000'
         try:
-            # ds.StudyInstanceUID = template.header.new_uid()
-            # ds.SeriesInstanceUID = template.header.new_uid()
             ds.StudyInstanceUID = template.header.studyInstanceUID
             ds.SeriesInstanceUID = template.header.seriesInstanceUID
         except Exception as e:
@@ -2464,12 +2476,6 @@ class DICOMPlugin(AbstractPlugin):
                         sop_ins_uid=None) -> FileDataset:
 
         self.instanceNumber += 1
-        # if not self.keep_uid:
-        #     si.SOPInstanceUID = si.header.new_uid()
-        # if 'SOPInstanceUID' in si:
-        #     sop_ins_uid = si.SOPInstanceUID
-        # else:
-        #     sop_ins_uid = si.header.new_uid()
         if sop_ins_uid is None:
             sop_ins_uid = si.header.new_uid()
 
@@ -2479,10 +2485,6 @@ class DICOMPlugin(AbstractPlugin):
         file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
         file_meta.ImplementationClassUID = "%s.1" % self.root
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
-        # file_meta.FileMetaInformationVersion = int(1).to_bytes(2,'big')
-        # file_meta.FileMetaInformationGroupLength = 160
-
-        # print("Setting dataset values...")
 
         # Create the FileDataset instance
         # (initially no data elements, but file_meta supplied)
@@ -2502,7 +2504,6 @@ class DICOMPlugin(AbstractPlugin):
 
         ds.StudyInstanceUID = si.header.studyInstanceUID
         ds.StudyID = si.header.studyID
-        # ds.SeriesInstanceUID = si.header.seriesInstanceUID
         ds.SeriesInstanceUID = self.serInsUid
         ds.SOPClassUID = si.SOPClassUID
         ds.SOPInstanceUID = sop_ins_uid
@@ -2526,9 +2527,6 @@ class DICOMPlugin(AbstractPlugin):
 
         If float array, scale to uint16
         """
-
-        # logger.debug('DICOMPlugin.insert_pixeldata: arr.dtype %s' % arr.dtype)
-        # logger.debug('DICOMPlugin.insert_pixeldata: arr.itemsize  %s' % arr.itemsize)
 
         ds.SamplesPerPixel = 1
         ds.PixelRepresentation = 1 if np.issubdtype(arr.dtype, np.signedinteger) else 0
@@ -2601,8 +2599,6 @@ class DICOMPlugin(AbstractPlugin):
         self.range_VR = 'US' if arr.color else self.range_VR
         _range = 65536. if self.range_VR == 'US' else 32768.
         # Window center/width
-        # ymin = np.nanmin(arr).item()
-        # ymax = np.nanmax(arr).item()
         try:
             ymin = np.min(arr).item()
             ymax = np.max(arr).item()
@@ -2624,8 +2620,6 @@ class DICOMPlugin(AbstractPlugin):
             # No need to rescale
             self.a = None
             self.b = None
-            # self.smallestPixelValueInSeries = arr.min().astype('int16')
-            # self.largestPixelValueInSeries = arr.max().astype('int16')
         else:
             # Other high precision data type, like float
             # Must rescale data
@@ -2770,8 +2764,6 @@ class DICOMPlugin(AbstractPlugin):
                                    )
                     else:
                         im.add_new(time_tag, VR, 0.0)
-                    # elem = pydicom.dataelem.DataElement(time_tag, 'TM', 0)
-                    # im.add(elem)
                 if im.data_element(time_tag).VR == 'TM':
                     time_str = datetime.fromtimestamp(float(value), timezone.utc).strftime("%H%M%S.%f")
                     im.data_element(time_tag).value = time_str
@@ -2806,103 +2798,6 @@ class DICOMPlugin(AbstractPlugin):
                         im.data_element(_tag).value = float(value)
                 else:
                     raise (UnknownTag("Unknown input_order {}.".format(order)))
-
-    def simulateAffine(self):
-        # shape = (
-        #     self.getDicomAttribute(tag_for_keyword('Rows')),
-        #     self.getDicomAttribute(tag_for_keyword('Columns')))
-        _name: str = '{}.{}'.format(__name__, self.simulateAffine.__name__)
-
-        iop = self.getDicomAttribute(tag_for_keyword('ImageOrientationPatient'))
-        if iop is None:
-            return
-        iop = np.array(list(map(float, iop)))
-        iop = np.array(iop).reshape(2, 3).T
-        logger.debug('{}: iop\n{}'.format(_name, iop))
-        s_norm = np.cross(iop[:, 1], iop[:, 0])
-        # Rotation matrix
-        R = np.eye(3)
-        R[:, :2] = np.fliplr(iop)
-        R[:, 2] = s_norm
-        if not np.allclose(np.eye(3), np.dot(R, R.T), atol=5e-5):
-            raise ValueErrorWrapperPrecisionError('Rotation matrix not nearly orthogonal')
-
-        pix_space = self.getDicomAttribute(tag_for_keyword('PixelSpacing'))
-        zs = self.getDicomAttribute(tag_for_keyword('SpacingBetweenSlices'))
-        if zs is None:
-            zs = self.getDicomAttribute(tag_for_keyword('SliceThickness'))
-            if zs is None:
-                zs = 1
-        zs = float(zs)
-        pix_space = list(map(float, pix_space))
-        vox = tuple(pix_space + [zs])
-        logger.debug('{}: vox {}'.format(_name, vox))
-
-        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
-        if ipp is None:
-            return
-        ipp = np.array(list(map(float, ipp)))
-        logger.debug('{}: ipp {}'.format(_name, ipp))
-
-        orient = R
-        logger.debug('{}: orient\n{}'.format(_name, orient))
-
-        aff = np.eye(4)
-        aff[:3, :3] = orient * np.array(vox)
-        aff[:3, 3] = ipp
-        logger.debug('{}: aff\n{}'.format(_name, aff))
-
-    def create_affine(self, hdr):
-        """Function to generate the affine matrix for a dicom series
-        This method was based on
-        (http://nipy.org/nibabel/dicom/dicom_orientation.html)
-        :param hdr: list with sorted dicom files
-        """
-        _name: str = '{}.{}'.format(__name__, self.create_affine.__name__)
-
-        slices = hdr.slices
-
-        # Create affine matrix
-        # (http://nipy.sourceforge.net/nibabel/dicom/dicom_orientation.html#dicom-slice-affine)
-        iop = self.getDicomAttribute(tag_for_keyword('ImageOrientationPatient'))
-        if iop is None:
-            return
-        image_orient1 = np.array(iop[0:3])
-        image_orient2 = np.array(iop[3:6])
-
-        pix_space = self.getDicomAttribute(tag_for_keyword('PixelSpacing'))
-        delta_r = float(pix_space[0])
-        delta_c = float(pix_space[1])
-
-        ipp = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'))
-        if ipp is None:
-            return
-        image_pos = np.array(ipp)
-
-        ippn = self.getDicomAttribute(tag_for_keyword('ImagePositionPatient'),
-                                      slice=slices - 1)
-        if ippn is None:
-            return
-        last_image_pos = np.array(ippn)
-
-        if slices == 1:
-            # Single slice
-            step = [0, 0, -1]
-        else:
-            step = (image_pos - last_image_pos) / (1 - slices)
-
-        # check if this is actually a volume and not all slices on the same location
-        if np.linalg.norm(step) == 0.0:
-            raise ValueError("NOT_A_VOLUME")
-
-        affine = np.matrix([
-            [-image_orient1[0] * delta_c, -image_orient2[0] * delta_r, -step[0], -image_pos[0]],
-            [-image_orient1[1] * delta_c, -image_orient2[1] * delta_r, -step[1], -image_pos[1]],
-            [image_orient1[2] * delta_c, image_orient2[2] * delta_r, step[2], image_pos[2]],
-            [0, 0, 0, 1]
-        ])
-        logger.debug('{}: affine\n{}'.format(_name, affine))
-        return affine
 
     @staticmethod
     def _calculate_slice_location(image: Dataset) -> float:
@@ -2954,15 +2849,3 @@ class DICOMPlugin(AbstractPlugin):
                 if found:
                     return idx
         raise ValueError('{}: Tag {:08x} ({}) not found'.format(_name, tag, tags))
-        # _tag = np.zeros(1, dtype=tuple)
-        # _tag[0] = tag
-        # idx_tuple = np.where(tags == _tag)
-        # idx = tuple()
-        # for _ in idx_tuple:
-        #     if len(_) > 0:
-        #         assert len(_) == 1, "{}: Too many indexes found".format(_name)
-        #         idx += (_[0],)
-        #     else:
-        #         idx += (0,)
-        # return idx
-
