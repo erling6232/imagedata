@@ -42,6 +42,12 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Keep last  image for   |
 |                         |                         |     |each position only.    |
 +-------------------------+-------------------------+-----+-----------------------+
+|read                     |sort_on_slice_location   |bool |Sort stack on slice    |
+|                         |                         |     |location, not on       |
+|                         |                         |     |distance along normal  |
+|                         |                         |     |vector.                |
+|                         |                         |     |Default: False         |
++-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_duplicate_tag     |bool |Accept series where tag|
 |                         |                         |     |is duplicated.         |
 |                         |                         |     |Each image is added    |
