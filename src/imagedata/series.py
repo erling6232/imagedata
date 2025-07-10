@@ -2417,6 +2417,16 @@ class Series(np.ndarray):
         """
 
         from scipy.interpolate import RegularGridInterpolator
+        
+        def homogenize(matrix):
+            """Convert 3x4 matrix to 4x4 homogeneous matrix if needed."""
+            if matrix.shape == (3, 4):
+                return np.vstack([matrix, [0, 0, 0, 1]])
+            elif matrix.shape == (4, 4):
+                return matrix
+            else:
+                raise ValueError("Transformation matrix must be 3x4 or 4x4.")
+
 
         if moving.color or reference.color:
             raise ValueError('Aligning color images not implemented.')
@@ -2425,93 +2435,97 @@ class Series(np.ndarray):
             if moving.frameOfReferenceUID != reference.frameOfReferenceUID:
                 raise ValueError('FrameOfReferenceUID differ. Use force=True to override')
 
-        # Final axes for aligned series are the reference axes
-
-        # Make reference grid in voxel coordinates
+        # Create voxel grid in reference space
         cs, cr, cc = np.meshgrid(
-            np.arange(0, reference.slices),
-            np.arange(0, reference.rows),
-            np.arange(0, reference.columns), indexing='ij'
+            np.arange(reference.slices),
+            np.arange(reference.rows),
+            np.arange(reference.columns),
+            indexing='ij'
         )
-        nc = np.ones(np.prod([reference.slices, reference.rows, reference.columns]))
-        cref = np.asanyarray([cs.flatten(), cr.flatten(), cc.flatten(), nc], dtype='int')
+        flat_voxels = np.vstack([
+            cs.flatten(),
+            cr.flatten(),
+            cc.flatten(),
+            np.ones(cs.size)
+        ])  # shape: (4, N)
 
-        # Convert reference voxel coordinates to real coordinates
-        xref = np.dot(reference.transformationMatrix, cref)
+        # Convert reference voxel coordinates to world coordinates
+        T_ref = homogenize(reference.transformationMatrix)
+        x_world = T_ref @ flat_voxels  # shape: (4, N)
 
-        # Generate voxel coordinated of reference image (moving in the space of the moving image
-        qinv = np.linalg.pinv(moving.transformationMatrix)
-        cref2mov = np.dot(qinv, xref)
+        # Map world coordinates to moving voxel coordinates
+        T_mov = homogenize(moving.transformationMatrix)
+        T_mov_inv = np.linalg.inv(T_mov)
+        moving_coords = T_mov_inv @ x_world  # shape: (4, N)
+        interp_coords = moving_coords[:3, :].T  # shape: (N, 3)
 
-        # Only use the first three coordinates, the last is just ones.
-        # Interpolation method requires transpose()
-        cref2mov = cref2mov[:3, :].transpose()
+        # Prepare output array
+        output_shape = (reference.slices, reference.rows, reference.columns)
 
-        if moving.ndim > 3:
-            tags = len(moving.tags[0])
-            tag_axis = moving.axes[0]
-            imreg = Series(
-                np.zeros([tags, reference.slices, reference.rows, reference.columns],
-                         dtype=moving.dtype),
-                input_order=moving.input_order,
-                template=moving, geometry=reference,
-                axes=[tag_axis, reference.axes.slice, reference.axes.row, reference.axes.column]
-            )
-
-            # Must convert to ndarray to slice the data
-            # immovnp = np.array(reference, dtype=float)
-            for i in range(tags):
-                fnc = RegularGridInterpolator(
-                    (np.arange(0, moving.slices),
-                     np.arange(0, moving.rows),
-                     np.arange(0, moving.columns)
-                     ),
-                    # immovnp[i],
-                    moving[i],
-                    method=interpolation,
-                    bounds_error=False,
-                    fill_value=fill_value
-                )
-
-                # Apply interpolator
-                imh = fnc(cref2mov)
-                if np.issubdtype(imreg.dtype, np.integer):
-                    # imh is always np.float64. Round to nearest integer
-                    imh = np.rint(imh)
-                imreg[i, ...] = np.reshape(imh,
-                                           (reference.slices, reference.rows, reference.columns))
-        elif moving.ndim == 3:
-            imreg = Series(
-                np.zeros([reference.slices, reference.rows, reference.columns],
-                         dtype=moving.dtype),
-                template=moving, geometry=reference,
-                axes=[reference.axes.slice, reference.axes.row, reference.axes.column]
-            )
-
-            # Must convert to ndarray to slice the data
-            # immovnp = np.array(reference, dtype=float)
+        if moving.ndim == 3:
+            # Regular 3D volume
             fnc = RegularGridInterpolator(
-                (np.arange(0, moving.slices),
-                 np.arange(0, moving.rows),
-                 np.arange(0, moving.columns)
-                 ),
-                # immovnp,
+                (np.arange(moving.slices),
+                 np.arange(moving.rows),
+                 np.arange(moving.columns)),
                 moving,
                 method=interpolation,
                 bounds_error=False,
                 fill_value=fill_value
             )
+            interpolated = fnc(interp_coords)
+            if np.issubdtype(moving.dtype, np.integer):
+                interpolated = np.rint(interpolated)
 
-            # Apply interpolator
-            imh = fnc(cref2mov)
-            if np.issubdtype(imreg.dtype, np.integer):
-                # imh is always np.float64. Round to nearest integer
-                imh = np.rint(imh)
-            imreg[:] = np.reshape(imh, (reference.slices, reference.rows, reference.columns))
+            result = interpolated.reshape(output_shape).astype(moving.dtype)
+
+            return Series(
+                result,
+                template=moving,
+                geometry=reference,
+                axes=[
+                    reference.axes.slice,
+                    reference.axes.row,
+                    reference.axes.column
+                ]
+            )
+
+        elif moving.ndim == 4:
+            # Handle 4D (e.g. time or tags)
+            n_tags = moving.shape[0]
+            result = np.zeros((n_tags, *output_shape), dtype=moving.dtype)
+
+            for i in range(n_tags):
+                fnc = RegularGridInterpolator(
+                    (np.arange(moving.slices),
+                     np.arange(moving.rows),
+                     np.arange(moving.columns)),
+                    moving[i],
+                    method=interpolation,
+                    bounds_error=False,
+                    fill_value=fill_value
+                )
+                interpolated = fnc(interp_coords)
+                if np.issubdtype(moving.dtype, np.integer):
+                    interpolated = np.rint(interpolated)
+                result[i] = interpolated.reshape(output_shape)
+
+            return Series(
+                result,
+                input_order=moving.input_order,
+                template=moving,
+                geometry=reference,
+                axes=[
+                    moving.axes[0],  # tag/time axis
+                    reference.axes.slice,
+                    reference.axes.row,
+                    reference.axes.column
+                ]
+            )
+
         else:
-            raise ValueError('Input has 2D, not implemented')
+            raise ValueError("Only 3D or 4D images are supported.")
 
-        return imreg
 
     def to_channels(self, channels, labels):
         """Create a Series object with channeled data.
