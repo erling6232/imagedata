@@ -8,9 +8,9 @@ import logging
 import mimetypes
 from collections import namedtuple
 import math
-import nibabel
-import nibabel.data
-import nibabel.spatialimages
+from nibabel import Nifti1Image, Nifti1Header, spatialimages
+from nibabel.nifti1 import load
+
 from ..series import Series
 import numpy as np
 from . import NotImageError, WriteNotImplemented
@@ -97,8 +97,8 @@ class NiftiPlugin(AbstractPlugin):
         #
         logger.debug("{}: load f {}".format(_name, f))
         try:
-            img = nibabel.load(f)
-        except nibabel.spatialimages.ImageDataError:
+            img = load(f)
+        except spatialimages.ImageDataError:
             raise NotImageError(
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
@@ -113,10 +113,7 @@ class NiftiPlugin(AbstractPlugin):
         if flip_y:
             img = self._nii_flip_y(img)
 
-        slice_direction = self._verify_nifti_slice_direction(img)
-        if slice_direction < 0:
-            img = self._nii_flip_slices(img)
-            # slice_direction = abs(slice_direction)
+        img = self._verify_nifti_slice_direction(img)
 
         si = self._reorder_to_dicom(
             np.asanyarray(img.dataobj),
@@ -197,10 +194,6 @@ class NiftiPlugin(AbstractPlugin):
         if sform is not None and scode != 0:
             logger.debug("{}: Method 3 - sform: orientation".format(_name))
 
-            # for c in range(4):  # NIfTI is RAS+, DICOM is LPS+
-            #     for r in range(2):
-            #         sform[r, c] = - sform[r, c]
-
             hdr.transformationMatrix = np.eye(4, dtype=np.float64)
             # NIfTI is RAS+, DICOM is LPS+
             hdr.transformationMatrix[:3, 0] = sform[:3, 2][::-1]
@@ -209,24 +202,17 @@ class NiftiPlugin(AbstractPlugin):
             hdr.transformationMatrix[:3, 3] = sform[:3, 3][::-1]
 
             q = sform[:3, :3]
-            # # p = sform[:3, 3]
-            # p = nibabel.affines.apply_affine(sform, (0, ny - 1, 0))
-            # if np.linalg.det(q) < 0:
-            #     q[:3, 1] = - q[:3, 1]
-            # # Note: rz, ry, rx, cz, cy, cx
+            # Note: rz, ry, rx, cz, cy, cx
             iop = np.array([
                 q[2, 0] / dx, q[1, 0] / dx, q[0, 0] / dx,
                 q[2, 1] / dy, q[1, 1] / dy, q[0, 1] / dy
             ])
             #
             p = sform[:3, 3]
+            ipp = p[::-1]
             for _slice in range(nz):
-                _p = np.array([
-                    (q[0, 2] * _slice + p[0]),  # NIfTI is RAS+, DICOM is LPS+
-                    (q[1, 2] * _slice + p[1]),
-                    (q[2, 2] * _slice + p[2])
-                ])
-                hdr.imagePositions[_slice] = _p[::-1]
+                hdr.imagePositions[_slice] = np.array(ipp)
+                ipp += hdr.transformationMatrix[:3, 0]
 
         elif qform is not None and qcode != 0:
             logger.debug("{}: Method 2 - qform: orientation".format(_name))
@@ -331,7 +317,6 @@ class NiftiPlugin(AbstractPlugin):
                     (times[tag], None, hdr.empty_ds())
                 )
 
-    # noinspection PyPep8Naming
     def write_3d_numpy(self, si, destination, opts):
         """Write 3D numpy image as Nifti file
 
@@ -402,14 +387,14 @@ class NiftiPlugin(AbstractPlugin):
             os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             img.to_filename(f.local_file)
 
-    def _save_dicom_to_nifti(self, si: Series) -> nibabel.Nifti1Image:
+    def _save_dicom_to_nifti(self, si: Series) -> Nifti1Image:
         """Convert DICOM to Nifti
         dcm2niix.saveDcm2Nii
 
         Args:
             si (Series): input Series instance
         Returns:
-            (nibabel.Nifti1Image): nifti instance
+            (Nifti1Image): nifti instance
         """
 
         img = self._nii_load_image(si)
@@ -418,32 +403,33 @@ class NiftiPlugin(AbstractPlugin):
             slice_direction = self._header_dicom_to_nifti_2(img.header, si)
         if slice_direction < 0:
             img = self._nii_flip_slices(img)
-            # slice_direction = abs(slice_direction)
-        # img = self._nii_set_ortho(img)
+        try:
+            if si.dicomTemplate['MRAcquisitionType'] == '3D':
+                img = self._nii_set_ortho(img)
+        except ValueError:
+            # No dicomTemplate in dataset
+            pass
         flip_y = True  # Always
         if flip_y:
             img = self._nii_flip_y(img)
         return img
 
-    def _nii_load_image(self, si):
+    def _nii_load_image(self, si: Series) -> Nifti1Image:
         """Create Nifti1Image from Series
         dcm2niix.nii_loadImgXL
 
         Args:
             si (Series): input Series instance
         Returns:
-            (nibabel.Nifti1Image): nifti instance
+            (Nifti1Image): nifti instance
         """
         hdr = self._header_dicom_to_nifti(si, compute_sform=True)
-        img = nibabel.Nifti1Image(self._reorder_from_dicom(si, flipud=True), None, hdr)
-        # img = self._nii_load_image_core(dcm, hdr)
-        # if img is None:
-        #     return img
-        # if hdr.get_data_dtype() == 128:  # DT_RGB24
+        img = Nifti1Image(self._reorder_from_dicom(si, flipud=True, flip=False), None, hdr)
         raw = hdr.structarr
         if raw['datatype'] == 128:  # DT_RGB24
             # Do this before Y-flip, or RGB order can be flipped
-            img = self._nii_rgb_to_planar(img, hdr, si.isPlanarRGB)
+            raise Exception('Loading nifti RGB data is not implemented')
+            # img = self._nii_rgb_to_planar(img, hdr, si.isPlanarRGB)
         # if dcm.CSA.mosaicSlices > 1:
         #     img = self._nii_de_mosaic(img, hdr, dcm.CSA.mosaicSlices
         # n_acq = si.slices
@@ -452,32 +438,18 @@ class NiftiPlugin(AbstractPlugin):
         #     # dim[3] = dim[2] // n_acq
         #     # dim[2] = n_acq
         #     dim = (dim[0], dim[1], n_acq, dim[2] // n_acq)
-        # if hdr.dim[0] > 3 and dcm.patientPositionSequentialRepeats > 1:
-        #     # Swizzle 3rd and 4th dimension (Philips stores time as 3rd dimension)
-        #     img = self._nii_xytz_xyzt(img, hdr, dcm.patientPositionsSequentialRepeats)
-        self._header_dicom_to_nifti_sform(hdr, si)
+        _ = self._header_dicom_to_nifti_sform(hdr, si)
         return img
-
-    # def _nii_load_image_core(self, dcm, hdr):
-    #     """dcm2niix.nii_loadImgCore
-    #     """
-    #     raise Exception('Not implemented')
-    #     return img
 
     def _nii_rgb_to_planar(self, img, hdr, is_planar_rgb):
         """dcm2niix.nii_rgb2planar
         """
         raise Exception('Not implemented')
 
-    def _nii_xytz_xyzt(self, img, hdr, patient_positions_sequential_repeats):
-        """dcm2niix.nii_XYTZ_XYZT
-        """
-        raise Exception('Not implemented')
-
-    def _header_dicom_to_nifti(self, dcm, compute_sform=False):
+    def _header_dicom_to_nifti(self, dcm: Series, compute_sform: bool =False) -> Nifti1Header:
         """dcm2niix.headerDcm2Nii
         """
-        hdr = nibabel.Nifti1Header()
+        hdr = Nifti1Header()
         if dcm.itemsize == 1 and dcm.axes[0].name == 'rgb':
             hdr.set_intent('estimate')
         hdr.set_data_dtype(dcm.dtype)
@@ -513,12 +485,12 @@ class NiftiPlugin(AbstractPlugin):
             self._header_dicom_to_nifti_2(hdr, dcm)
         return hdr
 
-    def _header_dicom_to_nifti_2(self, hdr: nibabel.Nifti1Header, dcm: Series):
+    def _header_dicom_to_nifti_2(self, hdr: Nifti1Header, dcm: Series) -> int:
         """Set Nifti1 header from Series instance
         dcm2niix.headerDcm2Nii2
 
         Args:
-            hdr (nibabel.Nifti1Header): nifti header
+            hdr (Nifti1Header): nifti header
             dcm (Series): Series instance
         Returns:
             sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
@@ -541,11 +513,11 @@ class NiftiPlugin(AbstractPlugin):
         # hdr.set_description(txt)
         return self._header_dicom_to_nifti_sform(hdr, dcm)
 
-    def _header_dicom_to_nifti_sform(self, hdr: nibabel.Nifti1Header, dcm: Series):
+    def _header_dicom_to_nifti_sform(self, hdr: Nifti1Header, dcm: Series):
         """dcm2niix.headerDcm2NiiSForm
 
         Args:
-            hdr (nibabel.Nifti1Header): nifti header
+            hdr (Nifti1Header): nifti header
             dcm (Series): Series instance
         Returns:
             sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
@@ -555,6 +527,8 @@ class NiftiPlugin(AbstractPlugin):
             q44, slice_direction = self._set_nii_header_x(dcm)
             hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
             hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+            flip_slice = slice_direction < 0
+            hdr['descrip'] = b'flip_slice=%d' % flip_slice
             return slice_direction
         is_ok = False
         for i in range(6):
@@ -567,6 +541,8 @@ class NiftiPlugin(AbstractPlugin):
         q44, slice_direction = self._set_nii_header_x(dcm)
         hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
         hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        flip_slice = slice_direction < 0
+        hdr['descrip'] = b'flip_slice=%d' % flip_slice
         return slice_direction
 
     def _set_nii_header_x(self, dcm: Series):
@@ -579,16 +555,6 @@ class NiftiPlugin(AbstractPlugin):
             sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
         """
         q44 = self._nifti_dicom_to_mat(dcm.orientation, dcm.imagePositions[0], dcm.spacing)
-        # if dcm.isSegamiOasis:
-        #     q44 = np.array([[-h.pixdim[1], 0, 0, 0],
-        #                     [0, -h.pixdim[2], 0, 0],
-        #                     [0, 0, h.pixdim[3], 0],
-        #                     [0, 0, 0, 0]])
-        #     originVx = np.array([(h.dim[1]+1.0)/2, (h.dim[2]+1.0])/2, (h.dim[3]+1.0)/2])
-        #     originMm = np.matmul(originVx, q44)
-        #     for i in range(4):
-        #         q44[i, 3] = -originMm[i]  # Set origin to center voxel
-        #     return q44, slice_direction
         # if d.CSA.mosaicSlices > 1:
         #     pass
         slice_direction = self._verify_slice_direction(dcm, q44)
@@ -660,14 +626,12 @@ class NiftiPlugin(AbstractPlugin):
             slice_direction = 2
         if (abs(r[2, 2]) >= abs(r[0, 2])) and (abs(r[2, 2]) >= abs(r[1, 2])):
             slice_direction = 3
-        pos_dicom = None
         try:
-            # Last slice in stack
+            # Position of last slice in stack in the slice_direction
             pos_dicom = dcm.imagePositions[dcm.slices - 1][::-1][slice_direction - 1]  # zyx to xyz
         except ValueError:
-            pass
-        x = np.array([0.0, 0.0, dcm.slices - 1.0, 1.0])
-        # pos1v = np.matmul(x, r)
+            pos_dicom = None
+        x = np.array([0, 0, dcm.slices - 1, 1], dtype=np.float64)
         pos1v = _nifti_vect44mat44_mul(x, r)
         pos_nifti = pos1v[slice_direction - 1]  # -1 as C index from 0
         if pos_dicom is None:
@@ -678,56 +642,63 @@ class NiftiPlugin(AbstractPlugin):
             slice_v = np.cross(read_v, phase_v)
             flip = np.sum(slice_v) < 0
         else:
-            # same direction? note C indices from 0
+            # same direction?
             flip = (pos_dicom > r[slice_direction - 1, 3]) != (pos_nifti > r[slice_direction - 1, 3])
         if flip:
             r[:, 2] = -r[:, 2]
-            slice_direction = -slice_direction
+            # slice_direction = -slice_direction
         return slice_direction
 
-    def _verify_nifti_slice_direction(self, img: nibabel.Nifti1Image) -> int:
+    def _verify_nifti_slice_direction(self, img: Nifti1Image) -> Nifti1Image:
         """Calculate slice direction.
+        dcm2niix.verify_slice_dir
 
         Args:
-            img (nibabel.Nifti1Image): nifti image instance
+            img (Nifti1Image): nifti image instance
         Returns:
             sliceDir (int): 0=unknown,1=sag,2=coro,3=axial,-=reversed slices
         """
         h = img.header
-        slice_direction = 0
+        # slice_direction = 0
         dim = h.get_data_shape()
-        if dim[2] < 2:
-            return slice_direction
+        # if dim[2] < 2:
+        #     return slice_direction
 
-        # find Z-slice direction: row with highest magnitude of 1st column
+        # find Z-slice direction: row with the highest magnitude of 1st column
         q44 = h.get_sform()
-        slice_direction = -1  # By convention all sagital series are reversed
+        slice_direction = 1
         if (abs(q44[1, 2]) >= abs(q44[0, 2])) and (abs(q44[1, 2]) >= abs(q44[2, 2])):
             slice_direction = 2
         if (abs(q44[2, 2]) >= abs(q44[0, 2])) and (abs(q44[2, 2]) >= abs(q44[1, 2])):
             slice_direction = 3
 
-        if slice_direction < 0:
-            sform = h.get_sform()[:3, :3]
-            q44 = h.get_sform()
-            v = np.array([0, 0, dim[2] - 1, 1], dtype=float)
-            v = _nifti_vect44mat44_mul(v, q44)  # after flip this voxel will be the origin
-            mFlipZ = np.array([[1, 0, 0], [0, 1, 0], [0, 0, -1]], dtype=np.float64)
-            sform = np.matmul(sform, mFlipZ)
-            q44[:3, :3] = sform
-            q44[:, 3] = v
+        # RAS to LPS
+        q44[:2, :] = -q44[:2, :]
+        descrip = str(h['descrip'].astype(str)).split(';')
+        flip_slice = 0
+        for txt in descrip:
+            if 'flip_slice' in txt:
+                flip_slice = int(txt.split('=')[1])
+        if flip_slice:
+            q44[:, 2] = - q44[:, 2]
+            slice_direction = - slice_direction
 
-        q44[:2, :4] = -q44[:2, :4]  # Swap rows 0 and 1 (Nifti RAS to LPS)
+        if slice_direction < 0:
+            img = self._nii_flip_slices(img)
+            q44 = img.get_sform()
+            x = np.array([0, 0, dim[2] - 1, 1], dtype=np.float64)
+            q44[:, 3] = _nifti_vect44mat44_mul(x, q44)
+
         img.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
         img.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
-        return slice_direction
+        return img
 
-    def _nii_flip_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+    def _nii_flip_slices(self, img: Nifti1Image) -> Nifti1Image:
         """Flip slice order in img
         dcm2niix.nii_flipZ
 
         Args:
-            img (nibabel.Nifti1Image): nifti instance
+            img (Nifti1Image): nifti instance
         """
 
         hdr = img.header
@@ -742,17 +713,17 @@ class NiftiPlugin(AbstractPlugin):
         sform = np.matmul(sform, mFlipZ)
         q44[:3, :3] = sform
         q44[:, 3] = v
-        hdr.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
-        hdr.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        img.set_qform(q44, NIFTI_XFORM_SCANNER_ANAT)
+        img.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
         return self._nii_flip_image_slices(img)
 
-    def _nii_flip_image_slices(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+    def _nii_flip_image_slices(self, img: Nifti1Image) -> Nifti1Image:
         """Flip slice order of actual image.
         DICOM slice order opposite of NIfTI.
         dcm2niix.nii_flipImgZ
 
         Args:
-            img (nibabel.Nifti1Image): nifti instance
+            img (Nifti1Image): nifti instance
         """
         hdr = img.header
         dim = hdr.get_data_shape()
@@ -767,14 +738,17 @@ class NiftiPlugin(AbstractPlugin):
             tmp = np.array(data[:, :, z, ...])
             data[:, :, z, ...] = data[:, :, slices - z - 1, ...]
             data[:, :, slices - z - 1, ...] = tmp
-        return nibabel.Nifti1Image(data, img.affine, img.header)
+        return Nifti1Image(data, img.affine, img.header)
 
-    def _nii_set_ortho(self, img: nibabel.Nifti1Image):
+    def _nii_set_ortho(self, img: Nifti1Image) -> Nifti1Image:
         """
         Set ortho
+        dcm2niix.nii_setOrtho
 
         Args:
-            img (nibabel.Nifti1Image): nifti image
+            img (Nifti1Image): nifti image
+        Returns:
+            img (Nifti1Image): nifti image
         """
 
         def isMat44Canonical(R: np.ndarray) -> bool:
@@ -794,13 +768,13 @@ class NiftiPlugin(AbstractPlugin):
                 ret[i] = R[i, 0] * v[0] + R[i, 1] * v[1] + R[i, 2] * v[2] + R[i, 3]
             return ret
 
-        def getDistance(v: np.ndarray, _min: np.ndarray) -> float:
+        def getDistance(v: np.ndarray, m: np.ndarray) -> float:
             # Scalar distance between two 3D points - Pythagorean theorem
-            return math.sqrt(math.pow((v[0] - _min[0]), 2) +
-                             math.pow((v[1] - _min[1]), 2) +
-                             math.pow((v[2] - _min[2]), 2))
+            return math.sqrt(math.pow((v[0] - m[0]), 2) +
+                             math.pow((v[1] - m[1]), 2) +
+                             math.pow((v[2] - m[2]), 2))
 
-        def minCornerFlip(h: nibabel.Nifti1Header) -> tuple:
+        def minCornerFlip(h: Nifti1Header) -> tuple:
             # Orthogonal rotations and reflections applied as 3x3 matrices will cause the origin
             # to shift. A simple solution is to first compute the most left, posterior, inferior
             # voxel in the source image. This voxel will be at location i,j,k = 0,0,0, so we can
@@ -814,9 +788,12 @@ class NiftiPlugin(AbstractPlugin):
             dim = h.get_data_shape()
             for i in range(8):
                 flipVecs[i] = np.zeros(3, dtype=int)
-                flipVecs[i][0] = -1 if (i & 1) == 1 else 1
-                flipVecs[i][1] = -1 if (i & 2) == 1 else 1
-                flipVecs[i][2] = -1 if (i & 4) == 1 else 1
+                # flipVecs[i][0] = -1 if (i & 1) == 1 else 1
+                # flipVecs[i][1] = -1 if (i & 2) == 2 else 1
+                # flipVecs[i][2] = -1 if (i & 4) == 4 else 1
+                flipVecs[i][0] = -1 if i & 1 else 1
+                flipVecs[i][1] = -1 if i & 2 else 1
+                flipVecs[i][2] = -1 if i & 4 else 1
                 corner[i] = np.array([0., 0., 0.])  # assume no reflections
                 if (flipVecs[i][0]) < 1:
                     corner[i][0] = dim[0] - 1  # reflect X
@@ -826,17 +803,16 @@ class NiftiPlugin(AbstractPlugin):
                     corner[i][2] = dim[2] - 1  # reflect Z
                 corner[i] = xyz2mm(s, corner[i])
             # find extreme edge from ALL corners....
-            _min = corner[0]
-            for i in range(8):
+            _min = np.array(corner[0])
+            for i in range(1, 8):
                 for j in range(3):
                     if corner[i][j] < _min[j]:
                         _min[j] = corner[i][j]
-            # dx: observed distance from corner
             min_dx = getDistance(corner[0], _min)
             min_index = 0  # index of corner closest to _min
             # see if any corner is closer to absmin than the first one...
-            for i in range(8):
-                dx = getDistance(corner[i], _min)
+            for i in range(1, 8):
+                dx = getDistance(corner[i], _min)  # observed distance from corner
                 if dx < min_dx:
                     min_dx = dx
                     min_index = i
@@ -845,7 +821,7 @@ class NiftiPlugin(AbstractPlugin):
 
         def getOrthoResidual(orig: np.ndarray, transform: np.ndarray) -> float:
             # mat33 mat = matDotMul33(orig, transform);
-            mat = orig @ transform
+            mat = orig * transform
             return np.sum(mat)
 
         def getBestOrient(R: np.ndarray, flipVec: np.ndarray) -> np.ndarray:
@@ -879,7 +855,7 @@ class NiftiPlugin(AbstractPlugin):
                 newval = getOrthoResidual(orig, newmat)
                 if newval > best:
                     best = newval
-                    ret = newmat
+                    ret = newmat.copy()
             return ret
 
         def setOrientVec(m: np.ndarray) -> np.ndarray:
@@ -908,8 +884,8 @@ class NiftiPlugin(AbstractPlugin):
                     lut[i] = lut[i - 1] + stepBytesPerVox
             return lut
 
-        def reOrientImg(img: nibabel.Nifti1Image, outDim: np.ndarray, outInc: np.ndarray,
-                        nvol: int) -> nibabel.Nifti1Image:
+        def reOrientImg(img: Nifti1Image, outDim: np.ndarray, outInc: np.ndarray,
+                        nvol: int) -> Nifti1Image:
             # Reslice data to new orientation
             # Generate look up tables
             xLUT = orthoOffsetArray(outDim[0], outInc[0])
@@ -925,7 +901,6 @@ class NiftiPlugin(AbstractPlugin):
             outbuf = np.empty_like(inbuf)
             o = 0
             for vol in range(nvol):  # for each volume
-                # memcpy(&inbuf[0], &outbuf[vol*bytePerVol], bytePerVol)  # copy source volume
                 for z in range(outDim[2]):
                     for y in range(outDim[1]):
                         for x in range(outDim[0]):
@@ -933,9 +908,11 @@ class NiftiPlugin(AbstractPlugin):
                             outbuf[o] = inbuf[vol * perVol + xLUT[x] + yLUT[y] + zLUT[z]]
                             o += 1
             outbuf = np.reshape(outbuf, tuple(outDim))
-            return nibabel.Nifti1Image(outbuf, img.affine, img.header)
+            return Nifti1Image(outbuf, img.affine, img.header)
 
-        def reOrient(img, h, orientVec, orient, minMM):
+        def reOrient(img: Nifti1Image, h: Nifti1Header,
+                     orientVec: np.ndarray, orient: np.ndarray, minMM: np.ndarray)\
+                -> Nifti1Image:
             # e.g. [-1,2,3] means reflect x axis, [2,1,3] means swap x and y dimensions
 
             columns, rows, slices = h.get_data_shape()
@@ -997,7 +974,7 @@ class NiftiPlugin(AbstractPlugin):
         if isMat44Canonical(s):
             logger.debug("{}: Image in perfect alignment: no need to reorient".format(_name))
             return img
-        flipV = np.zeros(3)
+        # flipV = np.zeros(3, dtype=int)
         minMM, flipV = minCornerFlip(h)
         orient = getBestOrient(s, flipV)
         orientVec = setOrientVec(orient)
@@ -1016,14 +993,14 @@ class NiftiPlugin(AbstractPlugin):
         ))
         return img
 
-    def _nii_flip_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+    def _nii_flip_y(self, img: Nifti1Image) -> Nifti1Image:
         """Flip image along Y direction.
         dcm2niix.nii_flipY
 
         Args:
-            img (nibabel.Nifti1Image): input instance
+            img (Nifti1Image): input instance
         Returns:
-            (nibabel.Nifti1Image): flipped nifti image
+            (Nifti1Image): flipped nifti image
         """
         hdr = img.header
         dim = hdr.get_data_shape()
@@ -1040,16 +1017,16 @@ class NiftiPlugin(AbstractPlugin):
         img.set_sform(q44, NIFTI_XFORM_SCANNER_ANAT)
         return self._nii_flip_image_y(img)
 
-    def _nii_flip_image_y(self, img: nibabel.Nifti1Image) -> nibabel.Nifti1Image:
+    def _nii_flip_image_y(self, img: Nifti1Image) -> Nifti1Image:
         """Flip image data along Y direction.
         dcm2niix.nii_flipImgY
 
         Args:
-            img (nibabel.Nifti1Image): input instance
+            img (Nifti1Image): input instance
         Returns:
-            (nibabel.Nifti1Image): flipped nifti image
+            (Nifti1Image): flipped nifti image
         """
-        hdr = img.header
+        hdr: Nifti1Header = img.header
         dim = hdr.get_data_shape()
         y_size = dim[1]
         half_y = y_size // 2
@@ -1059,7 +1036,7 @@ class NiftiPlugin(AbstractPlugin):
             tmp = np.array(data[:, y, ...])
             data[:, y, ...] = data[:, y_size - y - 1, ...]
             data[:, y_size - y - 1, ...] = tmp
-        return nibabel.Nifti1Image(data, img.affine, img.header)
+        return Nifti1Image(data, img.affine, img.header)
 
 
 def _nifti_vect44mat44_mul(v, m):
