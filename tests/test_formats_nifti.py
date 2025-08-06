@@ -145,9 +145,6 @@ class TestReadWriteNIfTIPlugin(unittest.TestCase):
                                        atol=1e-4, err_msg="nifti vs dicom spacing")
 
         for s in range(dcm.slices):
-            calc = dcm.getPositionForVoxel(np.array([s, 0, 0]))
-            dpos = dcm.imagePositions[s]
-            npos = nifti.imagePositions[s]
             np.testing.assert_allclose(nifti.imagePositions[s].reshape(3), dcm.imagePositions[s].reshape(3),
                                        atol=1e-3, err_msg="imagePositions[{}]".format(s))
         np.testing.assert_allclose(nifti.orientation, dcm.orientation,
@@ -188,12 +185,6 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_sag_ap(self):
         dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'), input_format='dicom')
         nifti = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'), input_format='nifti')
-        with tempfile.TemporaryDirectory() as d:
-            dcm.write(os.path.join(d, 'orig'), formats=['dicom'])
-            nifti.write(os.path.join(d, 'new'), formats=['dicom'])
-            diff = dcm - nifti
-            diff.write(os.path.join(d, 'diff'), formats=['dicom'])
-            pass
         self._compare_dicom_data(dcm, nifti)
 
     def test_compare_sag_hf(self):
@@ -209,14 +200,7 @@ class TestReadNIfTIPlugin(unittest.TestCase):
     def test_compare_cor_hf(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'), input_format='dicom')
         nifti = Series(os.path.join('data', 'nifti', 'cor_hf.nii.gz'), input_format='nifti')
-        corr = nifti.align(dcm, force=True)
-        diff = dcm - corr
-        with tempfile.TemporaryDirectory() as d:
-            diff.write(os.path.join(d, 'diff'), formats=['dicom'])
-            corr.write(os.path.join(d, 'corr'), formats=['dicom'])
-            pass
         self._compare_dicom_data(dcm, nifti)
-        self._compare_dicom_data(dcm, corr)
 
     def test_compare_cor_oblique(self):
         dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'), input_format='dicom')
@@ -237,6 +221,14 @@ class TestReadNIfTIPlugin(unittest.TestCase):
         dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'), input_format='dicom')
         nifti = Series(os.path.join('data', 'nifti', 'tra_rl.nii.gz'), input_format='nifti')
         self._compare_dicom_data(dcm, nifti)
+
+
+class Test2DNIfTIPlugin(unittest.TestCase):
+    def test_read_single_slice(self):
+        dcm = Series(os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'), input_format='dicom')
+        with tempfile.TemporaryDirectory() as d:
+            dcm.write(d, formats=['nifti'])
+            _ = Series(d, input_format='nifti')
 
 
 class Test3DNIfTIPlugin(unittest.TestCase):
