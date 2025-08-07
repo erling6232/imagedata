@@ -2,13 +2,15 @@
 
 """Read/write image data to file(s). Handles DICOM, Nifti, VTI and mhd."""
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import sys
 import os.path
+import shutil
 import argparse
 import urllib
 import logging
+import pydicom
 from datetime import datetime, date, time
 import numpy as np
 from .cmdline import add_argparse_options
@@ -17,6 +19,108 @@ from .readdata import _get_sources
 from .transports import Transport
 from .series import Series
 from .collection import Cohort
+
+
+def safe_string(str):
+    str = f'{str}'.replace(' ', '_')
+    keepcharacters = ('.', '_')
+    return "".join(c for c in str if c.isalnum() or c in keepcharacters).rstrip()
+
+
+def sort(args=sys.argv[1:]):
+
+    parser = argparse.ArgumentParser()
+    add_argparse_options(parser)
+    parser.add_argument("destination", help="Destination directory")
+    parser.add_argument("in_dirs", nargs='+',
+                        help="Input directories and files")
+    args = parser.parse_args(args)
+
+    logging.basicConfig(level=args.loglevel)
+    logger = logging.getLogger()
+
+    # Let in_opts be a dict from args
+    if args is None:
+        in_opts = {}
+    elif issubclass(type(args), dict):
+        in_opts = args
+    elif issubclass(type(args), argparse.Namespace):
+        in_opts = vars(args)
+    else:
+        raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
+    in_opts['skip_pixels'] = True
+
+    logger.debug("in_dirs {}".format(args.in_dirs))
+    sources = _get_sources(args.in_dirs, mode='r')
+
+    if os.path.exists(args.destination):
+        raise FileExistsError(f'Destination directory {args.destination} already exists')
+
+    image_dict = {}
+    for source in sources:
+        archive = source['archive']
+        scan_files = source['files']
+        if scan_files is None or len(scan_files) == 0:
+            scan_files = ['*']
+        for path in archive.getnames(scan_files):
+            if os.path.basename(path) == 'DICOMDIR':
+                continue
+            try:
+                im = pydicom.filereader.dcmread(path, stop_before_pixels=True)
+            except pydicom.errors.InvalidDicomError as e:
+                continue
+            except Exception:
+                raise
+            if im.PatientID not in image_dict:
+                image_dict[im.PatientID] = {None: safe_string(im.PatientName)}
+            if im.StudyInstanceUID not in image_dict[im.PatientID]:
+                try:
+                    studes = safe_string(im.StudyDescription)
+                except AttributeError:
+                    studes = ''
+                try:
+                    studat = im.StudyDate
+                except AttributeError:
+                    studat = '00000000'
+                try:
+                    stutim = im.StudyTime
+                except AttributeError:
+                    stutim = '000000'
+                image_dict[im.PatientID][im.StudyInstanceUID] = {None: f'{studes}_{studat}_{stutim}'}
+            if im.SeriesInstanceUID not in image_dict[im.PatientID][im.StudyInstanceUID]:
+                try:
+                    serdes = safe_string(im.SeriesDescription)
+                except AttributeError:
+                    serdes = ''
+                image_dict[im.PatientID][im.StudyInstanceUID][im.SeriesInstanceUID] = [f'{im.SeriesNumber}_{serdes}']
+            image_dict[im.PatientID][im.StudyInstanceUID][im.SeriesInstanceUID].append(path)
+
+    path = args.destination
+    for pat in image_dict.keys():
+        pat_path = path
+        if len(image_dict) > 1:
+            pat_path = os.path.join(path, f'{pat}_{image_dict[pat][None]}')
+        os.makedirs(pat_path, exist_ok=True)
+        for study in image_dict[pat].keys():
+            if study is None:
+                continue
+            study_path = pat_path
+            if len(image_dict) > 1 or len(image_dict[pat]) > 2:  # studes count as 1
+                study_path = os.path.join(pat_path, f'{image_dict[pat][study][None]}')
+            os.makedirs(study_path, exist_ok=True)
+            for series in image_dict[pat][study].keys():
+                if series is None:
+                    continue
+                series_path = study_path
+                if len(image_dict) > 1 or len(image_dict[pat]) > 2 or len(image_dict[pat][study]) > 2:  # studes and serdes count as 1
+                    series_path = os.path.join(study_path, f'{image_dict[pat][study][series][0]}')
+                os.makedirs(series_path, exist_ok=True)
+                for fname in image_dict[pat][study][series][1:]:
+                    try:
+                        shutil.copy(fname, series_path)
+                    except Exception:
+                        raise
+    return 0
 
 
 def dump():
@@ -37,6 +141,7 @@ def dump():
         in_opts = vars(args)
     else:
         raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
+    in_opts['skip_pixels'] = True
 
     reader = find_plugin('dicom')
     logger.debug("in_dirs {}".format(args.in_dirs))
@@ -57,7 +162,7 @@ def dump():
             member = member[0]
             try:
                 with archive.open(member, mode='rb') as f:
-                    reader._sort_datasets(image_dict, archive, path, f, in_opts, skip_pixels=True)
+                    reader._sort_datasets(image_dict, archive, path, f, in_opts)
             except Exception:
                 raise
 

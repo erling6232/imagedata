@@ -80,6 +80,7 @@ test-command = "coverage run -m unittest discover imagedata/tests -t imagedata"
 
 [project.scripts]
 dicom_dump = "imagedata.image_data:dump"
+dicom_sort = "imagedata.image_data:sort"
 image_calculator = "imagedata.image_data:calculator"
 image_data = "imagedata.image_data:conversion"
 image_list = "imagedata.image_data:image_list"
