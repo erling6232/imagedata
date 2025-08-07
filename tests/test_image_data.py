@@ -1,12 +1,6 @@
 import unittest
 import os.path
 import tempfile
-from collections import namedtuple
-import pickle
-import numpy as np
-from numpy.random import default_rng
-import copy
-import pydicom.datadict
 
 from src.imagedata.image_data import sort
 

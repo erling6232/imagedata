@@ -35,9 +35,6 @@ def sort(args=sys.argv[1:]):
                         help="Input directories and files")
     args = parser.parse_args(args)
 
-    logging.basicConfig(level=args.loglevel)
-    logger = logging.getLogger()
-
     # Let in_opts be a dict from args
     if args is None:
         in_opts = {}
@@ -49,7 +46,6 @@ def sort(args=sys.argv[1:]):
         raise TypeError('Unknown args type ({}): {}'.format(type(args), args))
     in_opts['skip_pixels'] = True
 
-    logger.debug("in_dirs {}".format(args.in_dirs))
     sources = _get_sources(args.in_dirs, mode='r')
 
     if os.path.exists(args.destination):
