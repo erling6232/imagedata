@@ -30,7 +30,6 @@ def safe_string(str):
 def sort(args=sys.argv[1:]):
 
     parser = argparse.ArgumentParser()
-    add_argparse_options(parser)
     parser.add_argument("destination", help="Destination directory")
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
