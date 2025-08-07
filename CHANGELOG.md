@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.6-rc0] - 2025-08-07
+### Added
+* dicom_sort commandline program.
+
 ## [v3.8.5] - 2025-08-07
 ### Changed
 * DICOMPlugin: Reworked sorting slices into stacks based on slice location.
