@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * DICOMPlugin: Reworked sorting slices into stacks based on slice location.
   Slice location is now determined by the distance along the normal vector to the plane.
 * DICOMPlugin: Legacy slice sorting can be enabled by setting `sort_on_slice_location` to True.
-* NiftiPlugin: Improved geometry handling following the dcm2niix implementation..
+* NiftiPlugin: Improved geometry handling following the dcm2niix implementation.
 
 ## [v3.8.5-rc1] - 2025-08-06
 ### Changed
