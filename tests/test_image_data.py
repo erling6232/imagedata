@@ -15,7 +15,7 @@ class TestImageData(unittest.TestCase):
 
     def test_sort(self):
         with tempfile.TemporaryDirectory() as d:
-            sort([d, 'data/dicom'])
+            sort([os.path.join(d, 'sort'), 'data/dicom'])
 
 
 if __name__ == '__main__':
