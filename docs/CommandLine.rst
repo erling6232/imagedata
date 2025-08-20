@@ -28,6 +28,15 @@ Example of output on a MR diffusion-weighted acquisition:
     ImaTyp DERIVED: 90 images
     Echo 1: 90 images
 
+dicom_sort
+--------------
+
+Sort DICOM files into folders for each patient, study and series.
+'dicom_sort' will attempt to assign meaningful names to the folders.
+
+Usage:
+    dicom_sort <destination> <list of input directories and files>
+
 image_calculator
 ---------------------
 Calculate a new series based on existing series.
