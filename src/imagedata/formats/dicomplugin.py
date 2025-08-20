@@ -375,6 +375,8 @@ class DICOMPlugin(AbstractPlugin):
         imaging_dataset_dict = self._select_imaging_datasets(dataset_dict, opts)
         non_imaging_dataset_dict: DatasetDict
         non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict, opts)
+        logger.debug('{}: imaging_datasets {}'.format(_name, len(imaging_dataset_dict)))
+        logger.debug('{}: non_imaging_datasets {}'.format(_name, len(non_imaging_dataset_dict)))
 
         sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
         pixel_dict: PixelDict = PixelDict()
@@ -651,7 +653,24 @@ class DICOMPlugin(AbstractPlugin):
             sorting[seriesUID] = 'none'
             dataset_dict: DatasetList
             dataset_dict = image_dict[seriesUID]
-            sorted_dataset = self._sort_dataset_geometry(dataset_dict, opts)
+            try:
+                message = '{} ({})'.format(dataset_dict[0].SeriesDescription, dataset_dict[0].SeriesNumber)
+            except AttributeError:
+                try:
+                    message = '{} ({})'.format('', dataset_dict[0].SeriesNumber)
+                except AttributeError:
+                    message = '{}'.format(dataset_dict[0].SeriesInstanceUID)
+            try:
+                sorted_dataset = self._sort_dataset_geometry(dataset_dict, message, opts)
+            except CannotSort as e:
+                logger.debug('{}: _sort_dataset_geometry CannotSort: {}'.format(_name, e))
+                if skip_broken_series:
+                    continue
+            except Exception as e:
+                logger.debug('{}: _sort_dataset_geometry {} {}'.format(_name, type(e).__name__, e))
+                import traceback
+                traceback.print_exc()
+                raise
 
             # Determine (automatic) sorting
             try:
@@ -759,7 +778,7 @@ class DICOMPlugin(AbstractPlugin):
                      ) -> SortedHeaderDict:
         """Get DICOM headers"""
 
-        def _verify_consistent_slices(series: SortedDatasetList) -> Counter:
+        def _verify_consistent_slices(series: SortedDatasetList, message: str) -> Counter:
             _name: str = '{}.{}'.format(__name__, _verify_consistent_slices.__name__)
             # Verify same number of images for each slice
             slice_count = Counter()
@@ -774,8 +793,9 @@ class DICOMPlugin(AbstractPlugin):
             min_slice_count = min(slice_count.values())
             max_slice_count = max(slice_count.values())
             if min_slice_count != max_slice_count and not accept_uneven_slices:
-                logger.error("{}: tags per slice: {}".format(_name, slice_count))
+                logger.error("{}: tags per slice: {}".format(message, slice_count))
                 raise CannotSort(
+                    "{}: ".format(message) +
                     "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
                     "\nLast file: {}".format(series[last_sloc][0].filename) +
                     "\nCould try 'split_acquisitions=True' or 'split_echo_numbers=True'."
@@ -1003,7 +1023,8 @@ class DICOMPlugin(AbstractPlugin):
         def _extract_all_tags(hdr: Header,
                               series: SortedDatasetList,
                               input_order: str,
-                              slice_count: Counter
+                              slice_count: Counter,
+                              message: str
                               ) -> None:
 
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
@@ -1064,7 +1085,7 @@ class DICOMPlugin(AbstractPlugin):
                             if accept_duplicate_tag:
                                 pass
                             else:
-                                print("WARNING: Duplicate tag", tag)
+                                print("WARNING: {}: Duplicate tag {}".format(message, tag))
                     except KeyError:
                         pass
                     sorted_headers[islice][idx] = (tag, im)
@@ -1114,7 +1135,19 @@ class DICOMPlugin(AbstractPlugin):
             if 'SamplesPerPixel' in last_im and last_im.SamplesPerPixel == 3:
                 hdr.color = True
             hdr.axes = axes
-            self._extract_dicom_attributes(series, hdr, opts=opts)
+            self._extract_dicom_attributes(series, hdr, message, opts=opts)
+
+        def _get_printable_description(series: SortedDatasetList) -> str:
+            """Get printable description of series"""
+            dataset = series[next(iter(series))][0]
+            try:
+                message = '{} ({})'.format(dataset.SeriesDescription, dataset.SeriesNumber)
+            except AttributeError:
+                try:
+                    message = '{} ({})'.format('', dataset.SeriesNumber)
+                except AttributeError:
+                    message = '{}'.format(dataset.SeriesInstanceUID)
+            return message
 
         _name: str = '{}.{}'.format(__name__, self._get_headers.__name__)
 
@@ -1132,9 +1165,11 @@ class DICOMPlugin(AbstractPlugin):
             if len(series_dataset) == 0:
                 raise ValueError("No DICOM images found.")
 
+            message = _get_printable_description(series_dataset)
+
             try:
-                slice_count = _verify_consistent_slices(series_dataset)
-                _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count)
+                slice_count = _verify_consistent_slices(series_dataset, message)
+                _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count, message)
                 sorted_header_dict[seriesUID] = hdr
             except CannotSort:
                 if skip_broken_series:
@@ -1358,6 +1393,7 @@ class DICOMPlugin(AbstractPlugin):
     def _extract_dicom_attributes(self,
                                   series: SortedDatasetList,
                                   hdr: Header,
+                                  message: str,
                                   opts: dict = None
                                   ) -> None:
         """Extract DICOM attributes
@@ -1366,6 +1402,7 @@ class DICOMPlugin(AbstractPlugin):
             self: DICOMPlugin instance
             series: SortedDatasetList
             hdr: existing header (Header)
+            message: series description
             opts:
         Returns:
             hdr: header
@@ -1403,7 +1440,7 @@ class DICOMPlugin(AbstractPlugin):
         warned = False
         for i in range(len(series)):
             if not warned and not np.allclose(ipp, hdr.imagePositions[i], rtol=1e-3):
-                logger.warning('DICOM ImagePosition is inconsistent with ImageOrientation')
+                logger.warning('{}: DICOM ImagePosition is inconsistent with ImageOrientation'.format(message))
                 warned = True
             ipp += hdr.transformationMatrix[:3, 0]
 
@@ -1427,8 +1464,10 @@ class DICOMPlugin(AbstractPlugin):
             except ValueError:
                 pass
 
-    def _sort_dataset_geometry(self, dictionary: DatasetList, opts: dict = None) -> SortedDatasetList:
+    def _sort_dataset_geometry(self, dictionary: DatasetList, message: str, opts: dict = None) -> SortedDatasetList:
+        _name: str = '{}.{}'.format(__name__, self._sort_dataset_geometry.__name__)
         def _get_spacing(dictionary: DatasetList) -> np.ndarray:
+            _name: str = '{}.{}'.format(__name__, _get_spacing.__name__)
             # Spacing
             dr = dc = 1.0
             try:
@@ -1437,7 +1476,8 @@ class DICOMPlugin(AbstractPlugin):
                     # Notice that DICOM row spacing comes first, column spacing second!
                     dr = float(pixel_spacing[0])
                     dc = float(pixel_spacing[1])
-            except AttributeError:
+            except (AttributeError, TypeError) as e:
+                logger.debug('{}: {}'.format(_name, e))
                 pass
             try:
                 slice_spacing = float(self.getDicomAttribute(dictionary, tag_for_keyword("SpacingBetweenSlices")))
@@ -1452,10 +1492,10 @@ class DICOMPlugin(AbstractPlugin):
             try:
                 gantry = self.getDicomAttributeValues(dictionary, tag_for_keyword("GantryDetectorTilt"))
                 if len(gantry) > 1:
-                    raise CannotSort('More than one Gantry/Detector Tilt')
+                    raise CannotSort('{}: More than one Gantry/Detector Tilt'.format(message))
                 elif len(gantry) == 1:
                     if gantry[0] != 0.0:
-                        raise CannotSort('Gantry/Detector Tilt is not zero')
+                        raise CannotSort('{}: Gantry/Detector Tilt is not zero'.format(message))
             except Exception:
                 raise
 
@@ -1479,16 +1519,16 @@ class DICOMPlugin(AbstractPlugin):
                         if found is None:
                             found = it
                         elif (it!=found).all():
-                            raise CannotSort('More than one IOP. Try changing DirCosTolerance')
+                            raise CannotSort('{}: More than one IOP. Try changing dir_cosine_tolerance'.format(message))
                     if found is None:
-                        raise CannotSort('No IOP.')
+                        raise CannotSort('{}: No IOP.'.format(message))
             return orients[0]
 
         def _verify_single_frame_of_reference(dictionary: DatasetList):
             frames = self.getDicomAttributeValues(dictionary, tag_for_keyword("FrameOfReferenceUID"))
             frames = sorted(set(frames))
             if len(frames) != 1:
-                logger.warning('Multiple values of FrameOfReferenceUID')
+                logger.warning('{}: Multiple values of FrameOfReferenceUID'.format(message))
 
         def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray,
                                  opts: dict = None)\
@@ -1497,7 +1537,7 @@ class DICOMPlugin(AbstractPlugin):
             sort_on_slice_location = False
             if 'sort_on_slice_location' in opts:
                 sort_on_slice_location = opts['sort_on_slice_location']
-            # Calculate slice normal from IOP, will be same for all slices
+            # Calculate slice normal from IOP, will be the same for all slices
             colr = np.array(orient[:3]).reshape(3, 1)
             colc = np.array(orient[3:]).reshape(3, 1)
             colr = colr / np.linalg.norm(colr)
@@ -1517,7 +1557,7 @@ class DICOMPlugin(AbstractPlugin):
                     normal2 = np.cross(colr2, colc2, axis=0)
                     cd = sum(normal[:] * normal2[:])[0]
                     if np.fabs(1 - cd) > self.dir_cosine_tolerance:
-                        raise CannotSort('Problem with DirCosTolerance')
+                        raise CannotSort('{}: Problem with dir_cosine_tolerance'.format(message))
                 dist = np.dot(normal, ipp)
                 distances.append(dist)
                 ipps.append(ipp)
@@ -1542,11 +1582,19 @@ class DICOMPlugin(AbstractPlugin):
                 # If we do not trust sorting on ipp, repeat with slice locations
                 distances = []
                 for _slice in range(len(dictionary)):
-                    dist = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceLocation"), _slice))
+                    try:
+                        dist = float(self.getDicomAttribute(dictionary, tag_for_keyword("SliceLocation"), _slice))
+                    except TypeError:
+                        raise CannotSort('{}: Missing SliceLocation'.format(message))
                     distances.append(dist)
                 distances = np.array(distances)
                 distance_idx = np.argsort(distances)
                 unique_distances = np.unique(distances)
+
+            if len(unique_distances) != slices:
+                raise CannotSort('{}: Problem with sorting, {} unique distances do not match {} slices'.format(
+                    message, len(unique_distances), slices
+                ))
 
             # Sort imagePositions
             imagePositions = {}
@@ -1559,6 +1607,7 @@ class DICOMPlugin(AbstractPlugin):
             # Verify spacing
             spacings = []
             spacing_is_good = True
+            has_warned = False
             d = np.unique(distances)
             prev = d[0]
             if len(d) > 1:
@@ -1568,11 +1617,16 @@ class DICOMPlugin(AbstractPlugin):
                     current = d[it]
                     spacings.append(abs(current - prev))
                     if abs(current - prev) - slice_spacing > self.slice_tolerance:
-                        logger.warning('Slice spacing differs too much. Decrease SliceTolerance')
+                        if not has_warned:
+                            logger.warning('{}: Slice spacing differs too much, {} vs {}. Decrease slice_tolerance.'.format(
+                                message,
+                                abs(current - prev), slice_spacing
+                                ))
+                            has_warned = True
                         spacing_is_good = False
                     prev = current
             if not spacing_is_good:
-                raise CannotSort('Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(distances, spacings))
+                raise CannotSort('{}: Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(message, distances, spacings))
 
         spacing = _get_spacing(dictionary)
         _verify_no_gantry_tilt(dictionary)
