@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.6-rc0] - 2025-08-07
+## [v3.8.6] - 2025-08-20
 ### Added
 * dicom_sort commandline program.
+
+### Changed
+* DICOMPlugin: Print series description and number in warning and error messages. 
+
+### Fixed
+* DICOMPlugin: Improved error handling when a series cannot be sorted.
+* DICOMPlugin._calculate_distances: Protect for missing slice location.
+* DICOMPlugin._verify_spacing: Print warning message only once.
 
 ## [v3.8.5] - 2025-08-07
 ### Changed
