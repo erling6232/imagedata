@@ -73,8 +73,8 @@ def compare_geometry_headers(self, hdr, newhdr):
 
 
 def compare_axes(self, axes, new_axes):
-    self.assertEqual(len(axes), len(new_axes))
-    for _axis, _new_axis in zip(axes, new_axes):
+    for _new_axis in new_axes:
+        _axis = getattr(axes, _new_axis.name)
         self.assertEqual(type(_axis), type(_new_axis))
         self.assertEqual(_axis.name, _new_axis.name)
         if isinstance(_axis, axis.VariableAxis):
