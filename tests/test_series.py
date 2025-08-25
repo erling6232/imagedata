@@ -386,9 +386,27 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s_axes), 4)
 
         sum = np.sum(s, axis=0)
+        self.assertEqual(len(s.axes), len(s_axes))
         compare_axes(self, s.axes, s_axes)
         self.assertEqual(len(s_axes), 4)
         compare_axes(self, s_axes, sum.axes)
+
+    def test_newaxis(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(10))
+        s = s[:, np.newaxis]
+        assert type(s) == Series
+        assert s.shape == (10, 1)
+        assert len(s.axes) == 2
+
+    def test_newaxis_4d(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
+        s.spacing = (1, 1, 1)
+        s.axes = s.axes._replace(time=axis.UniformLengthAxis('time', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
+        sum = np.sum(s, axis=(1, 2, 3))
+        sum = sum[:, np.newaxis]
 
     def test_multiple_ellipses(self):
         a1 = np.eye(128)
