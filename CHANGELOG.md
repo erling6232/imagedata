@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.7-dev0] - 2025-08-25
+* Series.__getitem__(): Properly label axes when using numpy ufuncs.
+* Series.__getitem__(): Handle the case of indexing with np.newaxis.
+* Require setuptools >= 78.1.1
+* Require xnat < 0.7
+
 ## [v3.8.6] - 2025-08-20
 ### Added
 * dicom_sort commandline program.
