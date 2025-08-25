@@ -587,6 +587,12 @@ class Series(np.ndarray):
                         _step = 1
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
+                    elif _items[_item] is None:
+                        try:
+                            _spec[_dim] = (None, None, None, obj.axes[_dim])
+                        except IndexError:
+                            _spec[_dim] = (None, None, None, None)
+                        _slicing = True
                     else:
                         # The item is an iterable like tuple or list
                         _spec[_dim] = (_items[_item], obj.axes[_dim])
@@ -606,7 +612,7 @@ class Series(np.ndarray):
         if slicing:
             # Here we slice the header information
             new_axes = []
-            for i in range(self.ndim):
+            for i in range(len(spec)):
                 # Slice along axis i
                 try:
                     start, stop, step, axis = spec[i]
@@ -617,6 +623,9 @@ class Series(np.ndarray):
                     _slice, axis = spec[i]
                     if len(_slice) <= 1:
                         continue
+                except AttributeError:
+                    _slice = slice(0, 1, 0)
+                    axis = UniformLengthAxis('unknown', 0, 1)
 
                 new_axes.append(axis[_slice])
                 new_axes_names.append(axis.name)
@@ -3197,7 +3206,15 @@ def _delegate_a_to_numpy(func, a, **kwargs):
         s = func(ndarray, **kwargs)
         if issubclass(type(s), np.ndarray):
             obj = s.view(Series)
-            obj.header = copy.copy(a.header)
+            obj.input_order = a.input_order
+            obj.header.add_template(a.header)
+            obj.header.add_geometry(a.header)
+            if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
+                new_keys = [obj.input_order] + list(obj.axes._fields[1:])
+                values = list(obj.axes)
+                values[0].name = obj.input_order
+                new_axes = namedtuple('Axes', new_keys)
+                obj.axes = new_axes._make(values)
         else:
             obj = s
     return obj
