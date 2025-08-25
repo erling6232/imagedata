@@ -369,7 +369,14 @@ class Header(object):
                 # Ensure geometry_axis length agree with matrix size
                 _axes.append(geometry_axis.copy(axis.name, n=len(axis)))
             except AttributeError:
-                _axes.append(axis.copy(axis.name, n=len(axis)))
+                if axis.name == 'none':
+                    try:
+                        geometry_axis = getattr(geometry_axes, self.input_order)
+                        _axes.append(geometry_axis.copy(self.input_order, n=len(axis)))
+                    except AttributeError:
+                        _axes.append(axis.copy(axis.name, n=len(axis)))
+                else:
+                    _axes.append(axis.copy(axis.name, n=len(axis)))
             _axis_names.append(axis.name)
         Axes = namedtuple('Axes', _axis_names)
         self.axes = Axes._make(_axes)
