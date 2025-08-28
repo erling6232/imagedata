@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.7-dev0] - 2025-08-25
+## [v3.8.7-dev0] - 2025-08-28
+### Fixed
+* Series.__getitem__(): Corrected labeling tags when slicing in the slice direction.
+  Added test to verify correct labeling.
 * Series.__getitem__(): Properly label axes when using numpy ufuncs.
 * Series.__getitem__(): Handle the case of indexing with np.newaxis.
+
+### Changed
 * Require setuptools >= 78.1.1
 * Require xnat < 0.7
 
