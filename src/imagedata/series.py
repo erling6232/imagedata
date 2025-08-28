@@ -787,8 +787,8 @@ class Series(np.ndarray):
                 else:
                     tag_spec += (slice(start, stop, step),)
         new_tags = {}
-        for s in slice_spec:
-            new_tags[s] = self.tags[s][tag_spec]
+        for i, s in enumerate(slice_spec):
+            new_tags[i] = self.tags[s][tag_spec]
         return new_tags
 
     def __calculate_window(self):
