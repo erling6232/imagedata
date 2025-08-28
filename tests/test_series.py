@@ -82,12 +82,10 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(si.shape, (128, 128))
 
     def test_create_series_5D(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
 
     def test_slicing_series_5D(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
         s1 = s[1]
@@ -219,7 +217,6 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(s_slice.slices, 3)
 
     def test_slicing_x_neg(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
@@ -322,7 +319,6 @@ class TestSeries(unittest.TestCase):
                 ipp2[slice])
 
     def test_slicing_z_neg(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(64).reshape((4,4,4)))
         s.spacing = (1, 1, 1)
@@ -362,7 +358,6 @@ class TestSeries(unittest.TestCase):
             np.testing.assert_array_equal(s_slice.tags[s], tags[s][1:3])
 
     def test_slicing_t_neg(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)))
         s.spacing = (1, 1, 1)
@@ -376,7 +371,6 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[0:1,:,:], s[0:-2,:,:])
 
     def test_slicing_t_drop(self):
-        from numpy.random import default_rng
         rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
         s.spacing = (1, 1, 1)
@@ -475,6 +469,15 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, s.slices)
         self.assertEqual(len(s_slice.tags[0]), 2)
+
+    def test_tags_after_z_slicing(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(3*5*4*4).reshape((3,5,4,4)), 'time')
+        s.spacing = (1, 1, 1)
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
+        s.axes = s.axes._replace(time=axis.VariableAxis('time', [1.1, 1.2, 1.3]))
+        t = s[:, 2:4]
+        assert t.tags.keys() == {0, 1}
 
     def test_cross_talk(self):
         si = Series('data/dicom/time/time00')
