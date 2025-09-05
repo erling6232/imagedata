@@ -1315,8 +1315,26 @@ class DICOMPlugin(AbstractPlugin):
 
         def _copy_pixels_from_frames(_si, _hdr, _image_dict):
             _name: str = '{}.{}'.format(__name__, _copy_pixels_from_frames.__name__)
-            assert len(_image_dict) == 1, "Do not know how to unpack frames and slices"
-            for im in _image_dict[next(iter(_image_dict))]:
+            assert len(_image_dict) == _si.shape[0], "Do not know how to unpack frames and slices"
+            if _si.ndim > 3:
+                for i, im in enumerate(_image_dict):
+                    try:
+                        im.decompress()
+                    except NotImplementedError as e:
+                        logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
+                        raise
+                    try:
+                        logger.debug("{}: get shape {}".format(_name, _si.shape))
+                        _si[i] = self._get_pixels_with_shape(im, _si.shape[1:])
+                    except Exception as e:
+                        logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
+                        raise
+                    del im
+            else:
+                try:
+                    im = image_dict[next(iter(image_dict))][0]
+                except TypeError:
+                    im = image_dict[0]
                 try:
                     im.decompress()
                 except NotImplementedError as e:
@@ -1324,7 +1342,7 @@ class DICOMPlugin(AbstractPlugin):
                     raise
                 try:
                     logger.debug("{}: get shape {}".format(_name, _si.shape))
-                    _si = self._get_pixels_with_shape(im, _si.shape)
+                    _si[...] = self._get_pixels_with_shape(im, _si.shape)
                 except Exception as e:
                     logger.warning("{}: Cannot read pixel data: {}".format(_name, e))
                     raise
@@ -1337,7 +1355,10 @@ class DICOMPlugin(AbstractPlugin):
         if 'accept_duplicate_tag' in opts:
             accept_duplicate_tag = opts['accept_duplicate_tag']
         # Look-up first image to determine pixel type
-        im: Dataset = image_dict[next(iter(image_dict))][0]
+        try:
+            im: Dataset = image_dict[next(iter(image_dict))][0]
+        except TypeError:
+            im: Dataset = image_dict[0]
         hdr.photometricInterpretation = 'MONOCHROME2'
         if 'PhotometricInterpretation' in im:
             hdr.photometricInterpretation = im.PhotometricInterpretation
@@ -1353,6 +1374,8 @@ class DICOMPlugin(AbstractPlugin):
                 matrix_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
             else:
                 matrix_dtype = np.uint8
+        elif im.BitsAllocated == 1:
+            matrix_dtype = np.bool_
         logger.debug('{}: matrix_dtype {}'.format(_name, matrix_dtype))
 
         # Load DICOM image data
@@ -1393,6 +1416,37 @@ class DICOMPlugin(AbstractPlugin):
 
         dataset = series[0]
         DICOMPlugin._copy_attributes_to_header(dataset, hdr)
+        if 'Rows' not in dataset:
+            return
+        # Construct axes. Required to determine matrix shape
+        if len(series) > 1:
+            descriptions = []
+            for im in series:
+                ss = im.SegmentSequence
+                # ars = ss[0].AnatomicRegionSequence
+                # code_value = ars[0].CodeValue
+                # spccs = ss[0].SegmentedPropertyCategoryCodeSequence
+                sptcs = ss[0].SegmentedPropertyTypeCodeSequence
+                code_value = sptcs[0].CodeValue
+                code_meaning = sptcs[0].CodeMeaning
+                descriptions.append('{} {}'.format(code_value, code_meaning))
+            hdr.axes = namedtuple('Axes', [
+                'text', 'slice', 'row', 'column'
+            ])(VariableAxis('text', descriptions),
+               UniformLengthAxis('slice', 0, dataset.NumberOfFrames, 1),
+               UniformLengthAxis('row', 1, dataset.Rows, 1),  # dataset.PixelSpacing[0]
+               UniformLengthAxis('column', 2, dataset.Columns, 1))  # dataset.PixelSpacing[1]
+        elif 'NumberOfFrames' in dataset:
+            hdr.axes = namedtuple('Axes', [
+                'slice', 'row', 'column'
+            ])(UniformLengthAxis('slice', 0, dataset.NumberOfFrames, 1),
+               UniformLengthAxis('row', 1, dataset.Rows, 1),  # dataset.PixelSpacing[0]
+               UniformLengthAxis('column', 2, dataset.Columns, 1))  # dataset.PixelSpacing[1]
+        else:
+            hdr.axes = namedtuple('Axes', [
+                'row', 'column'
+            ])(UniformLengthAxis('row', 0, dataset.Rows, 1),  # dataset.PixelSpacing[0]
+               UniformLengthAxis('column', 1, dataset.Columns, 1))  # dataset.PixelSpacing[1]
 
     def _extract_dicom_attributes(self,
                                   series: SortedDatasetList,
