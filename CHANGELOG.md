@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.8-dev0] - 2025-08-28
+### Fixed
+* Corrected documentation on Options.
+
 ## [v3.8.7] - 2025-08-28
 ### Fixed
 * Series.__getitem__(): Corrected labeling tags when slicing in the slice direction.
