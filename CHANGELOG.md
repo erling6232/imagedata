@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--next-version-placeholder-->
 
 ## [v3.8.8] - 2025-09-05
+### Added
+* DICOMPlugin: Read Segmentation Storage IOD.
+  When there are several IODs, they will be sorted into a 4D array, with axis 'text'.
+
 ### Fixed
 * Corrected documentation on Options.
 * DICOMPlugin: Corrected handling of gantry tilt, reducing the gantry tilts to unique tilts only.
