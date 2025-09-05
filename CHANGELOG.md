@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.8-dev0] - 2025-08-28
+## [v3.8.8] - 2025-09-05
 ### Fixed
 * Corrected documentation on Options.
+* DICOMPlugin: Corrected handling of gantry tilt, reducing the gantry tilts to unique tilts only.
 
 ## [v3.8.7] - 2025-08-28
 ### Fixed
