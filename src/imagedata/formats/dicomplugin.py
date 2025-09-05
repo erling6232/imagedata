@@ -660,9 +660,11 @@ class DICOMPlugin(AbstractPlugin):
                     message = '{} ({})'.format('', dataset_dict[0].SeriesNumber)
                 except AttributeError:
                     message = '{}'.format(dataset_dict[0].SeriesInstanceUID)
+            sorted_dataset = None
             try:
                 sorted_dataset = self._sort_dataset_geometry(dataset_dict, message, opts)
             except CannotSort as e:
+                message2 = '{}'.format(e)
                 logger.debug('{}: _sort_dataset_geometry CannotSort: {}'.format(_name, e))
                 if skip_broken_series:
                     continue
@@ -671,6 +673,8 @@ class DICOMPlugin(AbstractPlugin):
                 import traceback
                 traceback.print_exc()
                 raise
+            if sorted_dataset is None:
+                raise CannotSort('Cannot sort: {}'.format(message2))
 
             # Determine (automatic) sorting
             try:
@@ -1491,6 +1495,7 @@ class DICOMPlugin(AbstractPlugin):
         def _verify_no_gantry_tilt(dictionary: DatasetList):
             try:
                 gantry = self.getDicomAttributeValues(dictionary, tag_for_keyword("GantryDetectorTilt"))
+                gantry = np.unique(gantry)
                 if len(gantry) > 1:
                     raise CannotSort('{}: More than one Gantry/Detector Tilt'.format(message))
                 elif len(gantry) == 1:
