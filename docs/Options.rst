@@ -35,12 +35,14 @@ The following plugin options are known at the time of writing:
 |read                     |skip_broken_series       |bool |Skip broken series     |
 |                         |                         |     |in a study.            |
 |                         |                         |     |Do not raise exception.|
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |accept_uneven_slices     |bool |Accept series with     |
 |                         |                         |     |uneven number of       |
 |                         |                         |     |slices.                |
 |                         |                         |     |Keep last  image for   |
 |                         |                         |     |each position only.    |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |sort_on_slice_location   |bool |Sort stack on slice    |
 |                         |                         |     |location, not on       |
@@ -53,24 +55,30 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Each image is added    |
 |                         |                         |     |to image list at slice |
 |                         |                         |     |position.              |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |split_acquisitions       |str  |Split series on        |
+|read                     |split_acquisitions       |bool |Split series on        |
 |                         |                         |     |DICOM Acquisition      |
 |                         |                         |     |Number.                |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |split_echo_numbers       |str  |Split series on        |
+|read                     |split_echo_numbers       |bool |Split series on        |
 |                         |                         |     |DICOM Echo Numbers.    |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |headers_only             |bool |Skip pixel data        |
+|read                     |headers_only             |bool |Skip pixel data.       |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |correct_acq              |bool |Correct acquisition    |
 |                         |                         |     |times for dynamic      |
-|                         |                         |     |series                 |
+|                         |                         |     |series.                |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
-|read                     |ignore_series_uid        |str  |Ignore Series Instance |
+|read                     |ignore_series_uid        |bool |Ignore Series Instance |
 |                         |                         |     |UID, i.e. do not sort  |
 |                         |                         |     |images into different  |
-|                         |                         |     |Series                 |
+|                         |                         |     |Series.                |
+|                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_serinsuid          |str  |Filter input files on  |
 |                         |                         |     |specified              |
