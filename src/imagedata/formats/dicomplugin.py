@@ -1430,13 +1430,14 @@ class DICOMPlugin(AbstractPlugin):
                 sptcs = ss[0].SegmentedPropertyTypeCodeSequence
                 code_value = sptcs[0].CodeValue
                 code_meaning = sptcs[0].CodeMeaning
-                descriptions.append('{} {}'.format(code_value, code_meaning))
+                descriptions.append('{}:{}'.format(code_value, code_meaning))
             hdr.axes = namedtuple('Axes', [
                 'text', 'slice', 'row', 'column'
             ])(VariableAxis('text', descriptions),
                UniformLengthAxis('slice', 0, dataset.NumberOfFrames, 1),
                UniformLengthAxis('row', 1, dataset.Rows, 1),  # dataset.PixelSpacing[0]
                UniformLengthAxis('column', 2, dataset.Columns, 1))  # dataset.PixelSpacing[1]
+            hdr.input_order = 'text'
         elif 'NumberOfFrames' in dataset:
             hdr.axes = namedtuple('Axes', [
                 'slice', 'row', 'column'
