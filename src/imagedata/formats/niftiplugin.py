@@ -404,7 +404,8 @@ class NiftiPlugin(AbstractPlugin):
         if slice_direction < 0:
             img = self._nii_flip_slices(img)
         try:
-            if si.dicomTemplate['MRAcquisitionType'] == '3D':
+            if ('MRAcquisitionType' in si.dicomTemplate and
+                    si.dicomTemplate['MRAcquisitionType'] == '3D'):
                 img = self._nii_set_ortho(img)
         except ValueError:
             # No dicomTemplate in dataset
