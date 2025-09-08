@@ -1212,6 +1212,7 @@ class DICOMPlugin(AbstractPlugin):
 
             try:
                 self._extract_non_image_dicom_attributes(series_dataset, hdr, opts=opts)
+                hdr.set_default_values(hdr.axes)
                 sorted_header_dict[seriesUID] = hdr
             except CannotSort:
                 if skip_broken_series:
