@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.9] - 2025-09-08
+### Fixed
+* Viewer: display 4D segmentation masks.
+* Viewer: handle the `text` input order.
+
+### Changed
+* DICOMPlugin: set input_order to 'text' when reading segmentation masks.
+
 ## [v3.8.8] - 2025-09-05
 ### Added
 * DICOMPlugin: Read Segmentation Storage IOD.
