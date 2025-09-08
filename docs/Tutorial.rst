@@ -15,14 +15,14 @@ Let's start by reading some data:
 
 The basic assumption when reading data from files is that a folder (directory)
 contains one image series. In the example above, the 'in_dir' folder will be
-searched for image files which will constitute the 'a' variable. Imagedata will
-not sort multiple series for you.
+searched for image files which will constitute the 'a' variable. Series will
+not sort multiple series for you. In that case, consider the `Collections`.
 
 When reading a Series, the library will automatically detect the image format,
 whether it is DICOM, Nifti, or one of the other formats supported.
 
 All files found will be sorted according to your 'input_order' criteria.
-The default input_order is 'none', which will assume that the data
+The default input_order is 'auto', which will assume that the data
 can be sorted into a 3D volume. When there is one slice only, the data will
 be stored as a 2D slice. To see how the data has been sorted, look at the shape
 and axes properties of 'a':
@@ -32,19 +32,21 @@ and axes properties of 'a':
     a.shape
     >>> (40, 192, 152)
     a.axes
-    >>> [UniformLengthAxis(slice,209.07554320292,40,3.0),
-    >>>  UniformLengthAxis(row,-29.985630130569,192,2.0833332538605),
-    >>>  UniformLengthAxis(column,-199.72427744686,152,2.0833332538605)]
+    >>> [UniformLengthAxis(slice,209.0,40,3.0),
+    >>>  UniformLengthAxis(row,-30.0,192,2.08),
+    >>>  UniformLengthAxis(column,-199.7,152,2.08)]
 
 
-When reading a 4D dataset, you need to specify the input_order criteria.
+When reading a 4D dataset, you can specify the input_order criteria.
 At present, the following input_orders can be specified:
 
+* 'auto': let `imagedata` determine the proper sorting
 * 'none': 2D/3D dataset, sorted on slice position
 * 'time': 4D time-dependent dataset, sorted on time
 * 'b': 4D MRI diffusion-weighted dataset, sorted on diffusion b value
 * 'fa': 4D MRI flip-angle dataset, sorted on flip angle
 * 'te': 4D MRI echo time dataset, sorted on echo time (TE)
+* 'text': A series of volumes is ordered by a text string
 
 An example reading a time-dependent dataset:
 
