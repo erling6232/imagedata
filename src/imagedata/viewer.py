@@ -1203,6 +1203,8 @@ def pretty_tag_value(im):
     tag = im['tag']
     if im['input_order'] == 'time':
         return '{0:0.2f}s'.format(im['im'].timeline[tag])
+    elif im['input_order'] == 'text':
+        return '{}'.format(im['tag_axis'][tag]).split(':')[1]
     elif im['input_order'] == 'b':
         return '{}'.format(int(im['im'].tags[0][tag]))
     elif im['input_order'] == 'te':
