@@ -3,8 +3,8 @@
 Non-image DICOM objects
 =======================
 
-DICOM Image objects have pixel data and are store as NumPy.ndarray.
-However, non-image objects (*e.g.* structured reports) has typically no pixel data
+DICOM Image objects have pixel data and are stored as NumPy.ndarray.
+However, non-image objects (*e.g.* structured reports) typically has no pixel data
 associated.
 Such objects can be read using Series(), Study(), etc.
 The resulting Series object will have an empty pixel array.
