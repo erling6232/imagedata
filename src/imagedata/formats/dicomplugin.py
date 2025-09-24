@@ -1568,6 +1568,8 @@ class DICOMPlugin(AbstractPlugin):
                     iop = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
                 except ValueError:
                     iop = [0, 0, 1, 0, 1, 0]
+                if iop is None:
+                    iop = [0, 0, 1, 0, 1, 0]
                 if iop is not None:
                     orient = np.array((iop[2], iop[1], iop[0],
                                        iop[5], iop[4], iop[3]))
@@ -1609,6 +1611,8 @@ class DICOMPlugin(AbstractPlugin):
             ipps = []
             for _slice in range(len(dictionary)):
                 ipp = self.getOriginForSlice(dictionary, _slice)
+                if ipp is None:
+                    ipp = np.array([0.0, 0.0, 0.0])
                 if self.dir_cosine_tolerance != 0.0:
                     orient2 = orient[_slice]
                     colr2 = np.array(orient2[:3]).reshape(3, 1)
@@ -1631,7 +1635,7 @@ class DICOMPlugin(AbstractPlugin):
             slices = len(unique_distances)
             T0 = ipps[distance_idx[0]]
             Tn = ipps[distance_idx[-1]]
-            k = ((Tn - T0) / (slices - 1))
+            k = ((Tn - T0) / (slices - 1)) if slices > 1 else np.array([0, 0, 1])
             transform = np.eye(4)
             transform[:3, :4] = np.hstack([
                 k.reshape(3, 1),
