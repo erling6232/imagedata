@@ -1590,7 +1590,7 @@ class DICOMPlugin(AbstractPlugin):
         def _verify_single_frame_of_reference(dictionary: DatasetList):
             frames = self.getDicomAttributeValues(dictionary, tag_for_keyword("FrameOfReferenceUID"))
             frames = sorted(set(frames))
-            if len(frames) != 1:
+            if len(frames) > 1:
                 logger.warning('{}: Multiple values of FrameOfReferenceUID'.format(message))
 
         def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray,
