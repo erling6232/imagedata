@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.11] - 2025-10-02
+### Fixed
+* Segmentation.rst: Updated coding example.
+
 ## [v3.8.11-dev1] - 2025-09-24
 ### Fixed
 * DICOMPlugin: Catch missing ImageOrientation and single slice series.
