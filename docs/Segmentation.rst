@@ -13,6 +13,15 @@ Example:
     s = Study('.')
 
     img = tree = aorta = None
+    # Locate img dataset
+    for seriesUID in s:
+        si = s[seriesUID]
+        if 'Segmentations' not in si.seriesDescription:
+            img = si
+            break
+    assert img is not None, "No image dataset found"
+
+    # Locate segmentation datasets
     for seriesUID in s:
         si = s[seriesUID]
         if 'Segmentations' in si.seriesDescription:
@@ -22,13 +31,15 @@ Example:
                     aorta = si[i]
                     d = si.header.datasets[i]
                     parent = d.ReferencedSeriesSequence[0].SeriesInstanceUID
+                    if parent == img.seriesInstanceUID:
+                        aorta.header.add_geometry(img.header)
                 elif 'CoronaryTree' in '{}'.format(descr):
                     assert tree is None, "Multiple coronary tree masks found"
                     tree = si[i]
                     d = si.header.datasets[i]
                     parent = d.ReferencedSeriesSequence[0].SeriesInstanceUID
-        else:
-            img = si
+                    if parent == img.seriesInstanceUID:
+                        tree.header.add_geometry(img.header)
 
     assert aorta is not None, "No aorta mask found"
     assert tree is not None, "No coronary tree mask found"
