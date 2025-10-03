@@ -210,6 +210,7 @@ class ITKPlugin(AbstractPlugin):
         logger.debug('{}: iop=\n{}'.format(_name, iop))
         hdr.orientation = np.array((iop[2], iop[1], iop[0],
                                     iop[5], iop[4], iop[3]))
+        hdr.geometryIsDefined = True
 
         # Set tags
         _actual_shape = si.shape

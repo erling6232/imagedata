@@ -213,6 +213,7 @@ class NiftiPlugin(AbstractPlugin):
             for _slice in range(nz):
                 hdr.imagePositions[_slice] = np.array(ipp)
                 ipp += hdr.transformationMatrix[:3, 0]
+            hdr.geometryIsDefined = True
 
         elif qform is not None and qcode != 0:
             logger.debug("{}: Method 2 - qform: orientation".format(_name))
@@ -241,6 +242,7 @@ class NiftiPlugin(AbstractPlugin):
                     tz * qfac * dz * _slice + qoffset_z
                 ])
                 hdr.imagePositions[_slice] = _p[::-1]  # Reverse x,y,z
+            hdr.geometryIsDefined = True
         else:
             logger.debug("{}: Method 1 - assume axial: orientation".format(_name))
             iop = np.array([0, 0, 1, 0, 1, 0])
