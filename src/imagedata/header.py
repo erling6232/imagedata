@@ -16,6 +16,7 @@ header_tags = ['input_format',
                'seriesDate', 'seriesTime', 'seriesNumber',
                'seriesDescription', 'imageType', 'frameOfReferenceUID',
                'studyInstanceUID', 'studyID', 'seriesInstanceUID',
+               'referencedSeriesUID',
                'SOPClassUID', 'SOPInstanceUIDs',
                'accessionNumber',
                'patientName', 'patientID', 'patientBirthDate',
@@ -26,7 +27,8 @@ header_tags = ['input_format',
                'echoNumbers', 'acquisitionNumber',
                'datasets',
                'input_sort']
-geometry_tags = ['spacing', 'imagePositions', 'orientation', 'transformationMatrix',
+geometry_tags = ['geometryIsDefined',
+                 'spacing', 'imagePositions', 'orientation', 'transformationMatrix',
                  'sliceLocations',
                  'patientPosition',
                  'tags',
@@ -85,6 +87,7 @@ class Header(object):
         self.studyInstanceUID = self.new_uid()
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
+        self.geometryIsDefined = False
         self.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
         self.dicomToDo = []
         self.windowCenter = None
