@@ -24,6 +24,10 @@ Reading a Study of Multiple Series
 The Study class can be used to sort DICOM files according to SeriesInstanceUID.
 The input order of each Series is auto-detected.
 
+The geometry of any DICOM segmentation objects in the study will
+be set based on the ReferencedSeriesInstanceUID attribute, given that
+the referenced series is available in the study.
+
 .. code-block:: python
 
     from imagedata import Study
