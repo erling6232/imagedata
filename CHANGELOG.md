@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.12-dev0] - 2025-09-25
+## [v3.8.12] - 2025-10-03
 ### Added
 * Collection.GeneralEquipment: Added property `defined` which is True when equipment attributes are defined.
 * Collection.Study: Refactor the __init__ method. Add missing geometry to series based on reference series instance UID.
