@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * DICOMPlugin: Set geometryIsDefined to True when geometry is defined.
 * DICOMPlugin: Set referencedSeriesUID.
 * Header: Added tags `referencedSeriesUID` and `geometryIsDefined` (default: False).
-* Segmentations: Updated documentation.
+* Updated documentation on segmentation and collections.
 
 ## [v3.8.11] - 2025-10-02
 ### Fixed
