@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.12-dev0] - 2025-09-25
+### Added
+* Collection.GeneralEquipment: Added property `defined` which is True when equipment attributes are defined.
+* Collection.Study: Refactor the __init__ method. Add missing geometry to series based on reference series instance UID.
+* ITKPlugin: Set geometryIsDefined to True when geometry is defined.
+* NiftiPlugin: Set geometryIsDefined to True when geometry is defined.
+* DICOMPlugin: Set geometryIsDefined to True when geometry is defined.
+* DICOMPlugin: Set referencedSeriesUID.
+* Header: Added tags `referencedSeriesUID` and `geometryIsDefined` (default: False).
+* Segmentations: Updated documentation.
+
 ## [v3.8.11] - 2025-10-02
 ### Fixed
 * Segmentation.rst: Updated coding example.
