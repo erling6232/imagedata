@@ -13,6 +13,7 @@ The Cohort class is a collection of Patient objects.
 from datetime import datetime, date, time
 import argparse
 from pathlib import Path
+from typing import Union
 
 from .series import Series
 from .readdata import read as r_read
@@ -30,10 +31,12 @@ def _get_attribute(_data, _attr):
     return _get_attribute(_instance, _attr)
 
 
-def _sort_in_series(_data, _opts):
+def _sort_in_series(
+        _data: Union[str, Path, dict, list],
+        _opts: dict) -> dict:
     """Sort series into a dict of Series
     Called by Cohort for url data
-    Called by Patient, Study ?
+    Called by Patient, Study
 
     Args:
         _data: url (str) or dict of Series instances
@@ -220,9 +223,13 @@ class GeneralEquipment(object):
 
     def __init__(self, obj):
         super(GeneralEquipment, self).__init__()
+        self.defined = False
         for _attr in self._equipment_attributes:
             _dicom_attribute = _attr[0].upper() + _attr[1:]
-            setattr(self, _attr, obj.getDicomAttribute(_dicom_attribute))
+            _value = obj.getDicomAttribute(_dicom_attribute)
+            if _value is not None:
+                setattr(self, _attr, _value)
+                self.defined = True
 
 
 class ClinicalTrialSubject(object):
@@ -279,7 +286,62 @@ class Study(IndexedDict):
         'referringPhysiciansName'
     ]
 
-    def __init__(self, data, opts=None, **kwargs):
+    def _verify_study_attributes(self, _series_dict: dict, _strict_values: bool):
+        """Verify that study attributes match in each series"""
+        for _seriesUID in _series_dict:
+            _series = _series_dict[_seriesUID]
+            self[_seriesUID] = _series
+            for _attr in self._attributes:
+                _dicom_attribute = _attr[0].upper() + _attr[1:]
+                _value = self[_seriesUID].getDicomAttribute(_dicom_attribute)
+                if _value is not None and _attr == 'studyDate':
+                    try:
+                        _value = datetime.strptime(_value, "%Y%m%d")
+                    except ValueError:
+                        _value = None
+                elif _value is not None and _attr == 'studyTime':
+                    try:
+                        if '.' in _value:
+                            _value = datetime.strptime(_value, "%H%M%S.%f").time()
+                        else:
+                            _value = datetime.strptime(_value, "%H%M%S").time()
+                    except ValueError:
+                        _value = datetime.time(_value)
+                # Update self property if None from series
+                if getattr(self, _attr, None) is None:
+                    # _series = self[_seriesInstanceUID]
+                    setattr(self, _attr, _value)
+                elif _value is None:
+                    pass
+                elif _strict_values and \
+                        getattr(self, _attr, None) != _value:
+                    # Study attributes differ, should be considered an exception.
+                    raise ValueError('Study attribute "{}" differ ("{}" vs. "{}")'.format(
+                        _attr,
+                        getattr(self, _attr, None),
+                        _value
+                    ))
+
+    def _find_seriesInstanceUID(self, seriesInstanceUID: str) -> Series:
+        """Find a series with a given seriesInstanceUID"""
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID]
+            if _series.seriesInstanceUID == seriesInstanceUID:
+                return _series
+        return None
+
+    def _add_missing_geometry(self):
+        """Add missing geometry information to series"""
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID]
+            if not _series.header.geometryIsDefined:
+                template = self._find_seriesInstanceUID(_series.header.referencedSeriesUID)
+                if template is not None and template.header.geometryIsDefined is True \
+                        and template.header.frameOfReferenceUID == _series.header.frameOfReferenceUID:
+                    _series.header.add_geometry(template.header)
+                    _series.header.geometryIsDefined = True
+
+    def __init__(self, data, opts: dict=None, **kwargs):
         super(Study, self).__init__()
         for _attr in self._attributes:
             setattr(self, _attr, None)
@@ -313,40 +375,13 @@ class Study(IndexedDict):
             except Exception:
                 raise
 
-        for _seriesInstanceUID in _series_dict:
-            _series = _series_dict[_seriesInstanceUID]
-            self[_seriesInstanceUID] = _series
-            for _attr in self._attributes:
-                _dicom_attribute = _attr[0].upper() + _attr[1:]
-                _value = self[_seriesInstanceUID].getDicomAttribute(_dicom_attribute)
-                if _value is not None and _attr == 'studyDate':
-                    try:
-                        _value = datetime.strptime(_value, "%Y%m%d")
-                    except ValueError:
-                        _value = None
-                elif _value is not None and _attr == 'studyTime':
-                    try:
-                        if '.' in _value:
-                            _value = datetime.strptime(_value, "%H%M%S.%f").time()
-                        else:
-                            _value = datetime.strptime(_value, "%H%M%S").time()
-                    except ValueError:
-                        _value = datetime.time(_value)
-                # Update self property if None from series
-                if getattr(self, _attr, None) is None:
-                    # _series = self[_seriesInstanceUID]
-                    setattr(self, _attr, _value)
-                elif _value is None:
-                    pass
-                elif _strict_values and \
-                        getattr(self, _attr, None) != _value:
-                    # Study attributes differ, should be considered an exception.
-                    raise ValueError('Study attribute "{}" differ ("{}" vs. "{}")'.format(
-                        _attr,
-                        getattr(self, _attr, None),
-                        _value
-                    ))
-            setattr(self, 'generalEquipment', GeneralEquipment(self[_seriesInstanceUID]))
+        self._verify_study_attributes(_series_dict, _strict_values)
+        self._add_missing_geometry()
+        for _seriesUID in _series_dict:
+            _equipment = GeneralEquipment(self[_seriesUID])
+            if _equipment.defined:
+                setattr(self, 'generalEquipment', _equipment)
+                break
 
     def __str__(self):
         _date = self.studyDate if self.studyDate is not None else date.min
@@ -372,12 +407,12 @@ class Study(IndexedDict):
         """
 
         _used_urls = []
-        for _seriesInstanceUID in self.keys():
-            _series = self[_seriesInstanceUID]
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID]
             try:
                 series_str = '{}-{}'.format(_series.seriesNumber, _series.seriesDescription)
             except (TypeError, ValueError):
-                series_str = _seriesInstanceUID
+                series_str = _seriesUID
             _url = "{}/{}".format(
                 url,
                 series_str
