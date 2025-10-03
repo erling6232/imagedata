@@ -1174,6 +1174,7 @@ class DICOMPlugin(AbstractPlugin):
             try:
                 slice_count = _verify_consistent_slices(series_dataset, message)
                 _extract_all_tags(hdr, series_dataset, input_order[seriesUID], slice_count, message)
+                hdr.geometryIsDefined = True
                 sorted_header_dict[seriesUID] = hdr
             except CannotSort:
                 if skip_broken_series:
@@ -1523,6 +1524,8 @@ class DICOMPlugin(AbstractPlugin):
                         )
             except ValueError:
                 pass
+        if 'ReferencedSeriesSequence' in dataset:
+            hdr.referencedSeriesUID = dataset.ReferencedSeriesSequence[0].SeriesInstanceUID
 
     def _sort_dataset_geometry(self, dictionary: DatasetList, message: str, opts: dict = None) -> SortedDatasetList:
         _name: str = '{}.{}'.format(__name__, self._sort_dataset_geometry.__name__)
