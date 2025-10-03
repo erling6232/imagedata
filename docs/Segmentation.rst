@@ -5,6 +5,11 @@ Segmentation DICOM objects
 
 DICOM Segmentation objects have pixel data and are stored as NumPy.ndarray.
 
+Typically, the segmentation objects do not provide geometry attributes.
+When the referenced series instance UID is available in a Study(),
+the geometry attributes of the segmentation series will be copied from
+the referenced series.
+
 Example:
 
 .. code-block:: python
