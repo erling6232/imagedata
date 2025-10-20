@@ -8,8 +8,9 @@ The Cohort class is a collection of Patient objects.
 
 """
 
-# Copyright (c) 2023-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2023-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import logging
 from datetime import datetime, date, time
 import argparse
 from pathlib import Path
@@ -19,6 +20,7 @@ from .series import Series
 from .readdata import read as r_read
 from .formats import UnknownInputError
 
+logger = logging.getLogger(__name__)
 
 def _get_attribute(_data, _attr):
     # Get attribute from first instance in _data
@@ -340,6 +342,7 @@ class Study(IndexedDict):
                         and template.header.frameOfReferenceUID == _series.header.frameOfReferenceUID:
                     _series.header.add_geometry(template.header)
                     _series.header.geometryIsDefined = True
+                    logger.info("Added geometry to {} from series {}".format(_series.seriesInstanceUID, template.seriesInstanceUID))
 
     def __init__(self, data, opts: dict=None, **kwargs):
         super(Study, self).__init__()

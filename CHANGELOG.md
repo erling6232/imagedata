@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.13-dev1] - 2025-10-20
+### Added
+* Study: Log information when segmentation geometry is copied from another series.
+
 ## [v3.8.12] - 2025-10-03
 ### Added
 * Collection.GeneralEquipment: Added property `defined` which is True when equipment attributes are defined.
