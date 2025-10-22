@@ -20,6 +20,7 @@ import logging
 from pathlib import PurePath
 import pydicom.dataset
 import pydicom.datadict
+from pydicom.uid import UID
 
 from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
@@ -1678,7 +1679,7 @@ class Series(np.ndarray):
             self.header.studyInstanceUID = None
             return
         try:
-            self.header.studyInstanceUID = str(uid)
+            self.header.studyInstanceUID = UID(str(uid))
         except AttributeError:
             raise TypeError("Given study instance UID is not printable")
 
@@ -1728,10 +1729,10 @@ class Series(np.ndarray):
             self.header.seriesInstanceUID = None
             return
         try:
-            if isinstance(uid, str):
+            if isinstance(uid, UID):
                 self.header.seriesInstanceUID = uid
             else:
-                self.header.seriesInstanceUID = str(uid)
+                self.header.seriesInstanceUID = UID(str(uid))
         except AttributeError:
             raise TypeError("Given series instance UID is not printable")
 
@@ -1756,7 +1757,7 @@ class Series(np.ndarray):
             self.header.frameOfReferenceUID = None
             return
         try:
-            self.header.frameOfReferenceUID = str(uid)
+            self.header.frameOfReferenceUID = UID(str(uid))
         except AttributeError:
             raise TypeError("Given frame of reference UID is not printable")
 
