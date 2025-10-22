@@ -153,38 +153,40 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         if len(image_list) < 1:
             raise ValueError('No image data read')
         info, si = image_list[0]
-        self._reduce_shape(si)
-        logger.debug('{}: reduced si {}'.format(_name, si.shape))
-        shape = (len(image_list),) + si.shape
-        dtype = si.dtype
-        logger.debug('{}: shape {}'.format(_name, shape))
-        si = np.zeros(shape, dtype)
-        i = 0
-        for info, img in image_list:
-            if 'input_sort' in opts and opts['input_sort'] == SORT_ON_TAG:
-                si[:, i] = img
-            else:
-                si[i] = img
-            i += 1
-        logger.debug('{}: si {}'.format(_name, si.shape))
+        if si is not None:
+            self._reduce_shape(si)
+            logger.debug('{}: reduced si {}'.format(_name, si.shape))
+            shape = (len(image_list),) + si.shape
+            dtype = si.dtype
+            logger.debug('{}: shape {}'.format(_name, shape))
+            si = np.zeros(shape, dtype)
+            i = 0
+            for info, img in image_list:
+                if 'input_sort' in opts and opts['input_sort'] == SORT_ON_TAG:
+                    si[:, i] = img
+                else:
+                    si[i] = img
+                i += 1
+            logger.debug('{}: si {}'.format(_name, si.shape))
 
-        # Simplify shape
-        self._reduce_shape(si)
-        logger.debug('{}: reduced si {}'.format(_name, si.shape))
+            # Simplify shape
+            self._reduce_shape(si)
+            logger.debug('{}: reduced si {}'.format(_name, si.shape))
 
-        _shape = si.shape
-        logger.debug('{}: _shape {}'.format(_name, _shape))
-        _ndim = len(_shape)
-        nz = 1
-        if _ndim > 2:
-            nz = _shape[-3]
-        logger.debug('{}: slices {}'.format(_name, nz))
+            _shape = si.shape
+            logger.debug('{}: _shape {}'.format(_name, _shape))
+            _ndim = len(_shape)
+            nz = 1
+            if _ndim > 2:
+                nz = _shape[-3]
+            logger.debug('{}: slices {}'.format(_name, nz))
 
         logger.debug('{}: calling _set_tags'.format(_name))
         self._set_tags(image_list, hdr, si)
         # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
-        logger.info("{}: Data shape read: {}".format(_name, shape_to_str(si.shape)))
+        if si is not None:
+            logger.info("{}: Data shape read: {}".format(_name, shape_to_str(si.shape)))
 
         # Add any DICOM template
         if pre_hdr is not None:
@@ -456,6 +458,8 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             ValueError: tags for dataset is not time tags
         """
 
+        if si is None:
+            return
         mindim = 2
         while si.ndim > mindim:
             if si.shape[0] == 1:
