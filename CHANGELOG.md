@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * DICOMPlugin.write_slice(): Accept non-image data.
 * DICOMPlugin.write_slice(): Use ds.save_as(f, enforce_standard=True) when available (pydicom >= 3).
 * __init__.get_uid() now returns a pydicom.uid.UID instance.
+* DICOMPlugin._copy_pixels_from_frames(): Do not fail when pixel data are already decompressed.
 
 ## [v3.8.12] - 2025-10-03
 ### Added
