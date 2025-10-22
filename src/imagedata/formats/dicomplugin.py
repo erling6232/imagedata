@@ -2581,7 +2581,7 @@ class DICOMPlugin(AbstractPlugin):
         file_meta = FileMetaDataset()
         sop_class_uid = getattr(template, 'SOPClassUID', None)
         if sop_class_uid is None:
-            sop_class_uid = '1.2.840.10008.5.1.4.1.1.7'
+            sop_class_uid = pydicom.uid.UID('1.2.840.10008.5.1.4.1.1.7')
         file_meta.MediaStorageSOPClassUID = sop_class_uid
         if sop_ins_uid is not None:
             file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
@@ -2630,7 +2630,7 @@ class DICOMPlugin(AbstractPlugin):
         file_meta = FileMetaDataset()
         file_meta.MediaStorageSOPClassUID = si.SOPClassUID
         file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
-        file_meta.ImplementationClassUID = "%s.1" % self.root
+        file_meta.ImplementationClassUID = pydicom.uid.UID("%s.1" % self.root)
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
         # Create the FileDataset instance
