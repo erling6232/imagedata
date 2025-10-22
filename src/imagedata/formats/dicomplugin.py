@@ -1325,6 +1325,8 @@ class DICOMPlugin(AbstractPlugin):
                     except NotImplementedError as e:
                         logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
                         raise
+                    except ValueError:
+                        pass  # Already decompressed
                     try:
                         logger.debug("{}: get shape {}".format(_name, _si.shape))
                         _si[i] = self._get_pixels_with_shape(im, _si.shape[1:])
