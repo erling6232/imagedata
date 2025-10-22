@@ -298,6 +298,9 @@ def write(si, url, opts=None, formats=None):
                 elif write_si.ndim >= 2:
                     # 2D-3D data
                     writer.write_3d_numpy(write_si, destination, out_opts)
+                elif write_si.ndim >= 0:
+                    # Non-image data
+                    writer.write_3d_numpy(write_si, destination, out_opts)
                 else:
                     raise ValueError("Don't know how to write image of shape {}".format(
                         write_si.shape))
