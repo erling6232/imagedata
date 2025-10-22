@@ -8,6 +8,7 @@ from collections import namedtuple
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
+from pydicom.uid import UID
 from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE, get_uid
 
 
@@ -88,7 +89,7 @@ class Header(object):
         self.seriesInstanceUID = self.new_uid()
         self.frameOfReferenceUID = self.new_uid()
         self.geometryIsDefined = False
-        self.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
+        self.SOPClassUID = UID('1.2.840.10008.5.1.4.1.1.7')  # Secondary Capture Image Storage
         self.dicomToDo = []
         self.windowCenter = None
         self.windowWidth = None
@@ -122,7 +123,7 @@ class Header(object):
             _shape += (len(_),)
         return _shape
 
-    def new_uid(self) -> str:
+    def new_uid(self) -> UID:
         """Return the next available UID from the UID generator.
         """
         return self.__uid_generator.__next__()
@@ -185,7 +186,7 @@ class Header(object):
         ds.StudyInstanceUID = self.studyInstanceUID
         ds.StudyID = '1'
         ds.SeriesInstanceUID = self.seriesInstanceUID
-        ds.SOPClassUID = '1.2.840.10008.5.1.4.1.1.7'  # Secondary Capture Image Storage
+        ds.SOPClassUID = UID('1.2.840.10008.5.1.4.1.1.7')  # Secondary Capture Image Storage
         ds.SOPInstanceUID = SOPInsUID
         ds.FrameOfReferenceUID = self.frameOfReferenceUID
 
@@ -257,7 +258,7 @@ class Header(object):
                 template_tags = template.tags[_slice]
                 if template_tags.ndim == 0:
                     template_tags = _last_tags
-            except (TypeError, KeyError):
+            except (TypeError, KeyError, AttributeError):
                 template_tags = _last_tags
             # Use original template tags when possible, otherwise calculated tags
             if template_tags.shape >= tags:
