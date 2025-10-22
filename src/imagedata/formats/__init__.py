@@ -10,6 +10,7 @@ import sys
 import time
 import uuid
 import numpy as np
+from pydicom.uid import UID
 
 
 (SORT_ON_SLICE,
@@ -174,9 +175,9 @@ _my_root = "2.16.578.1.37.1.1.2.{}.{}.{}".format(
 )
 
 
-def get_uid(k=[0]) -> str:
+def get_uid(k=[0]) -> UID:
     """Generator function which will return a unique UID.
     """
     while True:
         k[0] += 1
-        yield "%s.%d" % (_my_root, k[0])
+        yield UID("%s.%d" % (_my_root, k[0]))
