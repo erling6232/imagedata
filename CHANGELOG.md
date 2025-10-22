@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
-## [v3.8.13-dev1] - 2025-10-20
+## [v3.8.13-dev2] - 2025-10-22
 ### Added
 * Study: Log information when segmentation geometry is copied from another series.
+
+### Changed
+* AbstractPlugin._reduce_shape(): Accept series array None.
+* AbstractPlugin.read(): Accept series array None.
+* Header.__set_tags_from_template(): Accept series array None.
+* readdata.write(): Accept non-image data.
+* DICOMPlugin.write_3d_numpy(): Accept non-image data.
+* DICOMPlugin.write_slice(): Accept non-image data.
+* DICOMPlugin.write_slice(): Use ds.save_as(f, enforce_standard=True) when available (pydicom >= 3).
+* __init__.get_uid() now returns a pydicom.uid.UID instance.
 
 ## [v3.8.12] - 2025-10-03
 ### Added

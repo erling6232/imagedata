@@ -2058,18 +2058,21 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug('{}: orig shape {}, slices {} len {}'.format(
             _name, si.shape, si.slices, si.ndim))
-        assert si.ndim == 2 or si.ndim == 3, \
+        assert si.ndim in [0, 2, 3], \
             "write_3d_series: input dimension %d is not 2D/3D." % si.ndim
 
-        self._calculate_rescale(si)
-        logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
-            _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
+        if si.ndim > 0:
+            self._calculate_rescale(si)
+            logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
+                _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
+
         if 'window' in opts and opts['window'] == 'original':
             raise ValueError('No longer supported: opts["window"] is set')
         self.center = si.windowCenter
         self.width = si.windowWidth
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
+
         # Set series instance UID when writing
         self.serInsUid = si.header.seriesInstanceUID if self.keep_uid else si.header.new_uid()
         logger.debug("{}: {}".format(_name, self.serInsUid))
@@ -2535,16 +2538,20 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     ds[_attr].value = _value
 
-        self._set_pixel_rescale(ds, si)
+        try:
+            self._set_pixel_rescale(ds, si)
+        except ValueError:
+            pass
 
         # General Image Module Attributes
         ds.InstanceNumber = ifile + 1
         ds.ContentDate = self.today
         ds.ContentTime = self.now
         # ds.AcquisitionTime = self.add_time(self.seriesTime, timeline[tag])
-        ds.Rows = si.rows
-        ds.Columns = si.columns
-        self._insert_pixel_data(ds, si)
+        if si.ndim > 0:
+            ds.Rows = si.rows
+            ds.Columns = si.columns
+            self._insert_pixel_data(ds, si)
 
         # Set tag
         # si will always have only the present tag
@@ -2557,7 +2564,10 @@ class DICOMPlugin(AbstractPlugin):
         else:
             # Store dicom set ds as file
             with archive.open(filename, 'wb') as f:
-                ds.save_as(f)
+                try:
+                    ds.save_as(f, enforce_file_format=False)
+                except TypeError:
+                    ds.save_as(f)  # pydicom < 3.0.0
 
     def construct_basic_dicom(self,
                               template: Series = None,
@@ -2577,7 +2587,7 @@ class DICOMPlugin(AbstractPlugin):
             file_meta.MediaStorageSOPInstanceUID = sop_ins_uid
         else:
             file_meta.MediaStorageSOPInstanceUID = template.header.new_uid()
-        file_meta.ImplementationClassUID = "%s.1" % self.root
+        file_meta.ImplementationClassUID = pydicom.uid.UID("%s.1" % self.root)
         file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
 
         # Create the FileDataset instance
