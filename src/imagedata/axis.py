@@ -272,10 +272,13 @@ class VariableAxis(Axis):
             self.step = None
         else:
             ds: float = values[1] - values[0]
+            if abs(ds) < 1e-8:
+                self.step = None
+                return
             for i in range(2, len(values)):
                 d = values[i] - values[i - 1]
                 if abs(d - ds) / ds > 1e-4:
-                    ds = None
+                    ds = None  # Step size differs too much
                     break
             self.step = ds
 
