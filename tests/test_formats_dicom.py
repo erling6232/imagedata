@@ -51,7 +51,7 @@ class TestDicomPlugin(unittest.TestCase):
             si1 = si + 1
             si1.seriesInstanceUID = si.seriesInstanceUID
             si1.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+            with self.assertRaises(formats.CannotSort) as context:
                 _ = Series(self.d, input_format='dicom')
 
     def test_without_dicom_plugin(self):
@@ -122,6 +122,18 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(tuple(), si1.shape)
         self.assertEqual(3, len(si1.axes))
         self.assertEqual(14, si1.seriesNumber)
+
+    def test_duplicate(self):
+        duplicate = Series('data/dicom/duplicate',
+                           accept_duplicate_tag=True
+                           )
+        assert duplicate.shape == (2, 3, 192, 152)
+
+    def test_duplicate_error(self):
+        with self.assertRaises(formats.CannotSort) as context:
+            _ = Series('data/dicom/duplicate',
+                       accept_duplicate_tag=False
+                       )
 
     def test_read_auto_volume(self):
         si1 = Series(
@@ -1022,11 +1034,13 @@ class TestDicomNDSort(unittest.TestCase):
             os.path.join('data', 'dicom', 'RSI_6D.zip?RSI_6D/ep2d_RSI_b0_50_100_200_TE_?5'),
             'b,bvector,te',
             input_format='dicom',
-            opts={'ignore_series_uid': True, 'accept_duplicate_tag': True}
+            ignore_series_uid=True,
+            accept_duplicate_tag=True
         )
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
-            si1 = Series(d, 'b,bvector,te', input_format='dicom')
+            si1 = Series(d, 'b,bvector,te', input_format='dicom',
+                         accept_duplicate_tag=True)
             compare_tags(self, si.tags, si1.tags)
 
 
