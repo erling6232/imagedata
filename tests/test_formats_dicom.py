@@ -6,7 +6,6 @@ import numpy as np
 import logging
 import argparse
 import pydicom.filereader
-from numbers import Number
 from pydicom.dataset import Dataset
 
 import src.imagedata.cmdline as cmdline

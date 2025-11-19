@@ -1061,8 +1061,10 @@ class DICOMPlugin(AbstractPlugin):
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
                     tag_list[_slice] = collect_tags(sorted_data[_slice])
-                    print('{}: slice {} tag_list {}'.format(_name, _slice, tag_list[slice]), file=sys.stderr)
                     s, axis = calculate_shape(tag_list[_slice])
+                    if _slice == 0:
+                        print('{}: slice {} tag_list {} s {} axis {}'.format(
+                            _name, _slice, tag_list[slice], s, axis), file=sys.stderr)
                 shapes.append(s)
                 axes.append(axis)
 
@@ -1070,7 +1072,6 @@ class DICOMPlugin(AbstractPlugin):
             shape = ()
             for i in range(len(shapes[0])):
                 shape += (max(shapes, key=itemgetter(i))[i],)
-            print('{}: shape {}'.format(_name, shape), file=sys.stderr)
 
             # Place each image on the proper tag index
             if accept_duplicate_tag:
