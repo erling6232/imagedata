@@ -986,7 +986,7 @@ class DICOMPlugin(AbstractPlugin):
                 """Locate image in sorted data"""
                 s = ()
                 _slice = im.slice_index
-                axis = axes[_slice]
+                axis = _axes[_slice]
                 for i in range(len(im.tags)):
                     # Find tag in axes
                     if issubclass(type(im.tags[i]), np.ndarray):
@@ -1041,8 +1041,8 @@ class DICOMPlugin(AbstractPlugin):
             sorted_data = defaultdict(list)
             faulty = 0
             sloc: float
-            shapes = []
-            axes = []
+            _shapes = []
+            _axes = []
             for _slice, sloc in enumerate(sorted(series)):
                 if _slice == 0:
                     print('{}: slice {} {} objects'.format(_name, _slice, len(series)), file=sys.stderr)
@@ -1065,13 +1065,13 @@ class DICOMPlugin(AbstractPlugin):
                     if _slice == 0:
                         print('{}: slice {} tag_list {} s {} axis {}'.format(
                             _name, _slice, tag_list[slice], s, axis), file=sys.stderr)
-                shapes.append(s)
-                axes.append(axis)
+                _shapes.append(s)
+                _axes.append(axis)
 
             # Find maximum shape in slices
             shape = ()
-            for i in range(len(shapes[0])):
-                shape += (max(shapes, key=itemgetter(i))[i],)
+            for i in range(len(_shapes[0])):
+                shape += (max(_shapes, key=itemgetter(i))[i],)
 
             # Place each image on the proper tag index
             if accept_duplicate_tag:
@@ -1095,7 +1095,7 @@ class DICOMPlugin(AbstractPlugin):
             # Simplify shape dimension
             while len(shape) and shape[0] == 1:
                 shape = shape[1:]
-                # axes = axes[1:]
+                # _axes = _axes[1:]
             hdr.dicomTemplate = series[next(iter(series))][0]
             hdr.SOPInstanceUIDs = SOPInstanceUIDs
             nz = len(series)
@@ -1114,7 +1114,7 @@ class DICOMPlugin(AbstractPlugin):
                 tag_axes = []
                 for i, order in enumerate(input_order.split(sep=',')):
                     tag_axes.append(
-                        VariableAxis(order, axes[0][i])
+                        VariableAxis(order, _axes[0][i])
                     )
                 axis_names = input_order.split(sep=',')
                 axis_names.extend(['slice', 'row', 'column'])
