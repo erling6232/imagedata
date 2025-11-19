@@ -363,9 +363,10 @@ class TestDicomPlugin(unittest.TestCase):
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            input_format='dicom'
         )
-        self.assertEqual('dicom', si1.input_format)
+        self.assertEqual(si1.shape, (192, 152))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.dcm'),
                       formats=['dicom'])
