@@ -839,6 +839,10 @@ class DICOMPlugin(AbstractPlugin):
                     return (t1 < t2) * 2 - 1
 
             def compare_tags_exception(im1, im2):
+                if not isinstance(type(im1), Instance):
+                    print('im1: {}'.format(type(im1)))
+                if not isinstance(type(im2), Instance):
+                    print('im2: {}'.format(type(im2)))
                 try:
                     return compare_tag_values(im1, im2)
                 except Exception as e:
