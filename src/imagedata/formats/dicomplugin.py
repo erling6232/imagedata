@@ -1243,6 +1243,7 @@ class DICOMPlugin(AbstractPlugin):
             si = None
             if not skip_pixels:
                 # Extract pixel data
+                print('{}: shape {}'.format(_name, header.shape), file=sys.stderr)
                 try:
                     si = self._construct_pixel_array(
                         dataset_dict, header, header.shape, opts=opts
