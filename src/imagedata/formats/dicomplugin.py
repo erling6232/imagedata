@@ -840,9 +840,9 @@ class DICOMPlugin(AbstractPlugin):
 
             def compare_tags_exception(im1, im2):
                 if not isinstance(type(im1), Instance):
-                    print('im1: {}'.format(type(im1)))
+                    print('im1: {}'.format(type(im1)), file=sys.stderr)
                 if not isinstance(type(im2), Instance):
-                    print('im2: {}'.format(type(im2)))
+                    print('im2: {}'.format(type(im2)), file=sys.stderr)
                 try:
                     return compare_tag_values(im1, im2)
                 except Exception as e:
