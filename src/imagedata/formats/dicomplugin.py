@@ -1383,13 +1383,19 @@ class DICOMPlugin(AbstractPlugin):
         print('{}: 1st {} shape {} dtype {}'.format(
             _name, type(si), si.shape, si.dtype), file=sys.stderr)
 
-        if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
-            _copy_pixels_from_frames(si, hdr, image_dict)
-        else:
-            _copy_pixels(si, hdr, image_dict)
+        try:
+            if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
+                _copy_pixels_from_frames(si, hdr, image_dict)
+            else:
+                _copy_pixels(si, hdr, image_dict)
+        except Exception as e:
+            print('{}: Cannot read pixel data: {}'.format(_name, e), file=sys.stderr)
 
         # Simplify shape
-        self._reduce_shape(si, hdr.axes)
+        try:
+            self._reduce_shape(si, hdr.axes)
+        except Exception as e:
+            print('{}: Cannot reduce shape: {}'.format(_name, e), file=sys.stderr)
         print('{}: 2nd {} shape {} dtype {}'.format(
             _name, type(si), si.shape, si.dtype), file=sys.stderr)
         logger.debug('{}: si {}'.format(_name, si.shape))
