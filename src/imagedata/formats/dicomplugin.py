@@ -2785,6 +2785,11 @@ class DICOMPlugin(AbstractPlugin):
                         'RescaleSlope', 'RescaleIntercept']:
             if element in ds:
                 del ds[element]
+        # TODO # Testing
+        try:
+            a = self.a
+        except AttributeError:
+            raise AttributeError('Rescale slope not set. ndim {}'.format(arr.ndim))
         if self.a is None:
             # No rescale slope
             _min = 0 if arr.color else arr.min()
