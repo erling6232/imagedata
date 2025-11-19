@@ -1039,6 +1039,7 @@ class DICOMPlugin(AbstractPlugin):
                     im.set_tags(self._extract_tag_tuple(im, faulty, input_order, opts))
                     faulty += 1
                 sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
+                print('{}: slice {} sorted_data {}'.format(_name, _slice, len(sorted_data[slice])), file=sys.stderr)
                 if accept_duplicate_tag:
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
@@ -2788,11 +2789,6 @@ class DICOMPlugin(AbstractPlugin):
                         'RescaleSlope', 'RescaleIntercept']:
             if element in ds:
                 del ds[element]
-        # TODO # Testing
-        try:
-            a = self.a
-        except AttributeError:
-            raise AttributeError('Rescale slope not set. ndim {}'.format(arr.ndim))
         if self.a is None:
             # No rescale slope
             _min = 0 if arr.color else arr.min()
