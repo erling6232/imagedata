@@ -1025,6 +1025,7 @@ class DICOMPlugin(AbstractPlugin):
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
 
             accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
+            print('{}: accept_duplicate_tag {}'.format(_name, accept_duplicate_tag), file=sys.stderr)
             tag_list = defaultdict(list)
             sorted_data = defaultdict(list)
             faulty = 0
@@ -1042,6 +1043,7 @@ class DICOMPlugin(AbstractPlugin):
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
                     tag_list[_slice] = collect_tags(sorted_data[_slice])
+                    print('{}: slice {} tag_list {}'.format(_name, _slice, tag_list[slice]), file=sys.stderr)
                     s, axis = calculate_shape(tag_list[_slice])
                 shapes.append(s)
                 axes.append(axis)
