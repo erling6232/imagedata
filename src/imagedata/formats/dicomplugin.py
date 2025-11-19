@@ -838,6 +838,13 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     return (t1 < t2) * 2 - 1
 
+            def compare_tags_exception(im1, im2):
+                try:
+                    return compare_tag_values(im1, im2)
+                except Exception as e:
+                    print('compare_tags: {}'.format(e), file=sys.stderr)
+                    return False
+
             def compare_tags(im1, im2):
                 t1 = im1.tags
                 t2 = im2.tags
@@ -1040,8 +1047,12 @@ class DICOMPlugin(AbstractPlugin):
                     im.set_slice_index(_slice)
                     im.set_tags(self._extract_tag_tuple(im, faulty, input_order, opts))
                     faulty += 1
-                sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
-                print('{}: slice {} sorted_data {}'.format(_name, _slice, len(sorted_data[slice])), file=sys.stderr)
+                # TODO # sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
+                if _slice == 0:
+                    sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags_exception))
+                    print('{}: slice {} sorted_data {}'.format(_name, _slice, len(sorted_data[slice])), file=sys.stderr)
+                else:
+                    sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
                 if accept_duplicate_tag:
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
