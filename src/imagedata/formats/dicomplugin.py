@@ -1095,7 +1095,7 @@ class DICOMPlugin(AbstractPlugin):
             # Simplify shape dimension
             while len(shape) and shape[0] == 1:
                 shape = shape[1:]
-                axes = axes[1:]
+                # axes = axes[1:]
             hdr.dicomTemplate = series[next(iter(series))][0]
             hdr.SOPInstanceUIDs = SOPInstanceUIDs
             nz = len(series)
