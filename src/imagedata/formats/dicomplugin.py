@@ -838,17 +838,6 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     return (t1 < t2) * 2 - 1
 
-            def compare_tags_exception(im1, im2):
-                if not isinstance(im1, Instance):
-                    print('im1: {}'.format(type(im1)), file=sys.stderr)
-                if not isinstance(im2, Instance):
-                    print('im2: {}'.format(type(im2)), file=sys.stderr)
-                try:
-                    return compare_tags(im1, im2)
-                except Exception as e:
-                    print('compare_tags: {}'.format(e), file=sys.stderr)
-                    return False
-
             def compare_tags(im1, im2):
                 t1 = im1.tags
                 t2 = im2.tags
@@ -1036,7 +1025,6 @@ class DICOMPlugin(AbstractPlugin):
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
 
             accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
-            print('{}: accept_duplicate_tag {}'.format(_name, accept_duplicate_tag), file=sys.stderr)
             tag_list = defaultdict(list)
             sorted_data = defaultdict(list)
             faulty = 0
@@ -1044,27 +1032,17 @@ class DICOMPlugin(AbstractPlugin):
             _shapes = []
             _axes = []
             for _slice, sloc in enumerate(sorted(series)):
-                if _slice == 0:
-                    print('{}: slice {} {} objects'.format(_name, _slice, len(series)), file=sys.stderr)
                 im: Instance
                 for im in series[sloc]:
                     im.set_slice_index(_slice)
                     im.set_tags(self._extract_tag_tuple(im, faulty, input_order, opts))
                     faulty += 1
-                # TODO # sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
-                if _slice == 0:
-                    sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags_exception))
-                    print('{}: slice {} sorted_data {}'.format(_name, _slice, len(sorted_data[slice])), file=sys.stderr)
-                else:
-                    sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
+                sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
                 if accept_duplicate_tag:
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
                     tag_list[_slice] = collect_tags(sorted_data[_slice])
                     s, axis = calculate_shape(tag_list[_slice])
-                    if _slice == 0:
-                        print('{}: slice {} tag_list {} s {} axis {}'.format(
-                            _name, _slice, tag_list[slice], s, axis), file=sys.stderr)
                 _shapes.append(s)
                 _axes.append(axis)
 
@@ -1243,7 +1221,6 @@ class DICOMPlugin(AbstractPlugin):
             si = None
             if not skip_pixels:
                 # Extract pixel data
-                print('{}: shape {}'.format(_name, header.shape), file=sys.stderr)
                 try:
                     si = self._construct_pixel_array(
                         dataset_dict, header, header.shape, opts=opts
@@ -1263,7 +1240,6 @@ class DICOMPlugin(AbstractPlugin):
 
             if si is not None:
                 pixel_dict[seriesUID] = si
-                print('{}: si.shape {}'.format(_name, si.shape), file=sys.stderr)
         return pixel_dict
 
     def _construct_pixel_array(self,
@@ -1292,15 +1268,6 @@ class DICOMPlugin(AbstractPlugin):
                     if _si.ndim == 3:
                         idx = idx[len(tag):]
                     try:
-                        im.decompress()  # (generate_instance_uid=False)
-                    except NotImplementedError as e:
-                        logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
-                        raise
-                    except (AttributeError, ValueError):
-                        pass  # Already decompressed
-                    except Exception as e:
-                        raise
-                    try:
                         logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
                         if _si.ndim > 2:
                             _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
@@ -1318,13 +1285,6 @@ class DICOMPlugin(AbstractPlugin):
             if _si.ndim > 3:
                 for i, im in enumerate(_image_dict):
                     try:
-                        im.decompress()  # (generate_instance_uid=False)
-                    except NotImplementedError as e:
-                        logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
-                        raise
-                    except ValueError:
-                        pass  # Already decompressed
-                    try:
                         logger.debug("{}: get shape {}".format(_name, _si.shape))
                         _si[i] = self._get_pixels_with_shape(im, _si.shape[1:])
                     except Exception as e:
@@ -1336,11 +1296,6 @@ class DICOMPlugin(AbstractPlugin):
                     im = image_dict[next(iter(image_dict))][0]
                 except TypeError:
                     im = image_dict[0]
-                try:
-                    im.decompress()  # (generate_instance_uid=False)
-                except NotImplementedError as e:
-                    logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
-                    raise
                 try:
                     logger.debug("{}: get shape {}".format(_name, _si.shape))
                     _si[...] = self._get_pixels_with_shape(im, _si.shape)
@@ -1380,24 +1335,14 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, matrix_dtype)
-        print('{}: 1st {} shape {} dtype {}'.format(
-            _name, type(si), si.shape, si.dtype), file=sys.stderr)
 
-        try:
-            if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
-                _copy_pixels_from_frames(si, hdr, image_dict)
-            else:
-                _copy_pixels(si, hdr, image_dict)
-        except Exception as e:
-            print('{}: Cannot read pixel data: {}'.format(_name, e), file=sys.stderr)
+        if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
+            _copy_pixels_from_frames(si, hdr, image_dict)
+        else:
+            _copy_pixels(si, hdr, image_dict)
 
         # Simplify shape
-        try:
-            self._reduce_shape(si, hdr.axes)
-        except Exception as e:
-            print('{}: Cannot reduce shape: {}'.format(_name, e), file=sys.stderr)
-        print('{}: 2nd {} shape {} dtype {}'.format(
-            _name, type(si), si.shape, si.dtype), file=sys.stderr)
+        self._reduce_shape(si, hdr.axes)
         logger.debug('{}: si {}'.format(_name, si.shape))
 
         return si
@@ -2050,7 +1995,6 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         _name: str = '{}.{}'.format(__name__, self.write_3d_numpy.__name__)
-        print('{}: si.shape: {}'.format(_name, si.shape), file=sys.stderr)
 
         logger.debug('{}: destination {}'.format(_name, destination))
         archive = destination['archive']
