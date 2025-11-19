@@ -1050,7 +1050,7 @@ class DICOMPlugin(AbstractPlugin):
             shape = ()
             for i in range(len(shapes[0])):
                 shape += (max(shapes, key=itemgetter(i))[i],)
-            raise AttributeError('shape: {}'.format(shape))
+            print('{}: shape {}'.format(_name, shape), file=sys.stderr)
 
             # Place each image on the proper tag index
             if accept_duplicate_tag:
