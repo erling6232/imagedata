@@ -1379,6 +1379,8 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, matrix_dtype)
+        print('{}: {} shape {} dtype {}'.format(
+            _name, type(si), si.shape, si.dtype), file=sys.stderr)
 
         if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
             _copy_pixels_from_frames(si, hdr, image_dict)
