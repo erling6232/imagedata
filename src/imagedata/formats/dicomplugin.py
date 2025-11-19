@@ -2038,6 +2038,7 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         _name: str = '{}.{}'.format(__name__, self.write_3d_numpy.__name__)
+        print('{}: si.shape: {}'.format(_name, si.shape), file=sys.stderr)
 
         logger.debug('{}: destination {}'.format(_name, destination))
         archive = destination['archive']

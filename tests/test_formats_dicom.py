@@ -368,7 +368,6 @@ class TestDicomPlugin(unittest.TestCase):
             input_format='dicom'
         )
         self.assertEqual(si1.shape, (192, 152))
-        print('test_write_single_file: si1.shape = {}'.format(si1.shape), file=sys.stderr)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.dcm'),
                       formats=['dicom'])
