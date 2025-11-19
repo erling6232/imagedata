@@ -1263,6 +1263,7 @@ class DICOMPlugin(AbstractPlugin):
 
             if si is not None:
                 pixel_dict[seriesUID] = si
+                print('{}: si.shape {}'.format(_name, si.shape), file=sys.stderr)
         return pixel_dict
 
     def _construct_pixel_array(self,
