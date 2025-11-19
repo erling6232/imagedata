@@ -1379,7 +1379,7 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, matrix_dtype)
-        print('{}: {} shape {} dtype {}'.format(
+        print('{}: 1st {} shape {} dtype {}'.format(
             _name, type(si), si.shape, si.dtype), file=sys.stderr)
 
         if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
@@ -1389,6 +1389,8 @@ class DICOMPlugin(AbstractPlugin):
 
         # Simplify shape
         self._reduce_shape(si, hdr.axes)
+        print('{}: 2nd {} shape {} dtype {}'.format(
+            _name, type(si), si.shape, si.dtype), file=sys.stderr)
         logger.debug('{}: si {}'.format(_name, si.shape))
 
         return si
