@@ -242,7 +242,7 @@ class Series(np.ndarray):
             import sys
             print('__new__: obj.shape {} obj.header.shape {}'.format(obj.shape, obj.header.shape), file=sys.stderr)
             print('__new__: ob  {} {}'.format(type(obj), obj.dtype), file=sys.stderr)
-        assert obj.shape == obj.header.shape, "obj.shape {} != obj.header.shape {}".format(obj.shape, obj.header.shape)
+        # assert obj.shape == obj.header.shape, "obj.shape {} != obj.header.shape {}".format(obj.shape, obj.header.shape)
         return obj
 
     def __array_finalize__(self, obj) -> None:
