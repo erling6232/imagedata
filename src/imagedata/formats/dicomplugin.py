@@ -1292,7 +1292,7 @@ class DICOMPlugin(AbstractPlugin):
                     if _si.ndim == 3:
                         idx = idx[len(tag):]
                     try:
-                        im.decompress(generate_instance_uid=False)
+                        im.decompress()  # (generate_instance_uid=False)
                     except NotImplementedError as e:
                         logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
                         raise
@@ -1318,7 +1318,7 @@ class DICOMPlugin(AbstractPlugin):
             if _si.ndim > 3:
                 for i, im in enumerate(_image_dict):
                     try:
-                        im.decompress(generate_instance_uid=False)
+                        im.decompress()  # (generate_instance_uid=False)
                     except NotImplementedError as e:
                         logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
                         raise
@@ -1337,7 +1337,7 @@ class DICOMPlugin(AbstractPlugin):
                 except TypeError:
                     im = image_dict[0]
                 try:
-                    im.decompress(generate_instance_uid=False)
+                    im.decompress()  # (generate_instance_uid=False)
                 except NotImplementedError as e:
                     logger.error("{}: Cannot decompress pixel data: {}".format(_name, e))
                     raise
