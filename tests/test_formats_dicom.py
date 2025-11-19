@@ -380,7 +380,8 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_single_directory(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'),
                      input_format='dicom')
-        print('test_write_single_directory: si1.shape {} axes {}'.format(si1.shape, si1.axes), file=sys.stderr)
+        print('test_write_single_directory: si1.shape {} hdr.shape {} axes {}'.format(
+            si1.shape, si1.header.shape, si1.axes), file=sys.stderr)
         self.assertEqual((3, 192, 152), si1.shape)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
