@@ -26,7 +26,7 @@ class TestMatZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -35,7 +35,7 @@ class TestMatZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?*Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -44,7 +44,7 @@ class TestMatZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -53,7 +53,7 @@ class TestMatZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -62,7 +62,7 @@ class TestMatZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -79,10 +79,10 @@ class TestMatZipWrite(unittest.TestCase):
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
-            os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'))
+            os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'), input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat.zip'), formats=['mat'])
-            si2 = Series(os.path.join(d, 'mat.zip?Image.mat'))
+            si2 = Series(os.path.join(d, 'mat.zip?Image.mat'), input_format='mat')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -91,12 +91,12 @@ class TestMatZipWrite(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat.zip'), formats=['mat'])
             si2 = Series(os.path.join(d, 'mat.zip'),
                          formats.INPUT_ORDER_TIME,
-                         self.opts)
+                         input_format='mat')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 

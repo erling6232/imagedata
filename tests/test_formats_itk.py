@@ -46,7 +46,7 @@ class TestFileArchiveItk(unittest.TestCase):
     # @unittest.skip("skipping test_file_not_found")
     def test_file_not_found(self):
         try:
-            _ = Series('file_not_found')
+            _ = Series('file_not_found', input_format='itk')
         except FileNotFoundError:
             pass
 
@@ -55,8 +55,7 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts)
-        self.assertEqual(si1.input_format, 'itk')
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
         self.assertNotEqual(si1.windowCenter, 1)
@@ -82,13 +81,13 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
         si2 = si1[0, ...]
         with tempfile.TemporaryDirectory() as d:
             si2.write(os.path.join(d, 'Image.mha'), formats=['itk'])
-            si3 = Series(d)
+            si3 = Series(d, input_format='itk')
         self.assertEqual(si2.dtype, si3.dtype)
         self.assertEqual(si2.shape, si3.shape)
         np.testing.assert_array_equal(si2, si3)
@@ -99,7 +98,7 @@ class TestFileArchiveItk(unittest.TestCase):
             [os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00001.mha')],
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 3, 192, 152))
 
@@ -108,7 +107,7 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -121,10 +120,10 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.mha'), formats=['itk'])
-            si2 = Series(d)
+            si2 = Series(d, input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -144,10 +143,10 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
             'none',
-            self.opts)
+            input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
-            si2 = Series(d)
+            si2 = Series(d, input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -156,15 +155,15 @@ class TestFileArchiveItk(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
             'none',
-            self.opts)
+            input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
-            si2 = Series(d)
+            si2 = Series(d, input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
     def test_write_cohort(self):
-        cohort = Cohort('data/dicom/cohort.zip')
+        cohort = Cohort('data/dicom/cohort.zip', input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             cohort.write(d, formats=['itk'])
 
@@ -180,10 +179,10 @@ class TestWritePluginITKSlice(unittest.TestCase):
 
     # @unittest.skip("skipping test_write_3d_itk_no_opt")
     def test_write_3d_itk_no_opt(self):
-        si1 = Series(os.path.join('data', 'itk', 'time', 'Image_00000.mha'))
+        si1 = Series(os.path.join('data', 'itk', 'time', 'Image_00000.mha'), input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.mha'), formats=['itk'])
-            si2 = Series(d)
+            si2 = Series(d, input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_almost_equal(si1, si2, decimal=4)
@@ -193,7 +192,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
@@ -210,7 +209,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
             si2 = Series(
                 d,
                 'none',
-                self.opts)
+                input_format='itk')
         self.assertEqual(si1.shape, si2.shape)
         compare_headers(self, si1, si2, uid=False)
         np.testing.assert_array_almost_equal(si1, si2, decimal=4)
@@ -224,7 +223,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (3, 3, 192, 152))
 
@@ -246,7 +245,7 @@ class TestWritePluginITKSlice(unittest.TestCase):
             si2 = Series(
                 d,
                 formats.INPUT_ORDER_TIME,
-                self.opts)
+                input_format='itk')
         self.assertEqual(si.shape, si2.shape)
         compare_headers(self, si, si2, uid=False)
         np.testing.assert_array_almost_equal(si, si2, decimal=4)
@@ -269,7 +268,7 @@ class TestWritePluginItkTag(unittest.TestCase):
              os.path.join('data', 'itk', 'time', 'Image_00001.mha'),
              os.path.join('data', 'itk', 'time', 'Image_00002.mha')],
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si.dtype, np.uint16)
         self.assertEqual(si.shape, (3, 3, 192, 152))
         # np.testing.assert_array_almost_equal(np.arange(0, 10*2.256, 2.256), hdr.getTimeline(), decimal=2)
@@ -305,7 +304,7 @@ class TestWritePluginItkTag(unittest.TestCase):
             si2 = Series(
                 d,
                 formats.INPUT_ORDER_TIME,
-                self.opts)
+                input_format='itk')
         self.assertEqual((3, 3, 192, 152), si2.shape)
         # np.testing.assert_array_equal(si, si2)
         # np.testing.assert_array_equal(hdr.sliceLocations, hdr2.sliceLocations)
