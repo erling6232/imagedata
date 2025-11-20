@@ -1043,9 +1043,11 @@ class DICOMPlugin(AbstractPlugin):
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
                     tag_list[_slice] = collect_tags(sorted_data[_slice])
+                    print('{}: tag_list[{}] {}'.format(_name, _slice, tag_list[_slice]), file=sys.stderr)
                     s, axis = calculate_shape(tag_list[_slice])
                 _shapes.append(s)
                 _axes.append(axis)
+            print('{}: _shapes {} _axes {}'.format(_name, _shapes, _axes), file=sys.stderr)
 
             # Find maximum shape in slices
             shape = ()
