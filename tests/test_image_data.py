@@ -2,7 +2,7 @@ import unittest
 import os.path
 import tempfile
 
-from src.imagedata.image_data import sort
+from imagedata.image_data import sort
 
 
 class TestImageData(unittest.TestCase):

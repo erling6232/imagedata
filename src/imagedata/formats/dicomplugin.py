@@ -21,7 +21,6 @@ import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
-from packaging import tags
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
@@ -1025,7 +1024,6 @@ class DICOMPlugin(AbstractPlugin):
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
 
             accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
-            print("{}: entered".format(_name), file=sys.stderr)
             tag_list = defaultdict(list)
             sorted_data = defaultdict(list)
             faulty = 0
@@ -1033,23 +1031,19 @@ class DICOMPlugin(AbstractPlugin):
             _shapes = []
             _axes = []
             for _slice, sloc in enumerate(sorted(series)):
-                print('{}: _slice {} sloc {}'.format(_name, _slice, sloc), file=sys.stderr)
                 im: Instance
                 for im in series[sloc]:
                     im.set_slice_index(_slice)
                     im.set_tags(self._extract_tag_tuple(im, faulty, input_order, opts))
-                    print('{}: im.tags {} slice_index {}'.format(_name, im.tags, im.slice_index), file=sys.stderr)
                     faulty += 1
                 sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
                 if accept_duplicate_tag:
                     s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
                 else:
                     tag_list[_slice] = collect_tags(sorted_data[_slice])
-                    print('{}: tag_list[{}] {}'.format(_name, _slice, tag_list[_slice]), file=sys.stderr)
                     s, axis = calculate_shape(tag_list[_slice])
                 _shapes.append(s)
                 _axes.append(axis)
-            print('{}: _shapes {} _axes {}'.format(_name, _shapes, _axes), file=sys.stderr)
 
             # Find maximum shape in slices
             shape = ()
@@ -1061,7 +1055,6 @@ class DICOMPlugin(AbstractPlugin):
                 hdr.tags = place_images_with_duplicates()
             else:
                 hdr.tags = place_images()
-                print('{}: hdr.tags {}'.format(_name, hdr.tags), file=sys.stderr)
 
             # Get image dimensions and SOPInstanceUIDs from header
             SOPInstanceUIDs = {}
@@ -1118,7 +1111,6 @@ class DICOMPlugin(AbstractPlugin):
             if 'SamplesPerPixel' in hdr.dicomTemplate and hdr.dicomTemplate.SamplesPerPixel == 3:
                 hdr.color = True
             hdr.axes = axes
-            print('{}: hdr.axes {} hdr.shape {}'.format(_name, hdr.axes, hdr.shape), file=sys.stderr)
             self._extract_dicom_attributes(series, hdr, message, opts=opts)
 
         def _get_printable_description(series: SortedDatasetList) -> str:
@@ -1234,19 +1226,15 @@ class DICOMPlugin(AbstractPlugin):
                     )
                 except TypeError:
                     pass
-                # except Exception:
-                except Exception as e:
-                    print('{}: Exception {}'.format(_name, e), file=sys.stderr)
+                except Exception:
                     if skip_broken_series:
                         logger.debug(
                             '{}: skip_broken_series continue {}'.format(
                                 _name, seriesUID
                             ))
-                        print('{}: Exception continue'.format(_name), file=sys.stderr)
                         continue
                     else:
                         logger.debug('{}: skip_broken_series raise'.format(_name))
-                        print('{}: Exception {} raise'.format(_name, type(e)), file=sys.stderr)
                         raise
 
             if si is not None:
@@ -1270,7 +1258,6 @@ class DICOMPlugin(AbstractPlugin):
                     tag = im.tags
                     idx = im.tag_index
                     if idx in _done and not accept_duplicate_tag:
-                        print('{}: raise CannotSort'.format(_name), file=sys.stderr)
                         raise CannotSort("Overwriting data at index {}, tag {}\n".format(idx, tag) +
                                          "Maybe try accept_duplicate_tag=True?")
                     _done[idx] = True
@@ -1281,8 +1268,6 @@ class DICOMPlugin(AbstractPlugin):
                         idx = idx[len(tag):]
                     try:
                         logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
-                        print("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape), file=sys.stderr)
-                        _si[idx] = im.pixel_array
                         if _si.ndim > 2:
                             _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
                         else:
@@ -1320,7 +1305,6 @@ class DICOMPlugin(AbstractPlugin):
 
         _name: str = '{}.{}'.format(__name__, self._construct_pixel_array.__name__)
 
-        print('{}: enter shape {}'.format(_name, shape), file=sys.stderr)
         opts = {} if opts is None else opts
         accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
         # Look-up first image to determine pixel type
@@ -1350,7 +1334,6 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, matrix_dtype)
-        print('{}: si.shape {}'.format(_name, si.shape), file=sys.stderr)
 
         if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
             _copy_pixels_from_frames(si, hdr, image_dict)
@@ -1360,7 +1343,6 @@ class DICOMPlugin(AbstractPlugin):
         # Simplify shape
         self._reduce_shape(si, hdr.axes)
         logger.debug('{}: si {}'.format(_name, si.shape))
-        print('{}: si reduced shape {}'.format(_name, si.shape), file=sys.stderr)
 
         return si
 
@@ -2073,7 +2055,6 @@ class DICOMPlugin(AbstractPlugin):
                         self.write_slice('none', (_slice,), si[_slice], destination, _slice,
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
-                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
                         raise
 
@@ -2192,7 +2173,6 @@ class DICOMPlugin(AbstractPlugin):
                                          tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
-                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
                         raise
                     ifile += 1
@@ -2254,7 +2234,6 @@ class DICOMPlugin(AbstractPlugin):
                                          tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
                     except Exception as e:
-                        print('DICOMPlugin.write_slice Exception: {}'.format(e))
                         traceback.print_exc(file=sys.stdout)
                         raise
                     ifile += 1

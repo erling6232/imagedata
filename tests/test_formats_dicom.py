@@ -1,4 +1,3 @@
-import sys
 import unittest
 import math
 import os.path
@@ -9,9 +8,6 @@ import argparse
 import pydicom.filereader
 from pydicom.dataset import Dataset
 
-#import src.imagedata.cmdline as cmdline
-#import src.imagedata.formats as formats
-#from src.imagedata.series import Series
 import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
@@ -884,8 +880,6 @@ class TestDuplicateDicom(unittest.TestCase):
             'none',
             input_format='dicom'
         )
-        # si1 = si0 + 1
-        # si1.seriesInstanceUID = si0.seriesInstanceUID
         self.d = tempfile.TemporaryDirectory()
         si0.write(os.path.join(self.d.name, '0'), formats=['dicom'], keep_uid=True)
         si0.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
@@ -898,13 +892,8 @@ class TestDuplicateDicom(unittest.TestCase):
         assert duplicate.shape == (2, 3, 192, 152)
 
     def test_duplicate_error(self):
-        print('-----------------------------', file=sys.stderr)
-        print('test_duplicate_error: entered', file=sys.stderr)
-        # _ = Series(self.d.name, 'none', accept_duplicate_tag=False, ignore_series_uid=True)
-        # print('test_duplicate_error: axes {}'.format(_.axes), file=sys.stderr)
-        # self.assertEqual(_.shape, (2, 3, 192, 152))
         with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(self.d.name, 'none', accept_duplicate_tag=False)
+            _ = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=False)
 
 
 class TestDicomNDSort(unittest.TestCase):

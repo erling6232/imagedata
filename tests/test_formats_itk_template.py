@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
 import numpy as np
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from .compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from tests.compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
 
 
 class ShouldHaveFailed(Exception):

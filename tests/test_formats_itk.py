@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test writing data
 """
 
@@ -10,12 +8,11 @@ import numpy as np
 import logging
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from src.imagedata.collection import Cohort
-from .compare_headers import compare_headers
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from imagedata.collection import Cohort
+from tests.compare_headers import compare_headers
 
 
 def list_files(startpath):

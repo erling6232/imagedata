@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -8,11 +6,10 @@ import logging
 import argparse
 import nibabel
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from src.imagedata.collection import Cohort
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from imagedata.collection import Cohort
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):

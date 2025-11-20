@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test zip archive
 """
 
@@ -9,10 +7,9 @@ import numpy as np
 import tempfile
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestDicomZipRead(unittest.TestCase):

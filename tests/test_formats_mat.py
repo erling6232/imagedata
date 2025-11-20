@@ -5,11 +5,10 @@ import numpy as np
 import logging
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from src.imagedata.collection import Cohort
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from imagedata.collection import Cohort
 
 
 def list_files(startpath):

@@ -2,9 +2,8 @@ import os.path
 import tempfile
 import unittest
 
-# from .context import imagedata
-from src.imagedata import Series, Study, Patient, Cohort
-from src.imagedata.formats import UnknownInputError
+from imagedata import Series, Study, Patient, Cohort
+from imagedata.formats import UnknownInputError
 
 
 class TestStudy(unittest.TestCase):

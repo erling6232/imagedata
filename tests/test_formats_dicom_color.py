@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import numpy as np
 import argparse
 import tempfile
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestDicomColor(unittest.TestCase):
