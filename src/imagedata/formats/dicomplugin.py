@@ -652,9 +652,7 @@ class DICOMPlugin(AbstractPlugin):
 
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
 
-        skip_broken_series = False
-        if 'skip_broken_series' in opts:
-            skip_broken_series = opts['skip_broken_series']
+        skip_broken_series = 'skip_broken_series' in opts and opts['skip_broken_series']
 
         # Sort datasets on sloc
         sorted_dataset_dict: SortedDatasetDict = SortedDatasetDict()  # defaultdict(lambda: defaultdict(list))
@@ -714,10 +712,8 @@ class DICOMPlugin(AbstractPlugin):
                         sorted_dataset[sloc].sort(
                             key=partial(_get_tag_value, input_order=sort_key, opts=opts)
                         )
-                    except ValueError:
+                    except (ValueError, TypeError):
                         pass
-                    except Exception as e:
-                        print(e)
             # Catalog images with seriesUID and sloc as keys
             sorted_dataset_dict[seriesUID] = sorted_dataset
         logger.debug('{}: end with {}'.format(_name, sorted_dataset_dict.keys()))
