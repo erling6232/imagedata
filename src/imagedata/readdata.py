@@ -142,9 +142,11 @@ def read(urls, order=None, opts=None, input_format=None):
             print('{}: CannotSort exception'.format(_name), file=sys.stderr)
             raise
         except NotImageError as e:
+            print('{}: Exception {}'.format(_name, e), file=sys.stderr)
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
+            print('{}: Exception {}'.format(_name, e), file=sys.stderr)
             logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
             # import traceback, sys
