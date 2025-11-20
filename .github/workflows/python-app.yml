@@ -36,6 +36,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 coverage setuptools build
           pip install ".[imagedata]"
+          pip install ".[tests]"
           # pip install -e .
       #        python -c "import configparser; c=configparser.ConfigParser(); c.read('setup.cfg'); print(c['options']['install_requires'])" > requirements.txt
       #        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
@@ -52,6 +53,7 @@ jobs:
         run: |
           # Ensure temporary files are created in a unique, local directory
           export TMPDIR=${RUNNER_TEMP}
+          # pip install ".[tests]"
           python -m unittest tests.test_formats_dicom.TestDuplicateDicom.test_duplicate_error
           # coverage run -m unittest discover tests -t .
           coverage report -m
