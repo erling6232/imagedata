@@ -1025,7 +1025,7 @@ class DICOMPlugin(AbstractPlugin):
             _name: str = '{}.{}'.format(__name__, _extract_all_tags.__name__)
 
             accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
-            print("{}: entered".format(_name))
+            print("{}: entered".format(_name), file=sys.stderr)
             tag_list = defaultdict(list)
             sorted_data = defaultdict(list)
             faulty = 0
