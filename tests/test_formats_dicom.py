@@ -881,11 +881,11 @@ class TestDuplicateDicom(unittest.TestCase):
             'none',
             input_format='dicom'
         )
-        si1 = si0 + 1
-        si1.seriesInstanceUID = si0.seriesInstanceUID
+        # si1 = si0 + 1
+        # si1.seriesInstanceUID = si0.seriesInstanceUID
         self.d = tempfile.TemporaryDirectory()
         si0.write(os.path.join(self.d.name, '0'), formats=['dicom'], keep_uid=True)
-        si1.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
+        si0.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
 
     def tearDown(self):
         self.d.cleanup()
@@ -895,10 +895,10 @@ class TestDuplicateDicom(unittest.TestCase):
         assert duplicate.shape == (2, 3, 192, 152)
 
     def test_duplicate_error(self):
-        _ = Series(self.d.name, 'none', accept_duplicate_tag=False)
+        _ = Series(self.d.name, 'none', accept_duplicate_tag=False, ignore_series_uid=True)
         self.assertEqual(_.shape, (2, 3, 192, 152))
         with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(self.d.name, accept_duplicate_tag=False)
+            _ = Series(self.d.name, 'none', accept_duplicate_tag=False)
 
 
 class TestDicomNDSort(unittest.TestCase):
