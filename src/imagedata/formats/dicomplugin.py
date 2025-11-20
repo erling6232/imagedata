@@ -1266,6 +1266,7 @@ class DICOMPlugin(AbstractPlugin):
                     tag = im.tags
                     idx = im.tag_index
                     if idx in _done and not accept_duplicate_tag:
+                        print('{}: raise CannotSort'.format(_name), file=sys.stderr)
                         raise CannotSort("Overwriting data at index {}, tag {}\n".format(idx, tag) +
                                          "Maybe try accept_duplicate_tag=True?")
                     _done[idx] = True
