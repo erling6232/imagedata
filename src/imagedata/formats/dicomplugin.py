@@ -1276,6 +1276,8 @@ class DICOMPlugin(AbstractPlugin):
                         idx = idx[len(tag):]
                     try:
                         logger.debug("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape))
+                        print("{}: get idx {} shape {}".format(_name, idx, _si[idx].shape), file=sys.stderr)
+                        _si[idx] = im.pixel_array
                         if _si.ndim > 2:
                             _si[idx] = self._get_pixels_with_shape(im, _si[idx].shape)
                         else:
@@ -1343,6 +1345,7 @@ class DICOMPlugin(AbstractPlugin):
         # Load DICOM image data
         logger.debug('{}: shape {}'.format(_name, shape))
         si = np.zeros(shape, matrix_dtype)
+        print('{}: si.shape {}'.format(_name, si.shape), file=sys.stderr)
 
         if 'NumberOfFrames' in im and im.NumberOfFrames > 1:
             _copy_pixels_from_frames(si, hdr, image_dict)
@@ -1352,6 +1355,7 @@ class DICOMPlugin(AbstractPlugin):
         # Simplify shape
         self._reduce_shape(si, hdr.axes)
         logger.debug('{}: si {}'.format(_name, si.shape))
+        print('{}: si reduced shape {}'.format(_name, si.shape), file=sys.stderr)
 
         return si
 
