@@ -1118,6 +1118,7 @@ class DICOMPlugin(AbstractPlugin):
             if 'SamplesPerPixel' in hdr.dicomTemplate and hdr.dicomTemplate.SamplesPerPixel == 3:
                 hdr.color = True
             hdr.axes = axes
+            print('{}: hdr.axes {} hdr.shape {}'.format(_name, hdr.axes, hdr.shape), file=sys.stderr)
             self._extract_dicom_attributes(series, hdr, message, opts=opts)
 
         def _get_printable_description(series: SortedDatasetList) -> str:
