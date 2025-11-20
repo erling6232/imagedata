@@ -1234,15 +1234,19 @@ class DICOMPlugin(AbstractPlugin):
                     )
                 except TypeError:
                     pass
-                except Exception:
+                # except Exception:
+                except Exception as e:
+                    print('{}: Exception {}'.format(_name, e), file=sys.stderr)
                     if skip_broken_series:
                         logger.debug(
                             '{}: skip_broken_series continue {}'.format(
                                 _name, seriesUID
                             ))
+                        print('{}: Exception continue'.format(_name), file=sys.stderr)
                         continue
                     else:
                         logger.debug('{}: skip_broken_series raise'.format(_name))
+                        print('{}: Exception raise'.format(_name), file=sys.stderr)
                         raise
 
             if si is not None:
