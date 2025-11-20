@@ -119,8 +119,9 @@ class Header(object):
         """Return matrix shape as given by axes properties.
         """
         _shape = tuple()
-        for _ in self.axes:
-            _shape += (len(_),)
+        if self.axes is not None:
+            for _ in self.axes:
+                _shape += (len(_),)
         return _shape
 
     def new_uid(self) -> UID:
