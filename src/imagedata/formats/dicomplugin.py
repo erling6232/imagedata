@@ -1032,6 +1032,7 @@ class DICOMPlugin(AbstractPlugin):
             _shapes = []
             _axes = []
             for _slice, sloc in enumerate(sorted(series)):
+                print('{}: _slice {} sloc {}'.format(_name, _slice, sloc), file=sys.stderr)
                 im: Instance
                 for im in series[sloc]:
                     im.set_slice_index(_slice)
