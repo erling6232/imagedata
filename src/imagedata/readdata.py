@@ -9,6 +9,7 @@ import mimetypes
 import argparse
 import fnmatch
 import pathlib
+import sys
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
@@ -138,6 +139,7 @@ def read(urls, order=None, opts=None, input_format=None):
             return hdr, si
         except (FileNotFoundError, CannotSort):
             # No need to try other plugins
+            print('{}: CannotSort exception'.format(_name), file=sys.stderr)
             raise
         except NotImageError as e:
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
