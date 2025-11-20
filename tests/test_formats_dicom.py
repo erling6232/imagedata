@@ -895,6 +895,7 @@ class TestDuplicateDicom(unittest.TestCase):
         assert duplicate.shape == (2, 3, 192, 152)
 
     def test_duplicate_error(self):
+        _ = Series(self.d.name, accept_duplicate_tag=False)
         with self.assertRaises(formats.CannotSort) as context:
             _ = Series(self.d.name, accept_duplicate_tag=False)
 
