@@ -137,7 +137,10 @@ def read(urls, order=None, opts=None, input_format=None):
                 hdr[seriesUID].add_template(pre_hdr)
                 hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
-        except (FileNotFoundError, CannotSort):
+        except FileNotFoundError:
+            # No need to try other plugins
+            raise
+        except CannotSort:
             # No need to try other plugins
             print('{}: CannotSort exception'.format(_name), file=sys.stderr)
             raise
