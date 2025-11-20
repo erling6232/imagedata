@@ -891,7 +891,7 @@ class TestDuplicateDicom(unittest.TestCase):
         self.d.cleanup()
 
     def test_duplicate(self):
-        duplicate = Series(self.d.name, 'none', accept_duplicate_tag=True)
+        duplicate = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=True)
         assert duplicate.shape == (2, 3, 192, 152)
 
     def test_duplicate_error(self):

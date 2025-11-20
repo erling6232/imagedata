@@ -137,10 +137,8 @@ def read(urls, order=None, opts=None, input_format=None):
                 hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
         except (FileNotFoundError, CannotSort):
-            if 'skip_broken_series' in opts and opts['skip_broken_series']:
-                pass
-            else:
-                raise
+            # No need to try other plugins
+            raise
         except NotImageError as e:
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
