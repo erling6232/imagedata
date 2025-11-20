@@ -76,7 +76,7 @@ version = {file = "VERSION.txt"}
 [tool.cibuildwheel]
 test-requires = "coverage"
 # test-command = "coverage run -m unittest discover imagedata/tests -t imagedata"
-test-command = "python -m unittest tests.TestDuplicateDicom.test_duplicate_error
+test-command = "python -m unittest tests.TestDuplicateDicom.test_duplicate_error"
 
 [project.scripts]
 dicom_dump = "imagedata.image_data:dump"
