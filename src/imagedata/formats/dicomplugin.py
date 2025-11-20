@@ -24,11 +24,13 @@ import pydicom.uid
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
-from ..formats import CannotSort, NotImageError, INPUT_ORDER_FAULTY, \
-    SORT_ON_SLICE, \
-    INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_FA, INPUT_ORDER_TE, \
-    INPUT_ORDER_BVECTOR, INPUT_ORDER_TRIGGERTIME, \
-    INPUT_ORDER_AUTO
+from ..formats import (CannotSort, EmptyImageError, NotImageError,
+                       INPUT_ORDER_FAULTY,
+                       INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B,
+                       INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_BVECTOR,
+                       INPUT_ORDER_TRIGGERTIME,
+                       SORT_ON_SLICE
+                       )
 from ..series import Series
 from ..axis import VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
@@ -406,11 +408,16 @@ class DICOMPlugin(AbstractPlugin):
             logger.debug('{}: going to _get_non_image_headers {}'.format(_name, sources))
             non_image_header_dict: SortedHeaderDict
             non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
+            non_image_pixel_dict = {}
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
-                non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
-                                                                    non_image_header_dict,
-                                                                    opts, skip_pixels)
+                try:
+                    non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
+                                                                        non_image_header_dict,
+                                                                        opts, skip_pixels)
+                except EmptyImageError:
+                    pass
+
             for seriesUID in non_image_header_dict:
                 if seriesUID in sorted_header_dict:
                     sorted_header_dict[seriesUID].datasets = non_imaging_dataset_dict[seriesUID]
@@ -1312,6 +1319,8 @@ class DICOMPlugin(AbstractPlugin):
             im: Dataset = image_dict[next(iter(image_dict))][0]
         except TypeError:
             im: Dataset = image_dict[0]
+        if not 'BitsAllocated' in im:
+            raise EmptyImageError("No pixel data in instance.")
         hdr.photometricInterpretation = 'MONOCHROME2'
         if 'PhotometricInterpretation' in im:
             hdr.photometricInterpretation = im.PhotometricInterpretation
