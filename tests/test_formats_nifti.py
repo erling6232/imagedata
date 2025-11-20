@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
@@ -8,11 +6,10 @@ import logging
 import argparse
 import nibabel
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from src.imagedata.collection import Cohort
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from imagedata.collection import Cohort
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):
@@ -35,7 +32,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si1, si2)
 
     def test_tra_rl(self):
-        dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'tra_rl.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'tra_rl.nii.gz')
         )
@@ -49,7 +46,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_tra_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'tra_oblique.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'tra_oblique.nii.gz')
         )
@@ -61,7 +58,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_hf(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_hf.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'cor_hf.nii.gz')
         )
@@ -73,7 +70,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_oblique.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'cor_oblique.nii.gz')
         )
@@ -85,7 +82,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_cor_rl(self):
-        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'cor_rl.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'cor_rl.nii.gz')
         )
@@ -97,7 +94,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_sag_ap(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'sag_ap.nii.gz')
         )
@@ -109,7 +106,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_sag_hf(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_hf.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'sag_hf.nii.gz')
         )
@@ -121,7 +118,7 @@ class TestWriteNIfTIPlugin(unittest.TestCase):
             self._compare_nifti_data(nii, check, 'dcm2niix', 'niftiplugin')
 
     def test_sag_oblique(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_oblique.zip'), input_format='dicom')
         nii = nibabel.load(
             os.path.join('data', 'nifti', 'sag_oblique.nii.gz')
         )
@@ -154,7 +151,7 @@ class TestReadWriteNIfTIPlugin(unittest.TestCase):
         np.testing.assert_array_equal(nifti, dcm, err_msg="voxel values")
 
     def test_compare_sag_ap(self):
-        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'))
+        dcm = Series(os.path.join('data', 'dicom', 'sag_ap.zip'), input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             nifti = Series(d, input_format='nifti')
@@ -251,8 +248,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
-            self.opts)
-        self.assertEqual(si1.input_format, 'nifti')
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -275,11 +271,9 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     # @unittest.skip("skipping test_qform_3D")
     def test_qform_3D(self):
         dcm = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
-        self.assertEqual('dicom', dcm.input_format)
         with tempfile.TemporaryDirectory() as d:
             dcm.write(d, formats=['nifti'])
             n = Series(d, input_format='nifti')
-        self.assertEqual('nifti', n.input_format)
         self.assertEqual(dcm.shape, n.shape)
         self.assertEqual(dcm.dtype, n.dtype)
         np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, atol=1e-2)
@@ -290,12 +284,10 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             os.path.join('data', 'dicom', 'time'),
             'time',
             input_format='dicom')
-        self.assertEqual('dicom', dcm.input_format)
         n = Series(
             os.path.join('data', 'nifti', 'time', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'time',
             input_format='nifti')
-        self.assertEqual('nifti', n.input_format)
         self.assertEqual(dcm.shape, n.shape)
         # obj.assertEqual(dcm.dtype, n.dtype)
         np.testing.assert_allclose(n.transformationMatrix, dcm.transformationMatrix, atol=1e-2)
@@ -314,7 +306,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
                              'time_all_fl3d_dynamic_20190207140517_14.nii.gz')
             ],
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='nifti')
         self.assertEqual(np.int16, si1.dtype)
         self.assertEqual((3, 3, 192, 152), si1.shape)
 
@@ -326,7 +318,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
                 'nifti',
                 'time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -335,7 +327,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -344,7 +336,7 @@ class Test3DNIfTIPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -378,14 +370,15 @@ class Test3DNIfTIPlugin(unittest.TestCase):
     # noinspection PyArgumentList
     def test_read_3d_nifti_no_opt(self):
         si1 = Series(os.path.join(
-            'data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'))
+            'data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            input_format='nifti')
         logging.debug('test_read_3d_nifti_no_opt: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_read_3d_nifti_no_opt: si1.slices {}'.format(si1.slices))
 
     # @unittest.skip("skipping test_write_3d_nifti_no_opt")
     # noinspection PyArgumentList
     def test_write_3d_nifti_no_opt(self):
-        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         logging.debug('test_write_3d_nifti_no_opt: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_write_3d_nifti_no_opt: si1.slices {}'.format(si1.slices))
         with tempfile.TemporaryDirectory() as d:
@@ -410,7 +403,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -426,7 +419,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             si2 = Series(
                 d,
                 formats.INPUT_ORDER_TIME,
-                self.opts)
+                input_format='nifti')
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
 
@@ -434,7 +427,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'dwi'),
             formats.INPUT_ORDER_B,
-            self.opts
+            input_format='dicom'
         )
         self.assertEqual(si1.shape, (3, 30, 384, 312))
         with tempfile.TemporaryDirectory() as d:
@@ -442,7 +435,7 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             # Read back the NIfTI data and verify
             si2 = Series(d,
                          formats.INPUT_ORDER_B,
-                         self.opts)
+                         input_format='nifti')
             self.assertEqual(si1.shape, si2.shape)
             np.testing.assert_array_almost_equal(si1.spacing, si2.spacing)
             np.testing.assert_array_equal(si1, si2)
@@ -453,15 +446,15 @@ class TestNIfTIPluginWrite(unittest.TestCase):
         si1 = Series(
             # os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             os.path.join('data', 'nifti', 'cor_rl.nii.gz'),
-            'time')
-        self.assertEqual(si1.input_format, 'nifti')
+            'time',
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 320, 220))
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
 
     def test_write_cohort(self):
-        cohort = Cohort('data/dicom/cohort.zip')
+        cohort = Cohort('data/dicom/cohort.zip', input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             cohort.write(d, formats=['nifti'])
 

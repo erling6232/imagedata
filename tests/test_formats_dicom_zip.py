@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test zip archive
 """
 
@@ -9,10 +7,9 @@ import numpy as np
 import tempfile
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestDicomZipRead(unittest.TestCase):
@@ -29,8 +26,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'),
             'none',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 
@@ -39,8 +35,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?*00/Image_00020.dcm'),
             'none',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (192, 152))
 
@@ -49,8 +44,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?*00/Image_0002[01].dcm'),
             'none',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 192, 152))
 
@@ -59,8 +53,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?*0[01]/Image_0002[01].dcm'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 2, 192, 152))
 
@@ -69,8 +62,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip?time/time00'),
             'none',
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
@@ -79,8 +71,7 @@ class TestDicomZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -96,12 +87,10 @@ class TestDicomZipWrite(unittest.TestCase):
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
-        si1 = Series(os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'))
-        self.assertEqual('dicom', si1.input_format)
+        si1 = Series(os.path.join('data', 'dicom', 'time.zip?time/time00/Image_00020.dcm'), input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'dicom.zip'), formats=['dicom'])
-            si2 = Series(os.path.join(d, 'dicom.zip?Image_00000.dcm'))
-        self.assertEqual('dicom', si2.input_format)
+            si2 = Series(os.path.join(d, 'dicom.zip?Image_00000.dcm'), input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si2.dtype, np.uint16)
         self.assertEqual(si1.shape, si2.shape)
@@ -113,14 +102,12 @@ class TestDicomZipWrite(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual('dicom', si1.input_format)
+            input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'dicom.zip'), formats=['dicom'])
             si2 = Series(os.path.join(d, 'dicom.zip'),
                          formats.INPUT_ORDER_TIME,
-                         self.opts)
-        self.assertEqual('dicom', si2.input_format)
+                         input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 

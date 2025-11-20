@@ -1,11 +1,8 @@
-#!/usr/bin/env python3
-
 import unittest
 import numpy as np
 import logging
 
-# from .context import imagedata
-from src.imagedata.axis import UniformAxis, UniformLengthAxis, VariableAxis
+from imagedata.axis import UniformAxis, UniformLengthAxis, VariableAxis
 
 
 class TestAxis(unittest.TestCase):

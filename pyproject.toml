@@ -28,7 +28,7 @@ keywords = [
 ]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydicom>=2.4.0, <3",
+    "pydicom>=2.4.0",
     "pylibjpeg[all]",
     "pynetdicom>=1.2.0, <2",
     "itk-io>=5.4.0",
@@ -46,7 +46,6 @@ dependencies = [
     "opencv-python-headless"
 ]
 classifiers = [
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -75,7 +74,6 @@ version = {file = "VERSION.txt"}
 
 [tool.cibuildwheel]
 test-requires = "coverage"
-# test-command = "coverage run -m unittest discover {project}/tests -t {project}"
 test-command = "coverage run -m unittest discover imagedata/tests -t imagedata"
 
 [project.scripts]

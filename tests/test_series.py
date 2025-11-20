@@ -8,12 +8,11 @@ from numpy.random import default_rng
 import copy
 import pydicom.datadict
 
-# from .context import imagedata
-from src.imagedata.series import Series
-import src.imagedata.axis as axis
-import src.imagedata.formats as formats
-from src.imagedata.viewer import grid_from_roi
-from .compare_headers import compare_axes
+from imagedata.series import Series
+import imagedata.axis as axis
+import imagedata.formats as formats
+from imagedata.viewer import grid_from_roi
+from tests.compare_headers import compare_axes
 
 
 class TestSeries(unittest.TestCase):

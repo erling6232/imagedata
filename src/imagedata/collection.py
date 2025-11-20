@@ -22,6 +22,7 @@ from .formats import UnknownInputError
 
 logger = logging.getLogger(__name__)
 
+
 def _get_attribute(_data, _attr):
     # Get attribute from first instance in _data
     if len(_data) < 1:
@@ -342,9 +343,11 @@ class Study(IndexedDict):
                         and template.header.frameOfReferenceUID == _series.header.frameOfReferenceUID:
                     _series.header.add_geometry(template.header)
                     _series.header.geometryIsDefined = True
-                    logger.info("Added geometry to {} from series {}".format(_series.seriesInstanceUID, template.seriesInstanceUID))
+                    logger.info("Added geometry to {} from series {}".format(
+                        _series.seriesInstanceUID, template.seriesInstanceUID
+                    ))
 
-    def __init__(self, data, opts: dict=None, **kwargs):
+    def __init__(self, data, opts: dict = None, **kwargs):
         super(Study, self).__init__()
         for _attr in self._attributes:
             setattr(self, _attr, None)

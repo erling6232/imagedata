@@ -12,8 +12,8 @@ import pathlib
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
-from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list
-from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
+from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list, \
+    CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
 from .transports import RootIsNotDirectory
 from .archives import find_mimetype_plugin, ArchivePluginNotFound
 
@@ -136,11 +136,9 @@ def read(urls, order=None, opts=None, input_format=None):
                 hdr[seriesUID].add_template(pre_hdr)
                 hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
-        except (FileNotFoundError, CannotSort):
-            if 'skip_broken_series' in opts and opts['skip_broken_series']:
-                pass
-            else:
-                raise
+        except (CannotSort, FileNotFoundError):
+            # No need to try other plugins
+            raise
         except NotImageError as e:
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
@@ -533,8 +531,7 @@ def _get_sources(
         source = {'files': []}
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
-        except (RootIsNotDirectory,
-                ArchivePluginNotFound) as e:
+        except (RootIsNotDirectory, ArchivePluginNotFound):
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
             logger.debug('{}: retry location {}'.format(_name, source_location))

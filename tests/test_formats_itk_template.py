@@ -1,16 +1,13 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import tempfile
 import numpy as np
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from .compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from tests.compare_headers import compare_headers, compare_template_headers, compare_geometry_headers
 
 
 class ShouldHaveFailed(Exception):
@@ -37,8 +34,8 @@ class TestItkTemplate(unittest.TestCase):
                 self.itk_plugin = pclass
         self.assertIsNotNone(self.itk_plugin)
 
-        self.template = Series(os.path.join('data', 'dicom', 'time', 'time00'))
-        self.geometry = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        self.template = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
+        self.geometry = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         self.geometry.spacing = (3, 2, 1)
 
     # @unittest.skip("skipping test_itk_template_cmdline")
@@ -47,9 +44,10 @@ class TestItkTemplate(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts_template)
+            self.opts_template,
+            input_format='itk')
         # Read the original DICOM series
-        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
@@ -58,7 +56,7 @@ class TestItkTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
-            si3 = Series(d)
+            si3 = Series(d, input_format='dicom')
         # np.testing.assert_array_equal(si2, si3)
         compare_template_headers(self, si2, si3)
 
@@ -68,7 +66,8 @@ class TestItkTemplate(unittest.TestCase):
         # adding DICOM template in Series constructor
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
-            template=self.template)
+            template=self.template,
+            input_format='itk')
         # Compare constructed series si1 to original series
         self.assertEqual(si1.dtype, self.template.dtype)
         np.testing.assert_array_equal(si1, self.template)
@@ -80,9 +79,10 @@ class TestItkTemplate(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts_geometry)
+            self.opts_geometry,
+            input_format='itk')
         # Read the original DICOM series
-        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
@@ -98,7 +98,7 @@ class TestItkTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
-            si3 = Series(d)
+            si3 = Series(d, input_format='dicom')
         np.testing.assert_array_equal(si2, si3)
         compare_geometry_headers(self, si2, si2)
 
@@ -108,7 +108,7 @@ class TestItkTemplate(unittest.TestCase):
         # adding DICOM geometry in Series constructor
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
-            geometry=self.geometry)
+            geometry=self.geometry, input_format='itk')
         # Compare constructed series si1 to original series
         self.assertEqual(si1.dtype, self.geometry.dtype)
         np.testing.assert_array_equal(si1, self.geometry)
@@ -127,9 +127,9 @@ class TestItkTemplate(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             'none',
-            self.opts_tempgeom)
+            self.opts_tempgeom, input_format='itk')
         # Read the original DICOM series
-        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'))
+        si2 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Compare constructed series si1 to original series si2
         self.assertEqual(si1.dtype, si2.dtype)
         np.testing.assert_array_equal(si1, si2)
@@ -138,7 +138,7 @@ class TestItkTemplate(unittest.TestCase):
         # then re-read and compare to original si2
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
-            si3 = Series(d)
+            si3 = Series(d, input_format='dicom')
         np.testing.assert_array_equal(si2, si3)
         compare_headers(self, si2, si3)
 
@@ -149,7 +149,8 @@ class TestItkTemplate(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time', 'Image_00000.mha'),
             template=self.template,
-            geometry=self.geometry)
+            geometry=self.geometry,
+            input_format='itk')
         # Compare constructed series si1 to original series
         self.assertEqual(si1.dtype, self.template.dtype)
         np.testing.assert_array_equal(si1, self.template)

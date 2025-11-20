@@ -445,7 +445,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         im.PixelSpacing = gim.PixelSpacing
 
     @staticmethod
-    def _reduce_shape(si, axes: namedtuple=None):
+    def _reduce_shape(si, axes: namedtuple = None):
         """Reduce shape when leading shape(s) are 1.
 
         Will not reduce to less than 2-dimensional image.

@@ -2,7 +2,6 @@
 
 """
 
-import copy
 import numpy as np
 from collections import namedtuple
 import pydicom.uid
@@ -119,8 +118,9 @@ class Header(object):
         """Return matrix shape as given by axes properties.
         """
         _shape = tuple()
-        for _ in self.axes:
-            _shape += (len(_),)
+        if self.axes is not None:
+            for _ in self.axes:
+                _shape += (len(_),)
         return _shape
 
     def new_uid(self) -> UID:
@@ -289,7 +289,7 @@ class Header(object):
             pre_tag = tuple()
             for i, t in enumerate(tag):
                 if i == axis:
-                    pre_tag += (tag[i]-1,)
+                    pre_tag += (tag[i] - 1,)
                 else:
                     pre_tag += (tag[i],)
             return pre_tag

@@ -23,7 +23,7 @@ import pydicom.datadict
 from pydicom.uid import UID
 
 from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
-from .formats import INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B
+from .formats import INPUT_ORDER_NONE
 from .formats import shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
@@ -160,7 +160,6 @@ class Series(np.ndarray):
                     Axes = namedtuple('Axes', _fields)
                     obj.header.axes = Axes._make(_values)
 
-
             if issubclass(type(data), Series):
                 # Copy attributes from existing Series to newly created obj
                 obj.header = copy.copy(data.header)  # carry forward attributes
@@ -238,11 +237,6 @@ class Series(np.ndarray):
         obj.header.windowCenter = hdr.windowCenter
         obj.header.windowWidth = hdr.windowWidth
         # Finally, we must return the newly created object
-        if obj.shape != obj.header.shape:
-            import sys
-            print('__new__: obj.shape {} obj.header.shape {}'.format(obj.shape, obj.header.shape), file=sys.stderr)
-            print('__new__: obj  {} {}'.format(type(obj), obj.dtype), file=sys.stderr)
-        # assert obj.shape == obj.header.shape, "obj.shape {} != obj.header.shape {}".format(obj.shape, obj.header.shape)
         return obj
 
     def __array_finalize__(self, obj) -> None:
@@ -2442,7 +2436,6 @@ class Series(np.ndarray):
             else:
                 raise ValueError("Transformation matrix must be 3x4 or 4x4.")
 
-
         if moving.color or reference.color:
             raise ValueError('Aligning color images not implemented.')
 
@@ -2540,7 +2533,6 @@ class Series(np.ndarray):
 
         else:
             raise ValueError("Only 3D or 4D images are supported.")
-
 
     def to_channels(self, channels, labels):
         """Create a Series object with channeled data.
@@ -3156,14 +3148,14 @@ class Series(np.ndarray):
 # -----------------------------------------------------------------------------
 
 
-def implements(numpy_function):
-    """Register an __array_function__ implementation for Series objects."""
-
-    def decorator(func):
-        HANDLED_FUNCTIONS[numpy_function] = func
-        return func
-
-    return decorator
+# def implements(numpy_function):
+#     """Register an __array_function__ implementation for Series objects."""
+#
+#     def decorator(func):
+#         HANDLED_FUNCTIONS[numpy_function] = func
+#         return func
+#
+#     return decorator
 
 
 def _delegate_to_numpy(func, arrays, **kwargs):
@@ -3184,6 +3176,7 @@ def _delegate_to_numpy(func, arrays, **kwargs):
 
     return obj
 
+
 def _delegate_args_to_numpy(func, *arrays, **kwargs):
     series_template = None
     a = []
@@ -3202,6 +3195,7 @@ def _delegate_args_to_numpy(func, *arrays, **kwargs):
         obj.header = copy.copy(series_template.header)
         return obj
     return s
+
 
 def _delegate_a_to_numpy(func, a, **kwargs):
     """Delegate function on single array to NumPy."""
@@ -3247,75 +3241,94 @@ def _delegate_struct_to_numpy(func, a, **kwargs):
         field_names
     )
 
+
 def _delegate_a_to_numpy_out(func, a, **kwargs):
     """Delegate function on single array to NumPy.
     Return NumPy output unmodified."""
     ndarray = a.view(np.ndarray)
     return func(ndarray, **kwargs)
 
+
 @implements(np.minimum)
 def _minimum(a, **kwargs):
     return _delegate_a_to_numpy(np.minimum, a, **kwargs)
+
 
 @implements(np.maximum)
 def _maximum(a, **kwargs):
     return _delegate_a_to_numpy(np.maximum, a, **kwargs)
 
+
 @implements(np.min)
 def _min(a, **kwargs):
     return _delegate_a_to_numpy(np.min, a, **kwargs)
+
 
 @implements(np.nanmin)
 def _min(a, **kwargs):
     return _delegate_a_to_numpy(np.nanmin, a, **kwargs)
 
+
 @implements(np.max)
 def _max(a, **kwargs):
     return _delegate_a_to_numpy(np.max, a, **kwargs)
+
 
 @implements(np.nanmax)
 def _max(a, **kwargs):
     return _delegate_a_to_numpy(np.nanmax, a, **kwargs)
 
+
 @implements(np.nan_to_num)
 def _nan_to_num(a, **kwargs):
     return _delegate_a_to_numpy(np.nan_to_num, a, **kwargs)
+
+
 @implements(np.min_scalar_type)
 def _min_scalar_type(a):
     return _delegate_a_to_numpy(np.min_scalar_type, a)
 
+
 @implements(np.result_type)
 def _result_type(*a, **kwargs):
     return _delegate_args_to_numpy(np.result_type, *a, **kwargs)
+
 
 @implements(np.rint)
 def _rint(a, **kwargs):
     print('_rint: a:', type(a))
     return _delegate_a_to_numpy(np.rint, a, **kwargs)
 
+
 @implements(np.zeros_like)
 def _zeros_like(a, **kwargs):
     return _delegate_a_to_numpy(np.zeros_like, a, **kwargs)
+
 
 @implements(np.empty_like)
 def _empty_like(a, **kwargs):
     return _delegate_a_to_numpy(np.empty_like, a, **kwargs)
 
+
 @implements(np.sum)
 def _sum(a, **kwargs):
     return _delegate_a_to_numpy(np.sum, a, **kwargs)
+
 
 @implements(np.mean)
 def _mean(a, **kwargs):
     return _delegate_a_to_numpy(np.mean, a, **kwargs)
 
+
 @implements(np.clip)
 def _clip(a, **kwargs):
     return _delegate_a_to_numpy(np.clip, a, **kwargs)
 
+
 @implements(np.count_nonzero)
 def _count_nonzero(a, **kwargs):
     return _delegate_a_to_numpy(np.count_nonzero, a, **kwargs)
+
 
 @implements(np.concatenate)
 def concatenate(arrays, axis=0, out=None):
@@ -3347,7 +3360,7 @@ def concatenate(arrays, axis=0, out=None):
     # Concatenate tags
     if obj.axes[axis].name == 'slice':
         for arr in arrays[1:]:
-            for _slice in range(len(obj.tags), len(obj.tags)+arr.slices):
+            for _slice in range(len(obj.tags), len(obj.tags) + arr.slices):
                 obj.tags[_slice] = obj.tags[0]
             obj.sliceLocations = np.append(obj.sliceLocations, arr.sliceLocations)
     elif obj.axes[axis].name in ('row', 'column'):

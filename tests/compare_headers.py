@@ -1,4 +1,4 @@
-import src.imagedata.axis as axis
+import imagedata.axis as axis
 import numpy as np
 
 

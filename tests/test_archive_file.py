@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test file archive
 """
 
@@ -7,10 +5,8 @@ import os
 import unittest
 import argparse
 import tempfile
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.archives as archives
-import src.imagedata.transports as transports
+import imagedata.cmdline as cmdline
+import imagedata.archives as archives
 
 
 class TestArchiveFile(unittest.TestCase):

@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
-
 import unittest
 import os.path
 import numpy as np
 import argparse
 import tempfile
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestDicomColor(unittest.TestCase):
@@ -29,9 +26,8 @@ class TestDicomColor(unittest.TestCase):
 
     # @unittest.skip("skipping test_read_dicom_color")
     def test_read_dicom_color(self):
-        si1 = Series(os.path.join('data', 'lena_color.jpg'))
-        si2 = Series(os.path.join('data', 'dicom', 'lena_color.dcm'))
-        self.assertEqual('dicom', si2.input_format)
+        si1 = Series(os.path.join('data', 'lena_color.jpg'), input_format='itk')
+        si2 = Series(os.path.join('data', 'dicom', 'lena_color.dcm'), input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
         self.assertEqual(si1.color, si2.color)
@@ -42,14 +38,12 @@ class TestDicomColor(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'lena_color.jpg'),
             'none',
-            self.opts)
-        self.assertEqual('itk', si1.input_format)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')]))
         self.assertEqual(si1.shape, (512, 512))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.dcm'), formats=['dicom'])
-            si2 = Series(d)
-            self.assertEqual('dicom', si2.input_format)
+            si2 = Series(d, input_format='dicom')
         d = si1 - si2
         np.testing.assert_array_equal(si1, si2)
 

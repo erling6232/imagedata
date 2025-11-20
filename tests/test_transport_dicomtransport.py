@@ -11,11 +11,10 @@ from pynetdicom import (
     PYNETDICOM_IMPLEMENTATION_VERSION
 )
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-import src.imagedata.transports as transports
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+import imagedata.transports as transports
+from imagedata.series import Series
 
 scpdir = None
 
