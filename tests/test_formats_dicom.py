@@ -9,9 +9,12 @@ import argparse
 import pydicom.filereader
 from pydicom.dataset import Dataset
 
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+#import src.imagedata.cmdline as cmdline
+#import src.imagedata.formats as formats
+#from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 from .compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
 
 
