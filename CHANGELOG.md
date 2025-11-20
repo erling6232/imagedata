@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.14-dev0] - 2025-11-20
+* Drop support for python 3.9.
+
 ## [v3.8.13] - 2025-10-23
 ### Added
 * Study: Log information when segmentation geometry is copied from another series.
