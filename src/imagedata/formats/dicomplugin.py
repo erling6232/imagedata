@@ -1038,6 +1038,7 @@ class DICOMPlugin(AbstractPlugin):
                 for im in series[sloc]:
                     im.set_slice_index(_slice)
                     im.set_tags(self._extract_tag_tuple(im, faulty, input_order, opts))
+                    print('{}: im.tags {} slice_index {}'.format(_name, im.tags, im.slice_index), file=sys.stderr)
                     faulty += 1
                 sorted_data[_slice] = sorted(series[sloc], key=cmp_to_key(compare_tags))
                 if accept_duplicate_tag:
