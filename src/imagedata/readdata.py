@@ -13,8 +13,8 @@ import sys
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
-from .formats import (INPUT_ORDER_NONE, find_plugin, get_plugins_list,
-                      CannotSort, NotImageError, UnknownInputError, WriteNotImplemented)
+from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
+from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list
 from .transports import RootIsNotDirectory
 from .archives import find_mimetype_plugin, ArchivePluginNotFound
 
