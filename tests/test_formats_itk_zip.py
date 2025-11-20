@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test zip archive
 """
 
@@ -9,10 +7,9 @@ import tempfile
 import numpy as np
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestItkZipRead(unittest.TestCase):
@@ -29,7 +26,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip?time/Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
@@ -38,7 +35,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip?*Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
@@ -47,7 +44,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip?*/Image_00000.mha'),
             'none',
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 192, 152))
 
@@ -56,7 +53,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip?*Image_0000[01].mha'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (2, 3, 192, 152))
 
@@ -65,7 +62,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip?time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -74,7 +71,7 @@ class TestItkZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='itk')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -91,10 +88,10 @@ class TestItkZipWrite(unittest.TestCase):
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
         si1 = Series(
-            os.path.join('data', 'itk', 'time.zip?time/Image_00000.mha'))
+            os.path.join('data', 'itk', 'time.zip?time/Image_00000.mha'), input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'itk.zip'), formats=['itk'])
-            si2 = Series(os.path.join(d, 'itk.zip?Image.mha'))
+            si2 = Series(os.path.join(d, 'itk.zip?Image.mha'), input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -103,10 +100,10 @@ class TestItkZipWrite(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'itk', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            self.opts, input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'itk.zip'), formats=['itk'])
-            si2 = Series(os.path.join(d, 'itk.zip'))
+            si2 = Series(os.path.join(d, 'itk.zip'), input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 

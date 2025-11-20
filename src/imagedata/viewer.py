@@ -49,7 +49,7 @@ class Viewer(object):
                  colormap='Greys_r', norm='linear', colorbar=None, window=None, level=None,
                  link=False, onselect=None):
 
-        _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
+        # _name: str = '{}.{}'.format(__name__, self.__init__.__name__)
 
         self.fig = fig
         self.ax = ax

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 """Test zip archive
 """
 
@@ -9,10 +7,9 @@ import tempfile
 import numpy as np
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
 
 
 class TestNiftiZipRead(unittest.TestCase):
@@ -32,7 +29,7 @@ class TestNiftiZipRead(unittest.TestCase):
                 'nifti',
                 'time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -41,7 +38,7 @@ class TestNiftiZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?*/*_14.nii.gz'),
             'none',
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -50,7 +47,7 @@ class TestNiftiZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?time/time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
             'none',
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -59,7 +56,7 @@ class TestNiftiZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip?time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -68,7 +65,7 @@ class TestNiftiZipRead(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'nifti', 'time_all.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='nifti')
         self.assertEqual(si1.dtype, np.int16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -84,13 +81,10 @@ class TestNiftiZipWrite(unittest.TestCase):
 
     # @unittest.skip("skipping test_write_single_file")
     def test_write_single_file(self):
-        si1 = Series(os.path.join(
-            'data',
-            'dicom',
-            'cor_hf.zip'))
+        si1 = Series(os.path.join('data', 'dicom', 'cor_hf.zip'), input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'nifti.zip'), formats=['nifti'])
-            si2 = Series(os.path.join(d, 'nifti.zip?Image.nii.gz'))
+            si2 = Series(os.path.join(d, 'nifti.zip?Image.nii.gz'), input_format='nifti')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 

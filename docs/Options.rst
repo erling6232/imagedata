@@ -20,8 +20,7 @@ Options can be given to the Cohort(), Patient(), Study() and Series() objects.
 The following plugin options are known at the time of writing:
 
 +-------------------------+-------------------------+-----+-----------------------+
-| Plugin                  | DICOM                   |Type | Usage                 |
-|                         | Attribute Name          |     |                       |
+| Plugin                  | Option Name             |Type | Usage                 |
 +=========================+=========================+=====+=======================+
 |**Collections**                                                                  |
 +-------------------------+-------------------------+-----+-----------------------+

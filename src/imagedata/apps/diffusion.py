@@ -1,15 +1,14 @@
 """Extract diffusion MRI parameters.
 """
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import numpy as np
 import struct
-import warnings
 import pandas as pd
 from pydicom import Dataset
 from typing import Sequence, SupportsFloat
 from ..series import Series
-from ..formats import NotImageError, CannotSort
+from ..formats import NotImageError
 
 Number = type[SupportsFloat]
 
@@ -118,45 +117,23 @@ def get_ds_b_vectors(ds: Dataset) -> np.ndarray:
         return np.array(_ds['DiffusionGradientOrientation'].value)
 
     def get_Siemens_b_vector(_ds):
-        raise NotImplementedError('get_Siemens_b_vector not implemented')
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
-        return block[0x0c].value
-
-    def get_Siemens_CSA_b_vector(_ds):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            import nibabel.nicom.csareader as csa
-        try:
-            csa_head = csa.get_csa_header(_ds)
-        except csa.CSAReadError:
-            raise CannotSort("Unable to extract b vector from header.")
-        if 'tags' in csa_head and 'DiffusionGradientDirection' in csa_head['tags']:
-            bvec = csa_head['tags']['DiffusionGradientDirection']['items']
-            return np.array(bvec)
-        raise CannotSort("Unable to extract b vector from header.")
-
-    def get_Siemens_E11_b_vector(_ds):
-        try:
-            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
-            im_info = block[0x10].value
-            # se_info = block[0x20].value
-            if im_info[:4] == b'SV10':
-                _h = _get_CSA2_header(im_info)
-            else:
-                _h = _get_CSA1_header(im_info)
-            return np.array(_h['DiffusionGradientDirection'])
-        except Exception:
-            raise IndexError('Cannot get b vector')
+        diffusionDirectionality = block[0x0d].value
+        if diffusionDirectionality == 'DIRECTIONAL':
+            try:
+                return np.array(block[0x0e].value)
+            except KeyError:
+                pass
+        return np.array([])
 
     def get_GEMS_b_vector(_ds):
-        raise NotImplementedError('get_GEMS_b_vector not implemented')
-        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
-        return block[0x39].value
+        # Verify this is a GEMS dataset
+        block = ds.private_block(0x0019, 'GEMS_ACQU_01')
+        return np.array([block[0xbb].value, block[0xbc].value, block[0xbd].value])
 
     errmsg = ""
     for _method in [get_DICOM_b_vector,
-                    get_Siemens_b_vector, get_Siemens_CSA_b_vector,
-                    get_Siemens_E11_b_vector,
+                    get_Siemens_b_vector,
                     get_GEMS_b_vector]:
         try:
             return _method(ds)
@@ -186,45 +163,20 @@ def get_ds_b_value(ds: Dataset) -> float:
 
     def get_Siemens_b_value(_ds):
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
-        return block[0x0c].value
-
-    def get_Siemens_CSA_b_value(_ds):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            import nibabel.nicom.csareader as csa
-        try:
-            csa_head = csa.get_csa_header(_ds)
-        except csa.CSAReadError:
-            raise CannotSort("Unable to extract b value from header.")
-        if csa_head is None:
-            raise CannotSort("Unable to extract b value from header.")
-        try:
-            value = csa.get_b_value(csa_head)
-        except TypeError:
-            raise CannotSort("Unable to extract b value from header.")
-        return value
-
-    def get_Siemens_E11_b_value(_ds):
-        try:
-            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
-            im_info = block[0x10].value
-            # se_info = block[0x20].value
-            if im_info[:4] == b'SV10':
-                _h = _get_CSA2_header(im_info)
-            else:
-                _h = _get_CSA1_header(im_info)
-            return float(_h['B_value'][0])
-        except Exception:
-            raise IndexError('Cannot get b value')
+        _value = block[0x0c].value
+        if _value is None:
+            return None
+        return int(_value)
 
     def get_GEMS_b_value(_ds):
-        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
-        return block[0x39].value
+        try:
+            return _ds[0x0043, 0x39].value[0]
+        except KeyError:
+            return _ds[0x0043, 0x1039].value[0]
 
     errmsg = ""
     for _method in [get_DICOM_b_value,
-                    get_Siemens_b_value, get_Siemens_CSA_b_value,
-                    get_Siemens_E11_b_value,
+                    get_Siemens_b_value,
                     get_GEMS_b_value]:
         try:
             return float(_method(ds))
@@ -250,13 +202,19 @@ def set_ds_b_value(ds: Dataset, value: Number):
 
     def set_Siemens_b_value(_ds, _value):
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
-        block[0x0c].value = _value
+        block[0x0c].value = round(_value)
+        pass
 
     def set_GEMS_b_value(_ds, _value):
+        # ds[0x0043, 0x1039] = multival[_value, 0, 0, 0]
         block = _ds.private_block(0x0043, 'GEMS_PARM_01')
-        block[0x39].value = _value
+        _list = block[0x39].value
+        _list[0] = _value
+        block[0x39].value = _list
+        if 'DiffusionBValue' in _ds:
+            _ds.DiffusionBValue = _value
 
-    for _method in [set_DICOM_b_value, set_Siemens_b_value, set_GEMS_b_value]:
+    for _method in [set_Siemens_b_value, set_GEMS_b_value, set_DICOM_b_value]:
         try:
             _method(ds, value)
             return
@@ -277,50 +235,26 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
 
     def set_DICOM_b_vector(_ds, _value):
         # Attempt to address standard DICOM attribute
-        # raise NotImplementedError('set_DICOM_b_vector not implemented')
-        _ds.DiffusionGradientOrientation = list(_value)
+        _ds.DiffusionGradientOrientation = _value.tolist()
 
     def set_Siemens_b_vector(_ds, _value):
-        raise NotImplementedError('set_Siemens_b_vector not implemented')
         block = _ds.private_block(0x0019, 'SIEMENS MR HEADER')
-        block[0x0c].value = _value
-
-    def set_Siemens_E11_b_vector(_ds, _value):
-        raise NotImplementedError('set_Siemens_E11_b_vector not implemented')
-        try:
-            block = _ds.private_block(0x0029, 'SIEMENS CSA HEADER')
-            im_info = block[0x10].value
-            # se_info = block[0x20].value
-            if im_info[:4] == b'SV10':
-                _h = _get_CSA2_header(im_info)
-            else:
-                _h = _get_CSA1_header(im_info)
-            _h['DiffusionGradientDirection'] = _value.tolist()
-        except Exception:
-            raise IndexError('Cannot set b vector')
-
-    def set_Siemens_CSA_b_vector(_ds, _value):
-        raise NotImplementedError('set_Siemens_CSA_b_vector not implemented')
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=UserWarning)
-            import nibabel.nicom.csareader as csa
-        try:
-            csa_head = csa.get_csa_header(_ds)
-        except csa.CSAReadError:
-            raise CannotSort("Unable to set b vector in header.")
-        if 'tags' in csa_head and 'DiffusionGradientDirection' in csa_head['tags']:
-            csa_head['tags']['DiffusionGradientDirection']['items'] = _value.tolist()
-        raise CannotSort("Unable to set b vector in header.")
+        block[0x0d].value = 'DIRECTIONAL'
+        block[0x0e].value = _value.tolist()
+        if 'DiffusionGradientOrientation' in _ds:
+            _ds.DiffusionGradientOrientation = _value.tolist()
 
     def set_GEMS_b_vector(_ds, _value):
-        raise NotImplementedError('set_GEMS_b_vector not implemented')
-        block = _ds.private_block(0x0043, 'GEMS_PARM_01')
-        block[0x39].value = _value
+        block = ds.private_block(0x0019, 'GEMS_ACQU_01')
+        block[0xbb].value = _value[0]
+        block[0xbc].value = _value[1]
+        block[0xbd].value = _value[2]
+        if 'DiffusionGradientOrientation' in _ds:
+            _ds.DiffusionGradientOrientation = _value.tolist()
 
-    _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
+    # _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
 
-    for _method in [set_Siemens_E11_b_vector, set_Siemens_CSA_b_vector,
-                    set_Siemens_b_vector,
+    for _method in [set_Siemens_b_vector,
                     set_GEMS_b_vector,
                     set_DICOM_b_vector]:
         try:
@@ -332,7 +266,6 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
         except NotImplementedError:
             pass
     raise IndexError('Cannot set b vector: {}'.format(errmsg))
-
 
 
 def _get_CSA1_header(data):
@@ -348,7 +281,7 @@ def _get_CSA1_header(data):
     for t in range(n_tags):
         try:
             (name, vm, vr, syngodt, nitems, xx
-             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+             ) = struct.unpack('<64si4s3i', data[pos:pos + 84])
             pos += 84
             i = name.find(b'\0')
             name = name[:i]
@@ -356,10 +289,10 @@ def _get_CSA1_header(data):
             values[name] = []
             for _item in range(nitems):
                 (item_len, xx1, xx2, xx3
-                 ) = struct.unpack('<4i', data[pos:pos+16])
+                 ) = struct.unpack('<4i', data[pos:pos + 16])
                 pos += 16
                 if item_len > 0:
-                    value = data[pos:pos+item_len]
+                    value = data[pos:pos + item_len]
                     value = value.decode("utf-8").split('\0')[0].strip()
                     pos += (item_len // 4) * 4
                     if item_len % 4 > 0:
@@ -367,8 +300,6 @@ def _get_CSA1_header(data):
                     values[name].append(value)
         except struct.error as e:
             raise NotImageError('{}'.format(e))
-        except Exception as e:
-            raise
     return values
 
 
@@ -386,7 +317,7 @@ def _get_CSA2_header(data):
     for t in range(n_tags):
         try:
             (name, vm, vr, syngodt, nitems, xx
-             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+             ) = struct.unpack('<64si4s3i', data[pos:pos + 84])
             pos += 84
             i = name.find(b'\0')
             name = name[:i]
@@ -394,10 +325,10 @@ def _get_CSA2_header(data):
             values[name] = []
             for _item in range(nitems):
                 (item_len, xx1, xx2, xx3
-                 ) = struct.unpack('<4i', data[pos:pos+16])
+                 ) = struct.unpack('<4i', data[pos:pos + 16])
                 pos += 16
                 if item_len > 0:
-                    value = data[pos:pos+item_len]
+                    value = data[pos:pos + item_len]
                     value = value.decode("utf-8").split('\0')[0].strip()
                     pos += (item_len // 4) * 4
                     if item_len % 4 > 0:
@@ -405,6 +336,4 @@ def _get_CSA2_header(data):
                     values[name].append(value)
         except struct.error as e:
             raise NotImageError('{}'.format(e))
-        except Exception as e:
-            raise
     return values

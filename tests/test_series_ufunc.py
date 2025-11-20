@@ -2,8 +2,8 @@ import unittest
 import tempfile
 import numpy as np
 
-from src.imagedata.series import Series
-import src.imagedata.axis as axis
+from imagedata.series import Series
+import imagedata.axis as axis
 
 
 class TestSeriesUfunc(unittest.TestCase):

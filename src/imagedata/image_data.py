@@ -62,7 +62,7 @@ def sort(args=sys.argv[1:]):
                 continue
             try:
                 im = pydicom.filereader.dcmread(path, stop_before_pixels=True)
-            except pydicom.errors.InvalidDicomError as e:
+            except pydicom.errors.InvalidDicomError:
                 continue
             except Exception:
                 raise
@@ -107,7 +107,8 @@ def sort(args=sys.argv[1:]):
                 if series is None:
                     continue
                 series_path = study_path
-                if len(image_dict) > 1 or len(image_dict[pat]) > 2 or len(image_dict[pat][study]) > 2:  # studes and serdes count as 1
+                if len(image_dict) > 1 or len(image_dict[pat]) > 2 or len(image_dict[pat][study]) > 2:
+                    # studes and serdes count as 1
                     series_path = os.path.join(study_path, f'{image_dict[pat][study][series][0]}')
                 os.makedirs(series_path, exist_ok=True)
                 for fname in image_dict[pat][study][series][1:]:

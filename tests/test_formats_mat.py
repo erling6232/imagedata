@@ -5,11 +5,10 @@ import numpy as np
 import logging
 import argparse
 
-# from .context import imagedata
-import src.imagedata.cmdline as cmdline
-import src.imagedata.formats as formats
-from src.imagedata.series import Series
-from src.imagedata.collection import Cohort
+import imagedata.cmdline as cmdline
+import imagedata.formats as formats
+from imagedata.series import Series
+from imagedata.collection import Cohort
 
 
 def list_files(startpath):
@@ -43,8 +42,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
-        self.assertEqual(si1.input_format, 'mat')
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -69,13 +67,13 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
         si2 = si1[0, 0, ...]
         with tempfile.TemporaryDirectory() as d:
             si2.write(d, formats=['mat'])
-            si3 = Series(d)
+            si3 = Series(d, input_format='mat')
         self.assertEqual(si2.dtype, si3.dtype)
         self.assertEqual(si2.shape, si3.shape)
         np.testing.assert_array_equal(si2, si3)
@@ -86,7 +84,7 @@ class Test3DMatPlugin(unittest.TestCase):
             [os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
              os.path.join('data', 'mat', 'time', 'Image_00000.mat')],
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -95,7 +93,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -104,7 +102,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -113,7 +111,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?*Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -122,7 +120,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time/Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -131,7 +129,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip?time'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -140,7 +138,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time.zip'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
 
@@ -153,10 +151,10 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image00000.mat'), formats=['mat'])
-            si2 = Series(os.path.join(d, 'Image00000.mat'))
+            si2 = Series(os.path.join(d, 'Image00000.mat'), input_format='mat')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -177,10 +175,10 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time'),
             'none',
-            self.opts)
+            input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['mat'])
-            si2 = Series(d)
+            si2 = Series(d, input_format='mat')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -189,17 +187,17 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat', 'Image_00000.mat'), formats=['mat'], opts=self.opts)
-            si2 = Series(os.path.join(d, 'mat', 'Image_00000.mat'))
+            si2 = Series(os.path.join(d, 'mat', 'Image_00000.mat'), input_format='mat')
 
     # @unittest.skip("skipping test_write_3d_mat_no_opt")
     def test_write_3d_mat_no_opt(self):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'mat', 'Image_{:05d}.mat'), formats=['mat'])
 
@@ -208,7 +206,7 @@ class Test3DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             'none',
-            self.opts)
+            input_format='mat')
         logging.debug('test_write_3d_mat: si1 {} {} {} {}'.format(type(si1), si1.dtype, si1.min(), si1.max()))
         logging.debug('test_write_3d_mat: si1.shape {}, si1.slices {}'.format(si1.shape, si1.slices))
 
@@ -221,7 +219,7 @@ class Test3DMatPlugin(unittest.TestCase):
             si2 = Series(
                 os.path.join(d, 'mat', 'Image_00000.mat'),
                 'none',
-                self.opts)
+                input_format='mat')
         logging.debug('test_write_3d_mat: si2 {} {} {}'.format(si2.dtype, si2.min(), si2.max()))
 
         self.assertEqual(si1.shape, si2.shape)
@@ -264,7 +262,7 @@ class Test4DMatPlugin(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'mat', 'time', 'Image_00000.mat'),
             formats.INPUT_ORDER_TIME,
-            self.opts)
+            input_format='mat')
         self.assertEqual(si1.dtype, np.uint16)
         self.assertEqual(si1.shape, (3, 3, 192, 152))
         with tempfile.TemporaryDirectory() as d:
@@ -274,12 +272,12 @@ class Test4DMatPlugin(unittest.TestCase):
             si2 = Series(
                 os.path.join(d, 'mat', 'Image_00000.mat'),
                 formats.INPUT_ORDER_TIME,
-                self.opts)
+                input_format='mat')
         self.assertEqual(si1.shape, si2.shape)
         np.testing.assert_array_equal(si1, si2)
 
     def test_write_cohort(self):
-        cohort = Cohort('data/dicom/cohort.zip')
+        cohort = Cohort('data/dicom/cohort.zip', input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             cohort.write(d, formats=['mat'])
 
