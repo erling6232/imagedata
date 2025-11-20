@@ -13,8 +13,8 @@ import sys
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
-from .formats import CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
-from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list
+from .formats import INPUT_ORDER_NONE, find_plugin, get_plugins_list, \
+    CannotSort, NotImageError, UnknownInputError, WriteNotImplemented
 from .transports import RootIsNotDirectory
 from .archives import find_mimetype_plugin, ArchivePluginNotFound
 
@@ -149,7 +149,7 @@ def read(urls, order=None, opts=None, input_format=None):
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
-            print('{}: Exception ({}) {}'.format(_name, type(e).__name__, e), file=sys.stderr)
+            print('{}: Exception {} ({}) {}'.format(_name, type(e), type(e).__name__, e), file=sys.stderr)
             logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
             # import traceback, sys

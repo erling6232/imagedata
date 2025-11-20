@@ -1246,7 +1246,7 @@ class DICOMPlugin(AbstractPlugin):
                         continue
                     else:
                         logger.debug('{}: skip_broken_series raise'.format(_name))
-                        print('{}: Exception raise'.format(_name), file=sys.stderr)
+                        print('{}: Exception {} raise'.format(_name, type(e)), file=sys.stderr)
                         raise
 
             if si is not None:
