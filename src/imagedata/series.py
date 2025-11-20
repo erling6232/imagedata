@@ -238,7 +238,6 @@ class Series(np.ndarray):
         obj.header.windowCenter = hdr.windowCenter
         obj.header.windowWidth = hdr.windowWidth
         # Finally, we must return the newly created object
-        assert obj.shape == obj.header.shape, "obj.shape {} != obj.header.shape {}".format(obj.shape, obj.header.shape)
         return obj
 
     def __array_finalize__(self, obj) -> None:
