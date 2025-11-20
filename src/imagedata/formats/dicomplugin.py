@@ -1313,6 +1313,7 @@ class DICOMPlugin(AbstractPlugin):
 
         _name: str = '{}.{}'.format(__name__, self._construct_pixel_array.__name__)
 
+        print('{}: enter shape {}'.format(_name, shape), file=sys.stderr)
         opts = {} if opts is None else opts
         accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
         # Look-up first image to determine pixel type
