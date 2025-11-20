@@ -15,7 +15,7 @@ from pydicom.dataset import Dataset
 import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
-from .compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
+from tests.compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
 
 
 class TestDicomPlugin(unittest.TestCase):
