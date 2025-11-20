@@ -136,7 +136,7 @@ class UniformAxis(Axis):
 
     def __eq__(self, other):
         return super().__eq__(other) and \
-        (self.start, self.stop, self.step) == (other.start, other.stop, other.step)
+            (self.start, self.stop, self.step) == (other.start, other.stop, other.step)
 
     def append(self, axis: Axis):
         """Append another axis"""

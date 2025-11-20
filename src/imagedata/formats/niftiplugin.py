@@ -449,7 +449,7 @@ class NiftiPlugin(AbstractPlugin):
         """
         raise Exception('Not implemented')
 
-    def _header_dicom_to_nifti(self, dcm: Series, compute_sform: bool =False) -> Nifti1Header:
+    def _header_dicom_to_nifti(self, dcm: Series, compute_sform: bool = False) -> Nifti1Header:
         """dcm2niix.headerDcm2Nii
         """
         hdr = Nifti1Header()

@@ -9,7 +9,6 @@ import mimetypes
 import argparse
 import fnmatch
 import pathlib
-import sys
 import urllib.parse
 import traceback as tb
 from typing import Dict, List, Tuple, Union
@@ -532,8 +531,7 @@ def _get_sources(
         source = {'files': []}
         try:
             source['archive'] = _get_archive(source_location, mode=mode, opts=opts)
-        except (RootIsNotDirectory,
-                ArchivePluginNotFound) as e:
+        except (RootIsNotDirectory, ArchivePluginNotFound):
             # Retry with parent directory
             source_location, filename = os.path.split(source_location)
             logger.debug('{}: retry location {}'.format(_name, source_location))

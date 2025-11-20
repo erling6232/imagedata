@@ -251,7 +251,6 @@ def _get_echo_time(im: Dataset) -> Number:
 
 
 def _get_flip_angle(im: Dataset) -> Number:
-    fa_tag = 'FlipAngle'
     return _get_float(im, 'FlipAngle')
 
 
@@ -779,7 +778,7 @@ class DICOMPlugin(AbstractPlugin):
         if actual_order is None:
             actual_order = INPUT_ORDER_NONE
         elif actual_order in (INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME) and \
-            _single_slice_over_time(extended_tags[actual_order]):
+        _single_slice_over_time(extended_tags[actual_order]):
             actual_order = INPUT_ORDER_NONE
         return actual_order
 
@@ -876,7 +875,7 @@ class DICOMPlugin(AbstractPlugin):
                     values = []
                     for tag in tag_list:
                         values.append(tag[i])
-                    if i == tags-1 and accept_duplicate_tag:  # Accept duplicate along last axis
+                    if i == tags - 1 and accept_duplicate_tag:  # Accept duplicate along last axis
                         axes += (values,)
                     elif issubclass(type(values[0]), np.ndarray):
                         vlist = [values[0]]
@@ -897,10 +896,10 @@ class DICOMPlugin(AbstractPlugin):
                 return s, axes
 
             def calculate_shape_with_duplicates(sorted_data: list[Instance]) ->(
-                    tuple)[tuple[int], tuple[list]]:
+                    tuple) [tuple[int], tuple[list]]:
 
                 def _find_closest(tag_db: list, value: Union[Number, np.ndarray]) ->(
-                    tuple)[Union[int|None], Union[float|None]]:
+                        tuple) [Union[int | None], Union[float | None]]:
                     min_distance = np.inf
                     min_index = None
                     if issubclass(type(value), np.ndarray):
@@ -961,7 +960,7 @@ class DICOMPlugin(AbstractPlugin):
                                 idx[t] = min_index
                             else:
                                 raise IndexError("Cannot sort tags. Images should already be sorted.")
-                        elif t == tags-1:
+                        elif t == tags - 1:
                             idx[t] += 1
                             add_tag[t] = idx[t]
                     im.set_tag_index(tuple(idx))
@@ -1315,7 +1314,7 @@ class DICOMPlugin(AbstractPlugin):
             im: Dataset = image_dict[next(iter(image_dict))][0]
         except TypeError:
             im: Dataset = image_dict[0]
-        if not 'BitsAllocated' in im:
+        if 'BitsAllocated' not in im:
             raise EmptyImageError("No pixel data in instance.")
         hdr.photometricInterpretation = 'MONOCHROME2'
         if 'PhotometricInterpretation' in im:
@@ -1484,7 +1483,8 @@ class DICOMPlugin(AbstractPlugin):
             hdr.referencedSeriesUID = dataset.ReferencedSeriesSequence[0].SeriesInstanceUID
 
     def _sort_dataset_geometry(self, dictionary: DatasetList, message: str, opts: dict = None) -> SortedDatasetList:
-        _name: str = '{}.{}'.format(__name__, self._sort_dataset_geometry.__name__)
+        # _name: str = '{}.{}'.format(__name__, self._sort_dataset_geometry.__name__)
+
         def _get_spacing(dictionary: DatasetList) -> np.ndarray:
             _name: str = '{}.{}'.format(__name__, _get_spacing.__name__)
             # Spacing
@@ -1540,7 +1540,7 @@ class DICOMPlugin(AbstractPlugin):
                     for it in orients:
                         if found is None:
                             found = it
-                        elif (it!=found).all():
+                        elif (it != found).all():
                             raise CannotSort('{}: More than one IOP. Try changing dir_cosine_tolerance'.format(message))
                     if found is None:
                         raise CannotSort('{}: No IOP.'.format(message))
@@ -1555,7 +1555,7 @@ class DICOMPlugin(AbstractPlugin):
         def _calculate_distances(dictionary: DatasetList, orient: np.ndarray, spacing: np.ndarray,
                                  opts: dict = None)\
                 -> list[np.ndarray, np.ndarray]:
-            _name: str = '{}.{}'.format(__name__, _calculate_distances.__name__)
+            # _name: str = '{}.{}'.format(__name__, _calculate_distances.__name__)
             sort_on_slice_location = False
             if 'sort_on_slice_location' in opts:
                 sort_on_slice_location = opts['sort_on_slice_location']
@@ -1645,12 +1645,15 @@ class DICOMPlugin(AbstractPlugin):
                             logger.warning('{}: Slice spacing differs too much, {} vs {}. Decrease slice_tolerance.'.format(
                                 message,
                                 abs(current - prev), slice_spacing
-                                ))
+                            ))
                             has_warned = True
                         spacing_is_good = False
                     prev = current
             if not spacing_is_good:
-                raise CannotSort('{}: Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(message, distances, spacings))
+                raise CannotSort(
+                    '{}: Slice spacing varies:\n  Distances: {}\n  Spacing: {}'.format(
+                        message, distances, spacings
+                    ))
 
         spacing = _get_spacing(dictionary)
         _verify_no_gantry_tilt(dictionary)
@@ -2059,7 +2062,7 @@ class DICOMPlugin(AbstractPlugin):
                     try:
                         self.write_slice('none', (_slice,), si[_slice], destination, _slice,
                                          sop_ins_uid=sop_ins_uid)
-                    except Exception as e:
+                    except Exception:
                         traceback.print_exc(file=sys.stdout)
                         raise
 
@@ -2177,7 +2180,7 @@ class DICOMPlugin(AbstractPlugin):
                                          destination, ifile,
                                          tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
-                    except Exception as e:
+                    except Exception:
                         traceback.print_exc(file=sys.stdout)
                         raise
                     ifile += 1
@@ -2199,7 +2202,7 @@ class DICOMPlugin(AbstractPlugin):
                     dirn.append(
                         "{0}{{{1}:0{2}}}".format(
                             order,
-                            i+1,
+                            i + 1,
                             digits
                         )
                     )
@@ -2238,7 +2241,7 @@ class DICOMPlugin(AbstractPlugin):
                                          destination, ifile,
                                          tag_value=si.header.tags[_slice][tag],
                                          sop_ins_uid=sop_ins_uid)
-                    except Exception as e:
+                    except Exception:
                         traceback.print_exc(file=sys.stdout)
                         raise
                     ifile += 1

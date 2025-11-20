@@ -252,7 +252,7 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
         if 'DiffusionGradientOrientation' in _ds:
             _ds.DiffusionGradientOrientation = _value.tolist()
 
-    _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
+    # _name: str = '{}.{}'.format(__name__, set_ds_b_vector.__name__)
 
     for _method in [set_Siemens_b_vector,
                     set_GEMS_b_vector,
@@ -268,7 +268,6 @@ def set_ds_b_vector(ds: Dataset, value: Sequence[Number]):
     raise IndexError('Cannot set b vector: {}'.format(errmsg))
 
 
-
 def _get_CSA1_header(data):
     values = {}
     try:
@@ -282,7 +281,7 @@ def _get_CSA1_header(data):
     for t in range(n_tags):
         try:
             (name, vm, vr, syngodt, nitems, xx
-             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+             ) = struct.unpack('<64si4s3i', data[pos:pos + 84])
             pos += 84
             i = name.find(b'\0')
             name = name[:i]
@@ -290,10 +289,10 @@ def _get_CSA1_header(data):
             values[name] = []
             for _item in range(nitems):
                 (item_len, xx1, xx2, xx3
-                 ) = struct.unpack('<4i', data[pos:pos+16])
+                 ) = struct.unpack('<4i', data[pos:pos + 16])
                 pos += 16
                 if item_len > 0:
-                    value = data[pos:pos+item_len]
+                    value = data[pos:pos + item_len]
                     value = value.decode("utf-8").split('\0')[0].strip()
                     pos += (item_len // 4) * 4
                     if item_len % 4 > 0:
@@ -301,8 +300,6 @@ def _get_CSA1_header(data):
                     values[name].append(value)
         except struct.error as e:
             raise NotImageError('{}'.format(e))
-        except Exception as e:
-            raise
     return values
 
 
@@ -320,7 +317,7 @@ def _get_CSA2_header(data):
     for t in range(n_tags):
         try:
             (name, vm, vr, syngodt, nitems, xx
-             ) = struct.unpack('<64si4s3i', data[pos:pos+84])
+             ) = struct.unpack('<64si4s3i', data[pos:pos + 84])
             pos += 84
             i = name.find(b'\0')
             name = name[:i]
@@ -328,10 +325,10 @@ def _get_CSA2_header(data):
             values[name] = []
             for _item in range(nitems):
                 (item_len, xx1, xx2, xx3
-                 ) = struct.unpack('<4i', data[pos:pos+16])
+                 ) = struct.unpack('<4i', data[pos:pos + 16])
                 pos += 16
                 if item_len > 0:
-                    value = data[pos:pos+item_len]
+                    value = data[pos:pos + item_len]
                     value = value.decode("utf-8").split('\0')[0].strip()
                     pos += (item_len // 4) * 4
                     if item_len % 4 > 0:
@@ -339,6 +336,4 @@ def _get_CSA2_header(data):
                     values[name].append(value)
         except struct.error as e:
             raise NotImageError('{}'.format(e))
-        except Exception as e:
-            raise
     return values
