@@ -515,7 +515,7 @@ class TestDicomPlugin(unittest.TestCase):
                 )
 
     def test_read_dicom_not_DWI(self):
-        with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'time'),
                 input_format='dicom',
@@ -523,7 +523,7 @@ class TestDicomPlugin(unittest.TestCase):
             )
 
     def test_read_dicom_not_DWI_no_CSA(self):
-        with self.assertRaises((formats.UnknownInputError, formats.CannotSort)) as context:
+        with self.assertRaises(formats.CannotSort) as context:
             _ = Series(
                 os.path.join('data', 'dicom', 'lena_color.dcm'),
                 input_format='dicom',
