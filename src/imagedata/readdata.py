@@ -140,9 +140,9 @@ def read(urls, order=None, opts=None, input_format=None):
         except FileNotFoundError:
             # No need to try other plugins
             raise
-        except CannotSort:
+        except CannotSort as e:
             # No need to try other plugins
-            print('{}: CannotSort exception'.format(_name), file=sys.stderr)
+            print('{}: CannotSort exception {}'.format(_name, type(e)), file=sys.stderr)
             raise
         except NotImageError as e:
             print('{}: Exception NotImageError {}'.format(_name, e), file=sys.stderr)
