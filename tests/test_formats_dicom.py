@@ -39,21 +39,6 @@ class TestDicomPlugin(unittest.TestCase):
             input_format='dicom'
         )
 
-    def test_cannot_sort_dicom(self):
-        si = Series(
-            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
-            'none',
-            input_format='dicom'
-        )
-        with tempfile.TemporaryDirectory() as self.d:
-            # Duplicate image file
-            si.write(os.path.join(self.d, '0'), formats=['dicom'], opts = {'keep_uid': True})
-            si1 = si + 1
-            si1.seriesInstanceUID = si.seriesInstanceUID
-            si1.write(os.path.join(self.d, '1'), formats=['dicom'], opts = {'keep_uid': True})
-            with self.assertRaises(formats.CannotSort) as context:
-                _ = Series(self.d, input_format='dicom')
-
     def test_without_dicom_plugin(self):
         def _read_series():
             si1 = Series(
@@ -122,18 +107,6 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(tuple(), si1.shape)
         self.assertEqual(3, len(si1.axes))
         self.assertEqual(14, si1.seriesNumber)
-
-    def test_duplicate(self):
-        duplicate = Series('data/dicom/duplicate',
-                           accept_duplicate_tag=True
-                           )
-        assert duplicate.shape == (2, 3, 192, 152)
-
-    def test_duplicate_error(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            _ = Series('data/dicom/duplicate',
-                       accept_duplicate_tag=False
-                       )
 
     def test_read_auto_volume(self):
         si1 = Series(
@@ -892,6 +865,38 @@ class TestDicomSlicing(unittest.TestCase):
             np.testing.assert_array_equal(si2.imagePositions[i], si1.imagePositions[i])
         self.assertEqual(len(si2.tags[0]), 2)
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
+
+
+class TestDuplicateDicom(unittest.TestCase):
+    def setUp(self):
+        parser = argparse.ArgumentParser()
+        cmdline.add_argparse_options(parser)
+
+        self.opts = parser.parse_args([])
+        if len(self.opts.output_format) < 1:
+            self.opts.output_format = ['dicom']
+        # Prepare duplicate dataset
+        si0 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'none',
+            input_format='dicom'
+        )
+        si1 = si0 + 1
+        si1.seriesInstanceUID = si0.seriesInstanceUID
+        self.d = tempfile.TemporaryDirectory()
+        si0.write(os.path.join(self.d.name, '0'), formats=['dicom'], keep_uid=True)
+        si1.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
+
+    def tearDown(self):
+        self.d.cleanup()
+
+    def test_duplicate(self):
+        duplicate = Series(self.d.name, accept_duplicate_tag=True)
+        assert duplicate.shape == (2, 3, 192, 152)
+
+    def test_duplicate_error(self):
+        with self.assertRaises(formats.CannotSort) as context:
+            _ = Series(self.d.name, accept_duplicate_tag=False)
 
 
 class TestDicomNDSort(unittest.TestCase):
