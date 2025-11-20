@@ -137,19 +137,13 @@ def read(urls, order=None, opts=None, input_format=None):
                 hdr[seriesUID].add_template(pre_hdr)
                 hdr[seriesUID].add_geometry(geom_hdr)
             return hdr, si
-        except FileNotFoundError:
+        except (CannotSort, FileNotFoundError):
             # No need to try other plugins
-            raise
-        except CannotSort as e:
-            # No need to try other plugins
-            print('{}: CannotSort exception {}'.format(_name, type(e)), file=sys.stderr)
             raise
         except NotImageError as e:
-            print('{}: Exception NotImageError {}'.format(_name, e), file=sys.stderr)
             logger.info("{}: Giving up {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
-            print('{}: Exception {} ({}) {}'.format(_name, type(e), type(e).__name__, e), file=sys.stderr)
             logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
             summary = summary + '\n  {}: {}'.format(ptype, e)
             # import traceback, sys
