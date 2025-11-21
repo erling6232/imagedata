@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.14-dev1] - 2025-11-21
+* Support python 3.14.
+
 ## [v3.8.14-dev0] - 2025-11-20
 * Drop support for python 3.9.
 
