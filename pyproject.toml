@@ -16,7 +16,7 @@ maintainers = [
 ]
 description = "Read/write medical image data"
 readme = {file = "README.rst", content-type = "text/x-rst"}
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.10,<3.15"
 keywords = [
     "dicom",
     "python",
@@ -34,6 +34,7 @@ dependencies = [
     "itk-io>=5.4.0",
     "scikit-build-core",
     "nibabel >= 5.0.0",
+    "numpy >= 2.3.4; python_version>='3.14'",
     "numpy >= 1.22.2",
     "pandas",
     "scipy >= 1.2.4",
@@ -50,6 +51,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Development Status :: 4 - Beta",
     "Environment :: Other Environment",
     "Intended Audience :: Developers",
