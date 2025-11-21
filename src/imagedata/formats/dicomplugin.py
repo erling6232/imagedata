@@ -778,7 +778,7 @@ class DICOMPlugin(AbstractPlugin):
         if actual_order is None:
             actual_order = INPUT_ORDER_NONE
         elif actual_order in (INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME) and \
-        _single_slice_over_time(extended_tags[actual_order]):
+            _single_slice_over_time(extended_tags[actual_order]):
             actual_order = INPUT_ORDER_NONE
         return actual_order
 
@@ -895,11 +895,11 @@ class DICOMPlugin(AbstractPlugin):
                     s += (len(axes[-1]),)
                 return s, axes
 
-            def calculate_shape_with_duplicates(sorted_data: list[Instance]) ->(
-                    tuple) [tuple[int], tuple[list]]:
+            def calculate_shape_with_duplicates(sorted_data: list[Instance]) -> (
+                    tuple)[tuple[int], tuple[list]]:
 
-                def _find_closest(tag_db: list, value: Union[Number, np.ndarray]) ->(
-                        tuple) [Union[int | None], Union[float | None]]:
+                def _find_closest(tag_db: list, value: Union[Number, np.ndarray]) -> (
+                        tuple)[Union[int | None], Union[float | None]]:
                     min_distance = np.inf
                     min_index = None
                     if issubclass(type(value), np.ndarray):
