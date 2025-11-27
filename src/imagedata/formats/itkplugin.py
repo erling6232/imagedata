@@ -256,10 +256,11 @@ class ITKPlugin(AbstractPlugin):
         else:
             Axes = namedtuple('Axes', ['row', 'column'])
             axes = Axes(row_axis, column_axis)
-        times = [(_,) for _ in np.arange(0, nt * dt, dt)]
         hdr.tags = {}
         for _slice in range(nz):
-            hdr.tags[_slice] = np.array(times, dtype=tuple)
+            hdr.tags[_slice] = np.empty(nt, dtype=tuple)
+            for i, _ in enumerate(np.arange(0, nt * dt, dt)):
+                hdr.tags[_slice][i] = (_,)
         hdr.axes = axes
 
         logger.info("{}: Data shape read DCM: {}".format(_name, shape_to_str(si.shape)))

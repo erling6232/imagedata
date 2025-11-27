@@ -178,7 +178,9 @@ class MatPlugin(AbstractPlugin):
         times = [(_,) for _ in np.arange(0, nt * dt, dt)]
         hdr.tags = {}
         for slice in range(nz):
-            hdr.tags[slice] = np.array(times, dtype=tuple)
+            hdr.tags[slice] = np.empty(nt, dtype=tuple)
+            for i, _ in enumerate(np.arange(0, nt * dt, dt)):
+                hdr.tags[slice][i] = (_,)
 
         hdr.photometricInterpretation = 'MONOCHROME2'
         hdr.color = False
