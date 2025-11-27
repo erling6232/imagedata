@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.14] - 2025-11-27
+* Release 3.8.14
+
 ## [v3.8.14-dev2] - 2025-11-27
 * Viewer: Improved handling of header tags, including None values.
 
