@@ -2820,10 +2820,6 @@ class DICOMPlugin(AbstractPlugin):
                     raise CannotSort('Tag {} not found in dataset'.format(
                         order
                     ))
-            except CannotSort:
-                raise
-            except Exception:
-                raise
             if tag is None:
                 raise CannotSort("Tag {} not found in data".format(order))
             tag_list.append(tag)
