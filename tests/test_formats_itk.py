@@ -311,7 +311,9 @@ class TestWritePluginItkTag(unittest.TestCase):
         # log.debug("hdr2.tags.keys(): {}".format(hdr2.tags.keys()))
         tags = {}
         for slice in range(3):
-            tags[slice] = np.arange(3)
+            tags[slice] = np.empty(3, dtype=tuple)
+            for k in range(3):
+                tags[slice][k] = (k,)
         self.assertEqual(tags.keys(), si2.tags.keys())
         for k in si2.tags.keys():
             np.testing.assert_array_equal(tags[k], si2.tags[k])

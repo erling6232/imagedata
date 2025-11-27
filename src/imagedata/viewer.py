@@ -140,21 +140,22 @@ class Viewer(object):
                 continue
             if im['tag_axis'] is not None:
                 # 4D viewer
-                vp['h'].set_data(im['im'][im['tag'], im['idx'], ...])
+                vp['h'].set_data(im['im'][im['tag'] + (im['idx'],)])
                 if im['slider'] is not None:
                     im['slider'].valtext.set_text(pretty_tag_value(im))
             elif im['slice_axis'] is not None:
                 # 3D viewer
-                vp['h'].set_data(im['im'][im['idx'], ...])
+                vp['h'].set_data(im['im'][im['idx']])
             vp['h'].set_clim(vmin=im['vmin'], vmax=im['vmax'])
             # im['ax'].set_ylabel('Slice {}'.format(self.im['idx']))
             # Lower right text
-            if im['lower_right_text'] is not None and im['lower_right_data'] != (im['tag'],):
+            if im['lower_right_text'] is not None and im['lower_right_data'] != im['tag']:
                 fmt = ''
                 if im['tag_axis'] is not None:
-                    fmt = '{}[{}]: {}'.format(im['input_order'], im['tag'], pretty_tag_value(im))
+                    tag = im['tag'] if len(im['tag']) > 1 else im['tag'][0]
+                    fmt = '{}[{}]: {}'.format(im['input_order'], tag, pretty_tag_value(im))
                 im['lower_right_text'].txt.set_text(fmt)
-                im['lower_right_data'] = (im['tag'],)
+                im['lower_right_data'] = im['tag']
             # Lower left text
             if im['color']:
                 fmt = 'SL: {0:d}'
@@ -187,14 +188,15 @@ class Viewer(object):
             h = ax.imshow(im['im'], cmap=im['colormap'], norm=im['norm'])
         elif im['tag_axis'] is None:
             # 3D viewer
-            h = ax.imshow(im['im'][im['idx'], ...], cmap=im['colormap'], norm=im['norm'])
+            h = ax.imshow(im['im'][im['idx']], cmap=im['colormap'], norm=im['norm'])
         else:
             # 4D viewer
-            h = ax.imshow(im['im'][im['tag'], im['idx'], ...], cmap=im['colormap'],
+            h = ax.imshow(im['im'][im['tag'] + (im['idx'],)], cmap=im['colormap'],
                           norm=im['norm'])
             # Lower right text
-            fmt = '{}[{}]: {}'.format(im['input_order'], im['tag'], pretty_tag_value(im))
-            im['lower_right_data'] = (im['tag'],)
+            tag = im['tag'] if len(im['tag']) > 1 else im['tag'][0]
+            fmt = '{}[{}]: {}'.format(im['input_order'], tag, pretty_tag_value(im))
+            im['lower_right_data'] = im['tag']
             im['lower_right_text'] = AnchoredText(fmt,
                                                   prop=dict(size=6, color='white',
                                                             backgroundcolor='black'),
@@ -205,7 +207,7 @@ class Viewer(object):
             artist.set_visible(im['show_text'])
             im['artists'].append(artist)
 
-        # Update lower left text
+        # Update the lower left text
         if im['color']:
             fmt = 'SL: {0:d}'
             im['lower_left_data'] = (im['idx'])
@@ -654,12 +656,19 @@ class Viewer(object):
                     im2['modified'] = old_idx != im2['idx']
 
     def advance_data(self, inaxes, increment):
-        """Advance display to next/previous tag value"""
+        """Advance display to the next/previous tag value"""
         im = self.find_image_from_event(inaxes)
         if im is None or im['tag_axis'] is None:
             return
         old_tag = im['tag']
-        im['tag'] = min(max(im['tag'] + increment, 0), len(im['tag_axis']) - 1)
+        # Advance along the first dimension
+        new_tag = ()
+        for _dim in range(len(im['tag'])):
+            if _dim == 0:
+                new_tag += (min(max(im['tag'][_dim] + increment, 0), im['tags'][_dim] - 1),)
+            else:
+                new_tag += (im['tag'][_dim],)
+        im['tag'] = new_tag
         im['modified'] = old_tag != im['tag']
         if self.poly is not None and self.follow and im['modified']:
             new_tag = im['tag']
@@ -758,9 +767,9 @@ class Viewer(object):
             vmin, vmax = im['im'][idx].calculate_clip_range(probs)
         else:
             # 4D data
-            idx = im['idx']
+            idx = (im['idx'],)
             tag = im['tag']
-            vmin, vmax = im['im'][tag, idx].calculate_clip_range(probs)
+            vmin, vmax = im['im'][tag + idx].calculate_clip_range(probs)
         im['vmin'] = vmin
         im['vmax'] = vmax
         level = (np.float32(vmax) + np.float32(vmin)) / 2
@@ -1162,9 +1171,9 @@ def build_info(im, colormap, norm, colorbar, window, level):
     slice_axis = im.get_slice_axis()
 
     try:
-        tags = len(im.tags[0])
+        tags = im.tags[0].shape
     except TypeError:
-        tags = 0
+        tags = (0,)
 
     return {
         'im': im,  # Image Series instance
@@ -1180,11 +1189,11 @@ def build_info(im, colormap, norm, colorbar, window, level):
         'lower_right_data': None,  # Tuple of present data
         'scrollable': im.slices > 1,  # Can we scroll the instance?
         'taggable': tag_axis is not None,  # Can we slide through tags?
-        'tags': tags,  # Number of tags
+        'tags': tags,  # Number of tags (tuple)
         'slices': im.slices,  # Number of slices
         'rows': im.rows,  # Number of rows
         'columns': im.columns,  # Number of columns
-        'tag': 0,  # Displayed tag index
+        'tag': tuple(0 for _ in range(len(tags))),  # Displayed tag index
         'idx': im.slices // 2,  # Displayed slice index
         'tag_axis': tag_axis,  # Axis instance of im
         'slice_axis': slice_axis,  # Axis instance of im
@@ -1201,18 +1210,26 @@ def build_info(im, colormap, norm, colorbar, window, level):
 
 def pretty_tag_value(im):
     tag = im['tag']
+
     if im['input_order'] == 'time':
         return '{0:0.2f}s'.format(im['im'].timeline[tag])
     elif im['input_order'] == 'text':
         return '{}'.format(im['tag_axis'][tag]).split(':')[1]
+
+    if im['im'].tags[0][tag] is None or im['im'].tags[0][tag][0] is None:
+        return '[None]'
+    tag_value = im['im'].tags[0][tag][0]
+
+    if im['input_order'] == 'bvector':
+        return '{}'.format(tag_value)
     elif im['input_order'] == 'b':
-        return '{}'.format(int(im['im'].tags[0][tag]))
+        return '{}'.format(int(tag_value))
     elif im['input_order'] == 'te':
-        return '{}ms'.format(int(im['im'].tags[0][tag]))
+        return '{}ms'.format(int(tag_value))
     elif im['input_order'] == 'fa':
-        return '{}'.format(im['im'].tags[0][tag])
+        return '{}'.format(tag_value)
     else:
-        return '{}'.format(im['im'].tags[0][tag])
+        return '{}'.format(tag_value)
 
 
 def pretty_window_level(im):

@@ -89,6 +89,7 @@ class TestSeries(unittest.TestCase):
         s = Series(rng.standard_normal(2*3*4*4*4).reshape((2,3,4,4,4)), 'time,te')
         s1 = s[1]
         self.assertEqual(s.axes[1:], s1.axes)
+        self.assertEqual(s.tags[0].ndim - 1, s1.tags[0].ndim)
         s2 = s[:,1]
         s_axes = tuple([s.axes[_] for _ in (0, 2, 3, 4)])
         self.assertEqual(s_axes, s2.axes)
@@ -344,7 +345,9 @@ class TestSeries(unittest.TestCase):
         tags = {}
         k = 0
         for i in range(s.slices):
-            tags[i] = np.arange(k, k+s.shape[0])
+            tags[i] = np.empty(s.shape[0], dtype=tuple)
+            for _i, _ in enumerate(range(k, k+s.shape[0])):
+                tags[i][_i] = (_,)
             k += s.shape[0]
         s.tags = tags
 
@@ -436,7 +439,9 @@ class TestSeries(unittest.TestCase):
         tags = {}
         k = 0
         for i in range(s.slices):
-            tags[i] = np.arange(k, k+s.shape[0])
+            tags[i] = np.empty(s.shape[0], dtype=tuple)
+            for _i, _ in enumerate(range(k, k+s.shape[0])):
+                tags[i][_i] = (_,)
             k += s.shape[0]
         s.tags = tags
 
@@ -459,7 +464,9 @@ class TestSeries(unittest.TestCase):
         tags = {}
         k = 0
         for i in range(s.slices):
-            tags[i] = np.arange(k, k+s.shape[0])
+            tags[i] = np.empty(s.shape[0], dtype=tuple)
+            for _i, _ in enumerate(range(k, k+s.shape[0])):
+                tags[i][_i] = (_,)
             k += s.shape[0]
         s.tags = tags
 
@@ -584,6 +591,43 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(si1.timeline[[0, 2]], si2.timeline)
         a = np.array(si1.axes.time.values)
         np.testing.assert_array_equal(a[[0, 2]], si2.axes.time.values)
+
+    def test_slice_b_bvector(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'b,bvector',
+            input_format='dicom'
+        )
+        b0 = si[:, 0]
+        np.testing.assert_array_equal(
+            b0.tags[0],
+            np.array([(0,), None, None], dtype=tuple)
+        )
+        # compare axes
+        np.testing.assert_array_equal(b0.axes.b.values, [0, 500, 1500])
+
+        b1 = si[:, 1]
+        np.testing.assert_array_equal(
+            b1.tags[0],
+            np.array([None, (500,), (1500,)], dtype=tuple)
+        )
+        np.testing.assert_array_equal(b0.axes.b.values, [0, 500, 1500])
+
+        bv0 = si[0, :]
+        # Construct the expected b-vector
+        np.testing.assert_array_equal(
+            bv0.tags[0][0][0],
+            np.array([]).reshape(0)
+        )
+        self.assertIsNone(bv0.tags[0][1])
+
+        bv1 = si[1, :]
+        self.assertIsNone(bv1.tags[0][0])
+        np.testing.assert_almost_equal(
+            bv1.tags[0][1][0],
+            np.array([0, -0.706402, -0.707811]),
+            decimal=4
+        )
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')

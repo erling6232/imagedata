@@ -265,7 +265,9 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("{}: times {}".format(_name, times))
         hdr.tags = {}
         for z in range(nz):
-            hdr.tags[z] = np.array(times, dtype=tuple)
+            hdr.tags[z] = np.empty(nt, dtype=tuple)
+            for i, _ in enumerate(np.arange(0, nt * dt, dt)):
+                hdr.tags[z][i] = (_,)
 
         row_axis = UniformLengthAxis(
             'row',

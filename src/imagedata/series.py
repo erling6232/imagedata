@@ -15,6 +15,7 @@ import copy
 import numbers
 import argparse
 from collections import namedtuple
+from itertools import product
 import numpy as np
 import logging
 from pathlib import PurePath
@@ -772,6 +773,7 @@ class Series(np.ndarray):
             return None
         slice_spec = [_ for _ in range(0, self.slices, 1)]
         tag_spec = tuple()
+        tag_spec_i = tuple()
         for d in specs:
             try:
                 start, stop, step, axis = specs[d]
@@ -784,11 +786,30 @@ class Series(np.ndarray):
             elif axis.name in self.input_order.split(','):
                 if start is None:
                     tag_spec += (_indices,)
+                    tag_spec_i += (_indices,)
                 else:
-                    tag_spec += (slice(start, stop, step),)
+                    tag_spec += (_indices,)
+                    tag_spec_i += (slice(start, stop, step),)
         new_tags = {}
         for i, s in enumerate(slice_spec):
-            new_tags[i] = self.tags[s][tag_spec]
+            # Extract new tag within tag_spec
+            new_tag = self.tags[s][tag_spec_i].copy()
+            keep_tag = tuple(len(_) > 1 for _ in tag_spec)
+            for _ in range(len(keep_tag)):
+                if not keep_tag[_]:
+                    new_tag = np.expand_dims(new_tag, axis=_)
+            for new_idx, idx in zip(np.ndindex(new_tag.shape), product(*tag_spec)):
+                # Remove any singular tags from new_tag
+                if self.tags[s][idx] is not None:
+                    _new_tag = tuple()
+                    for _idx, _keep in enumerate(keep_tag):
+                        if _keep:
+                            try:
+                                _new_tag += (self.tags[s][idx][_idx],)
+                            except IndexError:
+                                raise
+                    new_tag[new_idx] = _new_tag
+            new_tags[i] = new_tag.squeeze()
         return new_tags
 
     def __calculate_window(self):
@@ -1096,16 +1117,15 @@ class Series(np.ndarray):
     def tags(self):
         """dict[slice] of numpy.ndarray(tags): Image tags for each slice
 
-        Image tags can be an array of:
-            - time points
-            - diffusion weightings (b values)
-            - flip angles
+        Image tag is a tuple of values describing the image at that index.
+        Tag values include values like time points, diffusion weightings (b values),
+        and flip angles.
+        If accept_duplicate_tags is True, the tags might not be unique.
+        Tags can be None, in which case the corresponding image data might be disregarded.
 
-        Image tags will be tuples when image dimension > 4.
-
-        tags is a dict with (slice keys, tag array)
-
-        dict[slice] is np.ndarray(tags)
+        The size of the image tag tuple is determined by the input_order
+        (and Series shape).
+        The indices of the tags correspond to the indices of the input_order.
 
         Examples:
 
@@ -1120,22 +1140,10 @@ class Series(np.ndarray):
         except AttributeError:
             pass
         return None
-        if self.axes[0].name in ('slice', 'row', 'column'):
-            return {0: np.array(0)}
-        try:
-            values = self.axes[0].values
-            tags = {}
-            for _slice in range(self.slices):
-                tags[_slice] = np.array(values)
-            return tags
-        except AttributeError:
-            pass
-        return None
 
     @tags.setter
     def tags(self, tags):
         self.header.tags = {}
-        # hdr = {}
         for s in tags.keys():
             self.header.tags[s] = np.array(tags[s])
 

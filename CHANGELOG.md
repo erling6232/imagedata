@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 
+## [v3.8.14-dev2] - 2025-11-27
+* Viewer: Improved handling of header tags, including None values.
+
 ## [v3.8.14-dev1] - 2025-11-21
 * Support python 3.14.
+* Require numpy 2.3.4 for python 3.14.
+* Added argument -1 to timeline script to print timeline in single column.
+* Corrected slicing of hdr.tags
 
 ## [v3.8.14-dev0] - 2025-11-20
 * Drop support for python 3.9.
