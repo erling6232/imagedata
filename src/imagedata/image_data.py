@@ -394,6 +394,8 @@ def print_statistics(si, mask=None, bash=False):
 def timeline():
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
+    parser.add_argument("-1", "--one", action="store_true",
+                        help="Single column")
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
     args = parser.parse_args()
@@ -409,7 +411,12 @@ def timeline():
         traceback.print_exc(file=sys.stdout)
         return 1
 
-    print('Timeline:\n{}'.format(si.timeline))
+    if args.one:
+        print('t [s]')
+        for t in si.timeline:
+            print(t)
+    else:
+        print('Timeline:\n{}'.format(si.timeline))
     return 0
 
 
