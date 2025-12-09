@@ -7,6 +7,7 @@
 import sys
 import os.path
 import shutil
+import re
 import argparse
 import urllib
 import logging
@@ -25,6 +26,20 @@ def safe_string(str):
     str = f'{str}'.replace(' ', '_')
     keepcharacters = ('.', '_')
     return "".join(c for c in str if c.isalnum() or c in keepcharacters).rstrip()
+
+
+def string_to_slug(path: str) -> str:
+    head, tail = os.path.split(path)
+
+    # Remove non-alphanumeric characters
+    tail = re.sub(r'\W+', ' ', tail)
+
+    # Replace spaces with hyphens
+    # And prevent consecutive hyphens
+    tail = re.sub(r'\s+', '-', tail)
+
+    # Remove leading and trailing hyphens
+    return os.path.join(head, tail.strip('-'))
 
 
 def sort(args=sys.argv[1:]):
@@ -95,7 +110,11 @@ def sort(args=sys.argv[1:]):
         pat_path = path
         if len(image_dict) > 1:
             pat_path = os.path.join(path, f'{pat}_{image_dict[pat][None]}')
-        os.makedirs(pat_path, exist_ok=True)
+        pat_path = string_to_slug(pat_path)
+        try:
+            os.makedirs(pat_path, exist_ok=True)
+        except OSError:
+            raise
         for study in image_dict[pat].keys():
             if study is None:
                 continue
