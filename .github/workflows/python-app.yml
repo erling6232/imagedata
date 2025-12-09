@@ -63,7 +63,7 @@ jobs:
           echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}" >> $env:GITHUB_ENV
       - name: Run Unit Tests and Generate Coverage Report
         run: |
-          # python -m unittest tests.test_formats_dicom.TestDuplicateDicom.test_duplicate
+          python -m unittest tests.test_formats_dicom.TestDicomPlugin.test_dicom_plugin_only
           coverage run -m unittest discover tests -t .
           coverage report -m
           coverage xml -o junit.xml
