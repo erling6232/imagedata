@@ -3,8 +3,9 @@
 Standard plugins provides support for file, http/https and xnat transports.
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
+import os
 from urllib import parse
 
 
@@ -53,6 +54,10 @@ def Transport(
             opts['password'] = None
         root = url_tuple.path
     from .. import plugins
+    if os.name == 'nt' and len(scheme) == 1:
+        # Assume the scheme represents the Windows drive letter
+        root = scheme + ':' + root
+        scheme = 'file'
     if 'transport' in plugins:
         for pname, ptype, pclass in plugins['transport']:
             if scheme in pclass.schemes:

@@ -40,14 +40,15 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
     if opts is None:
         opts = {}
     from .. import plugins
-    if os.name == 'nt' and \
-            fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
-        # Windows: Parse without /x:, then re-attach drive letter
-        urldict = urllib.parse.urlsplit(url[2:], scheme="file")
-        # _path = url[:2] + urldict.path
-    else:
-        urldict = urllib.parse.urlsplit(url, scheme="file")
-        # _path = urldict.path if len(urldict.path) > 0 else urldict.netloc
+    # if os.name == 'nt' and \
+    #         fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
+    #     # Windows: Parse without /x:, then re-attach drive letter
+    #     # urldict = urllib.parse.urlsplit(url[2:], scheme="file")
+    #     urldict = urllib.parse.urlsplit(url, scheme="file")
+    # else:
+    #     urldict = urllib.parse.urlsplit(url, scheme="file")
+    # Windows: Drive letter will be parsed as scheme
+    urldict = urllib.parse.urlsplit(url, scheme="file")
     # if urldict.scheme == 'xnat':
     #     mimetype = 'application/zip'
     # if mimetype is None:
