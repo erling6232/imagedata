@@ -53,23 +53,17 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           # Ensure temporary files are created in a unique, local directory
-          #echo "{TMPDIR}=${RUNNER_TEMP}/${RUNNER_OS}/${{ matrix.python-version }}"
-          #echo "{TMPDIR}=${RUNNER_TEMP}/${RUNNER_OS}/${{ matrix.python-version }}" >> $env:GITHUB_ENV
-          echo "TMPDIR=${{ runner.temp }}/${{ runner.os }}/${{ matrix.python-version }}"
+          # echo "TMPDIR=${{ runner.temp }}/${{ runner.os }}/${{ matrix.python-version }}"
           echo "TMPDIR=${{ runner.temp }}/${{ runner.os }}/${{ matrix.python-version }}" >> $GITHUB_ENV
       - name: Prepare Windows environment variables for Unit Tests
         if: runner.os == 'Windows'
         run: |
           # Ensure temporary files are created in a unique, local directory
-          echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}"
+          # echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}"
           echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}" >> $env:GITHUB_ENV
-          # echo "TMPDIR=$RUNNER_TEMP\${RUNNER_OS}\${{ matrix.python-version }}" >> $env:GITHUB_ENV
       - name: Run Unit Tests and Generate Coverage Report
         run: |
           # python -m unittest tests.test_formats_dicom.TestDuplicateDicom.test_duplicate
-          echo "TMPDIR=${{ env.TMPDIR }}"
-          echo "TMPDIR=$TMPDIR"
-          echo "TMPDIR=$env:TMPDIR"
           coverage run -m unittest discover tests -t .
           coverage report -m
           coverage xml -o junit.xml
