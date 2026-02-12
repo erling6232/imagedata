@@ -363,7 +363,7 @@ class Header(object):
         self.__set_tags_from_template(geometry)
 
     def __set_axes_from_template(self, geometry_axes: namedtuple):
-        if geometry_axes is None:
+        if geometry_axes is None or self.axes is None:
             return
         _axes = []
         _axis_names = []
