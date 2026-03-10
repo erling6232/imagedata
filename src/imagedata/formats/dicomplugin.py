@@ -21,6 +21,7 @@ import pydicom.valuerep
 import pydicom.config
 import pydicom.errors
 import pydicom.uid
+from numpy.core.numeric import infty
 from pydicom.datadict import tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
@@ -813,6 +814,85 @@ class DICOMPlugin(AbstractPlugin):
                 )
             return slice_count
 
+        def _structure_tags(tag_list: defaultdict[list])\
+                -> defaultdict[tuple]:
+
+            def _increase_idx(idx, order):
+                idx1 = idx[:order]; idx2 = (idx[order] + 1,); idx3 = idx[order + 1:]
+                idx = idx[:order] + (idx[order] + 1,) + idx[order + 1:]
+                return idx
+
+            def _jump_idx(idx, order):
+                tags = len(idx)
+                if order == 0:
+                    new_idx = (idx[0]+1,)
+                    for _ in range(tags-1):
+                        new_idx += (0,)
+                # elif order == tags-1:
+                else:
+                    if order == 1:
+                        new_idx = (idx[0]+1,)
+                    else:
+                        new_idx = idx[:order-1] + (idx[order-1]+1,)
+                    while len(new_idx) < tags:
+                        new_idx += (0,)
+                # else:
+                #     new_idx = idx[:order] + (idx[order]+1,) + idx[order+1:]
+                return new_idx
+
+            if len(tag_list) == 0:
+                return defaultdict(list)
+            tags = len(tag_list[0])
+            # if size == tags:
+            #     return sorted(tag_list)
+            # Some tag values are not unique, need to do a better sort
+            size = {}
+            strides = {tags-1: 1}
+            stride = 1
+            for index in reversed(range(tags)):
+                size[index] = len(sorted(set(_extract_tuple_index(tag_list, index))))
+                if size[index] >= len(tag_list):
+                    # Extract every nth value
+                    size[index] = len(tag_list) // stride
+                stride *= size[index]
+                strides[index-1] = stride
+            struct_tag_list = defaultdict(list)
+            for index in range(tags):
+                # Extract every nth value
+                values = []
+                for i in range(0, size[index]*strides[index], strides[index]):
+                    values.append(tag_list[i][index])
+                struct_tag_list[index] = values
+            tag_dict = defaultdict(tuple)
+            idx = last_tuple = tuple()
+            for _ in range(tags-1):
+                idx += (0,)
+                last_tuple += (-np.inf,)
+            idx += (-1,)
+            last_tuple += (-np.inf,)
+            for tag_tuple in tag_list:
+                for order in reversed(range(tags)):
+                    if tag_tuple[order] >= last_tuple[order]:
+                        idx = _increase_idx(idx, order)
+                    else:  # tag_tuple[order] < last_tuple[order]:
+                        # Reset order index, increase more significant index
+                        idx = _jump_idx(idx, order)
+                    break
+                # for i, tag in enumerate(tag_tuple):
+                #     ix = struct_tag_list[i].index(tag)
+                #     idx += (struct_tag_list[i].index(tag),)
+                tag_dict[tag_tuple] = idx
+                last_tuple = tag_tuple
+            return struct_tag_list, tag_dict
+
+        def _extract_tuple_index(tag_list, i) -> np.ndarray[float]:
+            # return sorted(tag_list, key=lambda tup: tup[i])
+            # tag_list.sort(key=lambda tup: tup[i])
+            result_list = []
+            for tag in tag_list:
+                result_list.append(tag[i])
+            return result_list
+
         def _extract_all_tags(hdr: Header,
                               series: SortedDatasetList,
                               input_order: str,
@@ -1059,6 +1139,35 @@ class DICOMPlugin(AbstractPlugin):
                 hdr.tags = place_images()
 
             # Get image dimensions and SOPInstanceUIDs from header
+            faulty = 0
+            for islice, sloc in enumerate(sorted(series)):
+                for i, im in enumerate(series[sloc]):
+                    tag = self._extract_tag_tuple(im, faulty, input_order, opts)
+                    faulty += 1
+                    try:
+                        if tag not in tag_list[islice] or accept_duplicate_tag:
+                            tag_list[islice].append(tag)
+                        elif accept_uneven_slices:
+                            # Drop duplicate images
+                            logger.warning("{}: dropping duplicate image: {} {}".format(
+                                _name, islice, sloc))
+                        else:
+                            raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                    except ValueError:
+                        for t, x in tag_list[islice]:
+                            if t == tag[0] and np.array_equal(x, tag[1]):
+                                raise CannotSort("Duplicate tag ({}): {}".format(input_order, tag))
+                        tag_list[islice].append(tag)
+                    except CannotSort:
+                        raise
+                    except Exception as e:
+                        print(e)
+            struct_tag_list = defaultdict()
+            tag_dict = defaultdict()
+            for islice in tag_list.keys():
+                struct_tag_list[islice], tag_dict[islice] = _structure_tags(tag_list[islice])
+            # Sort images based on position in tag_list
+            sorted_headers = {}
             SOPInstanceUIDs = {}
             frames = None
             rows = columns = 0
