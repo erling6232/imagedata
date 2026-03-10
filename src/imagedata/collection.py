@@ -8,20 +8,29 @@ The Cohort class is a collection of Patient objects.
 
 """
 
-# Copyright (c) 2023-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2023-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 from datetime import datetime, date, time
 import argparse
 from pathlib import Path
+from pydicom.uid import UID
 from typing import Union
+# from dicomanonymizer.dicomfields_selector import dicom_anonymization_database_selector
 
 from .series import Series
 from .readdata import read as r_read
-from .formats import UnknownInputError
+from .formats import UnknownInputError, get_uid
 
 logger = logging.getLogger(__name__)
 
+
+# anonymization_actions = {
+#     'patientName': (replace, 'ANONYMOUS'),
+#     'patientID': (replace, 'ANONYMOUS'),
+#     'studyDate': keep_year,
+# }
+#
 
 def _get_attribute(_data, _attr):
     # Get attribute from first instance in _data
@@ -349,6 +358,7 @@ class Study(IndexedDict):
 
     def __init__(self, data, opts: dict = None, **kwargs):
         super(Study, self).__init__()
+        self.__uid_generator = get_uid()
         for _attr in self._attributes:
             setattr(self, _attr, None)
 
@@ -374,6 +384,8 @@ class Study(IndexedDict):
             _series_dict = data
         elif issubclass(type(data), Study):
             raise ValueError("Why here?")
+        elif data is None:
+            _series_dict = {}
         else:
             # Assume data is URL
             try:
@@ -395,6 +407,11 @@ class Study(IndexedDict):
         _descr = self.studyDescription if self.studyDescription is not None else ''
         return \
             "Study: {} {}".format(datetime.combine(_date, _time), _descr)
+
+    def new_uid(self) -> UID:
+        """Return the next available UID from the UID generator.
+        """
+        return self.__uid_generator.__next__()
 
     def write(self, url, opts=None, formats=None):
         """Write image data, calling appropriate format plugins
@@ -430,6 +447,24 @@ class Study(IndexedDict):
                 _series.write(_url, opts=opts, formats=formats)
             except Exception as e:
                 raise Exception(_url) from e
+
+    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {
+
+        } | actions
+        _copy = Study(None)
+        if self.studyInstanceUID not in known_uids:
+            known_uids[self.studyInstanceUID] = _copy.new_uid()
+        _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
+        _copy.referringPhysiciansName = ''
+        _copy.studyDate = self.studyDate
+        _copy.studyTime = self.studyTime
+        _copy.studyDescription = self.studyDescription
+        _copy.studyID = self.studyID
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID].anonymize(known_uids)
+            _copy[_series.seriesInstanceUID] = _series
+        return _copy
 
 
 class Patient(IndexedDict):

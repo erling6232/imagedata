@@ -66,6 +66,13 @@ class TestStudy(unittest.TestCase):
             si.write(os.path.join(d, '2'), opts={'keep_uid': True})
             study = Study(d, input_format='dicom', opts={'split_acquisitions': True})
 
+    def test_anonymize_study(self):
+        study = Study('data/dicom/cohort.zip?cohort/P2/S1')
+        anon_study = study.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            anon_study.write(d)
+            pass
+
 
 class TestPatient(unittest.TestCase):
 
@@ -85,6 +92,13 @@ class TestPatient(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             patient.write(d)
 
+    def test_anonymize_patient(self):
+        patient = Patient('data/dicom/cohort.zip?cohort/P2')
+        anon_patient = patient.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            anon_patient.write(d)
+            pass
+
 
 class TestCohort(unittest.TestCase):
 
@@ -102,6 +116,13 @@ class TestCohort(unittest.TestCase):
         cohort = Cohort('data/dicom/cohort.zip')
         with tempfile.TemporaryDirectory() as d:
             cohort.write(d)
+
+    def test_anonymize_cohort(self):
+        cohort = Cohort('data/dicom/cohort.zip?cohort')
+        anon_cohort = cohort.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            anon_cohort.write(d)
+            pass
 
 
 if __name__ == '__main__':

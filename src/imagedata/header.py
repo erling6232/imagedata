@@ -4,10 +4,12 @@
 
 import numpy as np
 from collections import namedtuple
+import copy
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
 from pydicom.uid import UID
+from dicomanonymizer.simpledicomanonymizer import anonymize_dataset, initialize_actions_2024b
 from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE, get_uid
 
 
@@ -197,6 +199,26 @@ class Header(object):
         ds.Modality = 'SC'
 
         return ds
+
+    def anonymize(self, known_uids: dict = {}):
+        _copy = Header()
+        _copy.set_default_values(self.axes)
+        # _copy.add_template(self)
+        _copy.add_geometry(self)
+        _copy.input_order = self.input_order
+        _copy.input_format = self.input_format
+        _copy.windowCenter = None
+        _copy.windowWidth = None
+        if self.dicomTemplate is not None:
+            _copy.dicomTemplate = anonymize_dataset(
+                copy.copy(self.dicomTemplate),
+                extra_anonymization_rules=known_uids,
+                delete_private_tags=True,
+                base_rules_gen=initialize_actions_2024b
+            )
+        else:
+            _copy.dicomTemplate = self.empty_ds()
+        return _copy
 
     def add_template(self, template) -> None:
         """Add template data to this header.

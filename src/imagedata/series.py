@@ -3148,6 +3148,14 @@ class Series(np.ndarray):
 
         return vertices
 
+    def anonymize(self, known_uids: dict = {}):
+        _copy = Series(self, input_order=self.input_order, input_format=self.input_format,
+                       geometry=self, axes=self.axes)
+        if self.seriesInstanceUID not in known_uids:
+            known_uids[self.seriesInstanceUID] = _copy.header.new_uid()
+        _copy.header = self.header.anonymize(known_uids)
+        return _copy
+
 
 # -----------------------------------------------------------------------------
 #

@@ -1,5 +1,6 @@
 from numbers import Number
 from pydicom.dataset import FileDataset, Dataset
+from typing import Any
 
 
 class Instance(FileDataset):
@@ -7,11 +8,17 @@ class Instance(FileDataset):
     tags: tuple[Number]
     tag_index: tuple[int]
 
-    def __init__(self, dataset: Dataset):
+    def __init__(self, dataset: Dataset, **kwargs: Any):
+        file_meta = dataset.file_meta
+        if 'file_meta' in kwargs:
+            file_meta = kwargs['file_meta']
+        preamble = file_meta.Preamble
+        if 'preamble' in kwargs:
+            preamble = kwargs['preamble']
         super().__init__("",
                          dataset=dataset,
-                         file_meta=dataset.file_meta,
-                         preamble=b"\0" * 128
+                         file_meta=file_meta,
+                         preamble=preamble
                          )
         self.slice_index = None
         self.tags = None
