@@ -347,24 +347,30 @@ def _get_location_part(url):
 
     _name: str = '{}.{}'.format(__name__, _get_location_part.__name__)
 
-    if os.name == 'nt' and fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
-        # Windows: Parse without x:, then reattach drive letter
-        url_tuple = urllib.parse.urlsplit(url[2:], scheme="file")
-        _path = url[:2] + url_tuple.path
-    elif os.name == 'nt' and fnmatch.fnmatch(url, '//*'):
-        # Windows: Parse UNC without leading /, then reattach
-        url_tuple = urllib.parse.urlsplit(url[1:], scheme="file")
-        _path = url[:1] + url_tuple.path
-    else:
-        url_tuple = urllib.parse.urlsplit(url, scheme="file")
-        _path = url_tuple.path
-    # url_tuple = urllib.parse.urlsplit(url, scheme='file')
+    url_tuple = urllib.parse.urlsplit(url, scheme="file")
+    scheme = url_tuple.scheme
+    _path = url_tuple.path
+    if os.name == 'nt':
+        if len(scheme) == 1:
+            _path = _path if len(_path) > 0 else url_tuple.netloc
+            _path = scheme[0] + ':' + _path
+            scheme = 'file'
+        elif scheme == 'file':
+            _path = _path if len(_path) > 0 else url_tuple.netloc
+            if fnmatch.fnmatch(_path, '[A-Za-z]:*'):
+                _path = _path[1:]
+        elif fnmatch.fnmatch(url, '//*'):
+            # Windows: Parse UNC without leading /, then reattach
+            url_tuple = urllib.parse.urlsplit(url[1:], scheme="file")
+            _path = url[:1] + url_tuple.path
     # Strip off query and fragment parts
-    location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
-    if url_tuple.scheme == 'file' and url[0] != '/':
+    location = urllib.parse.urlunsplit((scheme, url_tuple.netloc, _path, None, None))
+    if scheme == 'file' and url[0] != '/':
         _path = os.path.abspath(_path)
-        location = urllib.parse.urlunsplit((url_tuple.scheme, url_tuple.netloc, _path, None, None))
-    logger.debug('{}: scheme {}'.format(_name, url_tuple.scheme))
+        location = urllib.parse.urlunsplit((scheme, url_tuple.netloc, _path, None, None))
+    if os.name == 'nt' and fnmatch.fnmatch(location, 'file:///[A-Za-z]:\\*'):
+        location = 'file://' + location[8:]
+    logger.debug('{}: scheme {}'.format(_name, scheme))
     logger.debug('{}: netloc {}'.format(_name, url_tuple.netloc))
     logger.debug('{}: path {}'.format(_name, _path))
     logger.debug('{}: location {}'.format(_name, location))
@@ -394,13 +400,11 @@ def _get_archive(url, mode='r', opts=None):
         _path = url_tuple.netloc
     else:
         _path = url_tuple.path
-    # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(_path)[0]
     archive = find_mimetype_plugin(
         mimetype,
         url,
         mode,
-        # read_directory_only=mode[0] == 'r',
         read_directory_only=False,
         opts=opts)
     logger.debug('{}: _mimetypes {}'.format(_name, mimetype))
@@ -439,14 +443,24 @@ def _simplify_locations(locations):
     new_locations = {}
     paths = []
     for location in locations:
+        url_tuple = urllib.parse.urlsplit(location, scheme='file')
         # On Windows, any backslash (os.sep) will be replaced by slash in URL
         # url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
-        if os.name == 'nt' and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
+        if os.name == 'nt':
+            if len(url_tuple.scheme) == 1:
+                #and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
+                # Assume the scheme represents the Windows drive letter
+                _path = url_tuple.scheme[0] + ':' + url_tuple.netloc
+            elif url_tuple.scheme == 'file':
+                _path = url_tuple.path if len(url_tuple.path) > 0 else url_tuple.netloc
+                # if fnmatch.fnmatch(location, '/[A-Za-z]:\\*'):
+                if fnmatch.fnmatch(_path, '/[A-Za-z]:*'):
+                    _path = _path[1:]
+
             # Windows: Parse without x:, then reattach drive letter
-            url_tuple = urllib.parse.urlsplit(location[2:], scheme='file')
-            _path = location[:2] + url_tuple.path
+            # url_tuple = urllib.parse.urlsplit(location[2:], scheme='file')
+            # _path = location[:2] + url_tuple.path
         else:
-            url_tuple = urllib.parse.urlsplit(location, scheme='file')
             _path = url_tuple.path if len(url_tuple.path) > 0 else url_tuple.netloc
         if url_tuple.scheme == 'file':
             paths.append(_path)

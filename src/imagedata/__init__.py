@@ -37,24 +37,24 @@ except TypeError:
 if len(_plugins) == 0:
     # Fallback to known built-in plugins
     try:
-        from src.imagedata.archives.filesystemarchive import FilesystemArchive
-        from src.imagedata.archives.zipfilearchive import ZipfileArchive
+        from imagedata.archives.filesystemarchive import FilesystemArchive
+        from imagedata.archives.zipfilearchive import ZipfileArchive
         plugins['archive'] = [
             ('filesystemarchive', FilesystemArchive.name, FilesystemArchive),
             ('zipfilearchive', ZipfileArchive.name, ZipfileArchive)
         ]
-        from src.imagedata.transports.filetransport import FileTransport
-        from src.imagedata.transports.dicomtransport import DicomTransport
-        from src.imagedata.transports.xnattransport import XnatTransport
+        from imagedata.transports.filetransport import FileTransport
+        from imagedata.transports.dicomtransport import DicomTransport
+        from imagedata.transports.xnattransport import XnatTransport
         plugins['transport'] = [
             ('filetransport', FileTransport.name, FileTransport),
             ('dicomtransport', DicomTransport.name, DicomTransport),
             ('xnattransport', XnatTransport.name, XnatTransport)
         ]
-        from src.imagedata.formats.dicomplugin import DICOMPlugin
-        from src.imagedata.formats.itkplugin import ITKPlugin
-        from src.imagedata.formats.matplugin import MatPlugin
-        from src.imagedata.formats.niftiplugin import NiftiPlugin
+        from imagedata.formats.dicomplugin import DICOMPlugin
+        from imagedata.formats.itkplugin import ITKPlugin
+        from imagedata.formats.matplugin import MatPlugin
+        from imagedata.formats.niftiplugin import NiftiPlugin
         plugins['format'] = [
             ('dicomformat', DICOMPlugin.name, DICOMPlugin),
             ('itkformat', ITKPlugin.name, ITKPlugin),
