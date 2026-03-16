@@ -394,13 +394,11 @@ def _get_archive(url, mode='r', opts=None):
         _path = url_tuple.netloc
     else:
         _path = url_tuple.path
-    # url_tuple = urllib.parse.urlsplit(url, scheme='file')
     mimetype = mimetypes.guess_type(_path)[0]
     archive = find_mimetype_plugin(
         mimetype,
         url,
         mode,
-        # read_directory_only=mode[0] == 'r',
         read_directory_only=False,
         opts=opts)
     logger.debug('{}: _mimetypes {}'.format(_name, mimetype))
