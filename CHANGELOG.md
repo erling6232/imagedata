@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.8.15-dev0] - 2026-03-16
+* Fixed parsing windows drive letter
 
 ## [v3.8.14] - 2025-11-27
 * Release 3.8.14
