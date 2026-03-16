@@ -1,5 +1,5 @@
 from numbers import Number
-from pydicom.dataset import FileDataset, Dataset
+from pydicom.dataset import FileDataset, Dataset, FileMetaDataset
 from typing import Any
 
 
@@ -8,11 +8,20 @@ class Instance(FileDataset):
     tags: tuple[Number]
     tag_index: tuple[int]
 
-    def __init__(self, dataset: Dataset, **kwargs: Any):
-        file_meta = dataset.file_meta
+    def __init__(self, *args: Dataset, **kwargs: Any) -> None:
+        if len(args) == 1:
+            dataset = args[0]
+        elif len(args) == 6:
+            dataset = args[1]
+        else:
+            raise ValueError('Unexpected number of arguments ({}) for Instance.__init__'.format(len(args)))
+        try:
+            file_meta = dataset.file_meta
+        except AttributeError:
+            file_meta = FileMetaDataset()
         if 'file_meta' in kwargs:
             file_meta = kwargs['file_meta']
-        preamble = file_meta.Preamble
+        preamble = b"\0" * 128
         if 'preamble' in kwargs:
             preamble = kwargs['preamble']
         super().__init__("",
