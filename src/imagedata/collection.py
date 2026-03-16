@@ -413,7 +413,7 @@ class Study(IndexedDict):
         """
         return self.__uid_generator.__next__()
 
-    def write(self, url, opts=None, formats=None):
+    def write(self, url, opts=None, formats=None, **kwargs):
         """Write image data, calling appropriate format plugins
 
         Args:
@@ -428,6 +428,13 @@ class Study(IndexedDict):
                 or no way to write multidimensional image.
             imagedata.formats.WriteNotImplemented: Cannot write this image format.
         """
+
+        if opts is None:
+            opts = {}
+        elif issubclass(type(opts), argparse.Namespace):
+            opts = vars(opts)
+        for key, value in kwargs.items():
+            opts[key] = value
 
         _used_urls = []
         for _seriesUID in self.keys():
@@ -453,6 +460,8 @@ class Study(IndexedDict):
 
         } | actions
         _copy = Study(None)
+        if self.studyInstanceUID is None:
+            self.studyInstanceUID = _copy.new_uid()
         if self.studyInstanceUID not in known_uids:
             known_uids[self.studyInstanceUID] = _copy.new_uid()
         _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
@@ -653,6 +662,26 @@ class Patient(IndexedDict):
                 except Exception as e:
                     raise Exception(_url) from e
 
+    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+        # TODO
+        _actions = {
+
+                   } | actions
+        _copy = Study(None)
+        if self.studyInstanceUID is None:
+            self.studyInstanceUID = _copy.new_uid()
+        if self.studyInstanceUID not in known_uids:
+            known_uids[self.studyInstanceUID] = _copy.new_uid()
+        _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
+        _copy.referringPhysiciansName = ''
+        _copy.studyDate = self.studyDate
+        _copy.studyTime = self.studyTime
+        _copy.studyDescription = self.studyDescription
+        _copy.studyID = self.studyID
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID].anonymize(known_uids)
+            _copy[_series.seriesInstanceUID] = _series
+        return _copy
 
 class Cohort(IndexedDict):
     """Cohort -- Read and sort images into a collection of Patient objects.
