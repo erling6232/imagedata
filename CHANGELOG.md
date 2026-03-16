@@ -7,10 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 ## [v3.8.15-dev0] - 2026-03-16
-* Fixed parsing windows drive letter
-
-## [v3.8.15-dev0] - 2026-02-12
 ### Fixed
+* Fixed parsing windows drive letter
 * Header.__set_axes_from_template: Catch missing axes property.
 
 ## [v3.8.14] - 2025-11-27
