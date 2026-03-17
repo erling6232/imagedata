@@ -312,7 +312,10 @@ class Study(IndexedDict):
                         else:
                             _value = datetime.strptime(_value, "%H%M%S").time()
                     except ValueError:
-                        _value = datetime.time(_value)
+                        try:
+                            _value = datetime.time(_value)
+                        except TypeError:
+                            pass
                 # Update self property if None from series
                 if getattr(self, _attr, None) is None:
                     # _series = self[_seriesInstanceUID]
