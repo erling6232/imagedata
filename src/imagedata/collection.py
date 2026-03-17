@@ -667,7 +667,6 @@ class Patient(IndexedDict):
                     raise Exception(_url) from e
 
     def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
-        # TODO
         _actions = {
 
                    } | actions
@@ -683,6 +682,7 @@ class Patient(IndexedDict):
             _study = self[_studyUID].anonymize(known_uids, **rules)
             _copy[_study.studyInstanceUID] = _study
         return _copy
+
 
 class Cohort(IndexedDict):
     """Cohort -- Read and sort images into a collection of Patient objects.
@@ -752,6 +752,10 @@ class Cohort(IndexedDict):
             for _patientID in _patient_dict:
                 # self[_patientID] = Patient(_patient_dict[_patientID])
                 self[_patientID] = _patient_dict[_patientID]
+        elif data is None:
+            _series_dict = {}
+            _study_dict = {}
+            _patient_dict = {}
         else:
             raise ValueError('Unexpected cohort data type {}'.format(type(data)))
 
@@ -847,3 +851,20 @@ class Cohort(IndexedDict):
                         _series.write(_url, opts=opts, formats=formats)
                     except Exception as e:
                         raise Exception(_url) from e
+    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {
+
+                   } | actions
+        rules = anonymization_rules | kwargs
+        _copy = Cohort(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
+        for _patientID in self.keys():
+            _patient = self[_patientID].anonymize(known_uids, **rules)
+            _copy[_patientID] = _patient
+        return _copy
+
