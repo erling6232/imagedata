@@ -118,6 +118,8 @@ class TestPatient(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             anon_patient.write(d)
             patient1 = Patient(d)
+            self.assertEqual(len(patient), len(patient1))
+            self.assertEqual('ANONYMOUS', patient1.patientName)
 
 
 class TestCohort(unittest.TestCase):
