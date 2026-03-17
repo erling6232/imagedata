@@ -21,16 +21,10 @@ from typing import Union
 from .series import Series
 from .readdata import read as r_read
 from .formats import UnknownInputError, get_uid
+from .formats.dicomlib import anonymization_rules
 
 logger = logging.getLogger(__name__)
 
-
-# anonymization_actions = {
-#     'patientName': (replace, 'ANONYMOUS'),
-#     'patientID': (replace, 'ANONYMOUS'),
-#     'studyDate': keep_year,
-# }
-#
 
 def _get_attribute(_data, _attr):
     # Get attribute from first instance in _data
@@ -459,19 +453,23 @@ class Study(IndexedDict):
         _actions = {
 
         } | actions
+        rules = anonymization_rules | kwargs
+        if rules['studyTime'] is None:
+            rules['studyTime'] = self.studyTime
         _copy = Study(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
         if self.studyInstanceUID is None:
             self.studyInstanceUID = _copy.new_uid()
         if self.studyInstanceUID not in known_uids:
             known_uids[self.studyInstanceUID] = _copy.new_uid()
         _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
-        _copy.referringPhysiciansName = ''
-        _copy.studyDate = self.studyDate
-        _copy.studyTime = self.studyTime
-        _copy.studyDescription = self.studyDescription
-        _copy.studyID = self.studyID
         for _seriesUID in self.keys():
-            _series = self[_seriesUID].anonymize(known_uids)
+            _series = self[_seriesUID].anonymize(known_uids, **rules)
             _copy[_series.seriesInstanceUID] = _series
         return _copy
 
@@ -544,6 +542,9 @@ class Patient(IndexedDict):
             # _study_dict = data
             # for _studyInstanceUID in data:
             #     self[_studyInstanceUID] = _study_dict[_studyInstanceUID]
+        elif data is None:
+            _series_dict = {}
+            _study_dict = {}
         else:
             _series_dict = _sort_in_series(data, _in_opts)
             _study_dict = _sort_in_studies(_series_dict, _in_opts)
@@ -667,20 +668,17 @@ class Patient(IndexedDict):
         _actions = {
 
                    } | actions
-        _copy = Study(None)
-        if self.studyInstanceUID is None:
-            self.studyInstanceUID = _copy.new_uid()
-        if self.studyInstanceUID not in known_uids:
-            known_uids[self.studyInstanceUID] = _copy.new_uid()
-        _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
-        _copy.referringPhysiciansName = ''
-        _copy.studyDate = self.studyDate
-        _copy.studyTime = self.studyTime
-        _copy.studyDescription = self.studyDescription
-        _copy.studyID = self.studyID
-        for _seriesUID in self.keys():
-            _series = self[_seriesUID].anonymize(known_uids)
-            _copy[_series.seriesInstanceUID] = _series
+        rules = anonymization_rules | kwargs
+        _copy = Patient(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
+        for _studyUID in self.keys():
+            _study = self[_studyUID].anonymize(known_uids, **rules)
+            _copy[_study.studyInstanceUID] = _study
         return _copy
 
 class Cohort(IndexedDict):
