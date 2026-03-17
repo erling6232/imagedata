@@ -26,6 +26,7 @@ from pydicom.uid import UID
 from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE
 from .formats import shape_to_str, input_order_set, sort_on_set
+from .formats.dicomlib import anonymization_rules
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
 from .header import Header
@@ -2296,7 +2297,8 @@ class Series(np.ndarray):
 
         try:
             if issubclass(type(keyword), str):
-                _tag = pydicom.datadict.tag_for_keyword(keyword)
+                _ = keyword[0].upper() + keyword[1:]
+                _tag = pydicom.datadict.tag_for_keyword(_)
             else:
                 _tag = keyword
             if _tag is None:
@@ -2321,7 +2323,8 @@ class Series(np.ndarray):
         """
 
         if issubclass(type(keyword), str):
-            _tag = pydicom.datadict.tag_for_keyword(keyword)
+            _  = keyword[0].upper() + keyword[1:]
+            _tag = pydicom.datadict.tag_for_keyword(_)
         else:
             _tag = keyword
         if _tag is None:
@@ -3148,12 +3151,23 @@ class Series(np.ndarray):
 
         return vertices
 
-    def anonymize(self, known_uids: dict = {}):
+    def anonymize(self, known_uids: dict = {}, **kwargs):
+        rules = anonymization_rules | kwargs
         _copy = Series(self, input_order=self.input_order, input_format=self.input_format,
                        geometry=self, axes=self.axes)
         if self.seriesInstanceUID not in known_uids:
             known_uids[self.seriesInstanceUID] = _copy.header.new_uid()
         _copy.header = self.header.anonymize(known_uids)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy.header, _rule)
+                setattr(_copy.header, _rule, rules[_rule])
+            except (AttributeError, ValueError):
+                pass
+            try:
+                _copy.setDicomAttribute(_rule, rules[_rule])
+            except ValueError:
+                pass
         return _copy
 
 
