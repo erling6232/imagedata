@@ -14,6 +14,7 @@ User Guide
   Colors
   Introduction
   Input_output
+  Anonymization
   Sorting
   DICOMAttributes
   Segmentation

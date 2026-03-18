@@ -2495,6 +2495,13 @@ class DICOMPlugin(AbstractPlugin):
                 if _attr not in ds:
                     VR = pydicom.datadict.dictionary_VR(_attr)
                     ds.add_new(_attr, VR, _value)
+                elif issubclass(type(_value), str):
+                    if ds[_attr].VR == 'DA':
+                        ds[_attr].value = pydicom.valuerep.DA(_value)
+                    elif ds[_attr].VR == 'DT':
+                        ds[_attr].value = pydicom.valuerep.DT(_value)
+                    else:
+                        ds[_attr].value = _value
                 else:
                     ds[_attr].value = _value
 

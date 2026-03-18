@@ -44,6 +44,7 @@ dependencies = [
     "pillow >= 10.0.0",
     "xnat < 0.7",
     "matplotlib >= 3.8.0",
+    "dicom-anonymizer",
     "opencv-python-headless"
 ]
 classifiers = [
