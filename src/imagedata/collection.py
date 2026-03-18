@@ -452,7 +452,7 @@ class Study(IndexedDict):
             except Exception as e:
                 raise Exception(_url) from e
 
-    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
         _actions = {
 
         } | actions
@@ -468,11 +468,11 @@ class Study(IndexedDict):
                 pass
         if self.studyInstanceUID is None:
             self.studyInstanceUID = _copy.new_uid()
-        if self.studyInstanceUID not in known_uids:
-            known_uids[self.studyInstanceUID] = _copy.new_uid()
-        _copy.studyInstanceUID = known_uids[self.studyInstanceUID]
+        if self.studyInstanceUID not in uid_table:
+            uid_table[self.studyInstanceUID] = _copy.new_uid()
+        _copy.studyInstanceUID = uid_table[self.studyInstanceUID]
         for _seriesUID in self.keys():
-            _series = self[_seriesUID].anonymize(known_uids, **rules)
+            _series = self[_seriesUID].anonymize(uid_table, **rules)
             _copy[_series.seriesInstanceUID] = _series
         return _copy
 
@@ -666,7 +666,7 @@ class Patient(IndexedDict):
                 except Exception as e:
                     raise Exception(_url) from e
 
-    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
         _actions = {
 
                    } | actions
@@ -679,7 +679,7 @@ class Patient(IndexedDict):
             except AttributeError:
                 pass
         for _studyUID in self.keys():
-            _study = self[_studyUID].anonymize(known_uids, **rules)
+            _study = self[_studyUID].anonymize(uid_table, **rules)
             _copy[_study.studyInstanceUID] = _study
         return _copy
 
@@ -851,7 +851,7 @@ class Cohort(IndexedDict):
                         _series.write(_url, opts=opts, formats=formats)
                     except Exception as e:
                         raise Exception(_url) from e
-    def anonymize(self, known_uids: dict = {}, actions: dict = {}, **kwargs):
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
         _actions = {
 
                    } | actions
@@ -864,7 +864,7 @@ class Cohort(IndexedDict):
             except AttributeError:
                 pass
         for _patientID in self.keys():
-            _patient = self[_patientID].anonymize(known_uids, **rules)
+            _patient = self[_patientID].anonymize(uid_table, **rules)
             _copy[_patientID] = _patient
         return _copy
 
