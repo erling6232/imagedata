@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
-## [v3.8.15-dev1] - 2026-03-17
+## [v3.8.15-dev1] - 2026-03-18
 ### Added
 * anonymize() methods on Series, Study, Patient and Cohort levels.
 * DICOMPlugin.write_slice(): properly encode date and time data elements when given as string.
