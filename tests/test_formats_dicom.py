@@ -530,6 +530,15 @@ class TestDicomPlugin(unittest.TestCase):
                 input_order='b'
             )
 
+    def test_anonymize_4D(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time'),
+            input_format='dicom')
+        si2 = si1.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(d, formats=['dicom'])
+            si3 = Series(d, input_format='dicom')
+
 
 class TestDicomZipPlugin(unittest.TestCase):
     def setUp(self):
