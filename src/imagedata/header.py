@@ -202,8 +202,8 @@ class Header(object):
 
         return ds
 
-    def anonymize(self, known_uids: dict = {}):
-        anonymizer.dictionary = anonymizer.dictionary | known_uids
+    def anonymize(self, uid_table: dict = {}):
+        anonymizer.dictionary = anonymizer.dictionary | uid_table
         _copy = Header()
         _copy.set_default_values(self.axes)
         _copy.add_geometry(self)
