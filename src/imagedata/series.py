@@ -3151,13 +3151,13 @@ class Series(np.ndarray):
 
         return vertices
 
-    def anonymize(self, known_uids: dict = {}, **kwargs):
+    def anonymize(self, uid_table: dict = {}, **kwargs):
         rules = anonymization_rules | kwargs
         _copy = Series(self, input_order=self.input_order, input_format=self.input_format,
                        geometry=self, axes=self.axes)
-        if self.seriesInstanceUID not in known_uids:
-            known_uids[self.seriesInstanceUID] = _copy.header.new_uid()
-        _copy.header = self.header.anonymize(known_uids)
+        if self.seriesInstanceUID not in uid_table:
+            uid_table[self.seriesInstanceUID] = _copy.header.new_uid()
+        _copy.header = self.header.anonymize(uid_table)
         for _rule in rules:
             try:
                 _ = getattr(_copy.header, _rule)
