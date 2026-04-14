@@ -411,6 +411,13 @@ class TestDicomPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
 
+    def test_write_bool(self):
+        si = Series(np.eye(128, dtype=bool))
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'image.dcm'), formats=['dicom'])
+            si_read = Series(d, input_format='dicom')
+        np.testing.assert_array_equal(si, si_read)
+
     def test_write_float(self):
         si = Series(np.arange(8*8*8).reshape((8, 8, 8)))
         si.seriesNumber = 100
@@ -529,6 +536,15 @@ class TestDicomPlugin(unittest.TestCase):
                 input_format='dicom',
                 input_order='b'
             )
+
+    def test_anonymize_4D(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time'),
+            input_format='dicom')
+        si2 = si1.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(d, formats=['dicom'])
+            si3 = Series(d, input_format='dicom')
 
 
 class TestDicomZipPlugin(unittest.TestCase):
