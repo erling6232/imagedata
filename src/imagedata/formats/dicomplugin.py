@@ -2532,7 +2532,7 @@ class DICOMPlugin(AbstractPlugin):
             # Store dicom set ds as file
             with archive.open(filename, 'wb') as f:
                 try:
-                    ds.save_as(f, enforce_file_format=False)
+                    ds.save_as(f)  # , enforce_file_format=False)
                 except TypeError:
                     ds.save_as(f)  # pydicom < 3.0.0
 
