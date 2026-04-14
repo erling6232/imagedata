@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.8.15-dev2] - 2026-04-14
 ### Fixed
 * DICOMPlugin: Corrected writing dtype np.bool_
+* DICOMPlugin.write_slice(): Drop `enforce_file_format` argument to pydicom.save_as().
 
 ## [v3.8.15-dev1] - 2026-03-18
 ### Added
