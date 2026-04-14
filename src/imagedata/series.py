@@ -3212,17 +3212,20 @@ def _delegate_a_to_numpy(func, a, **kwargs):
     else:
         ndarray = a.view(np.ndarray)
         s = func(ndarray, **kwargs)
-        if issubclass(type(s), np.ndarray):
-            obj = s.view(Series)
-            obj.input_order = a.input_order
-            obj.header.add_template(a.header)
-            obj.header.add_geometry(a.header)
-            if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
-                new_keys = [obj.input_order] + list(obj.axes._fields[1:])
-                values = list(obj.axes)
-                values[0].name = obj.input_order
-                new_axes = namedtuple('Axes', new_keys)
-                obj.axes = new_axes._make(values)
+        if (issubclass(type(s), np.ndarray)):
+            if (s.ndim == a.ndim) or (s.ndim > 1):
+                obj = s.view(Series)
+                obj.input_order = a.input_order
+                obj.header.add_template(a.header)
+                obj.header.add_geometry(a.header)
+                if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
+                    new_keys = [obj.input_order] + list(obj.axes._fields[1:])
+                    values = list(obj.axes)
+                    values[0].name = obj.input_order
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+            else:
+                obj = s
         else:
             obj = s
     return obj
