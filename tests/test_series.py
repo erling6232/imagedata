@@ -385,7 +385,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s.axes), len(s_axes))
         compare_axes(self, s.axes, s_axes)
         self.assertEqual(len(s_axes), 4)
-        compare_axes(self, s_axes, sum.axes)
+        self.assertEqual(s_axes[1:], sum.axes[:])
 
     def test_newaxis(self):
         rng = default_rng()

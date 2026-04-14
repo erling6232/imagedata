@@ -27,6 +27,16 @@ class TestSeriesUfunc(unittest.TestCase):
         b = np.rint(si0)
         pass
 
+    def test_mean_time(self):
+        si = Series('data/dicom/time/')
+        mask = np.zeros_like(si[0], dtype=bool)
+        mask[1, 10:20, 10:20] = True
+        mean = np.mean(si, axis=(1, 2, 3), where=mask)
+        np.testing.assert_array_almost_equal(
+            np.array([2.02, 1.98, 1.98]), mean
+        )
+        pass
+
     def test_concatenate_time(self):
         # Original series
         si0 = Series('data/dicom/time/')

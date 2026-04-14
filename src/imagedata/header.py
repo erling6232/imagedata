@@ -230,8 +230,8 @@ class Header(object):
                 setattr(_copy, tag, anonymizer.dictionary[getattr(self, tag)])
         _copy.SOPInstanceUIDs = {}
         for _slice in _copy.tags:
-            for _idx in _copy.tags[_slice]:
-                _tag = _idx + (_slice,)
+            for _i in range(len(_copy.tags[_slice])):
+                _tag = (_i, _slice)
                 try:
                     _copy.SOPInstanceUIDs[_tag] = anonymizer.dictionary[self.SOPInstanceUIDs[_tag]]
                 except KeyError:
