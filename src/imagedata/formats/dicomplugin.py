@@ -2652,7 +2652,14 @@ class DICOMPlugin(AbstractPlugin):
         except ValueError:
             ds.PhotometricInterpretation = 'MONOCHROME2'
 
-        if arr.dtype in self.smallint:
+        if np.issubdtype(arr.dtype, np.bool_):
+            # No scaling. Pack bits in 16-bit words
+            ds.PixelData = arr.astype('uint16').tobytes()
+            ds[0x7fe0, 0x0010].VR = 'OW'
+            ds.BitsAllocated = 16
+            ds.BitsStored = 16
+            ds.HighBit = 15
+        elif arr.dtype in self.smallint:
             # No scaling of pixel values
             ds.PixelData = arr.tobytes()
             if arr.itemsize == 1:
@@ -2675,13 +2682,6 @@ class DICOMPlugin(AbstractPlugin):
             ds.BitsAllocated = 8
             ds.BitsStored = 8
             ds.HighBit = 7
-        elif np.issubdtype(arr.dtype, np.bool_):
-            # No scaling. Pack bits in 16-bit words
-            ds.PixelData = arr.astype('uint16').tobytes()
-            ds[0x7fe0, 0x0010].VR = 'OW'
-            ds.BitsAllocated = 16
-            ds.BitsStored = 16
-            ds.HighBit = 15
         else:
             # Other high precision data type, like float:
             # rescale to uint16
@@ -2781,6 +2781,9 @@ class DICOMPlugin(AbstractPlugin):
             _max = 255 if arr.color else arr.max()
             _series_min = 0 if arr.color else self.smallestPixelValueInSeries
             _series_max = 255 if arr.color else self.largestPixelValueInSeries
+            if isinstance(_min, np.bool_):
+                _min, _max = 0, 1
+                _series_min, _series_max = 0, 1
         else:
             try:
                 ds.RescaleSlope = pydicom.valuerep.format_number_as_ds(self.a)
