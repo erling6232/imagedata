@@ -7,8 +7,9 @@
       <excludeFolder url="file://$MODULE_DIR$/venv" />
       <excludeFolder url="file://$MODULE_DIR$/venv3.12" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/.venv310" />
     </content>
-    <orderEntry type="jdk" jdkName="py314" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.10 (imagedata)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">

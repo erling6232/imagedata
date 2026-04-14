@@ -4,10 +4,12 @@
 
 import numpy as np
 from collections import namedtuple
+import copy
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
 from pydicom.uid import UID
+import dicomanonymizer.simpledicomanonymizer as anonymizer
 from .formats import INPUT_ORDER_NONE, SORT_ON_SLICE, get_uid
 
 
@@ -82,6 +84,8 @@ class Header(object):
                 setattr(self, attr, None)
             except AttributeError:
                 pass
+        self.patientName = ''
+        self.studyID = ''
         self.input_sort = SORT_ON_SLICE
         self.__uid_generator = get_uid()
         self.studyInstanceUID = self.new_uid()
@@ -197,6 +201,45 @@ class Header(object):
         ds.Modality = 'SC'
 
         return ds
+
+    def anonymize(self, uid_table: dict = {}):
+        anonymizer.dictionary = anonymizer.dictionary | uid_table
+        _copy = Header()
+        _copy.set_default_values(self.axes)
+        _copy.add_geometry(self)
+        _copy.input_order = self.input_order
+        _copy.input_format = self.input_format
+        _copy.windowCenter = None
+        _copy.windowWidth = None
+        if self.dicomTemplate is None:
+            _copy.dicomTemplate = self.empty_ds()
+        else:
+            _copy.dicomTemplate = self.dicomTemplate.copy()
+            anonymizer.anonymize_dataset(
+                _copy.dicomTemplate,
+                # extra_anonymization_rules=known_uids,
+                delete_private_tags=True,
+                base_rules_gen=anonymizer.initialize_actions_2024b
+            )
+        for tag in header_tags:
+            if tag == 'SOPClassUID':
+                _copy.SOPClassUID = self.SOPClassUID
+            elif tag[-3:] == 'UID':
+                if getattr(self, tag) not in anonymizer.dictionary:
+                    anonymizer.dictionary[getattr(self, tag)] = self.new_uid()
+                setattr(_copy, tag, anonymizer.dictionary[getattr(self, tag)])
+        _copy.SOPInstanceUIDs = {}
+        for _slice in _copy.tags:
+            for _idx in _copy.tags[_slice]:
+                _tag = _idx + (_slice,)
+                try:
+                    _copy.SOPInstanceUIDs[_tag] = anonymizer.dictionary[self.SOPInstanceUIDs[_tag]]
+                except KeyError:
+                    anonymizer.dictionary[self.SOPInstanceUIDs[_tag]] = self.new_uid()
+                    _copy.SOPInstanceUIDs[_tag] = anonymizer.dictionary[self.SOPInstanceUIDs[_tag]]
+                except TypeError:
+                    _copy.SOPInstanceUIDs[_tag] = self.new_uid()
+        return _copy
 
     def add_template(self, template) -> None:
         """Add template data to this header.
@@ -363,7 +406,7 @@ class Header(object):
         self.__set_tags_from_template(geometry)
 
     def __set_axes_from_template(self, geometry_axes: namedtuple):
-        if geometry_axes is None:
+        if geometry_axes is None or self.axes is None:
             return
         _axes = []
         _axis_names = []

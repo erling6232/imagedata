@@ -16,10 +16,13 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    # runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        python-version: [ "3.10", "3.14" ]
+        # python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14" ]
         # python-version: [ "3.12" ]
 
     steps:
@@ -36,6 +39,7 @@ jobs:
           pip install -e .
       #        python -c "import configparser; c=configparser.ConfigParser(); c.read('setup.cfg'); print(c['options']['install_requires'])" > requirements.txt
       #        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Ensure temporary files are created in a unique, local directory
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
@@ -45,12 +49,24 @@ jobs:
 #      - name: File list
 #        run: |
 #          ls -lR
-      - name: Run Unit Tests and Generate Coverage Report
+      - name: Prepare non-Windows environment variables for Unit Tests
+        if: runner.os != 'Windows'
         run: |
           # Ensure temporary files are created in a unique, local directory
-          export TMPDIR=${RUNNER_TEMP}
-          # python -m unittest tests.test_formats_dicom.TestDuplicateDicom.test_duplicate
+          # echo "TMPDIR=${{ runner.temp }}/${{ runner.os }}/${{ matrix.python-version }}"
+          echo "TMPDIR=${{ runner.temp }}/${{ runner.os }}/${{ matrix.python-version }}" >> $GITHUB_ENV
+      - name: Prepare Windows environment variables for Unit Tests
+        if: runner.os == 'Windows'
+        run: |
+          # Ensure temporary files are created in a unique, local directory
+          # echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}"
+          echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}" >> $env:GITHUB_ENV
+      - name: Run Unit Tests
+        run: |
+          python -m unittest tests.test_formats_dicom.TestDicomPlugin.test_dicom_plugin_only
           coverage run -m unittest discover tests -t .
+      - name: Generate Coverage Report
+        run: |
           coverage report -m
           coverage xml -o junit.xml
           coverage html

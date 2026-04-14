@@ -8,17 +8,20 @@ The Cohort class is a collection of Patient objects.
 
 """
 
-# Copyright (c) 2023-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2023-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import logging
 from datetime import datetime, date, time
 import argparse
 from pathlib import Path
+from pydicom.uid import UID
 from typing import Union
+# from dicomanonymizer.dicomfields_selector import dicom_anonymization_database_selector
 
 from .series import Series
 from .readdata import read as r_read
-from .formats import UnknownInputError
+from .formats import UnknownInputError, get_uid
+from .formats.dicomlib import anonymization_rules
 
 logger = logging.getLogger(__name__)
 
@@ -309,7 +312,10 @@ class Study(IndexedDict):
                         else:
                             _value = datetime.strptime(_value, "%H%M%S").time()
                     except ValueError:
-                        _value = datetime.time(_value)
+                        try:
+                            _value = datetime.time(_value)
+                        except TypeError:
+                            pass
                 # Update self property if None from series
                 if getattr(self, _attr, None) is None:
                     # _series = self[_seriesInstanceUID]
@@ -349,6 +355,7 @@ class Study(IndexedDict):
 
     def __init__(self, data, opts: dict = None, **kwargs):
         super(Study, self).__init__()
+        self.__uid_generator = get_uid()
         for _attr in self._attributes:
             setattr(self, _attr, None)
 
@@ -374,6 +381,8 @@ class Study(IndexedDict):
             _series_dict = data
         elif issubclass(type(data), Study):
             raise ValueError("Why here?")
+        elif data is None:
+            _series_dict = {}
         else:
             # Assume data is URL
             try:
@@ -396,7 +405,12 @@ class Study(IndexedDict):
         return \
             "Study: {} {}".format(datetime.combine(_date, _time), _descr)
 
-    def write(self, url, opts=None, formats=None):
+    def new_uid(self) -> UID:
+        """Return the next available UID from the UID generator.
+        """
+        return self.__uid_generator.__next__()
+
+    def write(self, url, opts=None, formats=None, **kwargs):
         """Write image data, calling appropriate format plugins
 
         Args:
@@ -411,6 +425,13 @@ class Study(IndexedDict):
                 or no way to write multidimensional image.
             imagedata.formats.WriteNotImplemented: Cannot write this image format.
         """
+
+        if opts is None:
+            opts = {}
+        elif issubclass(type(opts), argparse.Namespace):
+            opts = vars(opts)
+        for key, value in kwargs.items():
+            opts[key] = value
 
         _used_urls = []
         for _seriesUID in self.keys():
@@ -430,6 +451,30 @@ class Study(IndexedDict):
                 _series.write(_url, opts=opts, formats=formats)
             except Exception as e:
                 raise Exception(_url) from e
+
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {
+
+        } | actions
+        rules = anonymization_rules | kwargs
+        if rules['studyTime'] is None:
+            rules['studyTime'] = self.studyTime
+        _copy = Study(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
+        if self.studyInstanceUID is None:
+            self.studyInstanceUID = _copy.new_uid()
+        if self.studyInstanceUID not in uid_table:
+            uid_table[self.studyInstanceUID] = _copy.new_uid()
+        _copy.studyInstanceUID = uid_table[self.studyInstanceUID]
+        for _seriesUID in self.keys():
+            _series = self[_seriesUID].anonymize(uid_table, **rules)
+            _copy[_series.seriesInstanceUID] = _series
+        return _copy
 
 
 class Patient(IndexedDict):
@@ -500,6 +545,9 @@ class Patient(IndexedDict):
             # _study_dict = data
             # for _studyInstanceUID in data:
             #     self[_studyInstanceUID] = _study_dict[_studyInstanceUID]
+        elif data is None:
+            _series_dict = {}
+            _study_dict = {}
         else:
             _series_dict = _sort_in_series(data, _in_opts)
             _study_dict = _sort_in_studies(_series_dict, _in_opts)
@@ -618,6 +666,23 @@ class Patient(IndexedDict):
                 except Exception as e:
                     raise Exception(_url) from e
 
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {
+
+                   } | actions
+        rules = anonymization_rules | kwargs
+        _copy = Patient(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
+        for _studyUID in self.keys():
+            _study = self[_studyUID].anonymize(uid_table, **rules)
+            _copy[_study.studyInstanceUID] = _study
+        return _copy
+
 
 class Cohort(IndexedDict):
     """Cohort -- Read and sort images into a collection of Patient objects.
@@ -687,6 +752,10 @@ class Cohort(IndexedDict):
             for _patientID in _patient_dict:
                 # self[_patientID] = Patient(_patient_dict[_patientID])
                 self[_patientID] = _patient_dict[_patientID]
+        elif data is None:
+            _series_dict = {}
+            _study_dict = {}
+            _patient_dict = {}
         else:
             raise ValueError('Unexpected cohort data type {}'.format(type(data)))
 
@@ -782,3 +851,20 @@ class Cohort(IndexedDict):
                         _series.write(_url, opts=opts, formats=formats)
                     except Exception as e:
                         raise Exception(_url) from e
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {
+
+                   } | actions
+        rules = anonymization_rules | kwargs
+        _copy = Cohort(None)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy, _rule)
+                setattr(_copy, _rule, rules[_rule])
+            except AttributeError:
+                pass
+        for _patientID in self.keys():
+            _patient = self[_patientID].anonymize(uid_table, **rules)
+            _copy[_patientID] = _patient
+        return _copy
+
