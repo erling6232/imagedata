@@ -50,6 +50,50 @@ mimetypes.add_type('application/dicom', '.ima')
 SeriesUID = namedtuple('SeriesUID', 'patientID, studyInstanceUID, seriesInstanceUID, ' +
                        'acquisitionNumber, echoNumber', defaults=(None, None))
 
+
+"""
+Data types
+==========
+
+SourceList: A list of source input urls.
+    SourceList is list[dict].
+            - 'archive'  : archive plugin
+            - 'files'    : list of file names or regexp. May be empty list.
+    SourceList is provided by calling party.
+
+class ObjectList: A list of all source objects.
+    ObjectList is list[tuple[AbstractArchive, Member]]
+    ObjectList is collected by self._get_dicom_files().
+
+class DatasetList: A list of all source Instance objects.
+    DatasetList is list[Instance]
+    DatasetList is collected by ??
+    
+class DatasetDict: The source Instances are sorted according to SeriesUID.
+    DatasetDict is defaultdict[SeriesUID, DatasetList]
+    DatasetDict is collected by self._catalog_on_instance_uid(), and
+        processed by self._select_imaging_datasets()
+        and self._select_non_imaging_datasets().
+
+class SortedDatasetList: Collection of DatasetLists for each slice location (float).
+    Only sorted by slice location?
+    SortedDatasetList is defaultdict[float, DatasetList]
+    SortedDatasetList is collected by _extract_all_tags() and self._sort_dataset_geometry().
+    SortedDatasetList is processed by _verify_spacing().
+    
+class SortedDatasetDict: Collection of SortedDatasetLists, key is SeriesUID.
+    SortedDatasetDict is defaultdict[SeriesUID, SortedDatasetList]
+    SortedDatasetDict is collected by self.sort_datasets().
+
+class SortedHeaderDict: Collection of Headers, key is SeriesUID.
+    SortedHeaderDict is dict[SeriesUID, Header]
+    SortedHeaderDict is collected by self._get_headers() and self._get_non_image_headers().
+
+class PixelDict: Collection of pixel data arrays, key is SeriesUID.
+    PixelDict is dict[SeriesUID, np.ndarray]
+    PixelDict is collected by self._construct_pixel_arrays().
+    
+"""
 # Type definitions
 SourceList = list[dict]
 
