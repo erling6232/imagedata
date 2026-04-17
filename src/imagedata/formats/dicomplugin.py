@@ -1,7 +1,7 @@
 """Read/Write DICOM files
 """
 
-# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import sys
@@ -40,15 +40,10 @@ from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, s
 from .dicomlib.instance import Instance
 
 logger = logging.getLogger(__name__)
-try:
-    # pydicom >= 2.3
-    pydicom.config.settings.reading_validation_mode = pydicom.config.IGNORE
-    # pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
-    pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
-    # pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
-except AttributeError:
-    # pydicom < 2.3
-    pydicom.config.enforce_valid_values = True
+pydicom.config.settings.reading_validation_mode = pydicom.config.IGNORE
+# pydicom.config.settings.writing_validation_mode = pydicom.config.IGNORE
+pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
+# pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
 
 mimetypes.add_type('application/dicom', '.ima')
 
