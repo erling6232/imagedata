@@ -107,11 +107,47 @@ class SortedHeaderDict: Collection of Headers, key is SeriesUID.
     SortedHeaderDict is dict[SeriesUID, Header]
     SortedHeaderDict is collected by self._get_headers()
       and self._get_non_image_headers().
+    - _get_headers() takes SortedDatasetDict (sorted by slice location).
+      Extract additional DICOM tags.
+      Find maximum shape in slices.
+      Place each image on the proper tag.
 
 class PixelDict: Collection of pixel data arrays, key is SeriesUID.
     PixelDict is dict[SeriesUID, np.ndarray]
     PixelDict is collected by self._construct_pixel_arrays().
     
+Processes
+=========
+
+object_list: ObjectList = self._get_dicom_files(sources)
+
+dataset_dict: DatasetDict
+dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
+
+imaging_dataset_dict: DatasetDict
+imaging_dataset_dict = self._select_imaging_datasets(dataset_dict, opts)
+non_imaging_dataset_dict: DatasetDict
+non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict, opts)
+
+if imaging_dataset_dict:
+    sorted_dataset_dict: SortedDatasetDict
+    sorted_dataset_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
+
+    sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
+    sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
+
+    pixel_dict: PixelDict = PixelDict()
+    pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
+                                              opts, skip_pixels)
+
+if non_imaging_dataset_dict:
+    non_image_header_dict: SortedHeaderDict
+    non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
+    
+    non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
+                                                        non_image_header_dict,
+                                                        opts, skip_pixels)
+                                                        
 """
 # Type definitions
 SourceList = list[dict]
