@@ -752,6 +752,60 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     return _object
 
+        def _cmp_tags(im1: Instance, im2: Instance) -> int:
+            tags1 = self._extract_tag_tuple(im1, None, input_order, opts)
+            tags2 = self._extract_tag_tuple(im2, None, input_order, opts)
+            return _compare_tuples(tags1, tags2)
+
+        def _scan_tags(seriesUID: SeriesUID):
+            def _minimum_tag(tags: list, tag: int) -> Any:
+                minimum = 1e9
+                for _, _tag in tags:
+                    if _tag[tag] < minimum:
+                        minimum = _tag[tag]
+                return minimum
+            def _get_fixed_tags(tag_list:list, fixed: list, lookup: int) -> list:
+                tags = len(fixed)
+                values = []
+                fixed_mask = [False for _ in range(tags)]
+                for _, tag in tag_list:
+                    found = True
+                    for i in range(tags):
+                        if i != lookup:
+                            fixed_mask[i] = True
+                            if tag[i] != fixed[i]:
+                                found = False
+                    if found:
+                        values.append(tag[lookup])
+                return sorted(values), fixed_mask
+            def _replace_tag(im: Instance, tag_list: list,
+                             wanted_time_values: list,
+                             tag: list, time_tag: int):
+                _name: str = '{}.{}'.format(__name__, _get_fixed_tags.__name__)
+                tags = len(tag)
+                _times, _mask = _get_fixed_tags(tag_list, tag, time_tag)
+                try:
+                    what_time = _times.index(tag[time_tag])
+                    im.timestamp = wanted_time_values[what_time]
+                except ValueError:
+                    raise CannotSort('Internal sorting error in {}'.format(_name))
+                VR = pydicom.datadict.dictionary_VR('AcquisitionTime')
+                im.add_new('AcquisitionTime', VR, datetime.fromtimestamp(
+                    wanted_time_values[what_time], timezone.utc
+                ).strftime("%H%M%S.%f"))
+                try:
+                    where = tag_list.index((im, tag))
+                    new_tag = ()
+                    for i, v in enumerate(tag):
+                        if i == time_tag:
+                            new_tag += (im.timestamp,)
+                        else:
+                            new_tag += (v,)
+                    tag_list[where] = im, new_tag
+                except ValueError:
+                    raise CannotSort('Internal sorting error in {}'.format(_name))
+                return tag_list
+
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
 
         skip_broken_series = 'skip_broken_series' in opts and opts['skip_broken_series']
@@ -807,15 +861,20 @@ class DICOMPlugin(AbstractPlugin):
                 else:
                     logger.debug('{}: skip_broken_series raise'.format(_name))
                     raise
+
+            # Catalog actual tag values keeping other tags fixed
+            # Important when sorting acquisition time which differ from slice to slice
+            tag_values, shape = _scan_tags(seriesUID)
+
             # Sort the dataset on selected key for each sloc
-            for sort_key in reversed(sorting[seriesUID].split(sep=',')):
-                for sloc in sorted(sorted_dataset.keys()):
-                    try:
-                        sorted_dataset[sloc].sort(
-                            key=partial(_get_tag_value, input_order=sort_key, opts=opts)
-                        )
-                    except (ValueError, TypeError):
-                        pass
+            for sloc in sorted(sorted_dataset.keys()):
+                try:
+                    sorted_dataset[sloc].sort(
+                        # key=partial(_get_tag_value, input_order=sort_key, opts=opts)
+                        key=cmp_to_key(_cmp_tags)
+                    )
+                except (ValueError, TypeError):
+                    pass
             # Catalog images with seriesUID and sloc as keys
             sorted_dataset_dict[seriesUID] = sorted_dataset
         logger.debug('{}: end with {}'.format(_name, sorted_dataset_dict.keys()))
