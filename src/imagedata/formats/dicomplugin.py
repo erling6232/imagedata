@@ -806,6 +806,45 @@ class DICOMPlugin(AbstractPlugin):
                     raise CannotSort('Internal sorting error in {}'.format(_name))
                 return tag_list
 
+            input_order = sorting[seriesUID].split(sep=',')
+            tag_values = {}
+            shape = ()
+            faulty = 0
+            tag_list = []
+            previous_shape = None
+            # for im in image_dict[seriesUID]:
+            for sloc in sorted(sorted_dataset.keys()):
+                for im in sorted_dataset[sloc]:
+                    tag_list.append((im, self._extract_tag_tuple(im, faulty, sorting[seriesUID], opts)))
+                    faulty += 1
+                if INPUT_ORDER_TIME in input_order:
+                    # Replace time with
+                    minimum_tag = []
+                    time_tag = None
+                    for i, sort_key in enumerate(input_order):
+                        if sort_key == INPUT_ORDER_TIME:
+                            time_tag = i
+                        minimum_tag.append(_minimum_tag(tag_list, i))
+                    wanted_time_values, fixed_mask = _get_fixed_tags(tag_list, fixed=minimum_tag, lookup=time_tag)
+                    for im in sorted_dataset[sloc]:
+                        tag = self._extract_tag_tuple(im, faulty, sorting[seriesUID], opts)
+                        tag_list = _replace_tag(im, tag_list, wanted_time_values, tag, time_tag)
+                # Count values per dimension
+                tag_values = {}
+                shape = ()
+                for i, sort_key in enumerate(input_order):
+                    values = []
+                    for im, tag in tag_list:
+                        values.append(tag[i])
+                    values = sorted(set(values))
+                    shape += (len(values),)
+                    tag_values[sort_key] = values
+                # Verify exact same shape per slice
+                if previous_shape is not None:
+                    if previous_shape != shape:
+                        raise CannotSort('Shape differ in each slice')
+            return tag_values, shape
+
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
 
         skip_broken_series = 'skip_broken_series' in opts and opts['skip_broken_series']
