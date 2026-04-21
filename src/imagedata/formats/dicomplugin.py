@@ -122,31 +122,40 @@ Processes
 object_list: ObjectList = self._get_dicom_files(sources)
 
 dataset_dict: DatasetDict
-dataset_dict = self._catalog_on_instance_uid(object_list, opts, skip_pixels)
+dataset_dict = self._catalog_on_instance_uid(object_list)
+    self._extract_member(dataset_dict, f)
 
 imaging_dataset_dict: DatasetDict
-imaging_dataset_dict = self._select_imaging_datasets(dataset_dict, opts)
+imaging_dataset_dict = self._select_imaging_datasets(dataset_dict)
 non_imaging_dataset_dict: DatasetDict
-non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict, opts)
+non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict)
 
 if imaging_dataset_dict:
     sorted_dataset_dict: SortedDatasetDict
-    sorted_dataset_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
+    sorted_dataset_dict = self._sort_datasets(imaging_dataset_dict)
+        sorted_dataset = self._sort_dataset_geometry(dataset_dict)
+        sorting[seriesUID] = self._determine_sorting(sorted_dataset)
+        sorted_dataset[sloc].sort(key=partial(_get_tag_value, ...))
 
     sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
-    sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
+    sorted_header_dict = self._get_headers(sorted_dataset_dict)
+        slice_count = _verify_consistent_slices(series_dataset)
+        _extract_all_tags(hdr, series_dataset, input_order[seriesUID],
+                          slice_count)
 
     pixel_dict: PixelDict = PixelDict()
-    pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
-                                              opts, skip_pixels)
+    pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict,
+                                              sorted_header_dict)
+        si = self._construct_pixel_array(dataset_dict, header, header.shape)
 
 if non_imaging_dataset_dict:
     non_image_header_dict: SortedHeaderDict
-    non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
+    non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict)
+        self._extract_non_image_dicom_attributes(series_dataset, hdr)
     
     non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
-                                                        non_image_header_dict,
-                                                        opts, skip_pixels)
+                                                        non_image_header_dict)
+        si = self._construct_pixel_array(dataset_dict, header, header.shape)
                                                         
 """
 # Type definitions
