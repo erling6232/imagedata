@@ -59,31 +59,44 @@ SourceList: A list of source input urls.
     SourceList is list[dict].
             - 'archive'  : archive plugin
             - 'files'    : list of file names or regexp. May be empty list.
-    SourceList is provided by calling party.
+    SourceList is provided by a calling party.
 
 class ObjectList: A list of all source objects.
     ObjectList is list[tuple[AbstractArchive, Member]]
     ObjectList is collected by self._get_dicom_files().
+    - _get_dicom_files() collects all DICOM objects from input sources.
+        The DICOM objects are not sorted.
 
 class DatasetList: A list of all source Instance objects.
     DatasetList is list[Instance]
-    DatasetList is collected by ??
+    DatasetList is collected by self._extract_member.
     
 class DatasetDict: The source Instances are sorted according to SeriesUID.
     DatasetDict is defaultdict[SeriesUID, DatasetList]
     DatasetDict is collected by self._catalog_on_instance_uid(), and
         processed by self._select_imaging_datasets()
         and self._select_non_imaging_datasets().
+    - _catalog_on_instance_uid() takes an ObjectList and sort objects on SeriesUID.
+    - _select_imaging_datasets() takes a DatasetDict and return the imaging datasets only.
+    - _select_non_imaging_datasets() takes a DatasetDict and return the non-imaging datasets only.
 
 class SortedDatasetList: Collection of DatasetLists for each slice location (float).
     Only sorted by slice location?
     SortedDatasetList is defaultdict[float, DatasetList]
-    SortedDatasetList is collected by _extract_all_tags() and self._sort_dataset_geometry().
-    SortedDatasetList is processed by _verify_spacing().
+    SortedDatasetList is constructed by self._sort_dataset_geometry(),
+    and collected by self._sort_datasets().
+    SortedDatasetList is processed by self._get_headers._extract_all_tags(), self._sort_dataset_geometry(),
+    and _verify_spacing().
+    - _sort_dataset_geometry() takes an unordered DatasetDict and sort by slice location, and
+        adds spacing, transformationMatrix and imagePositions.
+    - _sort_datasets() takes all unordered DatasetDicts and constructs SortedDatasetDict including
+        all SortedDatasetLists.
+    - _get_headers._extract_all_tags() takes existing SortedDatasetList and fills in additional information.
+    - _verify_spacing()
     
 class SortedDatasetDict: Collection of SortedDatasetLists, key is SeriesUID.
     SortedDatasetDict is defaultdict[SeriesUID, SortedDatasetList]
-    SortedDatasetDict is collected by self.sort_datasets().
+    SortedDatasetDict is collected by self._sort_datasets() (see SortedDatasetList).
 
 class SortedHeaderDict: Collection of Headers, key is SeriesUID.
     SortedHeaderDict is dict[SeriesUID, Header]
@@ -708,7 +721,7 @@ class DICOMPlugin(AbstractPlugin):
                     message = '{} ({})'.format('', dataset_dict[0].SeriesNumber)
                 except AttributeError:
                     message = '{}'.format(dataset_dict[0].SeriesInstanceUID)
-            sorted_dataset = None
+            sorted_dataset: SortedDatasetList = None
             try:
                 sorted_dataset = self._sort_dataset_geometry(dataset_dict, message, opts)
             except CannotSort as e:
