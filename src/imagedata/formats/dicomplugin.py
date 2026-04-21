@@ -13,7 +13,7 @@ from numbers import Number
 from collections import defaultdict, namedtuple, Counter
 from functools import partial, cmp_to_key
 from operator import itemgetter
-from typing import List, Union
+from typing import Any, List, Union
 from datetime import date, datetime, timedelta, timezone
 import numpy as np
 import pydicom
