@@ -84,7 +84,7 @@ class DatasetDict: The source Instances are sorted according to SeriesUID.
       non-imaging datasets only.
 
 class SortedDatasetList: Collection of DatasetLists for each slice location (float).
-    Only sorted by slice location.
+    Sorted by slice location and tag.
     SortedDatasetList is defaultdict[float, DatasetList]
     SortedDatasetList is constructed by self._sort_dataset_geometry(),
     and collected by self._sort_datasets().
