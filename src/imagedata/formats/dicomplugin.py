@@ -97,20 +97,27 @@ class SortedDatasetList: Collection of DatasetLists for each slice location (flo
     - _get_headers._extract_all_tags() takes existing SortedDatasetList and fills
       in additional information.
     - _verify_spacing()
-    
-class SortedDatasetDict: Collection of SortedDatasetLists, key is SeriesUID.
-    SortedDatasetDict is defaultdict[SeriesUID, SortedDatasetList]
-    SortedDatasetDict is collected by self._sort_datasets() (see
-      SortedDatasetList).
-
-class SortedHeaderDict: Collection of Headers, key is SeriesUID.
-    SortedHeaderDict is dict[SeriesUID, Header]
     SortedHeaderDict is collected by self._get_headers()
       and self._get_non_image_headers().
     - _get_headers() takes SortedDatasetDict (sorted by slice location).
       Extract additional DICOM tags.
       Find maximum shape in slices.
       Place each image on the proper tag.
+    
+class SortedData: A tuple of SortedDatasetList and Header.
+    SortedDataDict is collected by self._sort_datasets() (see
+    SortedDataDict).
+    
+class SortedDataDict: Collection of SortedData, key is SeriesUID.
+    SortedDataDict is defaultdict[SeriesUID, SortedData]
+    SortedDataDict is collected by self._sort_datasets() (see
+      SortedDatasetList).
+    self._process_image_members() NOT in use.
+
+class SortedHeaderDict: Collection of Headers, key is SeriesUID.
+    SortedHeaderDict is dict[SeriesUID, Header]
+    SortedHeaderDict is collected by self._get_headers()
+      and self._get_non_image_headers().
 
 class PixelDict: Collection of pixel data arrays, key is SeriesUID.
     PixelDict is dict[SeriesUID, np.ndarray]
@@ -131,8 +138,8 @@ non_imaging_dataset_dict: DatasetDict
 non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict)
 
 if imaging_dataset_dict:
-    sorted_dataset_dict: SortedDatasetDict
-    sorted_dataset_dict = self._sort_datasets(imaging_dataset_dict)
+    sorted_data_dict: SortedDataDict
+    sorted_data_dict = self._sort_datasets(imaging_dataset_dict)
         sorted_dataset = self._sort_dataset_geometry(dataset_dict)
         sorting[seriesUID] = self._determine_sorting(sorted_dataset)
         sorted_dataset[sloc].sort(key=partial(_get_tag_value, ...))
@@ -144,8 +151,7 @@ if imaging_dataset_dict:
                           slice_count)
 
     pixel_dict: PixelDict = PixelDict()
-    pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict,
-                                              sorted_header_dict)
+    pixel_dict = self._construct_pixel_arrays(sorted_data_dict)
         si = self._construct_pixel_array(dataset_dict, header, header.shape)
 
 if non_imaging_dataset_dict:
@@ -153,8 +159,7 @@ if non_imaging_dataset_dict:
     non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict)
         self._extract_non_image_dicom_attributes(series_dataset, hdr)
     
-    non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict,
-                                                        non_image_header_dict)
+    non_image_pixel_dict = self._construct_pixel_arrays(non_imaging_dataset_dict)
         si = self._construct_pixel_array(dataset_dict, header, header.shape)
                                                         
 """
@@ -217,15 +222,17 @@ class SortedDatasetList(defaultdict):
         super().__setitem__(key, value)
 
 
-class SortedDatasetDict(defaultdict):
-    """SortedDatasetDict is defaultdict[SeriesUID, SortedDatasetList]"""
+SortedData = tuple[SortedDatasetList, Header]
+
+class SortedDataDict(defaultdict):
+    """SortedDataDict is defaultdict[SeriesUID, SortedData]"""
 
     def __init__(self):
-        super().__init__(lambda: SortedDatasetList)
+        super().__init__(lambda: SortedData)
 
     def __setitem__(self, key, value):
         assert isinstance(key, SeriesUID), self.__doc__
-        assert isinstance(value, SortedDatasetList), self.__doc__
+        assert isinstance(value, tuple), self.__doc__
         super().__setitem__(key, value)
 
 
@@ -513,13 +520,12 @@ class DICOMPlugin(AbstractPlugin):
         for key, value in opts.items():  # Copy opts to self.input_options
             self.input_options[key] = value
 
-        skip_pixels = False
-        if 'headers_only' in opts and opts['headers_only']:
-            skip_pixels = True
+        accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
+        skip_pixels = 'headers_only' in opts and opts['headers_only']
         if 'slice_tolerance' in self.input_options:
-            self.slice_tolerance = float(opts['slice_tolerance'])
+            self.slice_tolerance = float(self.input_options['slice_tolerance'])
         if 'dir_cosine_tolerance' in self.input_options:
-            self.dir_cosine_tolerance = float(opts['dir_cosine_tolerance'])
+            self.dir_cosine_tolerance = float(self.input_options['dir_cosine_tolerance'])
 
         # Read DICOM headers
         logger.debug('{}: sources {}'.format(_name, sources))
@@ -540,20 +546,19 @@ class DICOMPlugin(AbstractPlugin):
         pixel_dict: PixelDict = PixelDict()
 
         if imaging_dataset_dict:
-            sorted_dataset_dict: SortedDatasetDict
+            sorted_data_dict: SortedDataDict
             sorting: dict[str]
-            sorted_dataset_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
+            sorted_data_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
 
             logger.debug('{}: going to _get_headers {}'.format(_name, sources))
-            sorted_header_dict = self._get_headers(sorted_dataset_dict, sorting, opts)
+            sorted_header_dict = self._get_headers(sorted_data_dict, sorting, opts)
 
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
-                pixel_dict = self._construct_pixel_arrays(sorted_dataset_dict, sorted_header_dict,
-                                                          opts, skip_pixels)
+                pixel_dict = self._construct_pixel_arrays(sorted_data_dict, opts, skip_pixels)
 
                 if 'correct_acq' in opts and opts['correct_acq']:
-                    for seriesUID in sorted_dataset_dict:
+                    for seriesUID in sorted_data_dict:
                         pixel_dict[seriesUID] = self._correct_acqtimes_for_dynamic_series(
                             sorted_header_dict[seriesUID], pixel_dict[seriesUID]
                         )
@@ -769,7 +774,7 @@ class DICOMPlugin(AbstractPlugin):
                        image_dict: DatasetDict,
                        input_order: str,
                        opts: dict = None
-                       ) -> (SortedDatasetDict, dict[str]):
+                       ) -> (SortedDataDict, dict[str]):
 
         def _get_sloc(ds: Dataset) -> float:
             _name: str = '{}.{}'.format(__name__, _get_sloc.__name__)
@@ -903,24 +908,24 @@ class DICOMPlugin(AbstractPlugin):
         skip_broken_series = 'skip_broken_series' in opts and opts['skip_broken_series']
 
         # Sort datasets on sloc
-        sorted_dataset_dict: SortedDatasetDict = SortedDatasetDict()  # defaultdict(lambda: defaultdict(list))
+        sorted_data_dict: SortedDataDict = SortedDataDict()  # defaultdict(lambda: defaultdict(list))
         sorting: dict[SeriesUID, str]
         sorting = {}
         for seriesUID in image_dict:
             sorting[seriesUID] = 'none'
-            dataset_dict: DatasetList
-            dataset_dict = image_dict[seriesUID]
+            dataset_list: DatasetList
+            dataset_list = image_dict[seriesUID]
             try:
-                message = '{} ({})'.format(dataset_dict[0].SeriesDescription,
-                                           dataset_dict[0].SeriesNumber)
+                message = '{} ({})'.format(dataset_list[0].SeriesDescription,
+                                           dataset_list[0].SeriesNumber)
             except AttributeError:
                 try:
-                    message = '{} ({})'.format('', dataset_dict[0].SeriesNumber)
+                    message = '{} ({})'.format('', dataset_list[0].SeriesNumber)
                 except AttributeError:
-                    message = '{}'.format(dataset_dict[0].SeriesInstanceUID)
+                    message = '{}'.format(dataset_list[0].SeriesInstanceUID)
             sorted_dataset: SortedDatasetList = None
             try:
-                sorted_dataset = self._sort_dataset_geometry(dataset_dict, message, opts)
+                sorted_dataset = self._sort_dataset_geometry(dataset_list, message, opts)
             except CannotSort as e:
                 message2 = '{}'.format(e)
                 logger.debug('{}: _sort_dataset_geometry CannotSort: {}'.format(_name, e))
@@ -933,6 +938,8 @@ class DICOMPlugin(AbstractPlugin):
                 raise
             if sorted_dataset is None:
                 raise CannotSort('Cannot sort: {}'.format(message2))
+            header = self._extract_dicom_attributes(sorted_dataset, message, opts)
+            # TODO # get stuff from self._get_headers()
 
             # Determine (automatic) sorting
             try:
@@ -940,18 +947,11 @@ class DICOMPlugin(AbstractPlugin):
                     sorted_dataset, input_order, opts
                 )
             except CannotSort:
-                logger.debug('{}: opts {}'.format(_name, opts))
-                logger.debug('{}: skip_broken_series {}'.format(
-                    _name, opts['skip_broken_series']
-                ))
                 if skip_broken_series:
-                    logger.debug(
-                        '{}: skip_broken_series continue {}'.format(
-                            _name, seriesUID
-                        ))
+                    logger.debug(f'{_name}: skip_broken_series continue {seriesUID}')
                     continue  # Next series
                 else:
-                    logger.debug('{}: skip_broken_series raise'.format(_name))
+                    logger.debug(f'{_name}: skip_broken_series raise')
                     raise
 
             # Catalog actual tag values keeping other tags fixed
@@ -968,9 +968,9 @@ class DICOMPlugin(AbstractPlugin):
                 except (ValueError, TypeError):
                     pass
             # Catalog images with seriesUID and sloc as keys
-            sorted_dataset_dict[seriesUID] = sorted_dataset
-        logger.debug('{}: end with {}'.format(_name, sorted_dataset_dict.keys()))
-        return sorted_dataset_dict, sorting
+            sorted_data_dict[seriesUID] = SortedData((sorted_dataset, header))
+        logger.debug('{}: end with {}'.format(_name, sorted_data_dict.keys()))
+        return sorted_data_dict, sorting
 
     def _determine_sorting(self,
                            sorted_dataset_dict: SortedDatasetList,
@@ -1037,7 +1037,7 @@ class DICOMPlugin(AbstractPlugin):
         return actual_order
 
     def _get_headers(self,
-                     sorted_dataset_dict: SortedDatasetDict,
+                     sorted_data_dict: SortedDataDict,
                      input_order: dict[str],
                      opts: dict = None
                      ) -> SortedHeaderDict:
@@ -1388,10 +1388,11 @@ class DICOMPlugin(AbstractPlugin):
         if 'skip_broken_series' in opts:
             skip_broken_series = opts['skip_broken_series']
         sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
-        for seriesUID in sorted_dataset_dict:
-            series_dataset: SortedDatasetList = sorted_dataset_dict[seriesUID]
-            hdr = Header()
-            hdr.input_format = 'dicom'
+        for seriesUID in sorted_data_dict:
+            sorted_data_dict: SortedDataDict
+            hdr: Header
+            series_dataset: SortedDatasetList
+            series_dataset, hdr = sorted_data_dict[seriesUID]
             hdr.input_order = input_order[seriesUID]
             hdr.sliceLocations = np.array(sorted(series_dataset.keys()))
 
@@ -1460,8 +1461,7 @@ class DICOMPlugin(AbstractPlugin):
         return sorted_header_dict
 
     def _construct_pixel_arrays(self,
-                                sorted_dataset_dict: SortedDatasetDict,
-                                sorted_header_dict: SortedHeaderDict,
+                                sorted_data_dict: SortedDataDict,
                                 opts: dict = None,
                                 skip_pixels: bool = False
                                 ) -> PixelDict:
@@ -1470,9 +1470,10 @@ class DICOMPlugin(AbstractPlugin):
         skip_broken_series = 'skip_broken_series' in opts and opts['skip_broken_series']
         pixel_dict: PixelDict = PixelDict()
         for seriesUID in sorted_header_dict:
-            dataset_dict: SortedDatasetList = sorted_dataset_dict[seriesUID]
+            dataset_dict: SortedDatasetList
             header: Header
-            header = sorted_header_dict[seriesUID]
+            header
+            dataset_dict, header = sorted_data_dict[seriesUID]
             setattr(header, 'keep_uid', True)
             si = None
             if not skip_pixels:
@@ -1663,10 +1664,9 @@ class DICOMPlugin(AbstractPlugin):
 
     def _extract_dicom_attributes(self,
                                   series: SortedDatasetList,
-                                  hdr: Header,
                                   message: str,
                                   opts: dict = None
-                                  ) -> None:
+                                  ) -> Header:
         """Extract DICOM attributes
 
         Args:
@@ -1689,6 +1689,8 @@ class DICOMPlugin(AbstractPlugin):
         """
 
         dataset = series[next(iter(series))][0]
+        hdr = Header()
+        hdr.input_format = 'dicom'
         DICOMPlugin._copy_attributes_to_header(dataset, hdr)
 
         # Image position (patient)
@@ -1714,6 +1716,7 @@ class DICOMPlugin(AbstractPlugin):
                 logger.warning('{}: DICOM ImagePosition is inconsistent with ImageOrientation'.format(message))
                 warned = True
             ipp += hdr.transformationMatrix[:3, 0]
+        return hdr
 
     @staticmethod
     def _get_attribute(im: Dataset, tag):
@@ -2157,7 +2160,7 @@ class DICOMPlugin(AbstractPlugin):
                                image_dict: DatasetDict,
                                opts: dict = None,
                                skip_pixels: bool = False
-                               ) -> SortedDatasetDict:
+                               ) -> SortedDataDict:
         """Sort files on Series Instance UID
 
         Args:
@@ -2177,7 +2180,7 @@ class DICOMPlugin(AbstractPlugin):
 
         logger.debug('{}:'.format(_name))
 
-        sorted_dataset_dict: SortedDatasetDict = SortedDatasetDict()
+        sorted_data_dict: SortedDataDict = SortedDataDict()
         # Sort datasets on sloc
         for seriesUID in image_dict:
             dataset_list = image_dict[seriesUID]
@@ -2188,9 +2191,9 @@ class DICOMPlugin(AbstractPlugin):
                 except Exception as e:
                     logger.debug('{}: Exception {}'.format(_name, e))
             # Sort datasets on tag
-            sorted_dataset_dict[seriesUID] = self._sort_images
+            sorted_data_dict[seriesUID] = self._sort_images
 
-        return sorted_dataset_dict
+        return sorted_data_dict
 
     def _correct_acqtimes_for_dynamic_series(self, hdr: Header, si: np.ndarray):
         # si[t,slice,rows,columns]
