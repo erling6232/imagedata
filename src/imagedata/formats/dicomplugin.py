@@ -357,6 +357,58 @@ def _get_flip_angle(im: Dataset) -> Number:
     return _get_float(im, 'FlipAngle')
 
 
+def _compare_tag_values(t1, t2):
+    if t1 is None:
+        return 1
+    if issubclass(type(t1), np.ndarray):
+        if t1.size == 0 and t2.size == 0:
+            return 0
+        elif t1.size == 0:
+            return 1
+        elif t2.size == 0:
+            return -1
+        elif np.allclose(t1, t2, rtol=1e-3, atol=1e-2):
+            return 0
+        else:
+            return 1  # Changed ndarray is always treated as larger
+    elif t1 == t2:
+        return 0
+    else:
+        return (t1 < t2) * 2 - 1
+
+
+def _compare_tuples(t1: tuple, t2: tuple) -> int:
+    """Compare each element of two tuples
+    Return -1, 0 or 1 depending on whether the first argument is lower than, equal
+    to or greater than the second argument
+    """
+    for i in range(len(t1)):
+        if issubclass(type(t1[i]), np.ndarray):
+            if t1[i].size == 0:
+                return -1
+            elif t2[i].size == 0:
+                return 1
+            elif np.allclose(t1[i], t2[i], rtol=1e-3, atol=1e-2):
+                continue
+            else:
+                return -1 if np.all(t1[i] < t2[i]) else 1
+        elif isinstance(t1[i], tuple):
+            _ = _compare_tuples(t1[i], t2[i])
+            if _ != 0:
+                return _
+        elif t1[i] == t2[i]:
+            continue
+        else:
+            return -1 if t1[i] < t2[i] else 1
+    return 0
+
+
+def _compare_tags(im1: Instance, im2: Instance) -> int:
+    t1 = im1.tags
+    t2 = im2.tags
+    return _compare_tuples(t1, t2)
+
+
 class DoNotIncludeFile(Exception):
     pass
 
@@ -781,7 +833,7 @@ class DICOMPlugin(AbstractPlugin):
             def _replace_tag(im: Instance, tag_list: list,
                              wanted_time_values: list,
                              tag: list, time_tag: int):
-                _name: str = '{}.{}'.format(__name__, _get_fixed_tags.__name__)
+                _name: str = '{}.{}'.format(__name__, _replace_tag.__name__)
                 tags = len(tag)
                 _times, _mask = _get_fixed_tags(tag_list, tag, time_tag)
                 try:
@@ -806,6 +858,7 @@ class DICOMPlugin(AbstractPlugin):
                     raise CannotSort('Internal sorting error in {}'.format(_name))
                 return tag_list
 
+            _name: str = '{}.{}'.format(__name__, _scan_tags.__name__)
             input_order = sorting[seriesUID].split(sep=',')
             tag_values = {}
             shape = ()
@@ -842,7 +895,7 @@ class DICOMPlugin(AbstractPlugin):
                 # Verify exact same shape per slice
                 if previous_shape is not None:
                     if previous_shape != shape:
-                        raise CannotSort('Shape differ in each slice')
+                        raise CannotSort(f'{_name}: Shape differ in each slice')
             return tag_values, shape
 
         _name: str = '{}.{}'.format(__name__, self._sort_datasets.__name__)
@@ -1128,6 +1181,7 @@ class DICOMPlugin(AbstractPlugin):
                             pass
                     return min_index, min_distance
 
+                _name: str = '{}.{}'.format(__name__, calculate_shape_with_duplicates.__name__)
                 s = ()
                 axes = ()
                 tag_db = {}
@@ -1160,7 +1214,7 @@ class DICOMPlugin(AbstractPlugin):
                             if min_index is not None and min_distance < 1e-3:
                                 idx[t] = min_index
                             else:
-                                raise IndexError("Cannot sort tags. Images should already be sorted.")
+                                raise IndexError(f"{_name}: Cannot sort tags. Images should already be sorted.")
                         elif t == tags - 1:
                             idx[t] += 1
                             add_tag[t] = idx[t]
