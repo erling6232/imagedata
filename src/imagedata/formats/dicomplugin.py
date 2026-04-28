@@ -787,6 +787,7 @@ class DICOMPlugin(AbstractPlugin):
 
             sorting[seriesUID] = self._determine_sorting(sorted_dataset)
 
+            Sort the tags and index the images
             calculate_shape ?
               -> tags
 
