@@ -90,19 +90,8 @@ class SortedDatasetList: Collection of DatasetLists for each slice location (flo
     and collected by self._sort_datasets().
     SortedDatasetList is processed by self._get_headers._extract_all_tags(),
     self._sort_dataset_geometry(), and _verify_spacing().
-    - _sort_dataset_geometry() takes an unordered DatasetDict and sort by slice
-      location, and adds spacing, transformationMatrix and imagePositions.
-    - _sort_datasets() takes all unordered DatasetDicts and constructs
-      SortedDatasetDict including all SortedDatasetLists.
-    - _get_headers._extract_all_tags() takes existing SortedDatasetList and fills
-      in additional information.
-    - _verify_spacing()
     SortedHeaderDict is collected by self._get_headers()
       and self._get_non_image_headers().
-    - _get_headers() takes SortedDatasetDict (sorted by slice location).
-      Extract additional DICOM tags.
-      Find maximum shape in slices.
-      Place each image on the proper tag.
     
 class SortedData: A tuple of SortedDatasetList and Header.
     SortedDataDict is collected by self._sort_datasets() (see
@@ -140,15 +129,8 @@ non_imaging_dataset_dict = self._select_non_imaging_datasets(dataset_dict)
 if imaging_dataset_dict:
     sorted_data_dict: SortedDataDict
     sorted_data_dict = self._sort_datasets(imaging_dataset_dict)
-        sorted_dataset = self._sort_dataset_geometry(dataset_dict)
-        sorting[seriesUID] = self._determine_sorting(sorted_dataset)
-        sorted_dataset[sloc].sort(key=partial(_get_tag_value, ...))
 
     sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
-    sorted_header_dict = self._get_headers(sorted_dataset_dict)
-        slice_count = _verify_consistent_slices(series_dataset)
-        _extract_all_tags(hdr, series_dataset, input_order[seriesUID],
-                          slice_count)
 
     pixel_dict: PixelDict = PixelDict()
     pixel_dict = self._construct_pixel_arrays(sorted_data_dict)
@@ -775,6 +757,52 @@ class DICOMPlugin(AbstractPlugin):
                        input_order: str,
                        opts: dict = None
                        ) -> (SortedDataDict, dict[str]):
+
+        """Sort datasets on slice and tags.
+
+        Args:
+            image_dict: Input datasets (DatasetDict)
+            input_order: Input order (str)
+            opts: Input options (dict)
+
+        Returns:
+            tuple of SortedDataDict and dict
+
+        Process:
+            _sort_datasets() takes an unordered DatasetDict, sorts on
+            slice and tags, create a Header instance, and returns
+            a SortedDataDict.
+
+            For each dataset:
+
+            sorted_dataset = self._sort_dataset_geometry(dataset_list)
+              -> spacing, tranformationMatrix, imagePositions
+            _sort_dataset_geometry() takes an unordered DatasetDict and sort by slice
+            location, and adds spacing, transformationMatrix and imagePositions.
+
+            _verify_spacing()
+
+            slice_count = _verify_consistent_slices(sorted_dataset)
+              <- from SortedDatasetList : series[sloc]
+
+            sorting[seriesUID] = self._determine_sorting(sorted_dataset)
+
+            calculate_shape ?
+              -> tags
+
+            sorted_dataset[sloc].sort(key=partial(_get_tag_value, ...))
+
+            self._get_headers(sorted_data_dict)
+                _get_headers._extract_all_tags() takes existing SortedDatasetList and fills
+                  in additional information.
+    - _get_headers() takes SortedDatasetDict (sorted by slice location).
+
+            _extract_all_tags(hdr, series_dataset, input_order[seriesUID],
+                              slice_count)
+      Extract additional DICOM tags.
+      Find maximum shape in slices.
+      Place each image on the proper tag.
+        """
 
         def _get_sloc(ds: Dataset) -> float:
             _name: str = '{}.{}'.format(__name__, _get_sloc.__name__)
