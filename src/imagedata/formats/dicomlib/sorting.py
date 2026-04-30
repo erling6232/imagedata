@@ -204,16 +204,15 @@ def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options
 
 def verify_consistent_slices(series: SortedDatasetList, message: str, opts: dict = None) -> Counter:
     _name: str = '{}.{}'.format(__name__, verify_consistent_slices.__name__)
-    # Verify same number of images for each slice
+    """Verify same number of images for each slice.
+    """
     slice_count = Counter()
     last_sloc = None
     for islice, sloc in enumerate(series):
         slice_count[islice] = len(series[sloc])
         last_sloc = sloc
     logger.debug("{}: tags per slice: {}".format(_name, slice_count))
-    accept_uneven_slices = False
-    if 'accept_uneven_slices' in opts and opts['accept_uneven_slices']:
-        accept_uneven_slices = True
+    accept_uneven_slices = 'accept_uneven_slices' in opts and opts['accept_uneven_slices']
     min_slice_count = min(slice_count.values())
     max_slice_count = max(slice_count.values())
     if min_slice_count != max_slice_count and not accept_uneven_slices:
