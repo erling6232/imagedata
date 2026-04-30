@@ -1,10 +1,12 @@
 import logging
 from numbers import Number
+from typing import List
 import numpy as np
 from datetime import datetime, timedelta, timezone
 from pydicom.dataset import FileDataset, Dataset, FileMetaDataset
 from pydicom.datadict import dictionary_VR, keyword_for_tag, tag_for_keyword
 from typing import Any
+from ...header import Header
 from ...formats import (CannotSort,
                         INPUT_ORDER_FAULTY,
                         INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B,
@@ -13,6 +15,20 @@ from ...formats import (CannotSort,
 from ...apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, set_ds_b_vector
 
 logger = logging.getLogger(__name__)
+
+
+attributes: List[str] = [
+    'patientName', 'patientID', 'patientBirthDate',
+    'studyInstanceUID', 'studyID',
+    'seriesInstanceUID', 'frameOfReferenceUID',
+    'seriesDate', 'seriesTime', 'seriesNumber', 'seriesDescription',
+    'imageType', 'accessionNumber',
+    'modality', 'laterality',
+    'echoNumbers', 'acquisitionNumber',
+    'protocolName', 'bodyPartExamined', 'patientPosition',
+    'windowCenter', 'windowWidth',
+    'SOPClassUID'
+]
 
 
 class UnknownTag(Exception):
@@ -166,6 +182,24 @@ class Instance(FileDataset):
 
     def get_flip_angle(self) -> Number:
         return self.get_float('FlipAngle')
+
+    def get_image_orientation_patient(self) -> np.ndarray:
+        try:
+            iop = self.data_element('ImageOrientationPatient').value
+        except ValueError:
+            iop = [0, 0, 1, 0, 1, 0]
+        # Reverse orientation vectors from (x,y,z) to (z,y,x)
+        return np.array((iop[2], iop[1], iop[0],
+                         iop[5], iop[4], iop[3]))
+
+    def get_image_position_patient(self) -> np.ndarray:
+        origin = self.data_element('ImagePositionPatient').value
+        if origin is not None:
+            x = float(origin[0])
+            y = float(origin[1])
+            z = float(origin[2])
+            return np.array([z, y, x])
+        raise ValueError('ImagePositionPatient not found')
 
     def calculate_slice_location(self) -> float:
         """Function to calculate slice location from image position and orientation.
@@ -351,6 +385,19 @@ class Instance(FileDataset):
                         self.data_element(_tag).value = float(value)
                 else:
                     raise (UnknownTag(f'Unknown input_order {order}.'))
+
+    def copy_attributes_to_header(self, hdr: Header):
+        for attribute in attributes:
+            dicom_attribute = attribute[0].upper() + attribute[1:]
+            try:
+                setattr(hdr, attribute,
+                        self.data_element(dicom_attribute).value
+                        )
+            except (AttributeError, KeyError):
+                pass
+        if 'ReferencedSeriesSequence' in self:
+            hdr.referencedSeriesUID = self.ReferencedSeriesSequence[0].SeriesInstanceUID
+
 
 def _get_fixed_tags(tag_list: list, fixed: list, lookup: int) -> list:
     tags = len(fixed)
