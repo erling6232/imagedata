@@ -260,14 +260,11 @@ class DICOMPlugin(AbstractPlugin):
         if imaging_dataset_dict:
             sorted_data_dict: SortedDataDict
             sorting: dict[str]
-            try:
-                sorted_data_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
-            except Exception as e:
-                traceback.print_exc()
+            sorted_data_dict, sorting = self._sort_datasets(imaging_dataset_dict, input_order, opts)
 
-            logger.debug('{}: going to _get_headers {}'.format(_name, sources))
-            sorted_header_dict = self._get_headers(sorted_data_dict, sorting, opts)
-
+            # logger.debug('{}: going to _get_headers {}'.format(_name, sources))
+            # sorted_header_dict = self._get_headers(sorted_data_dict, sorting, opts)
+            #
             if not skip_pixels:
                 logger.debug('{}: going to _construct_pixel_arrays'.format(_name))
                 pixel_dict = self._construct_pixel_arrays(sorted_data_dict, opts, skip_pixels)
