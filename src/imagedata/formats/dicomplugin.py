@@ -38,7 +38,7 @@ from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
 from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, set_ds_b_vector
 from .dicomlib.instance import Instance
-from .dicomlib.sorting import verify_consistent_slices, scan_tags
+from .dicomlib.sorting import determine_sorting, scan_tags, verify_consistent_slices
 from .dicomlib.datatypes import (SeriesUID, SourceList, ObjectList, DatasetList, DatasetDict,
                                  SortedDatasetList, SortedData, SortedDataDict, SortedHeaderDict,
                                  PixelDict)
@@ -514,7 +514,7 @@ class DICOMPlugin(AbstractPlugin):
               <- from SortedDatasetList : series[sloc]
 
             # Determine (automatic) sorting
-            sorting[seriesUID] = self._determine_sorting(sorted_dataset)
+            sorting[seriesUID] = determine_sorting(sorted_dataset)
 
             Catalog tag values
             tag_values, shape = scan_tags(seriesUID)
@@ -582,8 +582,8 @@ class DICOMPlugin(AbstractPlugin):
 
             # Determine (automatic) sorting
             try:
-                sorting[seriesUID] = self._determine_sorting(
-                    sorted_dataset, input_order, opts
+                sorting[seriesUID] = determine_sorting(
+                    sorted_dataset, input_order, self.input_options
                 )
             except CannotSort:
                 if skip_broken_series:
@@ -626,70 +626,6 @@ class DICOMPlugin(AbstractPlugin):
             sorted_data_dict[seriesUID] = SortedData((sorted_dataset, header))
         logger.debug('{}: end with {}'.format(_name, sorted_data_dict.keys()))
         return sorted_data_dict, sorting
-
-    def _determine_sorting(self,
-                           sorted_dataset_dict: SortedDatasetList,
-                           input_order: str,
-                           opts: dict = None) -> str:
-
-        def _single_slice_over_time(tags):
-            """If time and slice both varies, the time stamps address slices of a single volume
-            """
-            count_time = {}
-            count_sloc = {}
-            for time, sloc in tags:
-                if time not in count_time:
-                    count_time[time] = 0
-                if sloc not in count_sloc:
-                    count_sloc[sloc] = 0
-                count_time[time] += 1
-                count_sloc[sloc] += 1
-            max_time = max(count_time.values())
-            max_sloc = max(count_sloc.values())
-            return max_time == 1 and max_sloc == 1
-
-        if input_order != 'auto':
-            return input_order
-        extended_tags = {}
-        found_tags = {}
-        im = None
-        for sloc in sorted_dataset_dict.keys():
-            for im in sorted_dataset_dict[sloc]:
-                for order in self.input_options['auto_sort']:
-                    try:
-                        tag = im.get_tag(order, self.input_options)
-                        if tag is None:
-                            continue
-                        if order not in found_tags:
-                            found_tags[order] = []
-                            extended_tags[order] = []
-                        if tag not in found_tags[order]:
-                            found_tags[order].append(tag)
-                            extended_tags[order].append((tag, sloc))
-                    except (KeyError, TypeError, CannotSort):
-                        pass
-
-        # Determine how to sort
-        actual_order = None
-        for order in found_tags:
-            if len(found_tags[order]) > 1:
-                if actual_order in ('time', 'triggertime') and order in ['b', 'te']:
-                    # DWI images will typically have varying time.
-                    # Let b values override time stamps.
-                    actual_order = order
-                elif actual_order is None:
-                    actual_order = order
-                else:
-                    raise CannotSort('Cannot auto-sort: {}\n'.format(extended_tags) +
-                                     '  actual_order: {}, order: {},'.format(actual_order, order) +
-                                     ' Series #{}: {}'.format(im.SeriesNumber, im.SeriesDescription)
-                                     )
-        if actual_order is None:
-            actual_order = INPUT_ORDER_NONE
-        elif actual_order in (INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME) and \
-            _single_slice_over_time(extended_tags[actual_order]):
-            actual_order = INPUT_ORDER_NONE
-        return actual_order
 
     def _extract_all_tags(hdr: Header,
                           series: SortedDatasetList,

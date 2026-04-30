@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pydicom.dataset import Dataset
 
 from .datatypes import SortedDatasetList
-from ...formats import CannotSort, INPUT_ORDER_TIME
+from ...formats import CannotSort, INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME
 from .instance import Instance, _get_fixed_tags
 
 
@@ -87,6 +87,70 @@ def compare_tags(im1: Instance, im2: Instance) -> int:
     t1 = im1.tags
     t2 = im2.tags
     return compare_tuples(t1, t2)
+
+
+def determine_sorting(sorted_dataset_dict: SortedDatasetList,
+                      input_order: str,
+                      input_options: dict[str]) -> str:
+
+    def _single_slice_over_time(tags):
+        """If time and slice both varies, the time stamps address slices of a single volume
+        """
+        count_time = {}
+        count_sloc = {}
+        for time, sloc in tags:
+            if time not in count_time:
+                count_time[time] = 0
+            if sloc not in count_sloc:
+                count_sloc[sloc] = 0
+            count_time[time] += 1
+            count_sloc[sloc] += 1
+        max_time = max(count_time.values())
+        max_sloc = max(count_sloc.values())
+        return max_time == 1 and max_sloc == 1
+
+    if input_order != 'auto':
+        return input_order
+    extended_tags = {}
+    found_tags = {}
+    im: Instance = None
+    for sloc in sorted_dataset_dict.keys():
+        for im in sorted_dataset_dict[sloc]:
+            for order in input_options['auto_sort']:
+                try:
+                    tag = im.get_tag(order, input_options)
+                    if tag is None:
+                        continue
+                    if order not in found_tags:
+                        found_tags[order] = []
+                        extended_tags[order] = []
+                    if tag not in found_tags[order]:
+                        found_tags[order].append(tag)
+                        extended_tags[order].append((tag, sloc))
+                except (KeyError, TypeError, CannotSort):
+                    pass
+
+    # Determine how to sort
+    actual_order = None
+    for order in found_tags:
+        if len(found_tags[order]) > 1:
+            if actual_order in ('time', 'triggertime') and order in ['b', 'te']:
+                # DWI images will typically have varying time.
+                # Let b values override time stamps.
+                actual_order = order
+            elif actual_order is None:
+                actual_order = order
+            else:
+                raise CannotSort('Cannot auto-sort: {}\n'.format(extended_tags) +
+                                 '  actual_order: {}, order: {},'.format(actual_order, order) +
+                                 ' Series #{}: {}'.format(im.SeriesNumber, im.SeriesDescription)
+                                 )
+    if actual_order is None:
+        actual_order = INPUT_ORDER_NONE
+    elif actual_order in (INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME) and \
+            _single_slice_over_time(extended_tags[actual_order]):
+        actual_order = INPUT_ORDER_NONE
+    return actual_order
 
 
 def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options: dict):
