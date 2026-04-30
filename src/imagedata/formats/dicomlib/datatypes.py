@@ -60,11 +60,17 @@ class PixelDict: Collection of pixel data arrays, key is SeriesUID.
     PixelDict is collected by self._construct_pixel_arrays().
 """
 
+import logging
 from collections import defaultdict, namedtuple
 import numpy as np
+from pydicom.datadict import tag_for_keyword
 from ...archives.abstractarchive import AbstractArchive, Member
 from .instance import Instance
 from ...header import Header
+
+
+logger = logging.getLogger(__name__)
+
 
 # Type definitions
 SourceList = list[dict]
@@ -111,6 +117,28 @@ class DatasetList(list):
             assert isinstance(arg, Instance), self.__doc__
         super().append(*args)
 
+    def getDicomAttribute(self, tag):
+        instance: Instance = self[0]
+        return instance[tag].value
+
+    def getDicomAttributeValues(self, tag) -> list:
+        values = []
+        instance: Instance
+        for instance in self:
+            try:
+                values.append(instance[tag].value)
+            except KeyError:
+                pass
+        return values
+
+    def get_image_orientation_patient(self) -> np.ndarray:
+        instance: Instance = self[0]
+        return instance.get_image_orientation_patient()
+
+    def get_image_position_patient(self) -> np.ndarray:
+        instance: Instance = self[0]
+        return instance.get_image_position_patient()
+
 
 class DatasetDict(defaultdict):
     """DatasetDict is defaultdict[SeriesUID, DatasetList]"""
@@ -137,6 +165,62 @@ class SortedDatasetList(defaultdict):
         assert isinstance(key, float), self.__doc__
         assert isinstance(value, DatasetList), self.__doc__
         super().__setitem__(key, value)
+
+    def __str__(self):
+        """Get printable description of series"""
+        dataset: DatasetList = self[0]
+        try:
+            message = '{} ({})'.format(dataset.SeriesDescription, dataset.SeriesNumber)
+        except AttributeError:
+            try:
+                message = '{} ({})'.format('', dataset.SeriesNumber)
+            except AttributeError:
+                message = '{}'.format(dataset.SeriesInstanceUID)
+        return message
+
+    def get_headers(self) -> Header:
+        """Extract DICOM attributes
+
+        Args:
+            self: DICOMPlugin instance
+            sorted_dataset_list: SortedDatasetList
+            hdr: existing header (Header)
+            message: series description
+            opts:
+        Returns:
+            hdr: header
+                - seriesNumber
+                - seriesDescription
+                - imageType
+                - spacing
+                - orientation
+                - imagePositions
+                - axes
+                - modality, laterality, protocolName, bodyPartExamined
+                - seriesDate, seriesTime, patientPosition
+        """
+        dataset = self[next(iter(self))][0]
+        hdr = Header()
+        hdr.input_format = 'dicom'
+        dataset.copy_attributes_to_header(hdr)
+
+        # Image position (patient)
+        hdr.orientation = dataset.get_image_orientation_patient()
+
+        # Extract imagePositions and transformationMatrix
+        hdr.imagePositions = self.imagePositions
+        hdr.transformationMatrix = self.transformationMatrix
+
+        # Testing IPP and transformationMatrix
+        T0 = hdr.transformationMatrix[:3, 3]
+        ipp = np.array(T0)
+        warned = False
+        for i in range(len(self)):
+            if not warned and not np.allclose(ipp, hdr.imagePositions[i], rtol=1e-3):
+                logger.warning(f'{self}: DICOM ImagePosition is inconsistent with ImageOrientation')
+                warned = True
+            ipp += hdr.transformationMatrix[:3, 0]
+        return hdr
 
 
 SortedData = tuple[SortedDatasetList, Header]
