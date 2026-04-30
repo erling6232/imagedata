@@ -1,18 +1,21 @@
-from typing import Any
+from typing import Any, Union
 import logging
 import numpy as np
 from numbers import Number
-from collections import Counter
+from collections import Counter, defaultdict, namedtuple
+from functools import cmp_to_key
+from operator import itemgetter
 from collections.abc import Iterable
 from pydicom.dataset import Dataset
 
+from ...axis import VariableAxis, UniformLengthAxis
+from ...header import Header
 from .datatypes import SortedDatasetList
 from ...formats import CannotSort, INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME
 from .instance import Instance, _get_fixed_tags
 
 
 logger = logging.getLogger(__name__)
-
 
 
 def get_tag_value(im: Dataset, input_order: str, input_options: dict = None) -> Number:
@@ -153,7 +156,7 @@ def determine_sorting(sorted_dataset_dict: SortedDatasetList,
     return actual_order
 
 
-def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options: dict):
+def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_options: dict):
     def _minimum_tag(tags: list, tag: int) -> Any:
         minimum = 1e9
         for _, _tag in tags:
@@ -169,8 +172,8 @@ def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options
     tag_list = []
     previous_shape = None
     # for im in image_dict[seriesUID]:
-    for sloc in sorted(sorted_dataset.keys()):
-        for im in sorted_dataset[sloc]:
+    for sloc in sorted(sorted_dataset_list.keys()):
+        for im in sorted_dataset_list[sloc]:
             tag_list.append((im, im.get_tag_tuple(faulty, input_order, input_options)))
             faulty += 1
         if INPUT_ORDER_TIME in input_order_list:
@@ -182,13 +185,13 @@ def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options
                     time_tag = i
                 minimum_tag.append(_minimum_tag(tag_list, i))
             wanted_time_values, fixed_mask = _get_fixed_tags(tag_list, fixed=minimum_tag, lookup=time_tag)
-            for im in sorted_dataset[sloc]:
+            for im in sorted_dataset_list[sloc]:
                 tag = im.get_tag_tuple(faulty, input_order, input_options)
                 tag_list = im.replace_tag(tag_list, wanted_time_values, tag, time_tag)
         # Count values per dimension
         tag_values = {}
         shape = ()
-        for i, sort_key in enumerate(input_order):
+        for i, sort_key in enumerate(input_order_list):
             values = []
             for im, tag in tag_list:
                 values.append(tag[i])
@@ -202,14 +205,14 @@ def scan_tags(sorted_dataset: SortedDatasetList, input_order: str, input_options
     return tag_values, shape
 
 
-def verify_consistent_slices(series: SortedDatasetList, message: str, opts: dict = None) -> Counter:
+def verify_consistent_slices(sorted_dataset_list: SortedDatasetList, message: str, opts: dict = None) -> Counter:
     _name: str = '{}.{}'.format(__name__, verify_consistent_slices.__name__)
     """Verify same number of images for each slice.
     """
     slice_count = Counter()
     last_sloc = None
-    for islice, sloc in enumerate(series):
-        slice_count[islice] = len(series[sloc])
+    for islice, sloc in enumerate(sorted_dataset_list):
+        slice_count[islice] = len(sorted_dataset_list[sloc])
         last_sloc = sloc
     logger.debug("{}: tags per slice: {}".format(_name, slice_count))
     accept_uneven_slices = 'accept_uneven_slices' in opts and opts['accept_uneven_slices']
@@ -220,8 +223,272 @@ def verify_consistent_slices(series: SortedDatasetList, message: str, opts: dict
         raise CannotSort(
             "{}: ".format(message) +
             "Different number of images in each slice. Tags per slice:\n{}".format(slice_count) +
-            "\nLast file: {}".format(series[last_sloc][0].filename) +
+            "\nLast file: {}".format(sorted_dataset_list[last_sloc][0].filename) +
             "\nCould try 'split_acquisitions=True' or 'split_echo_numbers=True'."
         )
     return slice_count
 
+def sort_tags(hdr: Header,
+              sorted_dataset_list: SortedDatasetList,
+              input_order: str,
+              input_options: dict,
+              slice_count: Counter,
+              opts: dict
+              ) -> None:
+
+    def collect_tags(sorted_data: list[Instance]) -> list[tuple]:
+        """Collect tags from sorted data"""
+        tag_list = []
+        for im in sorted_data:
+            tag_list.append(im.tags)
+        return tag_list
+
+    def calculate_shape(tag_list: list[tuple]) -> tuple[tuple[int], tuple[list]]:
+        s = ()
+        axes = ()
+        if len(tag_list) == 0:
+            return s, axes
+        tags = len(tag_list[0])
+        for i in range(tags):
+            values = []
+            for tag in tag_list:
+                values.append(tag[i])
+            if i == tags - 1 and accept_duplicate_tag:  # Accept duplicate along last axis
+                axes += (values,)
+            elif issubclass(type(values[0]), np.ndarray):
+                vlist = [values[0]]
+                for v in values[1:]:
+                    found = False
+                    for u in vlist:
+                        if u.size != v.size:
+                            continue
+                        if np.allclose(u, v, rtol=1e-3, atol=1e-2):
+                            found = True
+                            break
+                    if not found:
+                        vlist.append(v)
+                axes += (vlist,)
+            else:
+                axes += (list(dict.fromkeys(values)),)
+            s += (len(axes[-1]),)
+        return s, axes
+
+    def calculate_shape_with_duplicates(sorted_data: list[Instance]) -> (
+            tuple)[tuple[int], tuple[list]]:
+
+        def _find_closest(tag_db: list, value: Union[Number, np.ndarray]) -> (
+                tuple)[Union[int | None], Union[float | None]]:
+            min_distance = np.inf
+            min_index = None
+            if issubclass(type(value), np.ndarray):
+                for i in range(len(tag_db)):
+                    if tag_db[i].size == value.size == 0:
+                        min_distance = 0.0
+                        min_index = i
+                        break
+                    if tag_db[i].size != value.size:
+                        continue
+                    if np.allclose(value, tag_db[i], rtol=1e-3, atol=1e-2):
+                        min_distance = 0.0
+                        min_index = i
+                        break
+                    else:
+                        distance = np.linalg.norm(abs(value - tag_db[i]))
+                        if distance < min_distance:
+                            min_distance = distance
+                            min_index = i
+            else:
+                try:
+                    min_index = tag_db.index(value)
+                    min_distance = abs(value - tag_db[min_index])
+                except ValueError:
+                    pass
+            return min_index, min_distance
+
+        _name: str = '{}.{}'.format(__name__, calculate_shape_with_duplicates.__name__)
+        s = ()
+        axes = ()
+        tag_db = {}
+        if len(sorted_data) == 0:
+            return s, axes
+
+        # Calculate tag shape
+        im0 = sorted_data[0]
+        tags = len(im0.tags)
+        idx = [-1 for _ in range(tags)]
+        previous_tag = tuple(None for _ in range(tags))
+        for _ in range(tags):
+            tag_db[_] = []
+
+        for im in sorted_data:
+            tag = im.tags
+            add_tag = {}
+            for t in reversed(range(tags)):
+                cmp = compare_tag_values(previous_tag[t], tag[t])
+                if cmp > 0:
+                    for _ in range(t, tags):
+                        min_index, min_distance = _find_closest(tag_db[_], tag[_])
+                        if min_index is not None and min_distance < 1e-3:
+                            idx[_] = min_index
+                        else:
+                            idx[_] = len(tag_db[_])
+                            add_tag[_] = idx[_]
+                elif cmp < 0:
+                    min_index, min_distance = _find_closest(tag_db[t], tag[t])
+                    if min_index is not None and min_distance < 1e-3:
+                        idx[t] = min_index
+                    else:
+                        raise IndexError(f"{_name}: Cannot sort tags. Images should already be sorted.")
+                elif t == tags - 1:
+                    idx[t] += 1
+                    add_tag[t] = idx[t]
+            im.set_tag_index(tuple(idx))
+            for t in add_tag:
+                tag_db[t].insert(add_tag[t], tag[t])
+            previous_tag = tag
+        for _ in range(tags):
+            s += (len(tag_db[_]),)
+            axes += (tag_db[_],)
+        return s, axes
+
+    def locate_image(im: Instance) -> tuple[int]:
+        """Locate image in sorted data"""
+        s = ()
+        _slice = im.slice_index
+        axis = _axes[_slice]
+        for i in range(len(im.tags)):
+            # Find tag in axes
+            if issubclass(type(im.tags[i]), np.ndarray):
+                min_distance = np.inf
+                min_index = None
+                for j, v in enumerate(axis[i]):
+                    if v.size != im.tags[i].size:
+                        continue
+                    if np.allclose(v, im.tags[i], rtol=1e-3, atol=1e-2):
+                        min_distance = 0
+                        min_index = j
+                        break
+                    else:
+                        distance = np.linalg.norm(abs(v - im.tags[i]))
+                        if distance < min_distance:
+                            min_distance = distance
+                            min_index = j
+                s += (min_index,)
+            else:
+                s += (axis[i].index(im.tags[i]),)
+        return s
+
+    def place_images() -> dict[np.ndarray]:
+        """Place images in sorted data"""
+        tags = {}
+        for _slice, sloc in enumerate(sorted(sorted_dataset_list)):
+            tags[_slice] = np.empty(shape, dtype=tuple)
+            for im in sorted_dataset_list[sloc]:
+                _idx = locate_image(im)
+                im.set_tag_index(_idx)
+                tags[_slice][_idx] = im.tags
+        return tags
+
+    def place_images_with_duplicates() -> dict[np.ndarray]:
+        """Place images in sorted data, allow duplicate tags along last axis"""
+        tags = {}
+        for _slice, sloc in enumerate(sorted(sorted_dataset_list)):
+            tags[_slice] = np.empty(shape, dtype=tuple)
+            for im in sorted_dataset_list[sloc]:
+                _idx = im.tag_index
+                # Is this index already taken?
+                if tags[_slice][_idx] is not None:
+                    raise CannotSort("{}: duplicate tag ({}): {}".format(_name, input_order, hdr.tags[_slice][_idx]))
+                tags[_slice][_idx] = im.tags
+        return tags
+
+    _name: str = '{}.{}'.format(__name__, sort_tags.__name__)
+
+    accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
+    tag_list = defaultdict(list)
+    sorted_data = defaultdict(list)
+    faulty = 0
+    sloc: float
+    _shapes = []
+    _axes = []
+    for _slice, sloc in enumerate(sorted(sorted_dataset_list)):
+        im: Instance
+        for im in sorted_dataset_list[sloc]:
+            im.set_slice_index(_slice)
+            im.set_tags(im.get_tag_tuple(faulty, input_order, input_options))
+            faulty += 1
+        sorted_data[_slice] = sorted(sorted_dataset_list[sloc], key=cmp_to_key(compare_tags))
+        if accept_duplicate_tag:
+            s, axis = calculate_shape_with_duplicates(sorted_data[_slice])
+        else:
+            tag_list[_slice] = collect_tags(sorted_data[_slice])
+            s, axis = calculate_shape(tag_list[_slice])
+        _shapes.append(s)
+        _axes.append(axis)
+
+    # Find maximum shape in slices
+    shape = ()
+    for i in range(len(_shapes[0])):
+        shape += (max(_shapes, key=itemgetter(i))[i],)
+
+    # Place each image on the proper tag index
+    if accept_duplicate_tag:
+        hdr.tags = place_images_with_duplicates()
+    else:
+        hdr.tags = place_images()
+
+    # Get image dimensions and SOPInstanceUIDs from header
+    SOPInstanceUIDs = {}
+    frames = None
+    rows = columns = 0
+    for _slice, sloc in enumerate(sorted(sorted_dataset_list)):
+        im: Instance
+        for im in sorted_dataset_list[sloc]:
+            rows = max(rows, im.Rows)
+            columns = max(columns, im.Columns)
+            if 'NumberOfFrames' in im:
+                frames = im.NumberOfFrames
+            _idx = im.tag_index
+            SOPInstanceUIDs[_idx + (_slice,)] = im.SOPInstanceUID
+
+    # Simplify shape dimension
+    while len(shape) and shape[0] == 1:
+        shape = shape[1:]
+        # _axes = _axes[1:]
+    hdr.dicomTemplate = sorted_dataset_list[next(iter(sorted_dataset_list))][0]
+    hdr.SOPInstanceUIDs = SOPInstanceUIDs
+    nz = len(sorted_dataset_list)
+    if frames is not None and frames > 1:
+        nz = frames
+    try:
+        ipp = hdr.dicomTemplate.get_image_position_patient()
+    except ValueError:
+        ipp = np.array([0, 0, 0])
+    hdr.spacing = sorted_dataset_list.spacing
+    slice_axis = UniformLengthAxis('slice', ipp[0], nz, hdr.spacing[0])
+    row_axis = UniformLengthAxis('row', ipp[1], rows, hdr.spacing[1])
+    column_axis = UniformLengthAxis('column', ipp[2], columns, hdr.spacing[2])
+    if len(shape):
+        tag_axes = []
+        for i, order in enumerate(input_order.split(sep=',')):
+            tag_axes.append(
+                VariableAxis(order, _axes[0][i])
+            )
+        axis_names = input_order.split(sep=',')
+        axis_names.extend(['slice', 'row', 'column'])
+        Axes = namedtuple('Axes', axis_names)
+        axes = Axes(*tag_axes, slice_axis, row_axis, column_axis)
+    elif nz > 1:
+        Axes = namedtuple('Axes', [
+            'slice', 'row', 'column'
+        ])
+        axes = Axes(slice_axis, row_axis, column_axis)
+    else:
+        Axes = namedtuple('Axes', [
+            'row', 'column'
+        ])
+        axes = Axes(row_axis, column_axis)
+    hdr.color = False
+    if 'SamplesPerPixel' in hdr.dicomTemplate and hdr.dicomTemplate.SamplesPerPixel == 3:
+        hdr.color = True
+    hdr.axes = axes
