@@ -49,7 +49,7 @@ def compare_tag_values(t1, t2):
         elif np.allclose(t1, t2, rtol=1e-3, atol=1e-2):
             return 0
         else:
-            return 1  # Changed ndarray is always treated as larger
+            return -1 if np.all(t1 < t2) else 1
     elif t1 == t2:
         return 0
     else:
