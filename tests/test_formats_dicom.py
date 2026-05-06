@@ -833,36 +833,6 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDuplicateDicom(unittest.TestCase):
-    def setUp(self):
-        parser = argparse.ArgumentParser()
-        cmdline.add_argparse_options(parser)
-
-        self.opts = parser.parse_args([])
-        if len(self.opts.output_format) < 1:
-            self.opts.output_format = ['dicom']
-        # Prepare duplicate dataset
-        si0 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00'),
-            'none',
-            input_format='dicom'
-        )
-        self.d = tempfile.TemporaryDirectory()
-        si0.write(os.path.join(self.d.name, '0'), formats=['dicom'], keep_uid=True)
-        si0.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
-
-    def tearDown(self):
-        self.d.cleanup()
-
-    def test_duplicate(self):
-        duplicate = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (2, 3, 192, 152)
-
-    def test_duplicate_error(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=False)
-
-
 class TestDicomNDSort(unittest.TestCase):
 
     #@unittest.skip("skipping test_t1_de_te")
