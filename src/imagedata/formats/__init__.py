@@ -3,7 +3,7 @@
 Standard plugins provides support for DICOM and Nifti image file formats.
 """
 
-# Copyright (c) 2013-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import sys
@@ -23,11 +23,13 @@ INPUT_ORDER_TIME = 'time'
 INPUT_ORDER_TRIGGERTIME = 'triggertime'
 INPUT_ORDER_B = 'b'
 INPUT_ORDER_BVECTOR = 'bvector'
+INPUT_ORDER_DTI = 'dti'
 INPUT_ORDER_RSI = 'rsi'
 INPUT_ORDER_FA = 'fa'
 INPUT_ORDER_TE = 'te'
 INPUT_ORDER_FAULTY = 'faulty'
 input_order_set = {INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B, INPUT_ORDER_BVECTOR,
+                   INPUT_ORDER_DTI,
                    INPUT_ORDER_RSI, INPUT_ORDER_FA, INPUT_ORDER_TRIGGERTIME,
                    INPUT_ORDER_TE, INPUT_ORDER_FAULTY}
 
