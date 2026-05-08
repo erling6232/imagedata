@@ -67,6 +67,8 @@ class Instance(FileDataset):
 
     def get_tag(self, input_order: str, input_options: dict = None) -> Number:
 
+        if callable(input_options[input_order]):
+            return input_options[input_order](self)
         try:
             _ = getattr(self, input_options[input_order])
             return _()
@@ -98,7 +100,7 @@ class Instance(FileDataset):
 
     def replace_tag(self, tag_list: list,
                     wanted_time_values: list,
-                    tag: list, time_tag: int) -> list:
+                    tag: tuple, time_tag: int) -> list:
         _name: str = '{}.{}'.format(__name__, self.replace_tag.__name__)
         _times, _mask = _get_fixed_tags(tag_list, tag, time_tag)
         try:
@@ -177,6 +179,9 @@ class Instance(FileDataset):
         except IndexError:
             return np.array([])
 
+    def get_dti(self) -> tuple[Number, np.ndarray]:
+        return self.get_b_value(), self.get_b_vector()
+
     def get_echo_time(self) -> Number:
         return self.get_float('EchoTime')
 
@@ -186,7 +191,7 @@ class Instance(FileDataset):
     def get_image_orientation_patient(self) -> np.ndarray:
         try:
             iop = self.data_element('ImageOrientationPatient').value
-        except ValueError:
+        except (KeyError, ValueError):
             iop = [0, 0, 1, 0, 1, 0]
         # Reverse orientation vectors from (x,y,z) to (z,y,x)
         return np.array((iop[2], iop[1], iop[0],
@@ -320,71 +325,6 @@ class Instance(FileDataset):
             else:
                 raise
         return si
-
-    def choose_tag(self, tag, default):
-        # Example: _tag = choose_tag('b', 'csa_header')
-        if tag in self.input_options:
-            return self.input_options[tag]
-        else:
-            return default
-
-    def set_dicom_tag(self, input_options: dict, input_order: str, values) -> None:
-        if input_order is None or values is None:
-            return
-        try:
-            _ = len(values)
-        except TypeError:
-            values = [values]
-        for order, value in zip(input_order.split(sep=','), values):
-            if order == INPUT_ORDER_NONE:
-                pass
-            elif order == INPUT_ORDER_TIME:
-                # AcquisitionTime
-                time_tag = self.choose_tag("time", "AcquisitionTime")
-                if time_tag not in self:
-                    vr = dictionary_VR(time_tag)
-                    if vr == 'TM':
-                        self.add_new(time_tag, vr,
-                                   datetime.fromtimestamp(
-                                       float(0.0), timezone.utc
-                                   ).strftime("%H%M%S.%f")
-                                   )
-                    else:
-                        self.add_new(time_tag, vr, 0.0)
-                if self.data_element(time_tag).VR == 'TM':
-                    time_str = datetime.fromtimestamp(float(value), timezone.utc).strftime("%H%M%S.%f")
-                    self.data_element(time_tag).value = time_str
-                else:
-                    self.data_element(time_tag).value = float(value)
-            elif order == INPUT_ORDER_B:
-                set_ds_b_value(self, value)
-            elif order == INPUT_ORDER_BVECTOR:
-                set_ds_b_vector(self, value)
-            elif order == INPUT_ORDER_FA:
-                fa_tag = self.choose_tag('fa', 'FlipAngle')
-                if fa_tag not in self:
-                    vr = dictionary_VR(fa_tag)
-                    self.add_new(fa_tag, vr, float(value))
-                else:
-                    self.data_element(fa_tag).value = float(value)
-            elif order == INPUT_ORDER_TE:
-                te_tag = self.choose_tag('te', 'EchoTime')
-                if te_tag not in self:
-                    vr = dictionary_VR(te_tag)
-                    self.add_new(te_tag, vr, float(value))
-                else:
-                    self.data_element(te_tag).value = float(value)
-            else:
-                # User-defined tag
-                if order in input_options:
-                    _tag = input_options[order]
-                    if _tag not in self:
-                        vr = dictionary_VR(_tag)
-                        self.add_new(_tag, vr, float(value))
-                    else:
-                        self.data_element(_tag).value = float(value)
-                else:
-                    raise (UnknownTag(f'Unknown input_order {order}.'))
 
     def copy_attributes_to_header(self, hdr: Header):
         for attribute in attributes:
