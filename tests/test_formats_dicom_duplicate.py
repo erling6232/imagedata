@@ -31,11 +31,11 @@ class TestDuplicateDicom2D(unittest.TestCase):
         """Setting accept_duplicate_tag=True should not fail on a non-duplicate dicom series."""
         no_duplicate = Series(os.path.join(self.d.name, '0.dcm'),
                            'none', input_format='dicom', accept_duplicate_tag=True)
-        assert no_duplicate.shape == (192, 152)
+        self.assertEqual((192, 152), no_duplicate.shape)
 
     def test_duplicate_2d(self):
         duplicate = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (3, 1, 192, 152)
+        self.assertEqual((3, 1, 192, 152), duplicate.shape)
 
     def test_duplicate_error_2d(self):
         with self.assertRaises(formats.CannotSort) as context:
@@ -67,11 +67,11 @@ class TestDuplicateDicom3D(unittest.TestCase):
         """Setting accept_duplicate_tag=True should not fail on a non-duplicate dicom series."""
         no_duplicate = Series(os.path.join(self.d.name, '0'),
                               'none', input_format='dicom', accept_duplicate_tag=True)
-        assert no_duplicate.shape == (3, 192, 152)
+        self.assertEqual((3, 192, 152), no_duplicate.shape)
 
     def test_duplicate_3d(self):
         duplicate = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (3, 3, 192, 152)
+        self.assertEqual((3, 3, 192, 152), duplicate.shape)
 
     def test_duplicate_error_3d(self):
         with self.assertRaises(formats.CannotSort) as context:
@@ -104,11 +104,11 @@ class TestDuplicateDicom4D(unittest.TestCase):
         """Setting accept_duplicate_tag=True should not fail on a non-duplicate dicom series."""
         no_duplicate = Series(os.path.join(self.d.name, '0'),
                               'time', input_format='dicom', accept_duplicate_tag=True)
-        assert no_duplicate.shape == (3, 3, 192, 152)
+        self.assertEqual((3, 3, 192, 152), no_duplicate.shape)
 
     def test_duplicate_4d(self):
         duplicate = Series(self.d.name, 'time', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (9, 3, 192, 152)
+        self.assertEqual((9, 3, 192, 152), duplicate.shape)
 
     def test_duplicate_error_4d(self):
         with self.assertRaises(formats.CannotSort) as context:
@@ -141,11 +141,12 @@ class TestDuplicateDicom5D(unittest.TestCase):
         """Setting accept_duplicate_tag=True should not fail on a non-duplicate dicom series."""
         no_duplicate = Series(os.path.join(self.d.name, '0'),
                               'time,te', input_format='dicom', accept_duplicate_tag=True)
-        assert no_duplicate.shape == (3, 4, 3, 72, 96)
+        self.assertEqual((3, 4, 3, 72, 96), no_duplicate.shape)
 
     def test_duplicate_5d(self):
         duplicate = Series(self.d.name, 'time,te', input_format='dicom', accept_duplicate_tag=True)
         assert duplicate.shape == (3, 12, 3, 72, 96)
+        self.assertEqual((3, 12, 3, 72, 96), duplicate.shape)
 
     def test_duplicate_error_5d(self):
         with self.assertRaises(formats.CannotSort) as context:
