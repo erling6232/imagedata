@@ -1,12 +1,9 @@
 from typing import Any, Union
 import logging
 import numpy as np
-from numbers import Number
-from collections import Counter, defaultdict, namedtuple
-from functools import cmp_to_key
-from operator import itemgetter
+from collections import Counter, namedtuple
 
-from ...axis import VariableAxis, UniformLengthAxis
+from ...axis import VariableAxis
 from ...header import Header
 from ...formats import CannotSort, INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_TRIGGERTIME
 from .datatypes import (DatasetDict, DatasetList, SortedData, SortedDatasetList, SortedDataDict,

@@ -24,7 +24,7 @@ import pydicom.uid
 from pydicom.datadict import dictionary_VR, tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
-from ..formats import (CannotSort, EmptyImageError, NotImageError,
+from ..formats import (CannotSort, EmptyImageError, NotImageError, UnknownTag,
                        INPUT_ORDER_FAULTY,
                        INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B,
                        INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_BVECTOR,
