@@ -145,7 +145,6 @@ class TestDuplicateDicom5D(unittest.TestCase):
 
     def test_duplicate_5d(self):
         duplicate = Series(self.d.name, 'time,te', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (3, 12, 3, 72, 96)
         self.assertEqual((3, 12, 3, 72, 96), duplicate.shape)
 
     def test_duplicate_error_5d(self):
