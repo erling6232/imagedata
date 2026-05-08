@@ -157,6 +157,7 @@ class SortedDatasetList(defaultdict):
 
     def __init__(self):
         super().__init__(DatasetList)
+        self.axes = None
         self.spacing = None
         self.transformationMatrix = None
         self.imagePositions = None
@@ -168,7 +169,7 @@ class SortedDatasetList(defaultdict):
 
     def __str__(self):
         """Get printable description of series"""
-        dataset: DatasetList = self[0]
+        dataset: DatasetList = self[next(iter(self))][0]
         try:
             message = '{} ({})'.format(dataset.SeriesDescription, dataset.SeriesNumber)
         except AttributeError:
@@ -204,12 +205,16 @@ class SortedDatasetList(defaultdict):
         hdr.input_format = 'dicom'
         dataset.copy_attributes_to_header(hdr)
 
-        # Image position (patient)
+        # Extract geometry
+        hdr.axes = self.axes
         hdr.orientation = dataset.get_image_orientation_patient()
-
-        # Extract imagePositions and transformationMatrix
         hdr.imagePositions = self.imagePositions
         hdr.transformationMatrix = self.transformationMatrix
+        hdr.spacing = self.spacing
+
+        hdr.color = False
+        if 'SamplesPerPixel' in dataset and dataset.SamplesPerPixel == 3:
+            hdr.color = True
 
         # Testing IPP and transformationMatrix
         T0 = hdr.transformationMatrix[:3, 3]
