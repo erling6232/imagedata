@@ -23,7 +23,7 @@ import pydicom.dataset
 import pydicom.datadict
 from pydicom.uid import UID
 
-from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
+from .axis import Axis, UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE
 from .formats import shape_to_str, input_order_set, sort_on_set
 from .formats.dicomlib import anonymization_rules
