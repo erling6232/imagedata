@@ -130,7 +130,7 @@ class Series(np.ndarray):
         if 'input_options' in opts:
             for key, value in opts['input_options'].items():
                 opts[key] = value
-        if axes is not None and not isinstance(axes, Axes):
+        if axes is not None and not isinstance(axes, Axis):
             axes = to_namedtuple(axes)
 
         if issubclass(type(template), Series):
