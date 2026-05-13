@@ -3,12 +3,10 @@
 Standard plugins provide support for local filesystem and zip archives.
 """
 
-# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os.path
 import logging
 import urllib.parse
-import fnmatch
 from ..transports import Transport
 
 logger = logging.getLogger(__name__)
