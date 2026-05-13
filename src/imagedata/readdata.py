@@ -449,7 +449,7 @@ def _simplify_locations(locations):
         # url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
         if os.name == 'nt':
             if len(url_tuple.scheme) == 1:
-                #and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
+                # and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
                 # Assume the scheme represents the Windows drive letter
                 _path = url_tuple.scheme[0] + ':' + url_tuple.netloc
             elif url_tuple.scheme == 'file':
