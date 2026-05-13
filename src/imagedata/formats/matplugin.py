@@ -175,7 +175,7 @@ class MatPlugin(AbstractPlugin):
         hdr.axes = axes
         logger.debug('{}: nt {}, nz {}'.format(_name, nt, nz))
         dt = 1
-        times = [(_,) for _ in np.arange(0, nt * dt, dt)]
+        # times = [(_,) for _ in np.arange(0, nt * dt, dt)]
         hdr.tags = {}
         for slice in range(nz):
             hdr.tags[slice] = np.empty(nt, dtype=tuple)
