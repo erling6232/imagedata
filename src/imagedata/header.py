@@ -4,7 +4,6 @@
 
 import numpy as np
 from collections import namedtuple
-import copy
 import pydicom.uid
 import pydicom.dataset
 import pydicom.datadict
