@@ -63,7 +63,6 @@ class PixelDict: Collection of pixel data arrays, key is SeriesUID.
 import logging
 from collections import defaultdict, namedtuple
 import numpy as np
-from pydicom.datadict import tag_for_keyword
 from ...archives.abstractarchive import AbstractArchive, Member
 from .instance import Instance
 from ...header import Header
@@ -77,6 +76,7 @@ SourceList = list[dict]
 
 SeriesUID = namedtuple('SeriesUID', 'patientID, studyInstanceUID, seriesInstanceUID, ' +
                        'acquisitionNumber, echoNumber', defaults=(None, None))
+
 
 # Class definitions
 class ObjectList(list):
@@ -229,6 +229,7 @@ class SortedDatasetList(defaultdict):
 
 
 SortedData = tuple[SortedDatasetList, Header]
+
 
 class SortedDataDict(defaultdict):
     """SortedDataDict is defaultdict[SeriesUID, SortedData]"""

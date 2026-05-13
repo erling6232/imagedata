@@ -7,12 +7,8 @@ from pydicom.dataset import FileDataset, Dataset, FileMetaDataset
 from pydicom.datadict import dictionary_VR, keyword_for_tag, tag_for_keyword
 from typing import Any
 from ...header import Header
-from ...formats import (CannotSort,
-                        INPUT_ORDER_FAULTY,
-                        INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B,
-                        INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_BVECTOR
-                        )
-from ...apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, set_ds_b_vector
+from ...formats import CannotSort, INPUT_ORDER_FAULTY
+from ...apps.diffusion import get_ds_b_vectors, get_ds_b_value
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +69,7 @@ class Instance(FileDataset):
             _ = getattr(self, input_options[input_order])
             return _()
             # return input_options[input_order](self)
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError):
             try:
                 return self.get_float(input_options[input_order])
             except (AttributeError, KeyError, TypeError):

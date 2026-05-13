@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 import logging
 import numpy as np
 from collections import Counter, namedtuple
@@ -173,7 +173,7 @@ def _get_unique_tag_values(tag_list: list, lookup: int) -> list:
         return sorted(set(tag_values))
 
 
-def _get_fixed_tags(tag_list: list, fixed: list, lookup: int|None) -> tuple[list, list]:
+def _get_fixed_tags(tag_list: list, fixed: list, lookup: int | None) -> tuple[list, list]:
     tags = len(fixed)
     values = []
     fixed_mask = [False for _ in range(tags)]
@@ -192,7 +192,7 @@ def _get_fixed_tags(tag_list: list, fixed: list, lookup: int|None) -> tuple[list
 def _determine_tag_position(axes: list[list],
                             tag: tuple,
                             tag_list: list[tuple],
-                            time_tag: int|None) -> tuple[int]:
+                            time_tag: int | None) -> tuple[int]:
 
     def _determine_tag_in_list(tag_list: list, tag: tuple) -> int:
         for i, _tag in enumerate(tag_list):
@@ -200,7 +200,6 @@ def _determine_tag_position(axes: list[list],
                 return i
         raise IndexError('Tag not found')
 
-    _name: str = '{}.{}'.format(__name__, _determine_tag_position.__name__)
     new_tag = ()
     for i, _tag in enumerate(tag):
         if time_tag is not None and i == time_tag:
@@ -341,7 +340,7 @@ def scan_duplicate_tags(dataset_list: DatasetList, axes: list) -> list:
     for _idx in _done:
         if _idx[:-1] != _prefix_idx:
             _prefix_idx = _idx[:-1]
-        if not _prefix_idx in _count:
+        if _prefix_idx not in _count:
             _count[_prefix_idx] = 0  # Reset count for next prefix index
         for im in _done[_idx]:
             _new_idx = _idx[:-1] + (_count[_prefix_idx],)
