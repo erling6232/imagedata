@@ -9,11 +9,8 @@ import logging
 import traceback
 import mimetypes
 import math
-from numbers import Number
-from collections import defaultdict, namedtuple, Counter
-from functools import partial, cmp_to_key
-from operator import itemgetter
-from typing import Any, List, Union
+from collections import namedtuple, Counter
+from functools import cmp_to_key
 from datetime import date, datetime, timedelta, timezone
 import numpy as np
 import pydicom
@@ -25,7 +22,6 @@ from pydicom.datadict import dictionary_VR, tag_for_keyword
 from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
 
 from ..formats import (CannotSort, EmptyImageError, NotImageError, UnknownTag,
-                       INPUT_ORDER_FAULTY,
                        INPUT_ORDER_NONE, INPUT_ORDER_TIME, INPUT_ORDER_B,
                        INPUT_ORDER_FA, INPUT_ORDER_TE, INPUT_ORDER_BVECTOR,
                        INPUT_ORDER_DTI, INPUT_ORDER_TRIGGERTIME,
@@ -36,7 +32,7 @@ from ..axis import Axis, VariableAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive, Member
 from ..header import Header
-from ..apps.diffusion import get_ds_b_vectors, get_ds_b_value, set_ds_b_value, set_ds_b_vector
+from ..apps.diffusion import set_ds_b_value, set_ds_b_vector
 from .dicomlib.instance import Instance
 from .dicomlib.sorting import (combine_data_and_header, compare_tuples, determine_sorting,
                                scan_tags, verify_consistent_slices)
@@ -51,7 +47,6 @@ pydicom.config.settings.writing_validation_mode = pydicom.config.WARN
 # pydicom.config.settings.writing_validation_mode = pydicom.config.RAISE
 
 mimetypes.add_type('application/dicom', '.ima')
-
 
 
 """
@@ -220,7 +215,6 @@ class DICOMPlugin(AbstractPlugin):
         for key, value in opts.items():  # Copy opts to self.input_options
             self.input_options[key] = value
 
-        accept_duplicate_tag = 'accept_duplicate_tag' in opts and opts['accept_duplicate_tag']
         skip_pixels = 'headers_only' in opts and opts['headers_only']
         if 'slice_tolerance' in self.input_options:
             self.slice_tolerance = float(self.input_options['slice_tolerance'])
@@ -428,7 +422,7 @@ class DICOMPlugin(AbstractPlugin):
 
     def _extract_member(self,
                         image_list: DatasetDict,
-                        member: Union[Dataset, Member, str],
+                        member: Dataset | Member | str,
                         opts: dict = None,
                         skip_pixels: bool = False):
         im: Dataset
@@ -558,7 +552,7 @@ class DICOMPlugin(AbstractPlugin):
             if sorted_dataset_list is None:
                 raise CannotSort('Cannot sort: {}'.format(message2))
 
-            slice_count: Counter = verify_consistent_slices(sorted_dataset_list, message, opts)
+            _: Counter = verify_consistent_slices(sorted_dataset_list, message, opts)
 
             header = sorted_dataset_list.get_headers()
             header.sliceLocations = np.array(sorted(sorted_dataset_list.keys()))
@@ -597,7 +591,6 @@ class DICOMPlugin(AbstractPlugin):
             sorted_data_dict[seriesUID] = SortedData((sorted_dataset_list, header))
         logger.debug('{}: end with {}'.format(_name, sorted_data_dict.keys()))
         return sorted_data_dict, sorting
-
 
     def _get_non_image_headers(self,
                                dataset_dict: DatasetDict,
@@ -882,7 +875,7 @@ class DICOMPlugin(AbstractPlugin):
             # iops = self.getDicomAttribute(dictionary, tag_for_keyword("ImageOrientationPatient"))
             orients = []
             for s in range(len(dataset_list)):
-                orient = dataset_list.get_image_orientation_patient()
+                # orient = dataset_list.get_image_orientation_patient()
                 orients.append(dataset_list.get_image_orientation_patient())
 
             if self.dir_cosine_tolerance == 0.0:
@@ -1915,11 +1908,10 @@ class DICOMPlugin(AbstractPlugin):
                 if time_tag not in ds:
                     vr = dictionary_VR(time_tag)
                     if vr == 'TM':
-                        ds.add_new(time_tag, vr,
-                                     datetime.fromtimestamp(
+                        ds.add_new(time_tag, vr, datetime.fromtimestamp(
                                          float(0.0), timezone.utc
                                      ).strftime("%H%M%S.%f")
-                                     )
+                                   )
                     else:
                         ds.add_new(time_tag, vr, 0.0)
                 if ds.data_element(time_tag).VR == 'TM':
