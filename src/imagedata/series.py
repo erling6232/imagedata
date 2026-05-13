@@ -130,7 +130,7 @@ class Series(np.ndarray):
         if 'input_options' in opts:
             for key, value in opts['input_options'].items():
                 opts[key] = value
-        if axes is not None and type(axes) != 'Axes':
+        if axes is not None and not isinstance(axes, Axes):
             axes = to_namedtuple(axes)
 
         if issubclass(type(template), Series):
@@ -766,10 +766,13 @@ class Series(np.ndarray):
         return None
 
     def __get_tags(self, specs):
-        tags, slices = self.header.get_tags_and_slices()
+        # tags, slices = self.header.get_tags_and_slices()
+        _ = self.header.get_tags_and_slices()
         try:
-            tmpl_tags = self.tags
-            tags = self.tags[0].shape
+            # tmpl_tags = self.tags
+            # tags = self.tags[0].shape
+            _ = self.tags
+            _ = self.tags[0].shape
         except ValueError:
             return None
         slice_spec = [_ for _ in range(0, self.slices, 1)]
@@ -2323,7 +2326,7 @@ class Series(np.ndarray):
         """
 
         if issubclass(type(keyword), str):
-            _  = keyword[0].upper() + keyword[1:]
+            _ = keyword[0].upper() + keyword[1:]
             _tag = pydicom.datadict.tag_for_keyword(_)
         else:
             _tag = keyword
