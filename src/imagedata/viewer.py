@@ -382,11 +382,17 @@ class Viewer(object):
         else:
             self.poly = {}
             self.vertices = roi
+            _legacy_roi = _is_legacy_roi(roi)
             if self.follow:
-                for tag in range(self.im[0]['tags']):
+                for tag in np.ndindex(self.im[0]['tags']):
                     for i in range(self.im[0]['slices']):
-                        vertices = copy.copy(self.vertices[tag, i]) \
-                            if (tag, i) in self.vertices else None
+                        # Handle legacy ROI keys (number, slice) in addition to new (tuple, slice) scheme
+                        if _legacy_roi:
+                            vertices = copy.copy(self.vertices[tag[0], i]) \
+                                if (tag[0], i) in self.vertices else None
+                        else:
+                            vertices = copy.copy(self.vertices[tag, i]) \
+                                if (tag, i) in self.vertices else None
                         self.poly[tag, i] = MyPolygonSelector(self.ax[0, 0], self.onselect,
                                                               lineprops={
                                                                   'color': self.poly_color},
@@ -426,7 +432,7 @@ class Viewer(object):
 
     def disconnect_draw(self):
         if self.follow:
-            for t in range(self.im[0]['tags']):
+            for t in np.ndindex(self.im[0]['tags']):
                 for idx in range(self.im[0]['slices']):
                     if (t, idx) in self.poly and self.poly[t, idx] is not None:
                         self.poly[t, idx].disconnect_events()
@@ -1243,3 +1249,10 @@ def pretty_window_level(im):
         window = np.around(window, 2)
         level = np.around(level, 2)
     return fmt, window, level
+
+
+def _is_legacy_roi(roi: dict) -> bool:
+    _key = next(iter(roi))
+    if not isinstance(_key, tuple):
+        return False
+    return not isinstance(_key[0], tuple)
