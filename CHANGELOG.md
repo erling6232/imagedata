@@ -6,15 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
-## [v3.8.15-dev3] - 2026-04-21
-### Added
-* DICOMPlugin: Document data types and processes.
-
-## [v3.8.15-dev3] - 2026-05-15
+## [v3.8.15-dev4] - 2026-05-15
 ### Fixed
 * Viewer.connect_draw(): Traversing image tags is done using np.ndindex.
 * Viewer.connect_draw(): Accept legacy ROI where tag is number.
 * Viewer.disconnect_draw(): Traversing image tags is done using np.ndindex.
+
+## [v3.8.15-dev3] - 2026-04-21
+### Added
+* DICOMPlugin: Document data types and processes.
 
 ## [v3.8.15-dev2] - 2026-04-14
 ### Fixed
