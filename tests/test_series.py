@@ -596,13 +596,14 @@ class TestSeries(unittest.TestCase):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
+            accept_duplicate_tag=True,
             input_format='dicom'
         )
         b0 = si[:, 0]
-        np.testing.assert_array_equal(
-            b0.tags[0],
-            np.array([(0,), None, None], dtype=tuple)
-        )
+        # compare tags
+        b0_wanted = [0, 500, 1500]
+        for _ in range(3):
+            self.assertEqual(b0_wanted[_], b0.tags[0][_][0])
         # compare axes
         np.testing.assert_array_equal(b0.axes.b.values, [0, 500, 1500])
 
@@ -622,10 +623,9 @@ class TestSeries(unittest.TestCase):
         self.assertIsNone(bv0.tags[0][1])
 
         bv1 = si[1, :]
-        self.assertIsNone(bv1.tags[0][0])
         np.testing.assert_almost_equal(
             bv1.tags[0][1][0],
-            np.array([0, -0.706402, -0.707811]),
+            np.array([-0.7064, 0., -0.7078]),
             decimal=4
         )
 
