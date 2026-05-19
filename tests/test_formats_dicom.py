@@ -951,11 +951,12 @@ class TestDicomNDSort(unittest.TestCase):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
+            accept_duplicate_tag=True,
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
-            si1 = Series(d, 'b,bvector', input_format='dicom')
+            si1 = Series(d, 'b,bvector', input_format='dicom', accept_duplicate_tag=True)
             compare_tags(self, si.tags, si1.tags)
         tags = si.tags[0]
         for idx in np.ndindex(tags.shape):
@@ -998,9 +999,17 @@ class TestDicomPluginSortCriteria(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00'),
             't',
-            opts={
-                't': 'InstanceNumber'
-            },
+            t='InstanceNumber',
+            input_format='dicom')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['dicom'])
+
+
+    def test_user_redefined_sort(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'time',
+            time='InstanceNumber',
             input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])
