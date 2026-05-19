@@ -1,9 +1,10 @@
 """Read/Write image files, calling appropriate transport, archive and format plugins
 """
 
-# Copyright (c) 2013-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os.path
+import traceback
 import logging
 import mimetypes
 import argparse
@@ -144,8 +145,8 @@ def read(urls, order=None, opts=None, input_format=None):
             summary = summary + '\n  {}: {}'.format(ptype, e)
         except Exception as e:
             logger.info("{}: Giving up (OTHER) {}: {}".format(_name, ptype, e))
-            summary = summary + '\n  {}: {}'.format(ptype, e)
-            # import traceback, sys
+            summary += '\n  {}: {}\n'.format(ptype, e)
+            summary += traceback.format_exc()
             # traceback.print_exc(file=sys.stdout)
             # exit(1)
 
@@ -448,7 +449,7 @@ def _simplify_locations(locations):
         # url_tuple = urllib.parse.urlsplit(location.replace(os.sep, '/'), scheme='file')
         if os.name == 'nt':
             if len(url_tuple.scheme) == 1:
-                #and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
+                # and fnmatch.fnmatch(location, '[A-Za-z]:\\*'):
                 # Assume the scheme represents the Windows drive letter
                 _path = url_tuple.scheme[0] + ':' + url_tuple.netloc
             elif url_tuple.scheme == 'file':

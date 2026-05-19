@@ -453,9 +453,7 @@ class Study(IndexedDict):
                 raise Exception(_url) from e
 
     def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
-        _actions = {
-
-        } | actions
+        _actions = {} | actions
         rules = anonymization_rules | kwargs
         if rules['studyTime'] is None:
             rules['studyTime'] = self.studyTime
@@ -667,9 +665,7 @@ class Patient(IndexedDict):
                     raise Exception(_url) from e
 
     def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
-        _actions = {
-
-                   } | actions
+        _actions = {} | actions
         rules = anonymization_rules | kwargs
         _copy = Patient(None)
         for _rule in rules:
@@ -851,10 +847,9 @@ class Cohort(IndexedDict):
                         _series.write(_url, opts=opts, formats=formats)
                     except Exception as e:
                         raise Exception(_url) from e
-    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
-        _actions = {
 
-                   } | actions
+    def anonymize(self, uid_table: dict = {}, actions: dict = {}, **kwargs):
+        _actions = {} | actions
         rules = anonymization_rules | kwargs
         _copy = Cohort(None)
         for _rule in rules:
