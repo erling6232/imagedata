@@ -14,20 +14,28 @@ from .instance import Instance
 logger = logging.getLogger(__name__)
 
 
+def compare_ndarrays(array1: np.ndarray, array2: np.ndarray) -> int:
+    if array1.size == 0 and array2.size == 0:
+        return 0
+    elif array1.size == 0:
+        return 1
+    elif array2.size == 0:
+        return -1
+    elif np.allclose(array1, array2, rtol=1e-3, atol=1e-2):
+        return 0
+    _vlist = np.lexsort(
+        np.vstack((array1, array2)).transpose()
+    )
+    return -1 if _vlist[0] < _vlist[1] else 1
+
+
 def compare_tag_values(t1, t2):
     if t1 is None:
         return 1
     if issubclass(type(t1), np.ndarray):
-        if t1.size == 0 and t2.size == 0:
-            return 0
-        elif t1.size == 0:
-            return 1
-        elif t2.size == 0:
-            return -1
-        elif np.allclose(t1, t2, rtol=1e-3, atol=1e-2):
-            return 0
-        else:
-            return -1 if np.all(t1 < t2) else 1
+        _ = compare_ndarrays(t1, t2)
+        if _:
+            return _
     elif t1 == t2:
         return 0
     else:
@@ -39,17 +47,13 @@ def compare_tuples(t1: tuple, t2: tuple) -> int:
     Return -1, 0 or 1 depending on whether the first argument is lower than, equal
     to or greater than the second argument
     """
+    if not issubclass(type(t1), tuple) and not issubclass(type(t2), tuple):
+        return compare_tag_values(t1, t2)
     for i in range(len(t1)):
         if issubclass(type(t1[i]), np.ndarray):
-            if t1[i].size == 0:
-                return -1
-            elif t2[i].size == 0:
-                return 1
-            elif np.allclose(t1[i], t2[i], rtol=1e-3, atol=1e-2):
-                continue
-            else:
-                return -1 if np.linalg.norm(t2[i] - t1[i]) < 0 else 1
-                # return -1 if np.all(t1[i] < t2[i]) else 1
+            _ = compare_ndarrays(t1[i], t2[i])
+            if _ != 0:
+                return _
         elif isinstance(t1[i], tuple):
             _ = compare_tuples(t1[i], t2[i])
             if _ != 0:
@@ -61,7 +65,7 @@ def compare_tuples(t1: tuple, t2: tuple) -> int:
     return 0
 
 
-def compare_tags(im1: Instance, im2: Instance) -> int:
+def compare_instance_tags(im1: Instance, im2: Instance) -> int:
     t1 = im1.tags
     t2 = im2.tags
     return compare_tuples(t1, t2)
@@ -146,6 +150,19 @@ def _get_unique_tag_values(tag_list: list, lookup: int) -> list:
                 return True
         return False
 
+    def _value_in_array(tag_list: list[np.ndarray], value: np.ndarray) -> bool:
+        for v in tag_list:
+            found = True
+            if issubclass(type(value), np.ndarray):
+                if v.size != value.size:
+                    continue
+                found = found and np.allclose(v, value, rtol=1e-3, atol=1e-2)
+            else:
+                found = found and (v == value)
+            if found:
+                return True
+        return False
+
     tag_values = []
     for _, tag in tag_list:
         tag_values.append(tag[lookup])
@@ -157,17 +174,26 @@ def _get_unique_tag_values(tag_list: list, lookup: int) -> list:
                 vlist.append(values)
         return vlist
     elif issubclass(type(tag_values[0]), np.ndarray):
-        vlist = [tag_values[0]]
-        for v in tag_values[1:]:
-            found = False
-            for u in vlist:
-                if u.size != v.size:
-                    continue
-                if np.allclose(u, v, rtol=1e-3, atol=1e-2):
-                    found = True
-                    break
-            if not found:
-                vlist.append(v)
+        vlist = []
+        _sizes = {}
+        for _ in tag_values:
+            if len(_) not in _sizes:
+                _sizes[len(_)] = []
+            _sizes[len(_)].append(_)
+        for _size in _sizes:
+            if _size == 0:
+                for _ in range(len(_sizes[_size])):
+                    if not _value_in_array(vlist, _sizes[_size][_]):
+                        vlist.append(_sizes[_size][_])
+            else:
+                _tag_values = np.empty((len(_sizes[_size]), _size))
+                for _ in range(len(_sizes[_size])):
+                    _tag_values[_] = _sizes[_size][_]
+                # _vlist = _tag_values[np.lexsort(np.flipud(_tag_values.transpose()))]
+                _vlist = _tag_values[np.lexsort(_tag_values.transpose())]
+                for _ in range(len(_tag_values)):
+                    if not _value_in_array(vlist, _vlist[_]):
+                        vlist.append(_vlist[_])
         return vlist
     else:
         return sorted(set(tag_values))
@@ -270,15 +296,18 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
         tag_values = {}
         shape = ()
         for i, sort_key in enumerate(input_order_list):
-            values = _get_unique_tag_values(tag_list, lookup=i)
+            # values = _get_unique_tag_values(tag_list, lookup=i)
             shape += (len(_axes[i]),)
-            tag_values[sort_key] = values
+            # tag_values[sort_key] = values
+            tag_values[sort_key] = _axes[i]
 
         if duplicate_tags and accept_duplicate_tag:
             _axes = scan_duplicate_tags(sorted_dataset_list[sloc], _axes)
             shape = ()
             for _axis in _axes:
                 shape += (len(_axis),)
+                if len(shape) > len(new_input_order_list):
+                    new_input_order_list.append('none')
 
         # Verify exact same shape per slice
         if previous_shape is None:
@@ -290,11 +319,22 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
         _all_axes[sloc] = _axes
 
     try:
-        _ref_axes = _all_axes[next(iter(_all_axes))][0]
+        _ref_axes = _all_axes[next(iter(_all_axes))]
         for sloc in sorted(sorted_dataset_list.keys()):
             for _ in range(len(_ref_axes)):
-                if not np.allclose(_ref_axes[_], _all_axes[sloc][_], rtol=1e-3, atol=1e-2):
-                    raise CannotSort(f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
+                try:
+                    if not np.allclose(_ref_axes[_], _all_axes[sloc][_], rtol=1e-3, atol=1e-2):
+                        logger.warning(
+                            f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
+                        # raise CannotSort(
+                        #     f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
+                except ValueError:
+                    for _r, _a in zip(_ref_axes[_], _all_axes[sloc][_]):
+                        if not np.allclose(_r, _a, rtol=1e-3, atol=1e-2):
+                            logger.warning(
+                                f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
+                            # raise CannotSort(
+                            #     f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
     except IndexError:
         pass
 
@@ -315,7 +355,7 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
     # Construct Axes namedtuple
     _new_axes = []
     for i, sort_key in enumerate(new_input_order_list):
-        _new_axes.append(VariableAxis(sort_key, _axes[i]))
+        _new_axes.append(VariableAxis(sort_key, _ref_axes[i]))
     Axes = namedtuple('Axes', new_input_order_list)
     axes = Axes._make(_new_axes)
 
@@ -334,7 +374,7 @@ def scan_duplicate_tags(dataset_list: DatasetList, axes: list) -> list:
             _done[_idx].append(im)
 
     # Move duplicate items
-    _new_axis = []
+    _new_axis = {}
     _count = {}
     _prefix_idx = None  # next(iter(_done))[:-1]
     for _idx in _done:
@@ -342,16 +382,17 @@ def scan_duplicate_tags(dataset_list: DatasetList, axes: list) -> list:
             _prefix_idx = _idx[:-1]
         if _prefix_idx not in _count:
             _count[_prefix_idx] = 0  # Reset count for next prefix index
+            _new_axis[_prefix_idx] = []
         for im in _done[_idx]:
             _new_idx = _idx[:-1] + (_count[_prefix_idx],)
             im.set_tag_index(_new_idx)
-            _new_axis.append(im.tags[-1])
+            _new_axis[_prefix_idx].append(im.tags[-1])
             _count[_prefix_idx] += 1
 
     try:
-        axes[-1] = _new_axis
+        axes[-1] = _new_axis[_prefix_idx]
     except IndexError:
-        axes = [_new_axis]
+        axes = [_new_axis[_prefix_idx]]
 
     # Verify
     # _keys = sorted([_im.tag_index for _im in dataset_list])
