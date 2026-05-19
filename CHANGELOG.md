@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.0-rc0] - 2026-05-19
+### Added
+* DICOMPlugin: Sort DTI series where tags are (b, bvector) tuple.
+### Changed
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
+
 ## [v3.8.16-dev0] - 2026-05-15
 ### Changed
-* DICOMPlugin: Refactored sorting of n-dimension datasets.
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
 
 ## [v3.8.15] - 2026-05-15
 
