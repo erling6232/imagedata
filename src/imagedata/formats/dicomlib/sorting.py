@@ -33,9 +33,7 @@ def compare_tag_values(t1, t2):
     if t1 is None:
         return 1
     if issubclass(type(t1), np.ndarray):
-        _ = compare_ndarrays(t1, t2)
-        if _:
-            return _
+        return compare_ndarrays(t1, t2)
     elif t1 == t2:
         return 0
     else:
@@ -330,11 +328,12 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
                         #     f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
                 except ValueError:
                     for _r, _a in zip(_ref_axes[_], _all_axes[sloc][_]):
-                        if not np.allclose(_r, _a, rtol=1e-3, atol=1e-2):
+                        if compare_tuples(_r, _a) != 0:
+                        # if not np.allclose(_r, _a, rtol=1e-3, atol=1e-2):
                             logger.warning(
                                 f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
-                            # raise CannotSort(
-                            #     f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
+                            raise CannotSort(
+                                f'{_name}: Axes differ for input order {new_input_order_list[_]} in each slice')
     except IndexError:
         pass
 
@@ -389,10 +388,14 @@ def scan_duplicate_tags(dataset_list: DatasetList, axes: list) -> list:
             _new_axis[_prefix_idx].append(im.tags[-1])
             _count[_prefix_idx] += 1
 
+    _longest_axis = _new_axis[next(iter(_new_axis))]
+    for _idx in _new_axis:
+        if len(_new_axis[_idx]) > len(_longest_axis):
+            _longest_axis = _new_axis[_idx]
     try:
-        axes[-1] = _new_axis[_prefix_idx]
+        axes[-1] = _longest_axis
     except IndexError:
-        axes = [_new_axis[_prefix_idx]]
+        axes = [_longest_axis]
 
     # Verify
     # _keys = sorted([_im.tag_index for _im in dataset_list])
