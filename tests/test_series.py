@@ -601,9 +601,9 @@ class TestSeries(unittest.TestCase):
         )
         b0 = si[:, 0]
         # compare tags
-        b0_wanted = [0, 500, 1500]
+        b0_wanted = [(0,), None, None]
         for _ in range(3):
-            self.assertEqual(b0_wanted[_], b0.tags[0][_][0])
+            self.assertEqual(b0_wanted[_], b0.tags[0][_])
         # compare axes
         np.testing.assert_array_equal(b0.axes.b.values, [0, 500, 1500])
 
@@ -625,7 +625,7 @@ class TestSeries(unittest.TestCase):
         bv1 = si[1, :]
         np.testing.assert_almost_equal(
             bv1.tags[0][1][0],
-            np.array([-0.7064, 0., -0.7078]),
+            np.array([0, -0.7064, -0.7078]),
             decimal=4
         )
 
