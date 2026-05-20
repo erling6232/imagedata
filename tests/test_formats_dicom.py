@@ -946,6 +946,30 @@ class TestDicomNDSort(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
 
+    def test_dti(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'dti',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        self.assertEqual((13, 3, 78, 96), si.shape)
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            si1 = Series(d, 'dti', input_format='dicom', accept_duplicate_tag=True)
+            # compare_tags(self, si.tags, si1.tags)
+        tags = si.tags[0]
+        for idx in np.ndindex(tags.shape):
+            try:
+                b, bvector = tags[idx][0]
+            except TypeError:
+                continue
+            im = si[idx]
+            if b < 1:
+                self.assertEqual(len(bvector), 0)
+            else:
+                self.assertEqual(len(bvector), 3)
+
     # @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
         si = Series(
@@ -954,6 +978,7 @@ class TestDicomNDSort(unittest.TestCase):
             accept_duplicate_tag=True,
             input_format='dicom'
         )
+        self.assertEqual((3, 7, 3, 78, 96), si.shape)
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
             si1 = Series(d, 'b,bvector', input_format='dicom', accept_duplicate_tag=True)
