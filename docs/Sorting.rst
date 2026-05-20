@@ -36,6 +36,7 @@ Several sort criteria are predefined:
 * triggertime: Sort on Trigger Time
 * b: Sort on MR diffusion b-value
 * bvector: Sort on MR diffusion b vector
+* dti: Sort on MR DTI (b, b vector) tuple
 * fa: Sort on MR Flip Angle
 * te: Sort on MR Echo Time
 
@@ -103,6 +104,25 @@ Trigger Time is the sorting criteria:
         trigger=get_TriggerTime)
     )
 
+MRI DTI sorting
+---------------
+
+MRI diffusion tensor images (DTI) are sorted on diffusion b-value and b-vectors.
+The tags (b, bvector) are tuples.
+
+.. code-block:: python
+
+    img = Series('dti', input_order='dti', input_format='dicom')
+    tags = img.tags[0]
+    for idx in np.ndindex(tags.shape):
+        try:
+            b, bvector = tags[idx]
+        except TypeError:
+            continue
+        dti = img[idx]
+        print(b, bvector, dti.shape)
+
+
 N-dimensional sorting
 ---------------------
 
@@ -115,7 +135,8 @@ A dynamic dual-echo MR acquisition can be sorted on time and echo time into a 5D
 
     img = Series('dyn_dual_echo', input_order='time,te')
 
-In particular, MR RSI diffusion data can be sorted on `b` value and `b` vector:
+In particular, MR RSI diffusion data can be sorted on `b` value and `b` vector
+(remember that the `dti` sort criteria can be used to sort these data as 4D):
 
 .. code-block:: python
 
