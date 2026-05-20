@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.0-dev2] - 2026-05-20
+* Support for python 3.14
+
 ## [v3.9.0-rc1] - 2026-05-20
 ### Added
 * VariableAxis: Accept list of tuples as values.
