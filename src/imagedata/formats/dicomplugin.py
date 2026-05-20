@@ -1919,6 +1919,9 @@ class DICOMPlugin(AbstractPlugin):
                     ds.data_element(time_tag).value = time_str
                 else:
                     ds.data_element(time_tag).value = float(value)
+            elif order == INPUT_ORDER_DTI:
+                set_ds_b_value(ds, value[0])
+                set_ds_b_vector(ds, value[1])
             elif order == INPUT_ORDER_B:
                 set_ds_b_value(ds, value)
             elif order == INPUT_ORDER_BVECTOR:
