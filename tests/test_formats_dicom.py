@@ -954,6 +954,51 @@ class TestDicomNDSort(unittest.TestCase):
             input_format='dicom'
         )
         self.assertEqual((13, 3, 78, 96), si.shape)
+
+        # Load dcm2niix NIfTI data
+        nii = Series(
+            os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.nii.gz'),
+            'dti',
+            input_format='nifti'
+        )
+        self.assertEqual(si.shape, nii.shape)
+        with open(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bval'), 'r') as f:
+            _line = f.readline().split()
+        nii_bval = []
+        for _v in _line:
+            nii_bval.append(float(_v))
+        with open(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bvec'), 'r') as f:
+            _line0 = f.readline().split()
+            _line1 = f.readline().split()
+            _line2 = f.readline().split()
+        nii_bvec = []
+        for _x, _y, _z in zip(_line0, _line1, _line2):
+            nii_bvec.append(np.array((float(_x), -float(_y), float(_z))))  # Invert y direction
+
+        # Compare DICOM and NIfTI data
+        found_dcm = [False for _ in range(si.shape[0])]
+        found_nii = [False for _ in range(nii.shape[0])]
+        for i in range(si.shape[0]):
+            for j in range(nii.shape[0]):
+                # Locate volume with same pixel data
+                if np.allclose(si[i], nii[j], rtol=1e-3, atol=1e-2):
+                    if found_dcm[i]:
+                        raise AssertionError('Duplicate dcm')
+                    found_dcm[i] = True
+                    if found_nii[j]:
+                        raise AssertionError('Duplicate nifti')
+                    found_nii[j] = True
+                    # Compare b value
+                    self.assertEqual(si[i].tags[0][i][0][0],nii_bval[j])  # b value
+                    # Compare b vector
+                    _ = (si[i].tags[0][i][0][1], nii_bvec[j])
+                    if _[0].size == 0:
+                        _ = ([0, 0, 0], nii_bvec[j])
+                    np.testing.assert_array_almost_equal(_[0], _[1])
+        # Assert all DICOM volumes found a NIfTI volume, and opposite
+        self.assertEqual([True for _ in range(si.shape[0])], found_dcm)
+        self.assertEqual([True for _ in range(nii.shape[0])], found_nii)
+
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
             si1 = Series(d, 'dti', input_format='dicom', accept_duplicate_tag=True)
