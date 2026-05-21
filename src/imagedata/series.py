@@ -620,6 +620,9 @@ class Series(np.ndarray):
                     start, stop, step, axis = spec[i]
                     _slice = slice(start, stop, step)
                     if axis.name not in ['slice', 'row', 'column'] and len(axis.values[_slice]) <= 1:
+                        # Select slice of tags
+                        tags = self.__get_tags(spec)
+                        todo.append(('tags', tags))
                         continue
                 except ValueError:
                     _slice, axis = spec[i]
