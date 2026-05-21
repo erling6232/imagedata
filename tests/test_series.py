@@ -356,8 +356,8 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, 3)
         self.assertEqual(len(s_slice.tags[0]), 2)
-        for s in range(s_slice.slices):
-            np.testing.assert_array_equal(s_slice.tags[s], tags[s][1:3])
+        for _ in range(s_slice.slices):
+            np.testing.assert_array_equal(s_slice.tags[_], tags[_][1:3])
 
     def test_slicing_t_neg(self):
         rng = default_rng()
@@ -371,6 +371,20 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2], s[1:-1])
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-1,:,:])
         np.testing.assert_array_equal(s[0:1,:,:], s[0:-2,:,:])
+
+    def test_slicing_t_tags(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(256).reshape((4,4,4,4)))
+        s.spacing = (1, 1, 1)
+        s.axes = s.axes._replace(none=axis.UniformLengthAxis('none', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
+        s1 = s[1]
+        tags_s = s.tags[0]
+        tags_s1 = s1.tags[0]
+        np.testing.assert_array_equal(tuple(), tags_s1.shape)
+        s12 = s[1:3]
+        tags_s12 = s12.tags[0]
+        np.testing.assert_array_equal(tags_s[1:3], tags_s12)
 
     def test_slicing_t_drop(self):
         rng = default_rng()
@@ -628,6 +642,22 @@ class TestSeries(unittest.TestCase):
             np.array([0, -0.7064, -0.7078]),
             decimal=4
         )
+
+    def test_slice_dti(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'dti',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        self.assertEqual((13, 3, 78, 96), si.shape)
+        si1 = si[1]
+        tags_si = si.tags[0]
+        tags_si1 = si1.tags[0]
+        self.assertEqual(tuple(), tags_si1.shape)
+        si12 = si[1:3]
+        tags_si12 = si12.tags[0]
+        np.testing.assert_array_equal(tags_si[1:3], tags_si12)
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
