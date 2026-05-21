@@ -989,9 +989,9 @@ class TestDicomNDSort(unittest.TestCase):
                         raise AssertionError('Duplicate nifti')
                     found_nii[j] = True
                     # Compare b value
-                    self.assertEqual(si[i].tags[0][i][0][0],nii_bval[j])  # b value
+                    self.assertEqual(si.tags[0][i][0][0],nii_bval[j])  # b value
                     # Compare b vector
-                    _ = (si[i].tags[0][i][0][1], nii_bvec[j])
+                    _ = (si.tags[0][i][0][1], nii_bvec[j])
                     if _[0].size == 0:
                         _ = ([0, 0, 0], nii_bvec[j])
                     np.testing.assert_array_almost_equal(_[0], _[1])
