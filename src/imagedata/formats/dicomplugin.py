@@ -1047,8 +1047,9 @@ class DICOMPlugin(AbstractPlugin):
         axis_names = []
         if len(axes):
             for axis in axes:
-                tag_axes.append(axis)
-                axis_names.append(axis.name)
+                if len(axis) > 1:
+                    tag_axes.append(axis)
+                    axis_names.append(axis.name)
         for axis in geometry_axes:
             tag_axes.append(axis)
             axis_names.append(axis.name)
