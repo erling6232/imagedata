@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 ## [v3.9.0] - 2026-05-22
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
+* DICOMPlugin: Added support for sorting MRI DTI data where the tags
+  are tuples of (b,bvector). This will give a 4D dataset with indices
+  [tag,slice,row,column], in contrast to sorting on 'b,bvector' which
+  will give a (sparse) 5D dataset with indices [b,bvector,slice,row,column].
+* DICOMPlugin: Tags axes of length 1 are removed.
+* VariableAxis: Also accept tuples as axis values.
+* Support for Python 3.14.
+
 ### Changed
 * Updated Sorting.rst documentation.
 
