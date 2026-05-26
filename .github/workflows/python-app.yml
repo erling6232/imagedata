@@ -70,15 +70,15 @@ jobs:
           coverage report -m
           coverage xml -o junit.xml
           coverage html
-#      - name: Upload test results to Codecov
-#        uses: codecov/codecov-action@v4
-#        with:
-#          fail_ci_if_error: true # optional (default = false)
-#          files: ./junit.xml  # ./coverage1.xml,./coverage2.xml # optional
-#          flags: unittests # optional
-#          name: imagedata  # codecov-umbrella # optional
-#          token: ${{ secrets.CODECOV_TOKEN }}
-#          verbose: true # optional (default = false)
+      - name: Upload test results to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          fail_ci_if_error: true # optional (default = false)
+          files: ./junit.xml  # ./coverage1.xml,./coverage2.xml # optional
+          flags: unittests # optional
+          name: imagedata  # codecov-umbrella # optional
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true # optional (default = false)
 
   build_wheel:
     name: Build wheel and source distribution
