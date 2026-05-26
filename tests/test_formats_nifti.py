@@ -10,6 +10,7 @@ import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
 from imagedata.collection import Cohort
+from imagedata.apps.diffusion import read_b_value_file, read_b_vector_file
 
 
 class TestWriteNIfTIPlugin(unittest.TestCase):
@@ -439,6 +440,61 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             self.assertEqual(si1.shape, si2.shape)
             np.testing.assert_array_almost_equal(si1.spacing, si2.spacing)
             np.testing.assert_array_equal(si1, si2)
+
+    def test_write_4d_nifti_dti(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'dti',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['nifti'])
+            nii_bval = read_b_value_file(os.path.join(d, 'Image.bval'))
+            self.assertEqual(
+                [0.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+                nii_bval)
+            nii_bvec = read_b_vector_file(os.path.join(d, 'Image.bvec'))
+            a = np.array([[0., 0., 0.],
+                          [0., -0.70640218, -0.7078107],
+                          [-0.70640218,  0., -0.7078107],
+                          [0.70640218, 0., -0.7078107],
+                          [-0.70710397, -0.70710385, -0.00282839],
+                          [0.70710397, -0.70710385, -0.00282839],
+                          [0., -0.70781636, 0.70639646],
+                          [0., -0.70663589, -0.70757741],
+                          [7.0663589e-01, -6.0000000e-08, -7.0757729e-01],
+                          [-7.0663589e-01, 6.0000000e-08, -7.0757729e-01],
+                          [-0.70710641, -0.70710647, -0.00094281],[0.70710641, -0.70710647, -0.00094281],
+                          [0., -0.70757866, 0.70663464]
+                          ])
+            np.testing.assert_array_equal(a, nii_bvec)
+
+
+class Test5DNIfTIPlugin(unittest.TestCase):
+    def test_write_5d_nifti_rsi(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'b,bvector',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['nifti'])
+            nii_bval = read_b_value_file(os.path.join(d, 'Image.bval'))
+            self.assertEqual(
+                [0.0, 500.0, 1500.0],
+                nii_bval)
+            nii_bvec = read_b_vector_file(os.path.join(d, 'Image.bvec'))
+            a = np.array([[0., 0., 0.],
+                          [0., -0.70640218, -0.7078107],
+                          [-0.70640218, 0., -0.7078107],
+                          [0.70640218, 0., -0.7078107],
+                          [-0.70710397, -0.70710385, -0.00282839],
+                          [0.70710397, -0.70710385, -0.00282839],
+                          [0., -0.70781636, 0.70639646]
+                          ])
+            np.testing.assert_array_equal(a, nii_bvec)
 
 
 class TestNIfTIPluginWrite(unittest.TestCase):
