@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.1-dev0] - 2026-05-26
+* Save 5D as NIfTI
+  Set proper NIfTI zooms for 4D+ data.
+* Save dti data as NIfti, with bvalues and bvectors.
+* AbstractPlugin: Skip non-image files. Do not fail.
+* app.diffusion:
+  Added read_b_value_file() and read_b_vector_file() to read b values and b vectors from a file. The file can be specified with filename (str) or and open io.StringIO.
+  Added write_b_value_file() and write_b_vector_file() to write b values and b vectors to a file. The file can be specified with filename (str) or and open io.StringIO. The values can be specified as a Sequence or a Series with appropriate axes.
+
 ## [v3.9.0] - 2026-05-22
 * DICOMPlugin: Refactored sorting of n-dimensional datasets.
 * DICOMPlugin: Added support for sorting MRI DTI data where the tags
