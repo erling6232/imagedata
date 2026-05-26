@@ -1,6 +1,8 @@
 """Extract diffusion MRI parameters.
 """
-# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+import io
+
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import numpy as np
 import struct
@@ -9,6 +11,7 @@ from pydicom import Dataset
 from typing import Sequence, SupportsFloat
 from ..series import Series
 from ..formats import NotImageError
+from ..archives.abstractarchive import Member
 
 Number = type[SupportsFloat]
 
@@ -337,3 +340,89 @@ def _get_CSA2_header(data):
         except struct.error as e:
             raise NotImageError('{}'.format(e))
     return values
+
+
+def read_b_value_file(f: io.StringIO | str) -> np.ndarray:
+    _bval = []
+    try:
+        for _ in f.readline().split():
+            _bval.append(float(_))
+    except AttributeError:
+        with open(f, 'r') as f:
+            return read_b_value_file(f)
+    return _bval
+
+
+def read_b_vector_file(f: io.StringIO) -> list[np.ndarray]:
+    try:
+        _line0 = f.readline().split()
+        _line1 = f.readline().split()
+        _line2 = f.readline().split()
+    except AttributeError:
+        with open(f, 'r') as f:
+            return read_b_vector_file(f)
+    _bvec = []
+    for _x, _y, _z in zip(_line0, _line1, _line2):
+        _bvec.append(np.array((float(_x), -float(_y), float(_z))))  # Invert y direction
+    return _bvec
+
+
+def write_b_value_file(f: io.StringIO | Member | str, bvalues: Series | Sequence[float | int]):
+    _bvalues = bvalues
+    if issubclass(type(bvalues), Series):
+        try:
+            _bvalues = bvalues.axes.b.values
+        except AttributeError:
+            _bvalues = []
+            for _ in bvalues.axes.dti.values:
+                _bvalues.append(_[0])
+    try:
+        # Assume io.StringIO
+        f.write(' '.join([str(v) for v in _bvalues]) + '\n')
+    except AttributeError:
+        try:
+            # Assume str
+            with open(f, 'w') as _f:
+                write_b_value_file(_f, _bvalues)
+        except TypeError:
+            # Assume Member
+            with open(f.local_file, 'w') as _f:
+                write_b_value_file(_f, _bvalues)
+
+
+def write_b_vector_file(f: io.StringIO | Member | str, bvectors: Series | list[np.ndarray]):
+    _bvectors = bvectors
+    if issubclass(type(bvectors), Series):
+        try:
+            _bvectors = bvectors.axes.bvector.values
+        except AttributeError:
+            _bvectors = []
+            for _ in bvectors.axes.dti.values:
+                _bvectors.append(_[1])
+    _x, _y, _z = [], [], []
+    for _values in _bvectors:
+        try:
+            _x.append(_values[0])
+            _y.append(-_values[1])  # Invert y axis
+            _z.append(_values[2])
+        except IndexError:
+            if _values.size == 0:
+                _x.append(0)
+                _y.append(0)
+                _z.append(0)
+            else:
+                raise
+    try:
+        # Assume io.StringIO
+        f.write(' '.join([str(v) for v in _x]) + '\n')
+        f.write(' '.join([str(v) for v in _y]) + '\n')
+        f.write(' '.join([str(v) for v in _z]) + '\n')
+    except AttributeError:
+        try:
+            # Assume str
+            with open(f, 'w') as _f:
+                write_b_vector_file(_f, _bvectors)
+        except TypeError:
+            # Assume Member
+            with open(f.local_file, 'w') as _f:
+                write_b_vector_file(_f, _bvectors)

@@ -124,3 +124,35 @@ When no DICOM header is present, a DICOM template can be used to construct a com
     # Fetch PostScript file, add DICOM template, and send to DICOM archive
     img = Series('postscript.ps', template='dicom/data')
     img.write('dicom://dicom.server:11112/AET', formats=['dicom'])
+
+Diffusion data
+==============
+
+DICOM
+-----
+The diffusion b values and/or b vectors can be saved to text files compatible with .bval and
+.bvec files of `dcm2niix`.
+
+.. code-block:: python
+
+    from imagedata.apps.diffusion import write_b_vector_file, write_b_value_file
+    si = Series('...', 'dti')
+    write_b_value_file('data.bval', si)
+    write_b_vector_file('data.bvec', si)
+
+Similarly, existing .bval and .bvec files can be input:
+
+.. code-block:: python
+
+    from imagedata.apps.diffusion import write_b_vector_file, write_b_value_file
+    bvals = read_b_value_file('data.bval')
+    bvecs = read_b_vector_file('data.bvec')
+
+NIfTI
+-----
+
+When writing diffusion data ('dwi', 'b', 'bvector', 'dti') in `NIfTI` format, the *b* values and/or vectors are
+saved to separate files with .bval and .bvec extensions.
+The behaviour of these files are compatible with similar files produced by `dcm2niix`.
+Notice that according to the DICOM LPS *vs.* NIfTI RAS orientation, the *y* coordinates of the
+*b vectors* are inverted between DICOM and NIfTI.

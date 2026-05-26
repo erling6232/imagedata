@@ -11,6 +11,7 @@ from pydicom.dataset import Dataset
 import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
+from imagedata.apps.diffusion import read_b_vector_file, read_b_value_file
 from tests.compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
 
 
@@ -962,18 +963,8 @@ class TestDicomNDSort(unittest.TestCase):
             input_format='nifti'
         )
         self.assertEqual(si.shape, nii.shape)
-        with open(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bval'), 'r') as f:
-            _line = f.readline().split()
-        nii_bval = []
-        for _v in _line:
-            nii_bval.append(float(_v))
-        with open(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bvec'), 'r') as f:
-            _line0 = f.readline().split()
-            _line1 = f.readline().split()
-            _line2 = f.readline().split()
-        nii_bvec = []
-        for _x, _y, _z in zip(_line0, _line1, _line2):
-            nii_bvec.append(np.array((float(_x), -float(_y), float(_z))))  # Invert y direction
+        nii_bval = read_b_value_file(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bval'))
+        nii_bvec = read_b_vector_file(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bvec'))
 
         # Compare DICOM and NIfTI data
         found_dcm = [False for _ in range(si.shape[0])]
