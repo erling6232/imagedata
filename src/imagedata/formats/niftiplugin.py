@@ -1,7 +1,7 @@
 """Read/Write Nifti-1 files
 """
 
-# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -14,7 +14,7 @@ from nibabel.nifti1 import load
 from ..series import Series
 import numpy as np
 from . import NotImageError, WriteNotImplemented
-from ..axis import UniformLengthAxis
+from ..axis import UniformAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
 from ..archives.abstractarchive import AbstractArchive
 
@@ -40,7 +40,7 @@ class NiftiPlugin(AbstractPlugin):
     name = "nifti"
     description = "Read and write Nifti-1 files."
     authors = "Erling Andersen"
-    version = "2.1.0"
+    version = "2.2.0"
     url = "www.helse-bergen.no"
     extensions = [".nii", ".nii.gz"]
 
@@ -466,11 +466,16 @@ class NiftiPlugin(AbstractPlugin):
         elif dcm.ndim < 4:
             hdr.set_zooms((dc, dr, ds))
         else:
-            if dcm.input_order == 'time':
-                dt = dcm.timeline[1] - dcm.timeline[0]
-                hdr.set_zooms((dc, dr, ds, dt))
-            else:
-                hdr.set_zooms((dc, dr, ds, 1))
+            zooms = (dc, dr, ds)
+            for i, input_order in enumerate(dcm.input_order.split(',')):
+                if input_order == 'time':
+                    dt = dcm.timeline[1] - dcm.timeline[0]
+                    zooms += (dt,)
+                elif issubclass(type(dcm.axes[i]), UniformAxis):
+                    zooms += (dcm.axes[i].step,)
+                else:
+                    zooms += (1,)
+            hdr.set_zooms(zooms)
         hdr.set_xyzt_units(xyz='mm', t='sec')
         affine = np.zeros((4, 4))
         affine[0, 0] = -1
