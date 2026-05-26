@@ -125,8 +125,8 @@ When no DICOM header is present, a DICOM template can be used to construct a com
     img = Series('postscript.ps', template='dicom/data')
     img.write('dicom://dicom.server:11112/AET', formats=['dicom'])
 
-Diffusion data
-==============
+Diffusion parameters
+====================
 
 DICOM
 -----
