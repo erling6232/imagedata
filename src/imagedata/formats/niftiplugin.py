@@ -10,13 +10,15 @@ from collections import namedtuple
 import math
 from nibabel import Nifti1Image, Nifti1Header, spatialimages
 from nibabel.nifti1 import load
+from nibabel.filebasedimages import ImageFileError
 
 from ..series import Series
 import numpy as np
 from . import NotImageError, WriteNotImplemented
 from ..axis import UniformAxis, UniformLengthAxis
 from .abstractplugin import AbstractPlugin
-from ..archives.abstractarchive import AbstractArchive
+from ..archives.abstractarchive import AbstractArchive, Member
+from ..apps.diffusion import write_b_value_file, write_b_vector_file
 
 # import nitransforms
 NIFTI_INTENT_NONE = 0
@@ -98,7 +100,7 @@ class NiftiPlugin(AbstractPlugin):
         logger.debug("{}: load f {}".format(_name, f))
         try:
             img = load(f)
-        except spatialimages.ImageDataError:
+        except (spatialimages.ImageDataError, ImageFileError):
             raise NotImageError(
                 '{} does not look like a nifti file.'.format(f))
         except Exception:
@@ -390,6 +392,51 @@ class NiftiPlugin(AbstractPlugin):
             logger.debug('{}: write local file {}'.format(_name, f.local_file))
             os.makedirs(os.path.dirname(f.local_file), exist_ok=True)
             img.to_filename(f.local_file)
+
+        _write_b_values = _write_b_vectors = False
+        if ',' in si.input_order:
+            input_orders = si.input_order.split(',')
+        else:
+            input_orders = [si.input_order]
+        for input_order in input_orders:
+            _write_b_values = _write_b_values or input_order in ['b', 'dti']
+            _write_b_vectors = _write_b_vectors or input_order in ['bvector', 'dti']
+
+        if _write_b_values:
+            archive.set_member_naming_scheme(
+                fallback='Image',
+                level=0,
+                default_extension='.bval',
+                extensions=self.extensions
+            )
+            query = None
+            if destination['files'] is not None and len(destination['files']):
+                query = destination['files'][0]
+            filename = archive.construct_filename(
+                tag=None,
+                query=query
+            )
+            with archive.new_local_file(filename) as f:
+                logger.debug('{}: write local bval file {}'.format(_name, f.local_file))
+                write_b_value_file(f, si)
+
+        if _write_b_vectors:
+            archive.set_member_naming_scheme(
+                fallback='Image',
+                level=0,
+                default_extension='.bvec',
+                extensions=self.extensions
+            )
+            query = None
+            if destination['files'] is not None and len(destination['files']):
+                query = destination['files'][0]
+            filename = archive.construct_filename(
+                tag=None,
+                query=query
+            )
+            with archive.new_local_file(filename) as f:
+                logger.debug('{}: write local bvec file {}'.format(_name, f.local_file))
+                write_b_vector_file(f, si)
 
     def _save_dicom_to_nifti(self, si: Series) -> Nifti1Image:
         """Convert DICOM to Nifti
