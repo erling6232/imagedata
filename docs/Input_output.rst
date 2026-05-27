@@ -144,7 +144,7 @@ Similarly, existing .bval and .bvec files can be input:
 
 .. code-block:: python
 
-    from imagedata.apps.diffusion import write_b_vector_file, write_b_value_file
+    from imagedata.apps.diffusion import read_b_vector_file, read_b_value_file
     bvals = read_b_value_file('data.bval')
     bvecs = read_b_vector_file('data.bvec')
 
