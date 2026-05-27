@@ -71,7 +71,7 @@ jobs:
           coverage xml -o junit.xml
           coverage html
       - name: Upload test results to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true # optional (default = false)
           files: ./junit.xml  # ./coverage1.xml,./coverage2.xml # optional
