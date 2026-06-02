@@ -28,9 +28,9 @@ keywords = [
 ]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydicom>=2.4.0",
+    "pydicom>=3.0.0",
     "pylibjpeg[all]",
-    "pynetdicom>=1.2.0, <2",
+    "pynetdicom>=3, <4",
     "itk-io>=5.4.0",
     "scikit-build-core",
     "nibabel >= 5.0.0",
