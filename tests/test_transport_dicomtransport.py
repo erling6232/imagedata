@@ -344,7 +344,8 @@ class TestDicomTransportWithDB(unittest.TestCase):
                            port=11112)
 
         transport = transports.Transport(
-            'dicom://localhost:11112/Temp')
+            'dicom://localhost:11112/Temp',
+            opts={'calling_aet': 'MyAET'})
         # for root, dirs, files in transport.walk('{}/*cerebrum*'.format(patID)):
         expect = []
         expect.append([
@@ -483,13 +484,15 @@ class TestDicomTransportWithDB(unittest.TestCase):
                            port=11112)
 
         si1 = Series('dicom://localhost:11112/Temp/{}/{}/{}'.format(
-            patID, stuInsUID, serInsUID
-        ), input_format='dicom')
+            patID, stuInsUID, serInsUID),
+            opts = {'calling_aet': 'MyAET'},
+            input_format='dicom')
         self.assertEqual((3, 192, 152), si1.shape)
         np.testing.assert_array_almost_equal((3, 2.0833, 2.0833), si1.spacing, decimal=4)
         self.assertEqual(14, si1.seriesNumber)
         si2 = Series('dicom://localhost:11112/Temp/{}/{}/{}'.format(
-            patID, accno, serNum
-        ), input_format='dicom')
+            patID, accno, serNum),
+            opts = {'calling_aet': 'MyAET'},
+            input_format='dicom')
         self.assertEqual((3, 192, 152), si1.shape)
         np.testing.assert_array_almost_equal((3, 2.0833, 2.0833), si2.spacing, decimal=4)
