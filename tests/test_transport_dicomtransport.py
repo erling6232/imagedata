@@ -129,7 +129,7 @@ class TestDicomTransport(unittest.TestCase):
             os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm')
         )
         self.assertEqual((192, 152), si1.shape)
-        si1.write('dicom://localhost:11112/Temp', formats=['dicom'], calling_aet='localhost')
+        si1.write('dicom://localhost:11112/Temp', formats=['dicom'], opts={'calling_aet': 'MyAET'})
         si2 = Series(
             scpdir[0].name
         )
@@ -146,7 +146,7 @@ class TestDicomTransport(unittest.TestCase):
         si1.write(
             'dicom://localhost:11112/Temp',
             formats=['dicom'],
-            opts=self.opts_calling_aet
+            opts={'calling_aet': 'MyAET'}
         )
 
 
