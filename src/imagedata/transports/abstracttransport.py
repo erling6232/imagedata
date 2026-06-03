@@ -3,11 +3,12 @@
 Defines generic functions.
 """
 
-# Copyright (c) 2018-2022 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
 from typing import List, Optional
 import io
+import os.path
 
 
 class NoOtherInstance(Exception):
@@ -103,6 +104,14 @@ class AbstractTransport(object, metaclass=ABCMeta):
         """Return True if path is an existing regular file.
         """
         pass
+
+    def join(self, *paths: str) -> str:
+        """Join paths into a single string."""
+        return os.path.join(*paths)
+
+    def normpath(self, path: str) -> str:
+        """Normalize a path to a directory."""
+        return os.path.normpath(path)
 
     @abstractmethod
     def exists(self, path: str) -> bool:
