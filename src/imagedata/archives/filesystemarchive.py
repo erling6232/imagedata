@@ -1,7 +1,7 @@
 """Read/Write local files
 """
 
-# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from typing import Tuple, Union
 import os
@@ -168,7 +168,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         for root, dirs, files in self.transport.walk(path):
             for filename in files:
                 if len(root):
-                    filelist.append(os.path.join(root, filename))
+                    filelist.append(self.transport.join(root, filename))
                 else:
                     filelist.append(filename)
         return sorted(filelist)
@@ -178,12 +178,12 @@ class FilesystemArchive(AbstractArchive, ABC):
         for root, dirs, files in self.transport.walk(path):
             for _file in files:
                 if len(root):
-                    filename = os.path.join(root, _file)
+                    filename = self.transport.join(root, _file)
                 else:
                     filename = _file
-                if fnmatch.fnmatchcase(filename, os.path.normpath(search)):
+                if fnmatch.fnmatchcase(filename, self.transport.normpath(search)):
                     filelist.append(filename)
-                elif fnmatch.fnmatchcase(filename, os.path.normpath(search) + os.sep + '*'):
+                elif fnmatch.fnmatchcase(filename, self.transport.join(self.transport.normpath(search), '*')):
                     filelist.append(filename)
         return sorted(filelist)
 
@@ -211,7 +211,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             filelist = list()
             found_match = [False for _ in range(len(wanted_files))]
             for i, _file in enumerate(wanted_files):
-                if os.path.isfile(os.path.join(self.__dirname, _file)):
+                if os.path.isfile(self.transport.join(self.__dirname, _file)):
                     add_filelist = [_file]
                 else:
                     add_filelist = self._search_subdirs(self.__path, _file)
@@ -252,7 +252,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         else:
             filename = member.filename
 
-        return self.transport.open(os.path.join(self.root, filename), mode)
+        return self.transport.open(self.transport.join(self.root, filename), mode)
 
     def getmembers(self, files=None):
         """Get the members of the archive.
@@ -289,8 +289,8 @@ class FilesystemArchive(AbstractArchive, ABC):
             filelist = list()
             found_match = [False for _ in range(len(wanted_files))]
             for i, _file in enumerate(wanted_files):
-                if self.transport.isfile(os.path.join(self.__dirname, _file)):
-                    add_filelist = [os.path.join(self.__dirname, _file)]
+                if self.transport.isfile(self.transport.join(self.__dirname, _file)):
+                    add_filelist = [self.transport.join(self.__dirname, _file)]
                 else:
                     add_filelist = self._search_subdirs(self.__path, _file)
                 if len(add_filelist) > 0:
@@ -327,7 +327,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         if ext is None or ext not in self.extensions:
             if self.transport.exists(filename) or self.level > 0:
                 # Assume filename refers to a directory
-                filename = os.path.join(filename, self.fallback)
+                filename = self.transport.join(filename, self.fallback)
         if not filename:
             filename = self.fallback
         if tag is not None:
@@ -350,7 +350,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             member object (Member). The local_file property has the local filename.
         """
         return Member(filename,
-                      local_file=os.path.join(self.root, filename))
+                      local_file=self.transport.join(self.root, filename))
 
     def to_localfile(self, member):
         """Access a member object through a local file.
@@ -404,7 +404,7 @@ class FilesystemArchive(AbstractArchive, ABC):
             raise ReadOnlyError("Archive is read-only.")
         if len(self.__basename) > 0:
             raise WriteOnFile("Do not know how to write a file to a file.")
-        fname = os.path.join(self.__dirname, filename)
+        fname = self.transport.join(self.__dirname, filename)
         logger.debug("{}: fname {}".format(_name, fname))
         with self.transport.open(fname, 'wb') as f:
             f.write(data)
@@ -452,7 +452,7 @@ class FilesystemArchive(AbstractArchive, ABC):
         """Archive path.
         """
         if self.__basename is not None:
-            return os.path.join(self.__dirname, self.__basename)
+            return self.transport.join(self.__dirname, self.__basename)
         return self.__dirname
 
     def __enter__(self):
