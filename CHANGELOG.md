@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.2-dev1] - 2026-06-03
+### Added
+* AbstractTransport: Added methods join() and normpath().
+* DicomTransport: Added methods join() and normpath().
+
+### Changed
+* FilesystemArchive: Use transport join() and normpath(), not os-depended versions.
+
+## [v3.9.2-dev0] - 2026-06-02
+### Fixed
+* Fixed DicomTransport C-GET and C-FIND implementation.
+* Updated C-GET and C-FIND tests.
+
+### Changed
+* Exception NoDataReadError raised by Series when the format plugin does not
+  return any data.
+
 ## [v3.9.1] - 2026-05-26
 ### Fixed
 * Save 5D as NIfTI.

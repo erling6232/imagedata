@@ -47,7 +47,8 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
             netloc=urldict.netloc,
             root=urldict.path,
             mode=mode,
-            read_directory_only=read_directory_only)
+            read_directory_only=read_directory_only,
+            opts=opts)
     if mimetype is None:
         # Get any transport requirement for mimetype
         try:

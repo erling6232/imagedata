@@ -218,7 +218,7 @@ class Header(object):
                 _copy.dicomTemplate,
                 # extra_anonymization_rules=known_uids,
                 delete_private_tags=True,
-                base_rules_gen=anonymizer.initialize_actions_2024b
+                # base_rules_gen=anonymizer.initialize_actions
             )
         for tag in header_tags:
             if tag == 'SOPClassUID':

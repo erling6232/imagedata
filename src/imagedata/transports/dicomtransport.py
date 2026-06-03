@@ -1,26 +1,26 @@
 """Transfer DICOM images to and from DICOM Storage SCP
 """
 
-# Copyright (c) 2019-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2019-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from typing import Optional
+from collections import defaultdict
 import platform
+import posixpath
 import urllib
 import logging
 import pydicom
 import pynetdicom
+import pynetdicom.sop_class
+from pynetdicom import AE
 from .abstracttransport import AbstractTransport
 from . import FunctionNotSupported
 
 logger = logging.getLogger(__name__)
 
-presentation_contexts = [pynetdicom.sop_class.CTImageStorage, pynetdicom.sop_class.MRImageStorage,
+storage_presentation_contexts = [pynetdicom.sop_class.CTImageStorage, pynetdicom.sop_class.MRImageStorage,
                          pynetdicom.sop_class.ComputedRadiographyImageStorage,
-                         pynetdicom.sop_class.DigitalXRayImagePresentationStorage,
-                         pynetdicom.sop_class.DigitalXRayImageProcessingStorage,
-                         pynetdicom.sop_class.DigitalMammographyXRayImagePresentationStorage,
-                         pynetdicom.sop_class.DigitalMammographyXRayImageProcessingStorage,
-                         pynetdicom.sop_class.UltrasoundMultiframeImageStorage,
+                         pynetdicom.sop_class.UltrasoundMultiFrameImageStorage,
                          pynetdicom.sop_class.UltrasoundImageStorage,
                          pynetdicom.sop_class.SecondaryCaptureImageStorage,
                          pynetdicom.sop_class.XRayAngiographicImageStorage,
@@ -67,7 +67,10 @@ class DicomTransport(AbstractTransport):
     url = "www.helse-bergen.no"
     schemes = ["dicom"]
 
-    __catalog = {}
+    __patients = {}
+    __studies = {}
+    __series = {}
+    __instances = {}
 
     def __init__(self,
                  netloc: Optional[str] = None,
@@ -116,16 +119,11 @@ class DicomTransport(AbstractTransport):
         logger.debug("{}: calling AET: {}".format(_name, self.__local_aet))
         self.__ae = pynetdicom.AE(ae_title=self.__local_aet)
         self.__ae.requested_contexts = pynetdicom.presentation.QueryRetrievePresentationContexts
-        # self.__ae.requested_contexts = [
-        #    pynetdicom.presentation.QueryRetrievePresentationContexts,
-        #    pynetdicom.presentation.StoragePresentationContexts.MRImageStorage,
-        #    pynetdicom.presentation.StoragePresentationContexts.CTImageStorage,
-        #    ]
-        #    pynetdicom.StoragePresentationContexts
-        for context in [pynetdicom.sop_class.MRImageStorage, pynetdicom.sop_class.CTImageStorage]:
+        self.__ae.acse_timeout = None
+        self.__ae.dimse_timeout = None
+        self.__ae.network_timeout = None
+        for context in storage_presentation_contexts:
             self.__ae.add_requested_context(context)
-        # self.__ae.add_requested_context(pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind)
-        # self.__ae.add_requested_context(pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind)
         self.__host, port = netloc.split(':')
         self.__port = int(port)
         self.__assoc = self.__ae.associate(self.__host, self.__port, ae_title=self.__aet)
@@ -162,42 +160,57 @@ class DicomTransport(AbstractTransport):
         instance_search = url[5] if len(url) >= 6 else None
 
         # Walk the patient list, should be one only
-        if patient_search is None:
-            # Do not allow to search multiple patients - could result in too many matches
-            raise ValueError('Patient ID must be provided: {}'.format(top))
+        # if patient_search is None:
+        #     # Do not allow to search multiple patients - could result in too many matches
+        #     raise ValueError('Patient ID must be provided: {}'.format(top))
         patients = self._cfind_patient(patient_search)
         if len(patients) < 1:
-            raise ValueError('Patient ID {} not found'.format(patient_search))
-        elif len(patients) > 1:
-            raise ValueError('Patient ID {} match multiple patients'.format(patient_search))
-        patient_id = patients[0]
-        if study_search is None:
-            yield '/{}'.format(self.__aet), [patient_id], []
+            return
+            # raise ValueError('Patient ID {} not found'.format(patient_search))
+        # elif len(patients) > 1:
+        #     raise ValueError('Patient ID {} match multiple patients'.format(patient_search))
+        # patient_id = patients[0]
+        for patient_id in patients:
+            if study_search is None:
+                yield '/{}'.format(self.__aet), [patient_id], []
 
-        # Walk the study list
-        studies = self._cfind_studies(patient_id, study_search)
-        # catalog = {}
-        if series_search is None:
-            yield '/{}/{}'.format(self.__aet, patient_id), studies, []
-        for study_instance_uid in studies:
-            # catalog[study_instance_uid] = {}
-            # Walk the series list
-            series = self._cfind_series(study_instance_uid, series_search)
-            if instance_search is None:
-                yield '/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid), series, []
+            # Walk the study list
+            studies = self._cfind_studies(patient_id, study_search)
+            if len(studies) < 1:
+                return
+            # catalog = {}
+            if series_search is None:
+                yield '/{}/{}'.format(self.__aet, patient_id), studies, []
+            for study_instance_uid in studies:
+                # catalog[study_instance_uid] = {}
+                # Walk the series list
+                series = self._cfind_series(study_instance_uid, series_search)
+                if len(series) < 1:
+                    return
+                if instance_search is None:
+                    yield '/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid), series, []
 
-            for series_instance_uid in series:
-                # catalog[study_instance_uid][series_instance_uid] = {}
-                # Walk the instance list
-                instances = self._cfind_instances(study_instance_uid, series_instance_uid,
-                                                  instance_search)
-                yield '/{}/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid,
-                                            series_instance_uid), [], instances
+                for series_instance_uid in series:
+                    # catalog[study_instance_uid][series_instance_uid] = {}
+                    # Walk the instance list
+                    instances = self._cfind_instances(study_instance_uid, series_instance_uid,
+                                                      instance_search)
+                    if len(instances) > 0:
+                        yield '/{}/{}/{}/{}'.format(self.__aet, patient_id, study_instance_uid,
+                                                    series_instance_uid), [], instances
 
     def isfile(self, path):
         """Return True if path is an existing regular file.
         """
-        raise FunctionNotSupported('Accessing the DICOM server is not supported.')
+        return False
+
+    def join(self, *paths: str) -> str:
+        """Join paths into a single string."""
+        return posixpath.join(*paths)
+
+    def normpath(self, path: str) -> str:
+        """Normalize a path to a directory."""
+        return posixpath.normpath(path)
 
     def exists(self, path):
         """Determine whether the named path exists.
@@ -253,8 +266,8 @@ class DicomTransport(AbstractTransport):
         elif len(url) == 4:
             # Describe study
             patient_id, study_instance_uid = url[2:]
-            if study_instance_uid in self.__catalog:
-                study = self.__catalog[study_instance_uid]
+            if study_instance_uid in self.__studies:
+                study = self.__studies[study_instance_uid]
                 study_date = study.StudyDate
                 if len(study_date) == 8:
                     study_date = '{}.{}.{}'.format(
@@ -263,14 +276,18 @@ class DicomTransport(AbstractTransport):
                 if len(study_time) == 6:
                     study_time = '{}:{}:{}'.format(
                         study_time[:2], study_time[2:4], study_time[4:6])
+                try:
+                    study_description = study.StudyDescription
+                except AttributeError:
+                    study_description = ''
                 return '{} {} {} {}'.format(
-                    study_date, study_time, study.AccessionNumber, study.StudyDescription)
+                    study_date, study_time, study.AccessionNumber, study_description)
             return ''
         elif len(url) == 5:
             # Describe series
             patient_id, study_instance_uid, series_instance_uid = url[2:]
-            if series_instance_uid in self.__catalog:
-                series = self.__catalog[series_instance_uid]
+            if series_instance_uid in self.__series:
+                series = self.__series[series_instance_uid]
                 try:
                     series_number = int(series.SeriesNumber)
                 except AttributeError:
@@ -279,15 +296,19 @@ class DicomTransport(AbstractTransport):
                     series_description = series.SeriesDescription
                 except AttributeError:
                     series_description = ''
+                try:
+                    _instances = series.NumberOfSeriesRelatedInstances
+                except AttributeError:
+                    _instances = 0
                 return '#{}: {} {} {}'.format(
-                    series_number, series.NumberOfSeriesRelatedInstances,
+                    series_number, _instances,
                     series.Modality, series_description)
             return ''
         elif len(url) == 6:
             # Describe instance
             patient_id, study_instance_uid, series_instance_uid, sop_instance_uid = url[2:]
-            if sop_instance_uid in self.__catalog:
-                instance = self.__catalog[sop_instance_uid]
+            if sop_instance_uid in self.__instances:
+                instance = self.__instances[sop_instance_uid]
                 try:
                     return '{} {}x{}x{}'.format(
                         instance.InstanceNumber, instance.NumberOfFrames,
@@ -313,12 +334,12 @@ class DicomTransport(AbstractTransport):
         handlers = [(pynetdicom.evt.EVT_C_STORE, self._handle_store)]
 
         # # Initialise the Application Entity
-        ae = pynetdicom.AE(ae_title=self.__local_aet)
+        ae = AE(ae_title=self.__local_aet)
 
         ae.add_requested_context(pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelGet)
         # Add the requested presentation contexts (Storage SCP)
         roles = []
-        for storage_class in presentation_contexts:
+        for storage_class in storage_presentation_contexts:
             # Add the requested presentation contexts (QR SCU)
             ae.add_requested_context(storage_class)
             # Create an SCP/SCU Role Selection Negotiation item for CT Image Storage
@@ -327,7 +348,7 @@ class DicomTransport(AbstractTransport):
         # Create our Identifier (query) dataset
         # We need to supply a Unique Key Attribute for each level above the
         #   Query/Retrieve level
-        ds = pydicom.dataset.Dataset()
+        ds = pydicom.Dataset()
         ds.QueryRetrieveLevel = 'SERIES'
         # Unique key for SERIES level
         ds.SeriesInstanceUID = series_instance_UID
@@ -339,7 +360,9 @@ class DicomTransport(AbstractTransport):
         if assoc.is_established:
             # Use the C-GET service to send the identifier
             responses = assoc.send_c_get(
-                ds, pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelGet)
+                ds,
+                pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelGet
+            )
             for (status, identifier) in responses:
                 if status:
                     pass
@@ -352,25 +375,28 @@ class DicomTransport(AbstractTransport):
         else:
             raise ConnectionError('Association rejected, aborted or never connected')
 
-    def _cfind_patient(self, patient_id):
+    def _cfind_patient(self, patient_id) -> dict[str, pydicom.Dataset]:
         # Create our Identifier (query) dataset
-        ds = pydicom.dataset.Dataset()
+        ds = pydicom.Dataset()
         ds.PatientID = patient_id
         ds.QueryRetrieveLevel = 'PATIENT'
         ds.PatientName = ''
         ds.PatientBirthDate = ''
         ds.PatientSex = ''
 
-        return self._cfind(ds,
-                           pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
-                           'PatientID')
+        instances = self._cfind(ds,
+                                pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
+                                'PatientID')
+        self.__patients = instances
+        return instances
 
-    def _cfind_studies(self, patient_id, search):
-        instances = []
+    def _cfind_studies(self, patient_id, search) -> dict[str, pydicom.Dataset]:
+        instances = {}
         # Create our Identifier (query) dataset
-        for keyword in 'StudyInstanceUID', 'AccessionNumber', 'StudyDescription':
+        # for keyword in 'StudyInstanceUID', 'AccessionNumber', 'StudyDescription':
+        for keyword in ['StudyInstanceUID']:
             tag = pydicom.dataset.tag_for_keyword(keyword)
-            ds = pydicom.dataset.Dataset()
+            ds = pydicom.Dataset()
             ds.PatientID = patient_id
             ds.StudyInstanceUID = ''
             ds.QueryRetrieveLevel = 'STUDY'
@@ -386,17 +412,16 @@ class DicomTransport(AbstractTransport):
                 self._cfind(ds,
                             pynetdicom.sop_class.PatientRootQueryRetrieveInformationModelFind,
                             'StudyInstanceUID')
-            for instance in instances2:
-                if instance not in instances:
-                    instances.append(instance)
+            instances = instances | instances2
+        self.__studies = instances
         return instances
 
-    def _cfind_series(self, study_instance_uid, search):
-        instances = []
+    def _cfind_series(self, study_instance_uid, search) -> dict[str, pydicom.Dataset]:
+        instances = {}
         # Create our Identifier (query) dataset
         for keyword in 'SeriesInstanceUID', 'SeriesNumber':
             tag = pydicom.dataset.tag_for_keyword(keyword)
-            ds = pydicom.dataset.Dataset()
+            ds = pydicom.Dataset()
             ds.StudyInstanceUID = study_instance_uid
             ds.SeriesInstanceUID = ''
             ds.QueryRetrieveLevel = 'SERIES'
@@ -420,56 +445,58 @@ class DicomTransport(AbstractTransport):
                 self._cfind(ds,
                             pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
                             'SeriesInstanceUID')
-            for instance in instances2:
-                if instance not in instances:
-                    instances.append(instance)
+            instances = instances | instances2
+        self.__series = instances
         return instances
 
-    def _cfind_instances(self, study_instance_uid, series_instance_uid, search):
-        instances = []
+    def _cfind_instances(self, study_instance_uid, series_instance_uid, search) -> dict[str, pydicom.Dataset]:
+        instances = {}
         # Create our Identifier (query) dataset
-        for keyword in 'SOPInstanceUID', 'InstanceNumber':
+        for keyword in ['SOPInstanceUID']:  # , 'InstanceNumber':
             tag = pydicom.dataset.tag_for_keyword(keyword)
-            ds = pydicom.dataset.Dataset()
-            ds.StudyInstanceUID = study_instance_uid
+            ds = pydicom.Dataset()
+            # ds.StudyInstanceUID = study_instance_uid
             ds.SeriesInstanceUID = series_instance_uid
             ds.QueryRetrieveLevel = 'IMAGE'
             ds.SOPInstanceUID = ''
-            ds.InstanceNumber = ''
-            ds.NumberOfFrames = ''
-            ds.Rows = ''
-            ds.Columns = ''
+            # ds.InstanceNumber = ''
+            # ds.NumberOfFrames = ''
+            # ds.Rows = ''
+            # ds.Columns = ''
             VR = pydicom.datadict.dictionary_VR(tag)
             if VR == 'IS':
                 try:
                     ds[tag] = pydicom.dataset.DataElement(
-                        tag, pydicom.datadict.dictionary_VR(tag), int(search))
+                        tag, pydicom.datadict.dictionary_VR(tag),
+                        int(search))
                 except (ValueError, TypeError):
                     continue
             else:
                 ds[tag] = pydicom.dataset.DataElement(
-                    tag, pydicom.datadict.dictionary_VR(tag), search)
+                    tag, pydicom.datadict.dictionary_VR(tag),
+                    '*' if search is None else search)
             instances2 =\
                 self._cfind(ds,
                             pynetdicom.sop_class.StudyRootQueryRetrieveInformationModelFind,
                             'SOPInstanceUID')
-            for instance in instances2:
-                if instance not in instances:
-                    instances.append(instance)
+            instances = instances | instances2
+        __instances = instances
         return instances
 
-    def _cfind(self, ds, model, tag):
+    def _cfind(self, ds, model, tag) -> dict[str, pydicom.Dataset]:
         # Associate with the peer AE
         if self.__assoc.is_established:
             # Send the C-FIND request
             responses = self.__assoc.send_c_find(ds, model)
-            instances = []
+            instances = {}
             for (status, identifier) in responses:
                 if status:
                     if identifier is not None:
-                        uid = identifier[tag].value
-                        instances.append(uid)
-                        self.__catalog[uid] = identifier
+                        if ds[tag].value in ['*', '', '?', None]:
+                            uid = identifier[tag].value
+                        else:
+                            uid = ds[tag].value
+                        instances[uid] = identifier
                 else:
                     raise ConnectionError(
                         'Connection timed out, was aborted or received invalid response')
