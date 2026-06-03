@@ -6,6 +6,7 @@
 from typing import Optional
 from collections import defaultdict
 import platform
+import posixpath
 import urllib
 import logging
 import pydicom
@@ -202,6 +203,14 @@ class DicomTransport(AbstractTransport):
         """Return True if path is an existing regular file.
         """
         return False
+
+    def join(self, *paths: str) -> str:
+        """Join paths into a single string."""
+        return posixpath.join(*paths)
+
+    def normpath(self, path: str) -> str:
+        """Normalize a path to a directory."""
+        return posixpath.normpath(path)
 
     def exists(self, path):
         """Determine whether the named path exists.
