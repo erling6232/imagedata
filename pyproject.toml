@@ -28,9 +28,9 @@ keywords = [
 ]
 license = {file = "LICENSE.txt"}
 dependencies = [
-    "pydicom>=3.0.0, <4",
+    "pydicom>=2.4.5, <3",
     "pylibjpeg[all]",
-    "pynetdicom>=3, <4",
+    "pynetdicom>=2.1.1, <3",
     "itk-io>=5.4.0",
     "scikit-build-core",
     "nibabel >= 5.0.0",
@@ -42,7 +42,7 @@ dependencies = [
     "python-magic-bin; platform_system=='Windows'",
     "imageio",
     "pillow >= 10.0.0",
-    "xnat < 0.7",
+    "xnat >= 0.7",
     "matplotlib >= 3.8.0",
     "dicom-anonymizer",
     "opencv-python-headless"
