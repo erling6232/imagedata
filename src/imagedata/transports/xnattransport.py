@@ -1,7 +1,7 @@
 """Read/write files in xnat database
 """
 
-# Copyright (c) 2021-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2021-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from typing import List, Optional
 import os
@@ -187,8 +187,7 @@ class XnatTransport(AbstractTransport):
             search = '*'
         subjects = []
         labels = []
-        for id in self.__project.subjects:
-            subject = self.__project.subjects[id]
+        for subject in self.__project.subjects:
             if fnmatch.fnmatch(subject.label, search) or fnmatch.fnmatch(subject.id, search):
                 subjects.append(subject)
                 labels.append(subject.label)
@@ -199,8 +198,7 @@ class XnatTransport(AbstractTransport):
             search = '*'
         experiments = []
         labels = []
-        for id in subject.experiments:
-            experiment = subject.experiments[id]
+        for experiment in subject.experiments:
             if fnmatch.fnmatch(experiment.id, search) or fnmatch.fnmatch(experiment.label, search):
                 experiments.append(experiment)
                 labels.append(experiment.id)
@@ -211,8 +209,7 @@ class XnatTransport(AbstractTransport):
             search = '*'
         scans = []
         labels = []
-        for id in experiment.scans:
-            scan = experiment.scans[id]
+        for scan in experiment.scans:
             if scan.quality == 'usable' and (
                     fnmatch.fnmatch(scan.type, search) or fnmatch.fnmatch(scan.id, search)):
                 scans.append(scan)
@@ -248,9 +245,9 @@ class XnatTransport(AbstractTransport):
         assert len(path.split('/')) == 3, "{} with wrong level".format(_name)
         subject_list = []
         subject_id = path.split('/')[-1]
-        for id in self.__project.subjects:
-            logger.debug('{}: locate subject id {}'.format(_name, id))
-            subject = self.__project.subjects[id]
+        for subject in self.__project.subjects:
+            # logger.debug('{}: locate subject id {}'.format(_name, id))
+            # subject = self.__project.subjects[id]
             if fnmatch.fnmatch(subject.label, subject_id):
                 subject_list.append(subject)
         object_list = []
@@ -265,9 +262,8 @@ class XnatTransport(AbstractTransport):
         assert len(path.split('/')) == 4, "{} with wrong level".format(_name)
         object_list = []
         experiment_id = path.split('/')[-1]
-        for id in self.__subject.experiments:
-            logger.debug('{}: locate experiment id {}'.format(_name, id))
-            experiment = self.__subject.experiments[id]
+        for experiment in self.__subject.experiments:
+            # logger.debug('{}: locate experiment id {}'.format(_name, id))
             if fnmatch.fnmatch(experiment.id, experiment_id):
                 object_list.append(experiment)
         return object_list
@@ -279,11 +275,12 @@ class XnatTransport(AbstractTransport):
         assert len(path.split('/')) == 5, "{} with wrong level".format(_name)
         object_list = []
         scan_id = path.split('/')[-1]
-        for id in self.__experiment.scans:
-            logger.debug('{}: locate scan id {}'.format(_name, id))
-            scan = self.__experiment.scans[id]
+        for scan in self.__experiment.scans:
+            # logger.debug('{}: locate scan id {}'.format(_name, id))
             logger.debug('{}: locate scan series description {}'.format(
                 _name, scan.series_description))
+            if scan.series_description is None:
+                continue
             # if scan.quality == 'usable' and fnmatch.fnmatch(scan.id, scan_id):
             if scan.quality == 'usable' and fnmatch.fnmatch(scan.series_description, scan_id):
                 object_list.append(scan)
