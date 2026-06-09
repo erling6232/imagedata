@@ -176,7 +176,7 @@ class Viewer(object):
                 self.callback_onselect(im['idx'], im['tag'], vertices)
             try:
                 vp['ax'].axes.figure.canvas.draw()
-            except ValueError:
+            except (AttributeError, ValueError):
                 pass
             im['modified'] = False
 
@@ -990,7 +990,10 @@ def grid_from_roi(im: Series, vertices: dict, single: bool = False) -> Union[boo
     # print('Viewer.grid_from_roi: keys: {}'.format(keys))
     # print('Viewer.grid_from_roi: vertices: {}'.format(vertices))
     follow = issubclass(type(keys), tuple)
-    nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
+    try:
+        nt, nz, ny, nx = len(im.tags[0]), im.slices, im.rows, im.columns
+    except TypeError:
+        nt, nz, ny, nx = 1, im.slices, im.rows, im.columns
     input_order = im.input_order
     if follow and not single:
         grid = np.zeros_like(im, dtype=np.ubyte)
