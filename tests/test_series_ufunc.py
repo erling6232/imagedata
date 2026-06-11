@@ -35,6 +35,9 @@ class TestSeriesUfunc(unittest.TestCase):
         np.testing.assert_array_almost_equal(
             np.array([2.02, 1.98, 1.98]), mean
         )
+        self.assertEqual(mean.input_order, 'time')
+        self.assertEqual(mean.shape, (3,))
+        self.assertEqual(mean.axes[0].name, 'time')
         pass
 
     def test_concatenate_time(self):
