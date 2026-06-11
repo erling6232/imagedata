@@ -795,6 +795,11 @@ class Series(np.ndarray):
             except ValueError:
                 start, stop, step = None, None, None
                 _indices, axis = specs[d]
+            except TypeError:
+                # Typically triggered by a np.newaxis spec.
+                start, stop, step = None, None, None
+                _indices = 0
+                axis = UniformLengthAxis('unknown', 0, 1)
             if axis.name == "slice":
                 slice_spec = _indices
             elif axis.name in self.input_order.split(','):
@@ -3248,7 +3253,7 @@ def _delegate_a_to_numpy(func, a, **kwargs):
         ndarray = a.view(np.ndarray)
         s = func(ndarray, **kwargs)
         if (issubclass(type(s), np.ndarray)):
-            if (s.ndim == a.ndim) or (s.ndim > 1):
+            if s.ndim == a.ndim:
                 obj = s.view(Series)
                 obj.input_order = a.input_order
                 obj.header.add_template(a.header)
@@ -3259,8 +3264,40 @@ def _delegate_a_to_numpy(func, a, **kwargs):
                     values[0].name = obj.input_order
                     new_axes = namedtuple('Axes', new_keys)
                     obj.axes = new_axes._make(values)
+            elif s.ndim > a.ndim:
+                raise IndexError("Don't know how to deal with increased dimensions.")
             else:
-                obj = s
+                # s.ndim < a.ndim
+                obj = s.view(Series)
+                obj.input_order = a.input_order
+                obj.header.add_template(a.header)
+                obj.header.add_geometry(a.header)
+                if 'axis' in kwargs:
+                    drop_axes = kwargs['axis']
+                    if not isinstance(drop_axes, tuple):
+                        drop_axes = (drop_axes,)
+                    new_keys, values, input_orders = [], [], []
+                    for _, axis in enumerate(a.axes):
+                        if _ not in drop_axes:
+                            new_keys.append(axis.name)
+                            values.append(axis)
+                            if axis.name not in ['slice', 'row', 'column']:
+                                input_orders.append(axis.name)
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+                    if len(input_orders) > 0:
+                        obj.input_order = ",".join(input_orders)
+                    else:
+                        obj.input_order = 'none'
+                elif obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
+                    new_keys = [obj.input_order] + list(obj.axes._fields[1:])
+                    values = list(obj.axes)
+                    values[0].name = obj.input_order
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+                else:
+                    obj = a.view(Series)
+                    obj.input_order = a.input_order
         else:
             obj = s
     return obj
