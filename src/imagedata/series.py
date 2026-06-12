@@ -3264,7 +3264,10 @@ def _delegate_a_to_numpy(func, a, **kwargs):
                 obj = s.view(Series)
                 if obj.header is None:
                     obj.header = copy.copy(a.header)
-                obj.input_order = a.input_order
+                try:
+                    obj.input_order = a.input_order
+                except AttributeError:
+                    raise AttributeError(f'a: {type(a)} does not have input_order')
                 obj.header.axes = a.header.axes
                 obj.header.add_template(a.header)
                 obj.header.add_geometry(a.header)

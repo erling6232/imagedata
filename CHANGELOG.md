@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 ## [v3.9.4-dev2] - 2026-06-12
+* Not compatible with matplotlib 3.11.0.
 ### Fixed
 * Viewer.update(): Do not fail on None.
 * Viewer.grid_from_roi(): accept <4D objects.

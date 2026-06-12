@@ -12,6 +12,11 @@ class TestSeriesUfunc(unittest.TestCase):
         si0 = Series(np.eye(4))
         b = np.median(si0)
 
+    def test_zeros_like(self):
+        si = Series('data/dicom/time/')
+        nd = np.zeros_like(si)
+        pass
+
     def test_min(self):
         si0 = Series('data/dicom/time/')
         a = si0.min()
