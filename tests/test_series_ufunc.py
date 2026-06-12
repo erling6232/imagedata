@@ -38,6 +38,10 @@ class TestSeriesUfunc(unittest.TestCase):
         self.assertEqual(mean.input_order, 'time')
         self.assertEqual(mean.shape, (3,))
         self.assertEqual(mean.axes[0].name, 'time')
+        num_mean = np.nan_to_num(mean)
+        self.assertEqual(num_mean.input_order, 'time')
+        self.assertEqual(num_mean.shape, (3,))
+        self.assertEqual(num_mean.axes[0].name, 'time')
         pass
 
     def test_concatenate_time(self):
