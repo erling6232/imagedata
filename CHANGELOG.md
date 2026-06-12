@@ -6,13 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
-## [v3.9.4-dev1] - 2026-06-11
+## [v3.9.4-dev2] - 2026-06-12
 ### Fixed
 * Viewer.update(): Do not fail on None.
 * Viewer.grid_from_roi(): accept <4D objects.
 * Series.__get_tags(): Handle the special case when dimension in increased using np.newaxis.
 ### Changed
-* Series._delegate_a_to_numpy: Adjust axes depending on which axes are removed in the numpy action.
+* Series._unify_headers(): Changed logic to select header which is matching the result shape.
+* Series._delegate_a_to_numpy(): Adjust axes depending on which axes are removed in the numpy action.
+* Series._delegate_to_numpy(): Use input axes as starting point for result axes.
+* Series.__array_ufunc__() and Series.__array_ufunc_struct__(): Modified call to _unify_headers.
 
 ## [v3.9.3] - 2026-06-04
 * XnatTransport: Do not fail on series_description == None when searching for scans.
