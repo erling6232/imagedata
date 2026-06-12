@@ -3262,8 +3262,8 @@ def _delegate_a_to_numpy(func, a, **kwargs):
         if (issubclass(type(s), np.ndarray)):
             if s.ndim == a.ndim:
                 obj = s.view(Series)
-                if obj.header is None:
-                    obj.header = copy.copy(a.header)
+                # if obj.header is None:
+                #     obj.header = copy.copy(a.header)
                 try:
                     obj.input_order = a.input_order
                 except AttributeError:
