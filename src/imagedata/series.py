@@ -334,11 +334,12 @@ class Series(np.ndarray):
         results = tuple((np.asarray(result).view(Series)
                          if output is None else output)
                         for result, output in zip(results, outputs))
-        if results and issubclass(type(results[0]), Series):
-            results[0].header = self._unify_headers(inputs)
+        for result in results:
+            if issubclass(type(result), Series):
+                result.header = self._unify_headers(inputs, result)
             try:
-                results[0].header.windowCenter = None
-                results[0].header.windowWidth = None
+                result.header.windowCenter = None
+                result.header.windowWidth = None
             except AttributeError:
                 pass
 
@@ -398,7 +399,7 @@ class Series(np.ndarray):
             if method == 'at':
                 return
             if not np.isscalar(results):
-                results.header = self._unify_headers(inputs)
+                results.header = self._unify_headers(inputs, results)
                 results.header.windowCenter = None
                 results.header.windowWidth = None
                 results_dtype.append((field, results.dtype))
@@ -449,7 +450,7 @@ class Series(np.ndarray):
         return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
     @staticmethod
-    def _unify_headers(inputs: tuple) -> Header:
+    def _unify_headers(inputs: tuple, result: np.ndarray) -> Header:
         """Unify the headers of the inputs.
 
         Typical usage is in expressions like c = a + b where at least
@@ -458,32 +459,38 @@ class Series(np.ndarray):
         the expression.
 
         Args:
-            inputs (ndarray or Series): a tuple of arguments
+            inputs (tuple of ndarray or Series): a tuple of arguments
+            result (ndarray or Series): the expression result
         Returns:
-            Header: Unified header.
+            Header: Unified header for result
         """
 
         header = None
+        some_header = None
         # logger.debug('Series._unify_headers: inputs {}'.format(len(inputs)))
         for i, input_ in enumerate(inputs):
             # logger.debug('Series._unify_headers: input {}: {}'.format(i, type(input_)))
             if issubclass(type(input_), Series):
-                if input_.header is None:
-                    # logger.debug('Series._unify_headers: new header')
-                    header = Header()
-                    header.input_order = INPUT_ORDER_NONE
-                else:
+                if input_.header is not None:
                     # logger.debug('Series._unify_headers: copy header')
-                    header = copy.copy(input_.header)
-                    header.input_order = input_.input_order
-                    header.set_default_values(input_.axes)
-                    header.add_template(input_.header)
-                    header.add_geometry(input_.header)
+                    some_header = copy.copy(input_.header)
+                    some_header.input_order = input_.input_order
+                    some_header.set_default_values(input_.axes)
+                    some_header.add_template(input_.header)
+                    some_header.add_geometry(input_.header)
 
+                    if input_.shape == result.shape:
+                        header = copy.copy(input_.header)
+                        header.input_order = input_.input_order
+                        header.set_default_values(input_.axes)
+                        header.add_template(input_.header)
+                        header.add_geometry(input_.header)
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
                 # The simplest resolution, however, is to take the
                 # header of the first argument.
+        if header is None and some_header is not None:
+            header = some_header
         return header
 
     def __getitem__(self, item):
@@ -3256,6 +3263,7 @@ def _delegate_a_to_numpy(func, a, **kwargs):
             if s.ndim == a.ndim:
                 obj = s.view(Series)
                 obj.input_order = a.input_order
+                obj.header.axes = a.header.axes
                 obj.header.add_template(a.header)
                 obj.header.add_geometry(a.header)
                 if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
@@ -3270,6 +3278,7 @@ def _delegate_a_to_numpy(func, a, **kwargs):
                 # s.ndim < a.ndim
                 obj = s.view(Series)
                 obj.input_order = a.input_order
+                obj.header.axes = a.header.axes
                 obj.header.add_template(a.header)
                 obj.header.add_geometry(a.header)
                 if 'axis' in kwargs:
