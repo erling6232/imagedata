@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.5-rc1] - 2026-06-22
+### Fixed
+* Re-introduced the possibility of giving template or geometry template as URL.
+* Series._delegate_a_to_numpy(): Corrected the calculation of new tags when a
+  numpy result has reduced dimension.
+
 ## [v3.9.5-rc0] - 2026-06-22
 ### Fixed
 * Allow anonymization of patient attributes at the study level.
