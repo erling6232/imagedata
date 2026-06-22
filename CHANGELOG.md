@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.5-rc0] - 2026-06-22
+### Fixed
+* Allow anonymization of patient attributes at the study level.
+### Added
+* Updated documentation on anonymization.
+* Added tests for anonymization of patient attributes
+
 ## [v3.9.4] - 2026-06-12
 * Not compatible with matplotlib 3.11.0.
 ### Fixed
