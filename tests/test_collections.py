@@ -13,6 +13,7 @@ class TestStudy(unittest.TestCase):
         # study = Study('data/dicom')
         # study = Study('data/dicom/cohort.zip?p2/20221220-094921.932000')
         study = Study('data/dicom/cohort.zip?cohort/P2/S1')
+        self.assertEqual('757775434', study.patientID)
 
         for uid in study:
             series = study[uid]
@@ -76,6 +77,22 @@ class TestStudy(unittest.TestCase):
             self.assertEqual(len(study), len(study1))
             for uid in range(len(study)):
                 self.assertEqual(study[uid].shape, study1[uid].shape)
+        abcd_study = study.anonymize(patientName='ABCD')
+        with tempfile.TemporaryDirectory() as d:
+            abcd_study.write(d, formats=['dicom'])
+            study2 = Study(d, input_format='dicom')
+            self.assertEqual(len(study), len(study2))
+            self.assertEqual('ABCD', study2.patientName)
+        dict_study = study.anonymize(**{
+            'patientName': 'DEFG',
+            'patientID': '126782'
+        })
+        with tempfile.TemporaryDirectory() as d:
+            dict_study.write(d, formats=['dicom'])
+            study3 = Study(d, input_format='dicom')
+            self.assertEqual(len(study), len(study3))
+            self.assertEqual('DEFG', study3.patientName)
+            self.assertEqual('126782', study3.patientID)
 
     def test_anonymize_non_dicom_study(self):
         rng = default_rng()
@@ -114,12 +131,12 @@ class TestPatient(unittest.TestCase):
 
     def test_anonymize_patient(self):
         patient = Patient('data/dicom/cohort.zip?cohort/P2')
-        anon_patient = patient.anonymize()
+        anon_patient = patient.anonymize(patientName='ABCD')
         with tempfile.TemporaryDirectory() as d:
             anon_patient.write(d)
             patient1 = Patient(d)
+            self.assertEqual('ABCD', patient1.patientName)
             self.assertEqual(len(patient), len(patient1))
-            self.assertEqual('ANONYMOUS', patient1.patientName)
 
 
 class TestCohort(unittest.TestCase):

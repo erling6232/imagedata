@@ -891,6 +891,34 @@ class TestSeries(unittest.TestCase):
             self.assertEqual(si.seriesInstanceUID, true.seriesInstanceUID)
             self.assertNotEqual(si.seriesInstanceUID, false.seriesInstanceUID)
 
+
+class TestSeriesAnonymize(unittest.TestCase):
+    def test_anonymize_series(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time01'))
+        anon_series = si.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            anon_series.write(d, formats=['dicom'])
+            si1 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si1.shape)
+            self.assertEqual('ANONYMOUS', si1.patientName)
+        abcd_series = si.anonymize(patientName='ABCD')
+        with tempfile.TemporaryDirectory() as d:
+            abcd_series.write(d, formats=['dicom'])
+            si2 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si2.shape)
+            self.assertEqual('ABCD', si2.patientName)
+        dict_series = si.anonymize(**{
+            'patientName': 'DEFG',
+            'patientID': '126782'
+        })
+        with tempfile.TemporaryDirectory() as d:
+            dict_series.write(d, formats=['dicom'])
+            si3 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si3.shape)
+            self.assertEqual('DEFG', si3.patientName)
+            self.assertEqual('126782', si3.patientID)
+
+
 if __name__ == '__main__':
     unittest.main()
     # import logging
