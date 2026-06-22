@@ -1,4 +1,5 @@
 import unittest
+import os.path
 import tempfile
 import numpy as np
 from numpy.random import default_rng
@@ -34,7 +35,7 @@ class TestSeriesUfunc(unittest.TestCase):
         b = np.rint(si0)
         pass
 
-    def test_mean_time(self):
+    def test_mean_over_mask_in_time(self):
         si = Series('data/dicom/time/')
         mask = np.zeros_like(si[0], dtype=bool)
         mask[1, 10:20, 10:20] = True
@@ -49,7 +50,68 @@ class TestSeriesUfunc(unittest.TestCase):
         self.assertEqual(num_mean.input_order, 'time')
         self.assertEqual(num_mean.shape, (3,))
         self.assertEqual(num_mean.axes[0].name, 'time')
+        for _slice in si.tags.keys():
+            np.testing.assert_array_equal(si.tags[_slice], mean.tags[_slice])
         pass
+
+    def test_mean_5D_over_time(self):
+        si = Series(
+            os.path.join('data', 'dicom', '5D.zip?t1_fl2d_DE_4TEs'),
+            'time,te',
+            input_format='dicom'
+        )
+        mean = np.mean(si, axis=0)
+        self.assertEqual('te', mean.input_order)
+        self.assertEqual((4, 3, 72, 96), mean.shape)
+        self.assertEqual('te', mean.axes[0].name)
+        num_mean = np.nan_to_num(mean)
+        self.assertEqual('te', num_mean.input_order)
+        self.assertEqual((4, 3, 72, 96), num_mean.shape)
+        self.assertEqual('te', num_mean.axes[0].name)
+        for _slice in si.tags.keys():
+            self.assertEqual((4,), mean.tags[_slice].shape)
+            self.assertEqual((2.05,), mean.tags[_slice][0])
+            self.assertEqual((17.26,), mean.tags[_slice][3])
+
+    def test_mean_6D_over_time(self):
+        si = Series(
+            os.path.join('data', 'dicom', '6D_TE_TIME_FA.zip'),
+            'te,time,fa',
+            input_format='dicom',
+            opts={'ignore_series_uid': True}
+        )
+        mean = np.mean(si, axis=1)
+        self.assertEqual('te,fa', mean.input_order)
+        self.assertEqual((4, 3, 8, 34, 64), mean.shape)
+        self.assertEqual('te', mean.axes[0].name)
+        num_mean = np.nan_to_num(mean)
+        self.assertEqual(num_mean.input_order, 'te,fa')
+        self.assertEqual((4, 3, 8, 34, 64), num_mean.shape)
+        self.assertEqual('te', num_mean.axes[0].name)
+        for _slice in si.tags.keys():
+            self.assertEqual((4, 3), mean.tags[_slice].shape)
+            self.assertEqual((1.5, 1.0), mean.tags[_slice][0, 0])
+            self.assertEqual((14.24, 14.0), mean.tags[_slice][3, 2])
+
+    def test_mean_6D_over_time_and_fa(self):
+        si = Series(
+            os.path.join('data', 'dicom', '6D_TE_TIME_FA.zip'),
+            'te,time,fa',
+            input_format='dicom',
+            opts={'ignore_series_uid': True}
+        )
+        mean = np.mean(si, axis=(1, 2))
+        self.assertEqual('te', mean.input_order)
+        self.assertEqual((4, 8, 34, 64), mean.shape)
+        self.assertEqual('te', mean.axes[0].name)
+        num_mean = np.nan_to_num(mean)
+        self.assertEqual(num_mean.input_order, 'te')
+        self.assertEqual((4, 8, 34, 64), num_mean.shape)
+        self.assertEqual('te', num_mean.axes[0].name)
+        for _slice in si.tags.keys():
+            self.assertEqual((4,), mean.tags[_slice].shape)
+            self.assertEqual((1.5,), mean.tags[_slice][0])
+            self.assertEqual((14.24,), mean.tags[_slice][3])
 
     def test_least_squares(self):
         def fun_rosenbrock(x):
