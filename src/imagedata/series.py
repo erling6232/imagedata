@@ -3269,6 +3269,35 @@ def _delegate_args_to_numpy(func, *arrays, **kwargs):
 
 def _delegate_a_to_numpy(func, a, **kwargs):
     """Delegate function on single array to NumPy."""
+
+    def _reduce_index(new_idx, ndim, use_tags):
+        old_idx = ()
+        i = 0
+        for _ in range(ndim):
+            if _ in use_tags:
+                old_idx += (new_idx[i],)
+                i += 1
+            else:
+                old_idx += (0,)
+        return old_idx
+
+    def _compute_new_tags(a, drop_axes):
+        new_tags, new_tag_shape, use_tags = {}, (), ()
+        for _, axis in enumerate(a.axes):
+            if axis.name not in ['slice', 'row', 'column']:
+                if _ not in drop_axes:
+                    new_tag_shape += (len(a.axes[_]),)
+                    use_tags += (_,)
+        for _slice in a.tags.keys():
+            new_tags[_slice] = np.empty(new_tag_shape, dtype=tuple)
+            old_tags = a.tags[_slice]
+            for new_idx in np.ndindex(new_tag_shape):
+                old_idx = _reduce_index(new_idx, old_tags.ndim, use_tags)
+                old_tag = old_tags[old_idx]
+                new_tag = tuple([old_tag[_] for _ in use_tags])
+                new_tags[_slice][new_idx] = new_tag
+        return new_tags
+
     if issubclass(type(a), Series) and a.dtype.fields is not None:
         return _delegate_struct_to_numpy(func, a, **kwargs)
     else:
@@ -3302,10 +3331,11 @@ def _delegate_a_to_numpy(func, a, **kwargs):
                 obj.header.add_template(a.header)
                 obj.header.add_geometry(a.header)
                 if 'axis' in kwargs:
+                    new_keys, values, input_orders = [], [], []
                     drop_axes = kwargs['axis']
                     if not isinstance(drop_axes, tuple):
                         drop_axes = (drop_axes,)
-                    new_keys, values, input_orders = [], [], []
+                    new_tags = _compute_new_tags(a, drop_axes)
                     for _, axis in enumerate(a.axes):
                         if _ not in drop_axes:
                             new_keys.append(axis.name)
@@ -3314,6 +3344,7 @@ def _delegate_a_to_numpy(func, a, **kwargs):
                                 input_orders.append(axis.name)
                     new_axes = namedtuple('Axes', new_keys)
                     obj.axes = new_axes._make(values)
+                    obj.tags = new_tags
                     if len(input_orders) > 0:
                         obj.input_order = ",".join(input_orders)
                     else:
