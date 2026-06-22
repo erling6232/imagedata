@@ -9,6 +9,7 @@ methods and attributes.
 
 """
 
+from __future__ import annotations
 import collections.abc
 from typing import Tuple
 import copy
@@ -120,7 +121,8 @@ class Series(np.ndarray):
     def __new__(cls, data, input_order='auto', opts=None,
                 input_format=None, shape=(0,), dtype=None, buffer=None, offset=0,
                 strides=None, order=None,
-                template=None, geometry=None, axes=None,
+                template: Series|Header|PurePath|str=None,
+                geometry: Series|Header|PurePath|str=None, axes=None,
                 **kwargs):
 
         _name: str = '{}.{}'.format(__name__, cls.__new__.__name__)
@@ -137,10 +139,9 @@ class Series(np.ndarray):
         if axes is not None and not isinstance(axes, Axis):
             axes = to_namedtuple(axes)
 
-        if issubclass(type(template), Series):
-            template = template.header
-        if issubclass(type(geometry), Series):
-            geometry = geometry.header
+        template = _get_template(template)
+        geometry = _get_template(geometry)
+
         if issubclass(type(data), np.ndarray):
             logger.debug('{}: data ({}) is subclass of np.ndarray'.format(_name, type(data)))
             obj = np.asarray(data, dtype).view(cls)
@@ -3194,6 +3195,20 @@ class Series(np.ndarray):
             except ValueError:
                 pass
         return _copy
+
+
+def _get_template(template: Series|Header|PurePath|str|None = None) -> Header|None:
+    if template is None:
+        return template
+    if issubclass(type(template), Series):
+        return template.header
+    elif issubclass(type(template), Header):
+        return template  # Keep header as template
+    elif issubclass(type(template), PurePath) or issubclass(type(template), str):
+        _ = Series(template)
+        return _.header
+    else:
+        raise ValueError(f'Template should be Series, Header or URL, not {type(template)}')
 
 
 # -----------------------------------------------------------------------------
