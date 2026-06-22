@@ -26,6 +26,15 @@ from .formats.dicomlib import anonymization_rules
 logger = logging.getLogger(__name__)
 
 
+patient_attributes = ['patientName', 'patientID', 'patientBirthDate', 'patientSex',
+                      'patientAge', 'patientSize', 'patientWeight', 'qualityControlSubject',
+                      'patientIdentityRemoved', 'deidentificationMethod'
+                      ]
+study_attributes = ['studyDate', 'studyTime', 'studyDescription', 'studyID',
+                    'studyInstanceUID', 'referringPhysiciansName'
+                    ] + patient_attributes
+
+
 def _get_attribute(_data, _attr):
     # Get attribute from first instance in _data
     if len(_data) < 1:
@@ -287,17 +296,12 @@ class Study(IndexedDict):
     version = "1.0.0"
     url = "www.helse-bergen.no"
 
-    _attributes = [
-        'studyDate', 'studyTime', 'studyDescription', 'studyID', 'studyInstanceUID',
-        'referringPhysiciansName'
-    ]
-
     def _verify_study_attributes(self, _series_dict: dict, _strict_values: bool):
         """Verify that study attributes match in each series"""
         for _seriesUID in _series_dict:
             _series = _series_dict[_seriesUID]
             self[_seriesUID] = _series
-            for _attr in self._attributes:
+            for _attr in study_attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = self[_seriesUID].getDicomAttribute(_dicom_attribute)
                 if _value is not None and _attr == 'studyDate':
@@ -356,7 +360,7 @@ class Study(IndexedDict):
     def __init__(self, data, opts: dict = None, **kwargs):
         super(Study, self).__init__()
         self.__uid_generator = get_uid()
-        for _attr in self._attributes:
+        for _attr in study_attributes:
             setattr(self, _attr, None)
 
         if opts is None:
@@ -504,17 +508,12 @@ class Patient(IndexedDict):
     version = "1.0.0"
     url = "www.helse-bergen.no"
 
-    _attributes = ['patientName', 'patientID', 'patientBirthDate', 'patientSex',
-                   'patientAge', 'patientSize', 'patientWeight', 'qualityControlSubject',
-                   'patientIdentityRemoved', 'deidentificationMethod'
-                   ]
-
     _strict_attributes = ['patientName', 'patientID', 'patientBirthDate', 'patientSex']
 
     def __init__(self, data, opts=None, **kwargs):
 
         super(Patient, self).__init__()
-        for _attr in self._attributes:
+        for _attr in patient_attributes:
             setattr(self, _attr, None)
 
         if opts is None:
@@ -555,7 +554,7 @@ class Patient(IndexedDict):
                 self[_studyInstanceUID] = _study_dict[_studyInstanceUID]
 
         for _studyInstanceUID in self.keys():
-            for _attr in self._attributes:
+            for _attr in study_attributes:
                 _dicom_attribute = _attr[0].upper() + _attr[1:]
                 _value = _get_attribute(self[_studyInstanceUID], _dicom_attribute)
                 if _value is not None and (_attr == 'patientSize' or _attr == 'patientWeight'):
