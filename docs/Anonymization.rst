@@ -14,3 +14,21 @@ Common parameters include:
 |kwargs         |dict or parameters giving mapping rules for specific        |
 |               |DICOM attributes                                            |
 +---------------+------------------------------------------------------------+
+
+
+Example on Series level:
+
+.. code-block:: python
+
+    from imagedata import Series
+    a = Series('data')
+
+    # Explicit mapping rule(s)
+    b = a.anonymize(patientName='ABCD')
+
+    # dict of mapping rules
+    kwargs = {
+        'patientName': 'ABCD',
+        'patientID': '126847'
+    }
+    c = a.anonymize(**kwargs)
