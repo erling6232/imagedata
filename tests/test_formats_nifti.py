@@ -515,5 +515,28 @@ class TestNIfTIPluginWrite(unittest.TestCase):
             cohort.write(d, formats=['nifti'])
 
 
+class NIfTITemplate(unittest.TestCase):
+    def setUp(self):
+        self.template = Series(os.path.join('data', 'dicom', 'sag_ap.zip'), input_format='dicom')
+
+    def test_nifti_template(self):
+        # Read the NIfTI series, adding DICOM template
+        si = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'),
+                    input_format='nifti', template=self.template)
+        self.assertEqual(self.template.studyInstanceUID, si.studyInstanceUID)
+
+    def test_nifti_other_template(self):
+        # Read the NIfTI series, adding DICOM non-matching template
+        si = Series(os.path.join('data', 'nifti', 'sag_hf.nii.gz'),
+                    input_format='nifti', template=self.template)
+        self.assertEqual(self.template.studyInstanceUID, si.studyInstanceUID)
+
+    def test_nifti_explicit_template(self):
+        si = Series(os.path.join('data', 'nifti', 'sag_ap.nii.gz'),
+                    input_format='nifti',
+                    template=os.path.join('data', 'dicom', 'sag_ap.zip'))
+        self.assertEqual(self.template.studyInstanceUID, si.studyInstanceUID)
+
+
 if __name__ == '__main__':
     unittest.main()
