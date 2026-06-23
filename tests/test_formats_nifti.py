@@ -514,6 +514,13 @@ class TestNIfTIPluginWrite(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             cohort.write(d, formats=['nifti'])
 
+    def test_write_bool(self):
+        si = Series(np.eye(128, dtype=bool))
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'image.nii.gz'), formats=['nifti'])
+            si_read = Series(d, input_format='nifti')
+        np.testing.assert_array_equal(si, si_read)
+
 
 class NIfTITemplate(unittest.TestCase):
     def setUp(self):

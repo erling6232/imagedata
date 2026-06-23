@@ -250,6 +250,13 @@ class TestWritePluginITKSlice(unittest.TestCase):
         compare_headers(self, si, si2, uid=False)
         np.testing.assert_array_almost_equal(si, si2, decimal=4)
 
+    def test_write_bool(self):
+        si = Series(np.eye(128, dtype=bool))
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'image.mha'), formats=['itk'])
+            si_read = Series(d, input_format='itk')
+        np.testing.assert_array_equal(si, si_read)
+
 
 class TestWritePluginItkTag(unittest.TestCase):
     def setUp(self):

@@ -62,6 +62,13 @@ class Test3DMatPlugin(unittest.TestCase):
             input_format='mat')
         self.assertEqual(si1.dtype, np.float64)
 
+    def test_dtype_bool(self):
+        si = Series(np.eye(128, dtype=bool))
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'image.mat'), formats=['mat'])
+            si_read = Series(d, input_format='mat')
+        np.testing.assert_array_equal(si, si_read)
+
     # @unittest.skip("skipping test_read_2D")
     def test_read_2D(self):
         si1 = Series(
