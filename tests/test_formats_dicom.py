@@ -11,6 +11,7 @@ from pydicom.dataset import Dataset
 import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
+from imagedata.apps.diffusion import read_b_vector_file, read_b_value_file
 from tests.compare_headers import compare_headers, compare_pydicom, compare_tags, compare_tags_in_slice
 
 
@@ -411,6 +412,13 @@ class TestDicomPlugin(unittest.TestCase):
         np.testing.assert_array_equal(si, newsi)
         compare_headers(self, si, newsi)
 
+    def test_write_bool(self):
+        si = Series(np.eye(128, dtype=bool))
+        with tempfile.TemporaryDirectory() as d:
+            si.write(os.path.join(d, 'image.dcm'), formats=['dicom'])
+            si_read = Series(d, input_format='dicom')
+        np.testing.assert_array_equal(si, si_read)
+
     def test_write_float(self):
         si = Series(np.arange(8*8*8).reshape((8, 8, 8)))
         si.seriesNumber = 100
@@ -529,6 +537,15 @@ class TestDicomPlugin(unittest.TestCase):
                 input_format='dicom',
                 input_order='b'
             )
+
+    def test_anonymize_4D(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time'),
+            input_format='dicom')
+        si2 = si1.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(d, formats=['dicom'])
+            si3 = Series(d, input_format='dicom')
 
 
 class TestDicomZipPlugin(unittest.TestCase):
@@ -817,36 +834,6 @@ class TestDicomSlicing(unittest.TestCase):
         np.testing.assert_array_equal(si2.tags[0], si1.tags[0][1:3])
 
 
-class TestDuplicateDicom(unittest.TestCase):
-    def setUp(self):
-        parser = argparse.ArgumentParser()
-        cmdline.add_argparse_options(parser)
-
-        self.opts = parser.parse_args([])
-        if len(self.opts.output_format) < 1:
-            self.opts.output_format = ['dicom']
-        # Prepare duplicate dataset
-        si0 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00'),
-            'none',
-            input_format='dicom'
-        )
-        self.d = tempfile.TemporaryDirectory()
-        si0.write(os.path.join(self.d.name, '0'), formats=['dicom'], keep_uid=True)
-        si0.write(os.path.join(self.d.name, '1'), formats=['dicom'], keep_uid=True)
-
-    def tearDown(self):
-        self.d.cleanup()
-
-    def test_duplicate(self):
-        duplicate = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=True)
-        assert duplicate.shape == (2, 3, 192, 152)
-
-    def test_duplicate_error(self):
-        with self.assertRaises(formats.CannotSort) as context:
-            _ = Series(self.d.name, 'none', input_format='dicom', accept_duplicate_tag=False)
-
-
 class TestDicomNDSort(unittest.TestCase):
 
     #@unittest.skip("skipping test_t1_de_te")
@@ -960,16 +947,77 @@ class TestDicomNDSort(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
 
+    def test_dti(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'dti',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        self.assertEqual((13, 3, 78, 96), si.shape)
+
+        # Load dcm2niix NIfTI data
+        nii = Series(
+            os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.nii.gz'),
+            'dti',
+            input_format='nifti'
+        )
+        self.assertEqual(si.shape, nii.shape)
+        nii_bval = read_b_value_file(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bval'))
+        nii_bvec = read_b_vector_file(os.path.join('data', 'nifti', 'ep2d_RSI_b0_500_1500_6dir_20241202111754_3.bvec'))
+
+        # Compare DICOM and NIfTI data
+        found_dcm = [False for _ in range(si.shape[0])]
+        found_nii = [False for _ in range(nii.shape[0])]
+        for i in range(si.shape[0]):
+            for j in range(nii.shape[0]):
+                # Locate volume with same pixel data
+                if np.allclose(si[i], nii[j], rtol=1e-3, atol=1e-2):
+                    if found_dcm[i]:
+                        raise AssertionError('Duplicate dcm')
+                    found_dcm[i] = True
+                    if found_nii[j]:
+                        raise AssertionError('Duplicate nifti')
+                    found_nii[j] = True
+                    # Compare b value
+                    self.assertEqual(si.tags[0][i][0][0],nii_bval[j])  # b value
+                    # Compare b vector
+                    _ = (si.tags[0][i][0][1], nii_bvec[j])
+                    if _[0].size == 0:
+                        _ = ([0, 0, 0], nii_bvec[j])
+                    np.testing.assert_array_almost_equal(_[0], _[1])
+        # Assert all DICOM volumes found a NIfTI volume, and opposite
+        self.assertEqual([True for _ in range(si.shape[0])], found_dcm)
+        self.assertEqual([True for _ in range(nii.shape[0])], found_nii)
+
+        with tempfile.TemporaryDirectory() as d:
+            si.write(d, formats=['dicom'])
+            si1 = Series(d, 'dti', input_format='dicom', accept_duplicate_tag=True)
+            # compare_tags(self, si.tags, si1.tags)
+        tags = si.tags[0]
+        for idx in np.ndindex(tags.shape):
+            try:
+                b, bvector = tags[idx][0]
+            except TypeError:
+                continue
+            im = si[idx]
+            if b < 1:
+                self.assertEqual(len(bvector), 0)
+            else:
+                self.assertEqual(len(bvector), 3)
+
     # @unittest.skip("skipping test_ep2d_1bvec")
     def test_ep2d_1bvec(self):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
+            accept_duplicate_tag=True,
             input_format='dicom'
         )
+        self.assertEqual((3, 7, 3, 78, 96), si.shape)
         with tempfile.TemporaryDirectory() as d:
             si.write(d, formats=['dicom'])
-            si1 = Series(d, 'b,bvector', input_format='dicom')
+            si1 = Series(d, 'b,bvector', input_format='dicom', accept_duplicate_tag=True)
             compare_tags(self, si.tags, si1.tags)
         tags = si.tags[0]
         for idx in np.ndindex(tags.shape):
@@ -1012,9 +1060,17 @@ class TestDicomPluginSortCriteria(unittest.TestCase):
         si1 = Series(
             os.path.join('data', 'dicom', 'time', 'time00'),
             't',
-            opts={
-                't': 'InstanceNumber'
-            },
+            t='InstanceNumber',
+            input_format='dicom')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats=['dicom'])
+
+
+    def test_user_redefined_sort(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'time',
+            time='InstanceNumber',
             input_format='dicom')
         with tempfile.TemporaryDirectory() as d:
             si1.write(d, formats=['dicom'])

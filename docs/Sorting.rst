@@ -36,6 +36,7 @@ Several sort criteria are predefined:
 * triggertime: Sort on Trigger Time
 * b: Sort on MR diffusion b-value
 * bvector: Sort on MR diffusion b vector
+* dti: Sort on MR DTI (b, b vector) tuple
 * fa: Sort on MR Flip Angle
 * te: Sort on MR Echo Time
 
@@ -103,19 +104,42 @@ Trigger Time is the sorting criteria:
         trigger=get_TriggerTime)
     )
 
+MRI DTI sorting
+---------------
+
+MRI diffusion tensor images (DTI) are sorted on diffusion b-value and b-vectors.
+The resulting Series object is a 4D object with indices [tag, slice, row, column],
+where tag is a tuple of (b, bvector).
+
+.. code-block:: python
+
+    dti = Series('dti', input_order='dti', input_format='dicom')
+    print('dti.shape', dti.shape)
+    tags = dti.tags[0]
+    for i, tag in enumerate(tags):
+        img=dti[i]
+        print(tag, img.shape)
+
+
+Keep in mind that some DTI data have duplicate volumes.
+Consider using `accept_duplicate_tag=True` for these data.
+
 N-dimensional sorting
 ---------------------
 
 While 4D data can be sorted automatically, higher dimensions must be defined explicitly.
 The `input_order` parameter can be a comma-separated list of sorting criteria.
 
-A dynamic dual-echo MR acquisition can be sorted on time and echo time into a 5D Series object, like:
+A dynamic dual-echo MR acquisition can be sorted on time and echo time into a 5D Series object.
+The resulting Series object is a 5D object with indices [time, te, slice, row, column]:
 
 .. code-block:: python
 
     img = Series('dyn_dual_echo', input_order='time,te')
 
-In particular, MR RSI diffusion data can be sorted on `b` value and `b` vector:
+In particular, MR RSI diffusion data can be sorted on `b` value and `b` vector
+(remember that the `dti` sort criteria can be used to sort these data as 4D).
+The resulting Series object is a 5D object with indices [b, bvector, slice, row, column].
 
 .. code-block:: python
 
@@ -129,3 +153,6 @@ In particular, MR RSI diffusion data can be sorted on `b` value and `b` vector:
         rsi = img[idx]
         print(b, bvector, rsi.shape)
 
+
+Keep in mind that some RSI data have duplicate volumes.
+Consider using `accept_duplicate_tag=True` for these data.

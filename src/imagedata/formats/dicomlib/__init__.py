@@ -1,0 +1,17 @@
+anonymization_rules = {
+    'patientName': 'ANONYMOUS',
+    'patientID': 'ANONYMOUS',
+    'patientBirthDate': '19000101',
+    'patientSex': 'O',
+    'patientIdentityRemoved': 'YES',
+    'deidentificationMethod': 'imagedata',
+    'studyDate': '19700101',
+    'studyTime': None,
+    'studyDescription': '',
+    'studyID': '1',
+    'referringPhysicianName': '',
+    'instanceCreationDate': '19700101',
+    'seriesDate': '19700101',
+    'acquisitionDate': '19700101',
+    'performedProcedureStepStartDate': '19700101',
+}

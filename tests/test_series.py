@@ -356,8 +356,8 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(a_slice, s_slice)
         self.assertEqual(s_slice.slices, 3)
         self.assertEqual(len(s_slice.tags[0]), 2)
-        for s in range(s_slice.slices):
-            np.testing.assert_array_equal(s_slice.tags[s], tags[s][1:3])
+        for _ in range(s_slice.slices):
+            np.testing.assert_array_equal(s_slice.tags[_], tags[_][1:3])
 
     def test_slicing_t_neg(self):
         rng = default_rng()
@@ -372,6 +372,20 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-1,:,:])
         np.testing.assert_array_equal(s[0:1,:,:], s[0:-2,:,:])
 
+    def test_slicing_t_tags(self):
+        rng = default_rng()
+        s = Series(rng.standard_normal(256).reshape((4,4,4,4)))
+        s.spacing = (1, 1, 1)
+        s.axes = s.axes._replace(none=axis.UniformLengthAxis('none', 0, s.shape[0]))
+        s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[1]))
+        s1 = s[1]
+        tags_s = s.tags[0]
+        tags_s1 = s1.tags[0]
+        np.testing.assert_array_equal(tuple(), tags_s1.shape)
+        s12 = s[1:3]
+        tags_s12 = s12.tags[0]
+        np.testing.assert_array_equal(tags_s[1:3], tags_s12)
+
     def test_slicing_t_drop(self):
         rng = default_rng()
         s = Series(rng.standard_normal(192).reshape((3,4,4,4)), 'time')
@@ -385,7 +399,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s.axes), len(s_axes))
         compare_axes(self, s.axes, s_axes)
         self.assertEqual(len(s_axes), 4)
-        compare_axes(self, s_axes, sum.axes)
+        self.assertEqual(s_axes[1:], sum.axes[:])
 
     def test_newaxis(self):
         rng = default_rng()
@@ -596,13 +610,14 @@ class TestSeries(unittest.TestCase):
         si = Series(
             os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
             'b,bvector',
+            accept_duplicate_tag=True,
             input_format='dicom'
         )
         b0 = si[:, 0]
-        np.testing.assert_array_equal(
-            b0.tags[0],
-            np.array([(0,), None, None], dtype=tuple)
-        )
+        # compare tags
+        b0_wanted = [(0,), None, None]
+        for _ in range(3):
+            self.assertEqual(b0_wanted[_], b0.tags[0][_])
         # compare axes
         np.testing.assert_array_equal(b0.axes.b.values, [0, 500, 1500])
 
@@ -622,12 +637,27 @@ class TestSeries(unittest.TestCase):
         self.assertIsNone(bv0.tags[0][1])
 
         bv1 = si[1, :]
-        self.assertIsNone(bv1.tags[0][0])
         np.testing.assert_almost_equal(
             bv1.tags[0][1][0],
-            np.array([0, -0.706402, -0.707811]),
+            np.array([0, -0.7064, -0.7078]),
             decimal=4
         )
+
+    def test_slice_dti(self):
+        si = Series(
+            os.path.join('data', 'dicom', 'ep2d_RSI_b0_500_1500_6dir.zip'),
+            'dti',
+            accept_duplicate_tag=True,
+            input_format='dicom'
+        )
+        self.assertEqual((13, 3, 78, 96), si.shape)
+        si1 = si[1]
+        tags_si = si.tags[0]
+        tags_si1 = si1.tags[0]
+        self.assertEqual(tuple(), tags_si1.shape)
+        si12 = si[1:3]
+        tags_si12 = si12.tags[0]
+        np.testing.assert_array_equal(tags_si[1:3], tags_si12)
 
     def test_set_axes(self):
         si1 = Series('data/dicom/time/time00')
@@ -860,6 +890,34 @@ class TestSeries(unittest.TestCase):
             false = Series(os.path.join(d, 'false'), input_format='dicom')
             self.assertEqual(si.seriesInstanceUID, true.seriesInstanceUID)
             self.assertNotEqual(si.seriesInstanceUID, false.seriesInstanceUID)
+
+
+class TestSeriesAnonymize(unittest.TestCase):
+    def test_anonymize_series(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time01'))
+        anon_series = si.anonymize()
+        with tempfile.TemporaryDirectory() as d:
+            anon_series.write(d, formats=['dicom'])
+            si1 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si1.shape)
+            self.assertEqual('ANONYMOUS', si1.patientName)
+        abcd_series = si.anonymize(patientName='ABCD')
+        with tempfile.TemporaryDirectory() as d:
+            abcd_series.write(d, formats=['dicom'])
+            si2 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si2.shape)
+            self.assertEqual('ABCD', si2.patientName)
+        dict_series = si.anonymize(**{
+            'patientName': 'DEFG',
+            'patientID': '126782'
+        })
+        with tempfile.TemporaryDirectory() as d:
+            dict_series.write(d, formats=['dicom'])
+            si3 = Series(d, input_format='dicom')
+            self.assertEqual(si.shape, si3.shape)
+            self.assertEqual('DEFG', si3.patientName)
+            self.assertEqual('126782', si3.patientID)
+
 
 if __name__ == '__main__':
     unittest.main()

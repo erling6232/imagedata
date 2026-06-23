@@ -61,15 +61,17 @@ jobs:
           # Ensure temporary files are created in a unique, local directory
           # echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}"
           echo "TMPDIR=${{ runner.temp }}\${{ runner.os }}\${{ matrix.python-version }}" >> $env:GITHUB_ENV
-      - name: Run Unit Tests and Generate Coverage Report
+      - name: Run Unit Tests
         run: |
-          # python -m unittest tests.test_formats_dicom.TestDuplicateDicom.test_duplicate
+          python -m unittest tests.test_formats_dicom.TestDicomPlugin.test_dicom_plugin_only
           coverage run -m unittest discover tests -t .
+      - name: Generate Coverage Report
+        run: |
           coverage report -m
           coverage xml -o junit.xml
           coverage html
       - name: Upload test results to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           fail_ci_if_error: true # optional (default = false)
           files: ./junit.xml  # ./coverage1.xml,./coverage2.xml # optional
@@ -82,7 +84,7 @@ jobs:
     name: Build wheel and source distribution
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@master
 
       - name: Install dependencies
         run: |
@@ -93,7 +95,7 @@ jobs:
           pipx run build --sdist --wheel
           ls -l dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@master
         with:
           path: dist/*
 

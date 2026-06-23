@@ -137,14 +137,17 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                         _name, file_handle.filename))
                     f = archive.to_localfile(file_handle)
                     logger.debug("{}: local file {}".format(_name, f))
-                    info, si = self._read_image(f, opts, hdr)
+                    try:
+                        info, si = self._read_image(f, opts, hdr)
+                    except NotImageError:
+                        continue
                 else:
                     f = archive.open(file_handle, mode='rb')
                     logger.debug("{}: file {}".format(_name, f))
                     try:
                         info, si = self._read_image(f, opts, hdr)
                     except NotImageError:
-                        raise
+                        continue
                     finally:
                         f.close()
                 # info is None when no image was read

@@ -42,7 +42,6 @@ def Transport(
     if netloc is None and root is None:
         url_tuple = parse.urlsplit(scheme)
         scheme = url_tuple.scheme
-        # netloc = url_tuple.hostname
         netloc = url_tuple.netloc
         try:
             opts['username'] = url_tuple.username
@@ -54,10 +53,14 @@ def Transport(
             opts['password'] = None
         root = url_tuple.path
     from .. import plugins
-    if os.name == 'nt' and len(scheme) == 1:
-        # Assume the scheme represents the Windows drive letter
-        root = scheme + ':' + root
-        scheme = 'file'
+    if os.name == 'nt':
+        if len(scheme) == 1:
+            # Assume the scheme represents the Windows drive letter
+            root = scheme[0] + ':' + root
+            scheme = 'file'
+        elif scheme == 'file':
+            if root == '':
+                root = netloc
     if 'transport' in plugins:
         for pname, ptype, pclass in plugins['transport']:
             if scheme in pclass.schemes:

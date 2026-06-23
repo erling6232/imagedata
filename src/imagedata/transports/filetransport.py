@@ -59,9 +59,6 @@ class FileTransport(AbstractTransport):
         self.path = root
         logger.debug("{}: root: {} ({})".format(_name, root, mode))
         assert root is not None, "Root should not be None"
-        # if mode[0] == 'r' and read_directory_only and not os.path.isdir(root):
-        #     logger.debug("FileTransport __init__ RootIsNotDirectory")
-        #     raise RootIsNotDirectory("Root ({}) should be a directory".format(root))
         if mode[0] == 'r' and not os.path.exists(root):
             logger.debug("{}: FileNotFoundError".format(_name))
             raise FileNotFoundError("Root ({}) does not exist".format(root))

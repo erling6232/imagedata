@@ -3,12 +3,10 @@
 Standard plugins provide support for local filesystem and zip archives.
 """
 
-# Copyright (c) 2018-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2018-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
-import os.path
 import logging
 import urllib.parse
-import fnmatch
 from ..transports import Transport
 
 logger = logging.getLogger(__name__)
@@ -40,20 +38,8 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
     if opts is None:
         opts = {}
     from .. import plugins
-    # if os.name == 'nt' and \
-    #         fnmatch.fnmatch(url, '[A-Za-z]:\\*'):
-    #     # Windows: Parse without /x:, then re-attach drive letter
-    #     # urldict = urllib.parse.urlsplit(url[2:], scheme="file")
-    #     urldict = urllib.parse.urlsplit(url, scheme="file")
-    # else:
-    #     urldict = urllib.parse.urlsplit(url, scheme="file")
     # Windows: Drive letter will be parsed as scheme
     urldict = urllib.parse.urlsplit(url, scheme="file")
-    # if urldict.scheme == 'xnat':
-    #     mimetype = 'application/zip'
-    # if mimetype is None:
-    #     logger.debug("imagedata.archives.find_mimetype_plugin: filesystem")
-    #     return find_plugin('filesystem', url, mode, opts=opts)
     transport = None
     if urldict.scheme:
         transport = Transport(
@@ -61,7 +47,8 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
             netloc=urldict.netloc,
             root=urldict.path,
             mode=mode,
-            read_directory_only=read_directory_only)
+            read_directory_only=read_directory_only,
+            opts=opts)
     if mimetype is None:
         # Get any transport requirement for mimetype
         try:
@@ -75,8 +62,6 @@ def find_mimetype_plugin(mimetype, url, mode="r", read_directory_only=False, opt
             logger.debug("{}: {}, mode: {}".format(
                 _name, ptype, mode))
             return pclass(url=url, transport=transport, mode=mode, opts=opts)
-    # if os.path.isfile(_path):
-    # if os.path.exists(_path):
     if urldict.scheme == "file":
         logger.debug("{}: filesystem".format(_name))
         try:

@@ -9,6 +9,7 @@ methods and attributes.
 
 """
 
+from __future__ import annotations
 import collections.abc
 from typing import Tuple
 import copy
@@ -23,9 +24,10 @@ import pydicom.dataset
 import pydicom.datadict
 from pydicom.uid import UID
 
-from .axis import UniformAxis, UniformLengthAxis, to_namedtuple
+from .axis import Axis, UniformAxis, UniformLengthAxis, to_namedtuple
 from .formats import INPUT_ORDER_NONE
 from .formats import shape_to_str, input_order_set, sort_on_set
+from .formats.dicomlib import anonymization_rules
 from .formats.dicomlib.uid import get_uid_for_storage_class
 from .readdata import read as r_read, write as r_write
 from .header import Header
@@ -53,6 +55,10 @@ class DoNotSetSlicesError(Exception):
 
 
 class MultipleSeriesError(Exception):
+    pass
+
+
+class NoDataReadError(Exception):
     pass
 
 
@@ -115,7 +121,8 @@ class Series(np.ndarray):
     def __new__(cls, data, input_order='auto', opts=None,
                 input_format=None, shape=(0,), dtype=None, buffer=None, offset=0,
                 strides=None, order=None,
-                template=None, geometry=None, axes=None,
+                template: Series|Header|PurePath|str=None,
+                geometry: Series|Header|PurePath|str=None, axes=None,
                 **kwargs):
 
         _name: str = '{}.{}'.format(__name__, cls.__new__.__name__)
@@ -129,13 +136,12 @@ class Series(np.ndarray):
         if 'input_options' in opts:
             for key, value in opts['input_options'].items():
                 opts[key] = value
-        if axes is not None and type(axes) != 'Axes':
+        if axes is not None and not isinstance(axes, Axis):
             axes = to_namedtuple(axes)
 
-        if issubclass(type(template), Series):
-            template = template.header
-        if issubclass(type(geometry), Series):
-            geometry = geometry.header
+        template = _get_template(template)
+        geometry = _get_template(geometry)
+
         if issubclass(type(data), np.ndarray):
             logger.debug('{}: data ({}) is subclass of np.ndarray'.format(_name, type(data)))
             obj = np.asarray(data, dtype).view(cls)
@@ -207,7 +213,10 @@ class Series(np.ndarray):
         hdr, si = r_read(urls, input_order, opts, input_format)
         if len(hdr) > 1:
             raise MultipleSeriesError('Multiple (n={}) series found in Series'.format(len(hdr)))
-        hdr = hdr[next(iter(hdr))]
+        try:
+            hdr = hdr[next(iter(hdr))]
+        except StopIteration:
+            raise NoDataReadError('No data found in header')
         if 'headers_only' in opts and opts['headers_only']:
             si = None
         elif len(si):
@@ -326,11 +335,12 @@ class Series(np.ndarray):
         results = tuple((np.asarray(result).view(Series)
                          if output is None else output)
                         for result, output in zip(results, outputs))
-        if results and issubclass(type(results[0]), Series):
-            results[0].header = self._unify_headers(inputs)
+        for result in results:
+            if issubclass(type(result), Series):
+                result.header = self._unify_headers(inputs, result)
             try:
-                results[0].header.windowCenter = None
-                results[0].header.windowWidth = None
+                result.header.windowCenter = None
+                result.header.windowWidth = None
             except AttributeError:
                 pass
 
@@ -390,7 +400,7 @@ class Series(np.ndarray):
             if method == 'at':
                 return
             if not np.isscalar(results):
-                results.header = self._unify_headers(inputs)
+                results.header = self._unify_headers(inputs, results)
                 results.header.windowCenter = None
                 results.header.windowWidth = None
                 results_dtype.append((field, results.dtype))
@@ -441,7 +451,7 @@ class Series(np.ndarray):
         return HANDLED_FUNCTIONS[func](*args, **kwargs)
 
     @staticmethod
-    def _unify_headers(inputs: tuple) -> Header:
+    def _unify_headers(inputs: tuple, result: np.ndarray) -> Header:
         """Unify the headers of the inputs.
 
         Typical usage is in expressions like c = a + b where at least
@@ -450,32 +460,38 @@ class Series(np.ndarray):
         the expression.
 
         Args:
-            inputs (ndarray or Series): a tuple of arguments
+            inputs (tuple of ndarray or Series): a tuple of arguments
+            result (ndarray or Series): the expression result
         Returns:
-            Header: Unified header.
+            Header: Unified header for result
         """
 
         header = None
+        some_header = None
         # logger.debug('Series._unify_headers: inputs {}'.format(len(inputs)))
         for i, input_ in enumerate(inputs):
             # logger.debug('Series._unify_headers: input {}: {}'.format(i, type(input_)))
             if issubclass(type(input_), Series):
-                if input_.header is None:
-                    # logger.debug('Series._unify_headers: new header')
-                    header = Header()
-                    header.input_order = INPUT_ORDER_NONE
-                else:
+                if input_.header is not None:
                     # logger.debug('Series._unify_headers: copy header')
-                    header = copy.copy(input_.header)
-                    header.input_order = input_.input_order
-                    header.set_default_values(input_.axes)
-                    header.add_template(input_.header)
-                    header.add_geometry(input_.header)
+                    some_header = copy.copy(input_.header)
+                    some_header.input_order = input_.input_order
+                    some_header.set_default_values(input_.axes)
+                    some_header.add_template(input_.header)
+                    some_header.add_geometry(input_.header)
 
+                    if input_.shape == result.shape:
+                        header = copy.copy(input_.header)
+                        header.input_order = input_.input_order
+                        header.set_default_values(input_.axes)
+                        header.add_template(input_.header)
+                        header.add_geometry(input_.header)
                 # Here we could have compared the headers of
                 # the arguments and resolved discrepancies.
                 # The simplest resolution, however, is to take the
                 # header of the first argument.
+        if header is None and some_header is not None:
+            header = some_header
         return header
 
     def __getitem__(self, item):
@@ -619,6 +635,9 @@ class Series(np.ndarray):
                     start, stop, step, axis = spec[i]
                     _slice = slice(start, stop, step)
                     if axis.name not in ['slice', 'row', 'column'] and len(axis.values[_slice]) <= 1:
+                        # Select slice of tags
+                        tags = self.__get_tags(spec)
+                        todo.append(('tags', tags))
                         continue
                 except ValueError:
                     _slice, axis = spec[i]
@@ -765,10 +784,13 @@ class Series(np.ndarray):
         return None
 
     def __get_tags(self, specs):
-        tags, slices = self.header.get_tags_and_slices()
+        # tags, slices = self.header.get_tags_and_slices()
+        _ = self.header.get_tags_and_slices()
         try:
-            tmpl_tags = self.tags
-            tags = self.tags[0].shape
+            # tmpl_tags = self.tags
+            # tags = self.tags[0].shape
+            _ = self.tags
+            _ = self.tags[0].shape
         except ValueError:
             return None
         slice_spec = [_ for _ in range(0, self.slices, 1)]
@@ -781,6 +803,11 @@ class Series(np.ndarray):
             except ValueError:
                 start, stop, step = None, None, None
                 _indices, axis = specs[d]
+            except TypeError:
+                # Typically triggered by a np.newaxis spec.
+                start, stop, step = None, None, None
+                _indices = 0
+                axis = UniformLengthAxis('unknown', 0, 1)
             if axis.name == "slice":
                 slice_spec = _indices
             elif axis.name in self.input_order.split(','):
@@ -2296,7 +2323,8 @@ class Series(np.ndarray):
 
         try:
             if issubclass(type(keyword), str):
-                _tag = pydicom.datadict.tag_for_keyword(keyword)
+                _ = keyword[0].upper() + keyword[1:]
+                _tag = pydicom.datadict.tag_for_keyword(_)
             else:
                 _tag = keyword
             if _tag is None:
@@ -2321,7 +2349,8 @@ class Series(np.ndarray):
         """
 
         if issubclass(type(keyword), str):
-            _tag = pydicom.datadict.tag_for_keyword(keyword)
+            _ = keyword[0].upper() + keyword[1:]
+            _tag = pydicom.datadict.tag_for_keyword(_)
         else:
             _tag = keyword
         if _tag is None:
@@ -3148,6 +3177,39 @@ class Series(np.ndarray):
 
         return vertices
 
+    def anonymize(self, uid_table: dict = {}, **kwargs):
+        rules = anonymization_rules | kwargs
+        _copy = Series(self, input_order=self.input_order, input_format=self.input_format,
+                       geometry=self, axes=self.axes)
+        if self.seriesInstanceUID not in uid_table:
+            uid_table[self.seriesInstanceUID] = _copy.header.new_uid()
+        _copy.header = self.header.anonymize(uid_table)
+        for _rule in rules:
+            try:
+                _ = getattr(_copy.header, _rule)
+                setattr(_copy.header, _rule, rules[_rule])
+            except (AttributeError, ValueError):
+                pass
+            try:
+                _copy.setDicomAttribute(_rule, rules[_rule])
+            except ValueError:
+                pass
+        return _copy
+
+
+def _get_template(template: Series|Header|PurePath|str|None = None) -> Header|None:
+    if template is None:
+        return template
+    if issubclass(type(template), Series):
+        return template.header
+    elif issubclass(type(template), Header):
+        return template  # Keep header as template
+    elif issubclass(type(template), PurePath) or issubclass(type(template), str):
+        _ = Series(template)
+        return _.header
+    else:
+        raise ValueError(f'Template should be Series, Header or URL, not {type(template)}')
+
 
 # -----------------------------------------------------------------------------
 #
@@ -3207,22 +3269,95 @@ def _delegate_args_to_numpy(func, *arrays, **kwargs):
 
 def _delegate_a_to_numpy(func, a, **kwargs):
     """Delegate function on single array to NumPy."""
+
+    def _reduce_index(new_idx, ndim, use_tags):
+        old_idx = ()
+        i = 0
+        for _ in range(ndim):
+            if _ in use_tags:
+                old_idx += (new_idx[i],)
+                i += 1
+            else:
+                old_idx += (0,)
+        return old_idx
+
+    def _compute_new_tags(a, drop_axes):
+        new_tags, new_tag_shape, use_tags = {}, (), ()
+        for _, axis in enumerate(a.axes):
+            if axis.name not in ['slice', 'row', 'column']:
+                if _ not in drop_axes:
+                    new_tag_shape += (len(a.axes[_]),)
+                    use_tags += (_,)
+        for _slice in a.tags.keys():
+            new_tags[_slice] = np.empty(new_tag_shape, dtype=tuple)
+            old_tags = a.tags[_slice]
+            for new_idx in np.ndindex(new_tag_shape):
+                old_idx = _reduce_index(new_idx, old_tags.ndim, use_tags)
+                old_tag = old_tags[old_idx]
+                new_tag = tuple([old_tag[_] for _ in use_tags])
+                new_tags[_slice][new_idx] = new_tag
+        return new_tags
+
     if issubclass(type(a), Series) and a.dtype.fields is not None:
         return _delegate_struct_to_numpy(func, a, **kwargs)
     else:
         ndarray = a.view(np.ndarray)
         s = func(ndarray, **kwargs)
-        if issubclass(type(s), np.ndarray):
-            obj = s.view(Series)
-            obj.input_order = a.input_order
-            obj.header.add_template(a.header)
-            obj.header.add_geometry(a.header)
-            if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
-                new_keys = [obj.input_order] + list(obj.axes._fields[1:])
-                values = list(obj.axes)
-                values[0].name = obj.input_order
-                new_axes = namedtuple('Axes', new_keys)
-                obj.axes = new_axes._make(values)
+        if (issubclass(type(s), np.ndarray)):
+            if s.ndim == a.ndim:
+                obj = s.view(Series)
+                # if obj.header is None:
+                #     obj.header = copy.copy(a.header)
+                try:
+                    obj.input_order = a.input_order
+                except AttributeError:
+                    raise AttributeError(f'a: {type(a)} does not have input_order')
+                obj.header.axes = a.header.axes
+                obj.header.add_template(a.header)
+                obj.header.add_geometry(a.header)
+                if obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
+                    new_keys = [obj.input_order] + list(obj.axes._fields[1:])
+                    values = list(obj.axes)
+                    values[0].name = obj.input_order
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+            elif s.ndim > a.ndim:
+                raise IndexError("Don't know how to deal with increased dimensions.")
+            else:
+                # s.ndim < a.ndim
+                obj = s.view(Series)
+                obj.input_order = a.input_order
+                obj.header.axes = a.header.axes
+                obj.header.add_template(a.header)
+                obj.header.add_geometry(a.header)
+                if 'axis' in kwargs:
+                    new_keys, values, input_orders = [], [], []
+                    drop_axes = kwargs['axis']
+                    if not isinstance(drop_axes, tuple):
+                        drop_axes = (drop_axes,)
+                    new_tags = _compute_new_tags(a, drop_axes)
+                    for _, axis in enumerate(a.axes):
+                        if _ not in drop_axes:
+                            new_keys.append(axis.name)
+                            values.append(axis)
+                            if axis.name not in ['slice', 'row', 'column']:
+                                input_orders.append(axis.name)
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+                    obj.tags = new_tags
+                    if len(input_orders) > 0:
+                        obj.input_order = ",".join(input_orders)
+                    else:
+                        obj.input_order = 'none'
+                elif obj.axes[0].name[:7] == 'unknown' or obj.axes[0].name[:4] == 'none':
+                    new_keys = [obj.input_order] + list(obj.axes._fields[1:])
+                    values = list(obj.axes)
+                    values[0].name = obj.input_order
+                    new_axes = namedtuple('Axes', new_keys)
+                    obj.axes = new_axes._make(values)
+                else:
+                    obj = a.view(Series)
+                    obj.input_order = a.input_order
         else:
             obj = s
     return obj

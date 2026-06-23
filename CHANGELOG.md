@@ -6,6 +6,144 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.5-rc2] - 2026-06-23
+### Changed
+* NiftiPlugin: Boolean Series is written as np.uint8.
+* ITKPlugin: Boolean Series is written as np.uint8.
+
+## [v3.9.5-rc1] - 2026-06-22
+### Fixed
+* Re-introduced the possibility of giving template or geometry template as URL.
+* Series._delegate_a_to_numpy(): Corrected the calculation of new tags when a
+  numpy result has reduced dimension.
+
+## [v3.9.5-rc0] - 2026-06-22
+### Fixed
+* Allow anonymization of patient attributes at the study level.
+### Added
+* Updated documentation on anonymization.
+* Added tests for anonymization of patient attributes
+
+## [v3.9.4] - 2026-06-12
+* Not compatible with matplotlib 3.11.0.
+### Fixed
+* Viewer.update(): Do not fail on None.
+* Viewer.grid_from_roi(): accept <4D objects.
+* Series.__get_tags(): Handle the special case when dimension in increased using np.newaxis.
+### Changed
+* Series._unify_headers(): Changed logic to select header which is matching the result shape.
+* Series._delegate_a_to_numpy(): Adjust axes depending on which axes are removed in the numpy action.
+* Series._delegate_to_numpy(): Use input axes as starting point for result axes.
+* Series.__array_ufunc__() and Series.__array_ufunc_struct__(): Modified call to _unify_headers.
+
+## [v3.9.3] - 2026-06-04
+* XnatTransport: Do not fail on series_description == None when searching for scans.
+* XnatTransport: Require xnat >= 0.7.
+* Require pydicom 2.4.5 < 3.
+* Require pynetdicom 2.1.1 < 3.
+
+## [v3.9.2] - 2026-06-03
+### Changed
+* Require pynetdicom >= 3 and pydicom >= 3
+
+## [v3.9.2-dev1] - 2026-06-03
+### Added
+* AbstractTransport: Added methods join() and normpath().
+* DicomTransport: Added methods join() and normpath().
+
+### Changed
+* FilesystemArchive: Use transport join() and normpath(), not os-depended versions.
+
+## [v3.9.2-dev0] - 2026-06-02
+### Fixed
+* Fixed DicomTransport C-GET and C-FIND implementation.
+* Updated C-GET and C-FIND tests.
+
+### Changed
+* Exception NoDataReadError raised by Series when the format plugin does not
+  return any data.
+
+## [v3.9.1] - 2026-05-26
+### Fixed
+* Save 5D as NIfTI.
+  Set proper NIfTI zooms for 4D+ data.
+
+### Changed
+* AbstractPlugin: Skip non-image files. Do not fail.
+
+### Added
+* Save dti data as NIfti, with bvalues and bvectors.
+* app.diffusion:
+  Added read_b_value_file() and read_b_vector_file() to read b values and b vectors from a file. The file can be specified with filename (str) or and open io.StringIO.
+  Added write_b_value_file() and write_b_vector_file() to write b values and b vectors to a file. The file can be specified with filename (str) or and open io.StringIO. The values can be specified as a Sequence or a Series with appropriate axes.
+
+## [v3.9.0] - 2026-05-22
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
+* DICOMPlugin: Added support for sorting MRI DTI data where the tags
+  are tuples of (b,bvector). This will give a 4D dataset with indices
+  [tag,slice,row,column], in contrast to sorting on 'b,bvector' which
+  will give a (sparse) 5D dataset with indices [b,bvector,slice,row,column].
+* DICOMPlugin: Tags axes of length 1 are removed.
+* VariableAxis: Also accept tuples as axis values.
+* Support for Python 3.14.
+
+### Changed
+* Updated Sorting.rst documentation.
+
+## [v3.9.0-dev3] - 2026-05-21
+### Fixed
+* Series.__getitem__(): Slice the tags even when there is no tag axis.
+* DICOMPLUGIN._join_axes(): Only accept tag axes of length > 1.
+
+## [v3.9.0-dev2] - 2026-05-20
+* Support for python 3.14
+
+## [v3.9.0-rc1] - 2026-05-20
+### Added
+* VariableAxis: Accept list of tuples as values.
+* DICOMPlugin: Implement setting DTI tuple (b, bvector).
+### Fixed
+* Sorting av duplicate tags fixed.
+
+## [v3.9.0-rc0] - 2026-05-19
+### Added
+* DICOMPlugin: Sort DTI series where tags are (b, bvector) tuple.
+### Changed
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
+
+## [v3.8.16-dev0] - 2026-05-15
+### Changed
+* DICOMPlugin: Refactored sorting of n-dimensional datasets.
+
+## [v3.8.15] - 2026-05-15
+
+## [v3.8.15-dev4] - 2026-05-15
+### Fixed
+* Viewer.connect_draw(): Traversing image tags is done using np.ndindex.
+* Viewer.connect_draw(): Accept legacy ROI where tag is number.
+* Viewer.disconnect_draw(): Traversing image tags is done using np.ndindex.
+
+## [v3.8.15-dev3] - 2026-04-21
+### Added
+* DICOMPlugin: Document data types and processes.
+
+## [v3.8.15-dev2] - 2026-04-14
+### Fixed
+* DICOMPlugin: Corrected writing dtype np.bool_
+* DICOMPlugin.write_slice(): Drop `enforce_file_format` argument to pydicom.save_as().
+
+## [v3.8.15-dev1] - 2026-03-18
+### Added
+* anonymize() methods on Series, Study, Patient and Cohort levels.
+* DICOMPlugin.write_slice(): properly encode date and time data elements when given as string.
+
+## [v3.8.15-dev0] - 2026-03-16
+### Fixed
+* Fixed parsing windows drive letter
+* Header.__set_axes_from_template: Catch missing axes property.
+
+## [v3.8.15-dev0] - 2026-04-14
+* Series ufunc: Fixed problem with np.mean().
 
 ## [v3.8.14] - 2025-11-27
 * Release 3.8.14
