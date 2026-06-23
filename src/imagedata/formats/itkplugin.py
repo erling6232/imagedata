@@ -421,10 +421,12 @@ class ITKPlugin(AbstractPlugin):
             logger.debug("{}: arr {}".format(_name, arr.dtype))
             arr = arr.astype(np.float32)
             # arr=arr.astype(np.uint16)
-        if arr.dtype == np.complex64 or arr.dtype == np.complex128:
+        elif arr.dtype == np.complex64 or arr.dtype == np.complex128:
             arr = np.absolute(arr)
-        if arr.dtype == np.double:
+        elif arr.dtype == np.double:
             arr = arr.astype(np.float32)
+        elif arr.dtype == np.bool_:
+            arr = arr.astype(np.uint8)
         logger.debug("{}: arr {}".format(_name, arr.dtype))
 
         # Write it

@@ -504,7 +504,10 @@ class NiftiPlugin(AbstractPlugin):
         hdr = Nifti1Header()
         if dcm.itemsize == 1 and dcm.axes[0].name == 'rgb':
             hdr.set_intent('estimate')
-        hdr.set_data_dtype(dcm.dtype)
+        if dcm.dtype == np.bool_:
+            hdr.set_data_dtype(np.uint8)
+        else:
+            hdr.set_data_dtype(dcm.dtype)
         hdr.set_data_shape(dcm.shape[::-1])
         # hdr.set_slope_inter(slope, inter)
         ds, dr, dc = dcm.spacing
