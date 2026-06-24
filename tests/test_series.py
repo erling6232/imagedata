@@ -708,6 +708,14 @@ class TestSeries(unittest.TestCase):
         voxel = _slice[1, 1]
         self.assertEqual(3, len(voxel))
 
+    def test_get_rgb_relaxometry(self):
+        si1 = Series('data/dicom/time/time00', input_format='dicom')
+        t1w = si1.to_rgb("lipari")
+        # t1w.show()
+        t2w = si1.to_rgb("navia")
+        # t2w.show()
+        pass
+
     def test_fuse_mask_3d_bw_uint8(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))
         mask = np.zeros_like(si1, dtype=np.uint8)

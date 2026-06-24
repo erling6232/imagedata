@@ -2673,7 +2673,12 @@ class Series(np.ndarray):
             else:
                 raise ValueError('Unknown normalization function: {}'.format(norm))
         if not issubclass(type(colormap), matplotlib.colors.Colormap):
-            colormap = plt.get_cmap(colormap, lut)
+            if colormap == 'navia':
+                from .apps.ColorMaps.MR_relaxometry import navia as colormap
+            elif colormap == 'lipari':
+                from .apps.ColorMaps.MR_relaxometry import lipari as colormap
+            else:
+                colormap = plt.get_cmap(colormap, lut)
         colormap.set_bad(color='k')  # Important for log display of non-positive values
         colormap.set_under(color='k')
         colormap.set_over(color='w')
