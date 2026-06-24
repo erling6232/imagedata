@@ -711,9 +711,9 @@ class TestSeries(unittest.TestCase):
     def test_get_rgb_relaxometry(self):
         si1 = Series('data/dicom/time/time00', input_format='dicom')
         t1w = si1.to_rgb("lipari")
-        t1w.show()
+        # t1w.show()
         t2w = si1.to_rgb("navia")
-        t2w.show()
+        # t2w.show()
         pass
 
     def test_fuse_mask_3d_bw_uint8(self):
