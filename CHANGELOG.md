@@ -8,9 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!--next-version-placeholder-->
 ## [v3.9.6-dev0] - 2026-06-24
 ### Added
-* MR Relaxometry color maps `navia` and `lipari` as recommended for T1 and T2
+* MR Relaxometry color maps `navia` and `lipari` as recommended for T2, T2* and T1
   relaxometry maps.
   (Fuderer et al., DOI: 10.1002/mrm.30290)
+
 ## [v3.9.5] - 2026-06-23
 ### Changed
 * Updated anonymization documentation.
