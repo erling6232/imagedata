@@ -54,6 +54,24 @@ Also, the `s` intensities are scaled to the RGB range of 0:255 for each
 color component.
 The original intensities of `s` are not maintained in `rgb`.
 
+Color maps
+----------
+
+All `matplotlib` color maps can be used for a color series. See
+https://matplotlib.org/stable/users/explain/colors/colormaps.html
+for details on the `matplotlib` color maps.
+
+The default color map is `Greys_r`.
+
+In addition, the following color maps are supported by `imagedata`:
+
+* `navia`: Recommended for MR relaxometry T2 and T2* maps.
+* `lipari`: Recommended for MR relaxometry T1 maps.
+
+These color maps are recommended for MR relaxometry maps by Federer *et al.*,
+https://onlinelibrary.wiley.com/doi/10.1002/mrm.30290
+
+
 Saving and Loading Color Series
 -------------------------------
 
