@@ -32,3 +32,18 @@ Example on Series level:
         'patientID': '126847'
     }
     c = a.anonymize(**kwargs)
+
+
+The `uid_table` can be used to apply the same UIDs translations for each
+anonymization. _E.g._:
+
+.. code-block:: python
+
+    from imagedata import Series
+    a = Series('data1')
+    b = Series('data2')
+
+    uid_table = {}
+    anon_a = a.anonymize(uid_table, patientName='ABCD')
+    anon_b = b.anonymize(uid_table, patientName='ABCD')
+
