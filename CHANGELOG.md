@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * MR Relaxometry color maps `navia` and `lipari` as recommended for T2, T2* and T1
   relaxometry maps.
   (Fuderer et al., DOI: 10.1002/mrm.30290)
+* Remove requirement for pydicom and pynetdicom < 3.
+* Depend on dicom-anonymizer >= 1.0.13.
 
 ## [v3.9.5] - 2026-06-23
 ### Changed
