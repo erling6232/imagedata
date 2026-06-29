@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.6-dev1] - 2026-06-29
+### Changed
+* DICOMPlugin: Add DICOM attribute NumberOfSlicesInSeries when writing.
+
 ## [v3.9.6-dev0] - 2026-06-24
 ### Added
 * MR Relaxometry color maps `navia` and `lipari` as recommended for T2, T2* and T1

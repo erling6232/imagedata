@@ -1296,6 +1296,7 @@ class DICOMPlugin(AbstractPlugin):
             raise ValueError('No longer supported: opts["window"] is set')
         self.center = si.windowCenter
         self.width = si.windowWidth
+        self.numberOfSlicesInSeries = si.slices
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
 
@@ -1378,6 +1379,7 @@ class DICOMPlugin(AbstractPlugin):
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
+        self.numberOfSlicesInSeries = si.slices
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Not used # self.seriesTime = obj.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
@@ -1735,6 +1737,7 @@ class DICOMPlugin(AbstractPlugin):
                 pydicom.valuerep.format_number_as_ds(float(si.orientation[3]))]
         except ValueError:
             ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
+        ds.NumberOfSlicesInSeries = self.numberOfSlicesInSeries
         try:
             ds.SeriesNumber = si.seriesNumber
         except ValueError:
