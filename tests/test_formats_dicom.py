@@ -1,4 +1,5 @@
 import unittest
+import copy
 import math
 import os.path
 import tempfile
@@ -6,6 +7,8 @@ import numpy as np
 import logging
 import argparse
 import pydicom.filereader
+from dicomanonymizer import keep
+from dicomanonymizer.dicom_anonymization_databases.dicomfields_2024b import U_TAGS
 from pydicom.dataset import Dataset
 
 import imagedata.cmdline as cmdline
@@ -459,13 +462,13 @@ class TestDicomPlugin(unittest.TestCase):
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
-        si1_seriesInstanceUID = si1.seriesInstanceUID
+        si1_seriesInstanceUID = copy.copy(si1.seriesInstanceUID)
         si1_sopinsuid = {}
         for _slice in range(si1.slices):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] = \
-                    si1.SOPInstanceUIDs[_tag + (_slice,)]
+                    copy.copy(si1.SOPInstanceUIDs[_tag + (_slice,)])
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
@@ -537,6 +540,42 @@ class TestDicomPlugin(unittest.TestCase):
                 input_format='dicom',
                 input_order='b'
             )
+
+    def test_anonymize_set_SOPInstanceUID(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'),
+            input_format='dicom')
+        # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
+        si1_seriesInstanceUID = copy.copy(si1.seriesInstanceUID)
+        si1_sopinsuid = {}
+        for _slice in range(si1.slices):
+            si1_sopinsuid[_slice] = {}
+            for _tag in si1.tags[0]:
+                si1_sopinsuid[_slice][_tag] = \
+                    copy.copy(si1.SOPInstanceUIDs[_tag + (_slice,)])
+        extra_anonymization_rules = {}
+        for tag in U_TAGS:
+            extra_anonymization_rules[tag] = keep
+        si2 = si1.anonymize(extra_anonymization_rules=extra_anonymization_rules)
+        self.assertEqual(si1_seriesInstanceUID, si2.seriesInstanceUID)
+        for _slice in range(si1.slices):
+            for _tag in si1.tags[0]:
+                # si2 SOPInstanceUIDs should be identical to original si1
+                self.assertEqual(
+                    si1_sopinsuid[_slice][_tag],
+                    si2.SOPInstanceUIDs[_tag + (_slice,)]
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(d, formats=['dicom'], keep_uid=True)
+            si3 = Series(d, input_format='dicom')
+            self.assertEqual(si1_seriesInstanceUID, si3.seriesInstanceUID)
+            for _slice in range(si1.slices):
+                for _tag in si1.tags[0]:
+                    # si1 SOPInstanceUIDs should be identical to si3
+                    self.assertEqual(
+                        si1.SOPInstanceUIDs[_tag + (_slice,)],
+                        si3.SOPInstanceUIDs[_tag + (_slice,)]
+                    )
+
 
     def test_anonymize_4D(self):
         si1 = Series(
