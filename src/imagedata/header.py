@@ -201,7 +201,7 @@ class Header(object):
 
         return ds
 
-    def anonymize(self, uid_table: dict = {}):
+    def anonymize(self, uid_table: dict = {}, extra_anonymization_rules: dict = {}):
         anonymizer.dictionary = anonymizer.dictionary | uid_table
         _copy = Header()
         _copy.set_default_values(self.axes)
@@ -216,17 +216,35 @@ class Header(object):
             _copy.dicomTemplate = self.dicomTemplate.copy()
             anonymizer.anonymize_dataset(
                 _copy.dicomTemplate,
-                # extra_anonymization_rules=known_uids,
+                extra_anonymization_rules=extra_anonymization_rules,
                 delete_private_tags=True,
                 # base_rules_gen=anonymizer.initialize_actions
             )
-        for tag in header_tags:
-            if tag == 'SOPClassUID':
+
+        tag_SOPClassUID = pydicom.datadict.Tag((0x0008, 0x0016))
+        for tag_name in header_tags:
+            try:
+                tag = pydicom.datadict.Tag(pydicom.datadict.tag_for_keyword(
+                    tag_name[0].upper() + tag_name[1:]))
+            except TypeError:
+                continue
+            VR = pydicom.datadict.dictionary_VR(tag)
+            if VR != 'UI':
+                continue
+            if (tag.group, tag.element) in extra_anonymization_rules:
+                # Take the anonymized tag
+                camel_tag_name = tag_name[0].upper() + tag_name[1:]
+                setattr(_copy, tag_name, getattr(_copy.dicomTemplate, camel_tag_name))
+            elif tag == tag_SOPClassUID:
                 _copy.SOPClassUID = self.SOPClassUID
-            elif tag[-3:] == 'UID':
-                if getattr(self, tag) not in anonymizer.dictionary:
-                    anonymizer.dictionary[getattr(self, tag)] = self.new_uid()
-                setattr(_copy, tag, anonymizer.dictionary[getattr(self, tag)])
+            else:
+                if getattr(self, tag_name) not in anonymizer.dictionary:
+                    anonymizer.dictionary[getattr(self, tag_name)] = self.new_uid()
+                setattr(_copy, tag_name, anonymizer.dictionary[getattr(self, tag_name)])
+
+        if ((0x0008, 0x0018) in extra_anonymization_rules):  # SOPInstanceUID
+            _copy.SOPInstanceUIDs = self.SOPInstanceUIDs.copy()
+            return _copy
         _copy.SOPInstanceUIDs = {}
         for _slice in _copy.tags:
             for _i in range(len(_copy.tags[_slice])):
