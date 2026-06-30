@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 ## [v3.9.6-dev1] - 2026-06-29
+### Added
+* Series.anonymize(): Added extra_anonymization_rules parameter which is handled
+  by the dicom-anonymizer.
+* Header.anonymize(): Added extra_anonymization_rules parameter.
 ### Changed
-* DICOMPlugin: Add DICOM attribute NumberOfSlicesInSeries when writing.
+* DICOMPlugin: Add DICOM attribute NumberOfSlices when writing.
 
 ## [v3.9.6-dev0] - 2026-06-24
 ### Added
