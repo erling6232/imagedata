@@ -77,12 +77,16 @@ class TestStudy(unittest.TestCase):
             self.assertEqual(len(study), len(study1))
             for uid in range(len(study)):
                 self.assertEqual(study[uid].shape, study1[uid].shape)
+            self.assertNotEqual(study.patientName, anon_study.patientName)
+            self.assertNotEqual(study.patientID, anon_study.patientID)
+            self.assertNotEqual(study.studyInstanceUID, anon_study.studyInstanceUID)
         abcd_study = study.anonymize(patientName='ABCD')
         with tempfile.TemporaryDirectory() as d:
             abcd_study.write(d, formats=['dicom'])
             study2 = Study(d, input_format='dicom')
             self.assertEqual(len(study), len(study2))
             self.assertEqual('ABCD', study2.patientName)
+            self.assertNotEqual(study.studyInstanceUID, study2.studyInstanceUID)
         dict_study = study.anonymize(**{
             'patientName': 'DEFG',
             'patientID': '126782'
@@ -93,6 +97,7 @@ class TestStudy(unittest.TestCase):
             self.assertEqual(len(study), len(study3))
             self.assertEqual('DEFG', study3.patientName)
             self.assertEqual('126782', study3.patientID)
+            self.assertNotEqual(study.studyInstanceUID, study3.studyInstanceUID)
 
     def test_anonymize_non_dicom_study(self):
         rng = default_rng()
