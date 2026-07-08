@@ -1,5 +1,4 @@
 imagedata
-sortedcontainers
 pydicom>=2.4.5
 pynetdicom
 itk-io
