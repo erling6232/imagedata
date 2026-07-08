@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.7-dev1] - 2026-07-08
+* Calculated Series did not get new SOPInstanceUIDs.
+* Header.set_default_values(): Set proper tags based on axes descriptions.
+* Header.add_template(): When keep_uid, keep SOPInstanceUIDs too.
+* Header.add_template(): Set tags from template, if available.
+* Header.set_SOPInstanceUIDs(): Set new SOPInstanceUIDs. Initial release.
+* Instance.get_float(): Catch missing attribute in header.
+* Series.__getitem__(): Reorganized code to better handle slicing of struct dtype. Also handle np.newaxis better.
+* Series.__getitem__(): Include sliced SOPInstanceUIDs in the new object.
+* Series.SOPInstanceUIDs: Generate new UIDs when none are defined.
+
 ## [v3.9.6] - 2026-06-30
 ## [v3.9.6-dev1] - 2026-06-29
 ### Added

@@ -1,6 +1,7 @@
 import os.path
 import tempfile
 import unittest
+import numpy as np
 from numpy.random import default_rng
 
 from imagedata import Series, Study, Patient, Cohort
@@ -102,8 +103,18 @@ class TestStudy(unittest.TestCase):
     def test_anonymize_non_dicom_study(self):
         rng = default_rng()
         series1 = Series(rng.standard_normal(24).reshape((2,3,4))*100, dtype=int)
+        tags = {}
+        for s in range(series1.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        series1.tags = tags
         series2 = Series(rng.standard_normal(210).reshape((5,6,7))*100, dtype=int)
         series2.studyInstanceUID = series1.studyInstanceUID
+        tags = {}
+        for s in range(series2.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        series2.tags = tags
         study = Study({'1': series1, '2': series2})
         study.studyInstanceUID = series1.studyInstanceUID
 

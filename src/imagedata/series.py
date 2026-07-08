@@ -530,15 +530,21 @@ class Series(np.ndarray):
                     n += 1
             return n
 
-        def _calculate_spec(obj, _items):
+        def _calculate_spec(obj, ret, _items):
             _slicing = False
-            _spec = {}
+            _spec = []
             if issubclass(type(obj), Series):
-                # Calculate slice range
+                # Calculate slice range(s)
+
+                # Handle struct dtype separately (e.g. RGB-images)
+                if obj.dtype.fields is not None and issubclass(type(_items[0]), str):
+                    _spec.append((0, obj.dtype.itemsize, 1, obj.dtype))
+
+                # Handle axis dimensions
                 try:
                     for _dim in range(obj.ndim):  # Loop over actual array shape
                         # Initial start,stop,step,axis
-                        _spec[_dim] = (0, obj.shape[_dim], 1, obj.axes[_dim])
+                        _spec.append((0, obj.shape[_dim], 1, obj.axes[_dim]))
                 except (AttributeError, NameError):
                     raise ValueError('No header in _calculate_spec')
                 except IndexError:
@@ -566,6 +572,9 @@ class Series(np.ndarray):
                                      (len(index_spec), len(index_item)))
 
                 for _dim, _item in zip(index_spec, index_item):
+                    if _dim > len(_spec) - 1:
+                        # This would happen when adding np.newaxis
+                        _spec.append((None, None, None, None))
                     if isinstance(_items[_item], slice):
                         _start = _items[_item].start or _spec[_dim][0]
                         _stop = _items[_item].stop or _spec[_dim][1]
@@ -577,7 +586,11 @@ class Series(np.ndarray):
                         _spec[_dim] = (_start, _stop, _step, obj.axes[_dim])
                         _slicing = True
                     elif issubclass(type(_items[_item]), str):
-                        _spec[_dim] = (_items[_item], obj.axes[_dim])
+                        if issubclass(type(_spec[_dim][3]), np.dtype):
+                            # Probably a struct slicing (e.g. 'R', 'G' or 'B')
+                            _spec[_dim] = (_items[_item], obj.dtype)
+                        else:
+                            _spec[_dim] = (_items[_item], obj.axes[_dim])
                         _slicing = True
                     elif isinstance(_items[_item], (np.ndarray, Series)):
                         continue
@@ -616,71 +629,73 @@ class Series(np.ndarray):
                         _slicing = True
             return _slicing, _spec
 
-        if getattr(self, 'header', None) is None:
-            return super(Series, self).__getitem__(item)
-        if isinstance(item, tuple):
-            items = item
-        else:
-            items = (item,)
-        slicing, spec = _calculate_spec(self, items)
+        # Slicing the ndarray is done here
+        ret = super(Series, self).__getitem__(item)
 
-        todo = []  # Collect header changes, apply after ndarray slicing
-        new_axes_names = []
-        if slicing:
-            # Here we slice the header information
-            new_axes = []
-            for i in range(len(spec)):
-                # Slice along axis i
-                try:
-                    start, stop, step, axis = spec[i]
-                    _slice = slice(start, stop, step)
-                    if axis.name not in ['slice', 'row', 'column'] and len(axis.values[_slice]) <= 1:
+        if getattr(self, 'header', None) is None:
+            return ret
+
+        if issubclass(type(ret), Series):
+            if isinstance(item, tuple):
+                items = item
+            else:
+                items = (item,)
+
+            # Calculate slicing consequenses for axes and tags
+            slicing, spec = _calculate_spec(self, ret, items)
+
+            todo = []  # Collect header changes, apply after ndarray slicing
+            new_axes_names = []
+            if slicing:
+                # Here we slice the header information
+                new_axes = []
+                for i in range(len(spec)):
+                    # Slice along axis i
+                    try:
+                        start, stop, step, axis = spec[i]
+                        _slice = slice(start, stop, step)
+                        if axis.name not in ['slice', 'row', 'column'] and len(axis.values[_slice]) <= 1:
+                            # Select slice of tags
+                            tags = self.__get_tags(spec)
+                            todo.append(('tags', tags))
+                            continue
+                    except ValueError:
+                        _slice, axis = spec[i]
+                        if len(_slice) <= 1 or issubclass(type(_slice), np.dtype):
+                            continue
+                    except AttributeError:
+                        _slice = slice(0, 1, 0)
+                        axis = UniformLengthAxis('unknown', 0, 1)
+
+                    new_axes.append(axis[_slice])
+                    new_axes_names.append(axis.name)
+
+                    if axis.name == 'slice':
+                        # Select slice of imagePositions
+                        sl = self.sliceLocations[_slice]
+                        todo.append(('sliceLocations', sl))
+                        try:
+                            ipp = self.__get_imagePositions(spec[i])
+                            todo.append(('imagePositions', None))  # Wipe existing positions
+                            if ipp is not None:
+                                todo.append(('imagePositions', ipp))
+                        except KeyError:
+                            pass
+                    elif axis.name in self.input_order.split(','):
                         # Select slice of tags
                         tags = self.__get_tags(spec)
                         todo.append(('tags', tags))
-                        continue
-                except ValueError:
-                    _slice, axis = spec[i]
-                    if len(_slice) <= 1:
-                        continue
-                except AttributeError:
-                    _slice = slice(0, 1, 0)
-                    axis = UniformLengthAxis('unknown', 0, 1)
+                Axes = namedtuple('Axes', new_axes_names)
+                new_axes = Axes._make(new_axes)
 
-                new_axes.append(axis[_slice])
-                new_axes_names.append(axis.name)
-
-                if axis.name == 'slice':
-                    # Select slice of imagePositions
-                    sl = self.sliceLocations[_slice]
-                    todo.append(('sliceLocations', sl))
-                    try:
-                        ipp = self.__get_imagePositions(spec[i])
-                        todo.append(('imagePositions', None))  # Wipe existing positions
-                        if ipp is not None:
-                            todo.append(('imagePositions', ipp))
-                    except KeyError:
-                        pass
-                elif axis.name in self.input_order.split(','):
-                    # Select slice of tags
-                    tags = self.__get_tags(spec)
-                    todo.append(('tags', tags))
-            Axes = namedtuple('Axes', new_axes_names)
-            new_axes = Axes._make(new_axes)
-
-        # Slicing the ndarray is done here
-        ret = super(Series, self).__getitem__(item)
-        # if slicing and issubclass(type(ret), Series):
-        if issubclass(type(ret), Series):
-            # noinspection PyUnboundLocalVariable
-            if slicing:
                 todo.append(('axes', new_axes))
                 todo.append(('seriesInstanceUID', self.header.seriesInstanceUID))
+                todo.append(('SOPInstanceUIDs', ret.__slice_SOPInstanceUIDs(self, spec)))
             else:
                 new_uid = ret.header.new_uid()
                 ret.seriesInstanceUID = new_uid
             if ret.ndim < self.ndim:
-                # Must copy the ret object before modifying. Otherwise, ret is a view to self.
+                # Must copy the ret header before modifying. Otherwise, ret is a view to self.
                 ret.header = copy.copy(ret.header)
                 ret.input_order = INPUT_ORDER_NONE
                 _names = []
@@ -690,10 +705,41 @@ class Series(np.ndarray):
                 if len(_names) > 0:
                     ret.input_order = ','.join(_names)
             _set_geometry(ret, todo)
-            ret.axes = ret.axes[-ret.ndim:]
+            if ret.ndim < len(ret.axes):
+                new_axes, new_axes_names = [], []
+                for i in range(len(spec)):
+                    try:
+                        start, stop, step, axis = spec[i]
+                        axis_length = len([_ for _ in range(start, stop, step)])
+                    except ValueError:
+                        _slice, axis = spec[i]
+                        raise IndexError('What to do here?')
+                    if axis_length > 1:
+                        new_axes.append(self.axes[i])
+                        new_axes_names.append(self.axes[i].name)
+                Axes = namedtuple('Axes', new_axes_names)
+                ret.axes = Axes._make(new_axes)
         elif isinstance(ret, np.void):
             ret = tuple(ret)
         return ret
+
+    def __slice_SOPInstanceUIDs(self, template, specs):
+        if template.header.SOPInstanceUIDs is None:
+            return None
+        slice_spec, tag_spec, tag_spec_i = self.__get_tag_specs(specs)
+        new_uids = {}
+        for i, s in enumerate(slice_spec):
+            # Extract new tag within tag_spec
+            new_tag = template.tags[s][tag_spec_i].copy()
+            for new_idx, idx in zip(np.ndindex(new_tag.shape), product(*tag_spec)):
+                if not len(idx):
+                    idx = (0,)
+                try:
+                    new_uids[new_idx + (i,)] = template.header.SOPInstanceUIDs[idx + (s,)]
+                except KeyError:
+                    pass  # Missing UID is acceptable
+        return new_uids
+
 
     def __get_sliceLocations(self, spec):
         try:
@@ -783,7 +829,7 @@ class Series(np.ndarray):
                 return tag, filename, hdr
         return None
 
-    def __get_tags(self, specs):
+    def __get_tag_specs(self, specs):
         # tags, slices = self.header.get_tags_and_slices()
         _ = self.header.get_tags_and_slices()
         try:
@@ -798,17 +844,21 @@ class Series(np.ndarray):
         tag_spec_i = tuple()
         for d in specs:
             try:
-                start, stop, step, axis = specs[d]
+                start, stop, step, axis = d
                 _indices = [_ for _ in range(start, stop, step)]
             except ValueError:
                 start, stop, step = None, None, None
-                _indices, axis = specs[d]
+                _indices, axis = d
             except TypeError:
                 # Typically triggered by a np.newaxis spec.
                 start, stop, step = None, None, None
                 _indices = 0
                 axis = UniformLengthAxis('unknown', 0, 1)
-            if axis.name == "slice":
+            if issubclass(type(axis), np.dtype):
+                # Slicing a struct, like an RGB Series
+                # Does not affect slice and tag specs
+                pass
+            elif axis.name == "slice":
                 slice_spec = _indices
             elif axis.name in self.input_order.split(','):
                 if start is None:
@@ -817,6 +867,10 @@ class Series(np.ndarray):
                 else:
                     tag_spec += (_indices,)
                     tag_spec_i += (slice(start, stop, step),)
+        return slice_spec, tag_spec, tag_spec_i
+
+    def __get_tags(self, specs):
+        slice_spec, tag_spec, tag_spec_i = self.__get_tag_specs(specs)
         new_tags = {}
         for i, s in enumerate(slice_spec):
             # Extract new tag within tag_spec
@@ -1822,13 +1876,15 @@ class Series(np.ndarray):
     @property
     def SOPInstanceUIDs(self):
         """str: DICOM SOP Instance UIDs
+        Generate new SOPInstanceUIDs when none are defined.
 
         Raises:
             ValueError: when SOP Instance UIDs is not set
         """
         try:
-            if self.header.SOPInstanceUIDs is not None:
-                return self.header.SOPInstanceUIDs
+            if self.header.SOPInstanceUIDs is None:
+                self.header.set_SOPInstanceUIDs()
+            return self.header.SOPInstanceUIDs
         except AttributeError:
             pass
         raise ValueError("No SOP Instance UIDs set.")
