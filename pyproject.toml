@@ -1,7 +1,7 @@
 [build-system]
 requires = [
     "setuptools>=78.1.1",
-    "wheel>=0.32.3"
+    "wheel>=0.46.2"
 ]
 build-backend = "setuptools.build_meta"
 
@@ -41,7 +41,7 @@ dependencies = [
     "python-magic",
     "python-magic-bin; platform_system=='Windows'",
     "imageio",
-    "pillow >= 10.0.0",
+    "pillow >= 10.0.1",
     "xnat >= 0.7",
     "matplotlib >= 3.8.0, <3.11",
     "dicom-anonymizer>=1.0.13",
