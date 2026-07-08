@@ -6,8 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
-## [v3.9.7-dev1] - 2026-07-08
-* Calculated Series did not get new SOPInstanceUIDs.
+## [v3.9.7] - 2026-07-08
+Calculated Series did not get new SOPInstanceUIDs.
+### Fixed
 * Header.set_default_values(): Set proper tags based on axes descriptions.
 * Header.add_template(): When keep_uid, keep SOPInstanceUIDs too.
 * Header.add_template(): Set tags from template, if available.
