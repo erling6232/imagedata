@@ -428,6 +428,11 @@ class TestDicomPlugin(unittest.TestCase):
         si.seriesDescription = 'float'
         si.imageType = ['DERIVED', 'SECONDARY']
         si.header.photometricInterpretation = 'MONOCHROME2'
+        tags = {}
+        for s in range(si.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        si.tags = tags
         fsi = si / math.sqrt(2)
         fsi_center = fsi.windowCenter
         fsi_width = fsi.windowWidth
@@ -458,6 +463,44 @@ class TestDicomPlugin(unittest.TestCase):
         eye_seriesInstanceUID = eye.seriesInstanceUID
         eye_copy = eye[0]
         self.assertEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
+
+    def test_changed_uid_on_operation(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_1 = eye + 1
+        self.assertNotEqual(eye_seriesInstanceUID, eye_1.seriesInstanceUID)
+
+    def test_changed_uid_on_numpy_ufunc(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_1 = np.clip(eye + 1, a_min=0, a_max=255, dtype=np.uint8)
+        self.assertNotEqual(eye_seriesInstanceUID, eye_1.seriesInstanceUID)
+
+    def test_null_SOPInstanceUIDs(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
+        self.assertIsNotNone(si.header.SOPInstanceUIDs)
+        si1 = si + 1
+        # The Header SOPInstanceUIDs should be nulled out
+        self.assertIsNone(si1.header.SOPInstanceUIDs)
+        # When querying the Series object, new SOPInstanceUIDs should be generated
+        self.assertIsNotNone(si1.SOPInstanceUIDs)
+        self.assertNotEqual(si.SOPInstanceUIDs, si1.SOPInstanceUIDs)
+
+    def test_SOPInstanceUIDs_on_slice_slicing(self):
+        si = Series(os.path.join('data', 'dicom', 'time'), 'time', input_format='dicom')
+        si1 = si[:, 1]
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertIsNotNone(si1.header.SOPInstanceUIDs)
+        for t in range(len(si1.axes.time)):
+            self.assertEqual(si.SOPInstanceUIDs[(t, 1)], si1.SOPInstanceUIDs[(t, 0)])
+
+    def test_SOPInstanceUIDs_on_time_slicing(self):
+        si = Series(os.path.join('data', 'dicom', 'time'), 'time', input_format='dicom')
+        si1 = si[1]
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertIsNotNone(si1.header.SOPInstanceUIDs)
+        for s in range(si.slices):
+            self.assertEqual(si.SOPInstanceUIDs[(1, s)], si1.SOPInstanceUIDs[(0, s)])
 
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')

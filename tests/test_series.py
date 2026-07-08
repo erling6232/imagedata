@@ -332,6 +332,14 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-2,:,:])
         np.testing.assert_array_equal(s[0:2,:,:], s[0:-2,:,:])
 
+    def test_slicing_time(self):
+        si = Series('data/dicom/time', 'time', input_format='dicom')
+        si_tags = si.tags.copy()
+        si1 = si[1:]
+        for s in si.tags:
+            np.testing.assert_array_equal(si1.tags[s], si.tags[s][1:])
+            np.testing.assert_array_equal(si1.tags[s], si_tags[s][1:])
+
     def test_slicing_t(self):
         a1 = np.eye(128)
         a1.shape = (1,128,128)
@@ -684,11 +692,24 @@ class TestSeries(unittest.TestCase):
         for i in range(len(si.axes)):
             self.assertEqual(len(si.axes[i]), si.shape[i])
 
+    def test_get_rgb_slice_color_plane(self):
+        si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
+
+        rgb = si1.to_rgb()
+        # Make a slice in RGB Series. Should return a red volume
+        # The slicing refers to the RGB struct
+        red = rgb['R']
+        self.assertEqual(si1.shape, red.shape)
+        self.assertEqual(np.uint8, red.dtype)
+
     def test_get_rgb_voxel(self):
         si1 = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si1.input_format)
 
         rgb = si1.to_rgb()
+        # Make a slice in RGB Series. Should return an RGB slice
+        # The slicing does not refer to the RGB struct
         _slice = rgb[1]
         voxel = _slice[1, 1]
         self.assertEqual(3, len(voxel))
