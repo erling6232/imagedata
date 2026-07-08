@@ -151,7 +151,7 @@ class Header(object):
             slices = len(axes.slice)
         except AttributeError:
             slices = 1
-        tags = (1,)
+        tags = tuple()
         axis_tags = tuple()
         for axis in axes:
             if axis.name not in ('slice', 'row', 'column'):
@@ -171,12 +171,27 @@ class Header(object):
 
         for _slice in range(slices):
             self.imagePositions[_slice] = np.array([_slice, 0, 0])
+
         if self.tags is None:
+            tag_values = []
+            for i in range(len(tags)):
+                if axes[i].name not in ['slice', 'row', 'column']:
+                    tag_values.append(axes[i].values)
+            if len(tag_values) != len(tags):
+                pass
+            assert len(tag_values) == len(tags)
             self.tags = {}
             for _slice in range(slices):
                 _tags = np.empty(tags, dtype=tuple)
-                for tag in np.ndindex(tags):
-                    _tags[tag] = tag
+                try:
+                    for tag in np.ndindex(tags):
+                        _tag_value = tuple()
+                        for i, _t in enumerate(tag):
+                            _tag_value += (tag_values[i][_t],)
+                        _tags[tag] = _tag_value
+                except IndexError:
+                    for tag in np.ndindex(tags):
+                        _tags[tag] = tag
                 self.tags[_slice] = _tags
 
     # noinspection PyPep8Naming
@@ -268,18 +283,28 @@ class Header(object):
 
         if template is None:
             return
+        do_not_copy = ['seriesInstanceUID', 'tags', 'input_format', 'SOPInstanceUIDs']
         for attr in template.__dict__:
-            if attr in header_tags and attr not in ['seriesInstanceUID', 'tags', 'input_format']:
+            if attr in header_tags and attr not in do_not_copy:
                 value = getattr(template, attr, None)
                 if value is not None:
                     setattr(self, attr, value)
         if 'keep_uid' in template.__dict__:
-            value = getattr(template, 'seriesInstanceUID', None)
-            if value is not None:
-                setattr(self, 'seriesInstanceUID', value)
+            for attr in ['seriesInstanceUID', 'SOPInstanceUIDs']:
+                value = getattr(template, attr, None)
+                if value is not None:
+                    setattr(self, attr, value)
 
         # Make sure tags are set last. Template may be None
-        # self.__set_tags_from_template(template)
+        self.__set_tags_from_template(template)
+
+    def set_SOPInstanceUIDs(self) -> None:
+        """Set SOPInstanceUIDs to this header."""
+        self.SOPInstanceUIDs = {}
+        tags, slices = self.get_tags_and_slices()
+        for s in range(slices):
+            for tag in self.tags[0]:
+                self.SOPInstanceUIDs[tag + (s,)] = self.new_uid()
 
     def get_tags_and_slices(self) -> tuple[tuple[int], int]:
         tags = tuple()
