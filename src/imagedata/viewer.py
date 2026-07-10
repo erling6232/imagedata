@@ -1163,17 +1163,15 @@ def build_info(im, colormap, norm, colorbar, window, level):
     if im_colormap is None:
         if not issubclass(type(colormap), matplotlib.colors.Colormap):
             colormap = plt.get_cmap(colormap, lut)
-        colormap.set_bad(color='k')  # Important for log display of non-positive values
-        colormap.set_under(color='k')
-        colormap.set_over(color='w')
+        colormap = colormap.with_extremes(bad='k', under='k', over='w')
     else:
         colormap = im_colormap
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
     if im_colormap_norm is None:
-        if type(norm) is type:
-            norm = norm(vmin=vmin, vmax=vmax)
         if im_color:
             norm = None
+        else:
+            norm = norm(vmin=vmin, vmax=vmax)
     else:
         norm = im_colormap_norm
     tag_axis = im.get_tag_axis()

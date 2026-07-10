@@ -164,8 +164,7 @@ class TestSeries(unittest.TestCase):
             s.sliceLocations = [3, 6]
 
     def test_slicing_dim(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -178,8 +177,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(s_slice.axes[1].name, 'column')
 
     def test_slicing_y(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -204,8 +202,7 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[:,0:2,:], s[:,0:-2,:])
 
     def test_slicing_x(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -230,8 +227,7 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[:,:,0:2], s[:,:,0:-2])
 
     def test_assign_slice_x(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -248,8 +244,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(s.slices, 3)
 
     def test_assign_slice(self):
-        a = np.array(range(4*5*6), dtype=np.uint16)
-        a.shape = (4,5,6)
+        a = np.array(range(4*5*6), dtype=np.uint16).reshape(4,5,6)
         s = Series(a)
         s.spacing = (1, 1, 1)
         s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
@@ -292,8 +287,7 @@ class TestSeries(unittest.TestCase):
                              axis=(1, 2, 3), where=mask == 1) / np.count_nonzero(mask)
 
     def test_slicing_z(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -341,10 +335,8 @@ class TestSeries(unittest.TestCase):
             np.testing.assert_array_equal(si1.tags[s], si_tags[s][1:])
 
     def test_slicing_t(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
@@ -427,10 +419,8 @@ class TestSeries(unittest.TestCase):
         sum = sum[:, np.newaxis]
 
     def test_multiple_ellipses(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
@@ -447,10 +437,8 @@ class TestSeries(unittest.TestCase):
             s_slice = s[...,1:3,...]
 
     def test_ellipsis_first(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.empty([4, 3,128,128])
         for i in range(4):
             a[i] = a2
@@ -474,10 +462,8 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s_slice.tags[0]), len(s.tags[0]))
 
     def test_ellipsis_middle(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)

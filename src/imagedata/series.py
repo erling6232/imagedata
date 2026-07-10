@@ -2735,17 +2735,15 @@ class Series(np.ndarray):
                 from .apps.ColorMaps.MR_relaxometry import lipari as colormap
             else:
                 colormap = plt.get_cmap(colormap, lut)
-        colormap.set_bad(color='k')  # Important for log display of non-positive values
-        colormap.set_under(color='k')
-        colormap.set_over(color='w')
-        if type(norm) is type:
-            if clip == 'window':
-                window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
-            elif clip == 'hist':
-                vmin, vmax = self.calculate_clip_range(probs, lut)
-            else:
-                raise ValueError('Unknow clip method: {}'.format(clip))
-            norm = norm(vmin=vmin, vmax=vmax, clip=True)
+        colormap = colormap.with_extremes(bad='k', under='k', over='w')
+        # if type(norm) is type:
+        if clip == 'window':
+            window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+        elif clip == 'hist':
+            vmin, vmax = self.calculate_clip_range(probs, lut)
+        else:
+            raise ValueError('Unknow clip method: {}'.format(clip))
+        norm = norm(vmin=vmin, vmax=vmax, clip=True)
         data = norm(self)
         color_data = colormap(data, bytes=True)[..., :3]  # Strip off alpha color
         rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
@@ -2754,26 +2752,9 @@ class Series(np.ndarray):
             input_order=self.input_order,
             geometry=self
         )
-        # if self.dtype.kind == 'f':
-        #     rgb = Series(
-        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-        #         input_order=self.input_order,
-        #         geometry=self,
-        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-        #     )
-        # else:
-        #     rgb = Series(
-        #         colormap(data, bytes=True)[..., :3],  # Strip off alpha color
-        #         input_order=self.input_order,
-        #         geometry=self,
-        #         # axes=self.axes + [VariableAxis('rgb', ['r', 'g', 'b'])]
-        #     )
 
         rgb.header.photometricInterpretation = 'RGB'
         rgb.header.add_template(self.header)
-        # rgb.header.colormap = mpl.colorbar.ColorbarBase(
-        #
-        # )
         rgb.header.colormap = copy.copy(colormap)
         rgb.header.colormap_norm = copy.copy(norm)
         rgb.header.color = True

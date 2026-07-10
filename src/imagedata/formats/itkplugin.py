@@ -1,7 +1,7 @@
 """Read/Write image files using ITK
 """
 
-# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -101,7 +101,7 @@ class ITKPlugin(AbstractPlugin):
             # https://blog.kitware.com/itk-python-image-pixel-types/
             reader = itk.imread(f)
             img = itk.GetArrayFromImage(reader)
-            self._reduce_shape(img)
+            img = self._reduce_shape(img)
             logger.info("{}: Data shape read ITK: {}".format(_name, img.shape))
 
             o = reader
