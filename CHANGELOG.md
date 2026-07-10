@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v3.9.8-dev0] - 2026-07-10
 ### Fixed
 * Viewer.build_info(): Setting the normalize object was not working with matplotlib 3.11.
+* AbstractPlugin._reduce_shape(): In order to comply with NumPy 2.5, do not set shape directly.
 
 ### Changed
 * Matplotlib 3.11 is supported.
 * Viewer.build_info(): Set colormap extremes using cmap.with_extremes().
 * Series.to_rgb(): Set colormap extremes using cmap.with_extremes().
+* AbstractPlugin._reduce_shape(): Modified call, will return the possibly modified instance.
 
 ## [v3.9.7] - 2026-07-08
 Calculated Series did not get new SOPInstanceUIDs.
