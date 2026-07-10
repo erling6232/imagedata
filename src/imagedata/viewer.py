@@ -1170,10 +1170,10 @@ def build_info(im, colormap, norm, colorbar, window, level):
         colormap = im_colormap
     window, level, vmin, vmax = get_window_level(im, norm, window, level)
     if im_colormap_norm is None:
-        if type(norm) is type:
-            norm = norm(vmin=vmin, vmax=vmax)
         if im_color:
             norm = None
+        else:
+            norm = norm(vmin=vmin, vmax=vmax)
     else:
         norm = im_colormap_norm
     tag_axis = im.get_tag_axis()
