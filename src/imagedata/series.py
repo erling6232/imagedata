@@ -2735,17 +2735,25 @@ class Series(np.ndarray):
                 from .apps.ColorMaps.MR_relaxometry import lipari as colormap
             else:
                 colormap = plt.get_cmap(colormap, lut)
-        colormap.set_bad(color='k')  # Important for log display of non-positive values
-        colormap.set_under(color='k')
-        colormap.set_over(color='w')
-        if type(norm) is type:
-            if clip == 'window':
-                window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
-            elif clip == 'hist':
-                vmin, vmax = self.calculate_clip_range(probs, lut)
-            else:
-                raise ValueError('Unknow clip method: {}'.format(clip))
-            norm = norm(vmin=vmin, vmax=vmax, clip=True)
+        # colormap.set_bad(color='k')  # Important for log display of non-positive values
+        # colormap.set_under(color='k')
+        # colormap.set_over(color='w')
+        colormap = colormap.with_extremes(bad='k', under='k', over='w')
+        if clip == 'window':
+            window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+        elif clip == 'hist':
+            vmin, vmax = self.calculate_clip_range(probs, lut)
+        else:
+            raise ValueError('Unknow clip method: {}'.format(clip))
+        norm = norm(vmin=vmin, vmax=vmax, clip=True)
+        # if type(norm) is type:
+        #     if clip == 'window':
+        #         window, level, vmin, vmax = get_window_level(self, norm, window=None, level=None)
+        #     elif clip == 'hist':
+        #         vmin, vmax = self.calculate_clip_range(probs, lut)
+        #     else:
+        #         raise ValueError('Unknow clip method: {}'.format(clip))
+        #     norm = norm(vmin=vmin, vmax=vmax, clip=True)
         data = norm(self)
         color_data = colormap(data, bytes=True)[..., :3]  # Strip off alpha color
         rgb_dtype = np.dtype([('R', 'u1'), ('G', 'u1'), ('B', 'u1')])
