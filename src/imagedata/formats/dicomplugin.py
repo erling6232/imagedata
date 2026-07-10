@@ -772,7 +772,7 @@ class DICOMPlugin(AbstractPlugin):
             _copy_pixels(si, hdr, image_dict)
 
         # Simplify shape
-        self._reduce_shape(si, hdr.axes)
+        si = self._reduce_shape(si, hdr.axes)
         logger.debug('{}: si {}'.format(_name, si.shape))
 
         return si
