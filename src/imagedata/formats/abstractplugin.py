@@ -157,7 +157,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             raise ValueError('No image data read')
         info, si = image_list[0]
         if si is not None:
-            self._reduce_shape(si)
+            si = self._reduce_shape(si)
             logger.debug('{}: reduced si {}'.format(_name, si.shape))
             shape = (len(image_list),) + si.shape
             dtype = si.dtype
@@ -173,7 +173,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             logger.debug('{}: si {}'.format(_name, si.shape))
 
             # Simplify shape
-            self._reduce_shape(si)
+            si = self._reduce_shape(si)
             logger.debug('{}: reduced si {}'.format(_name, si.shape))
 
             _shape = si.shape
@@ -462,15 +462,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         """
 
         if si is None:
-            return
+            return si
         mindim = 2
         while si.ndim > mindim:
             if si.shape[0] == 1:
-                si.shape = si.shape[1:]
+                si = si.reshape(si.shape[1:])
                 if axes is not None:
                     axes = axes[1:]
             else:
                 break
+        return si
 
     def _reorder_to_dicom(self, data, flip=False, flipud=False):
         """Reorder data to internal DICOM format.
