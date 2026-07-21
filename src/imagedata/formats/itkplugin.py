@@ -42,9 +42,9 @@ class ITKPlugin(AbstractPlugin):
     name = "itk"
     description = "Read and write ITK files."
     authors = "Erling Andersen"
-    version = "2.1.0"
+    version = "2.1.1"
     url = "www.helse-bergen.no"
-    extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff"]
+    extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff", ".png"]
 
     def __init__(self, name=None, description=None,
                  authors=None, version=None, url=None):
