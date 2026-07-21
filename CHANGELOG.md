@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Series.to_rgb(): Set colormap extremes using cmap.with_extremes().
 * AbstractPlugin._reduce_shape(): Modified call, will return the possibly modified instance.
 
+## [v3.9.8-dev0] - 2026-07-21
+### Added
+* ITKPlugin: Also write PNG files.
+
 ## [v3.9.7] - 2026-07-08
 Calculated Series did not get new SOPInstanceUIDs.
 ### Fixed
