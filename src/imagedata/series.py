@@ -730,14 +730,17 @@ class Series(np.ndarray):
         new_uids = {}
         for i, s in enumerate(slice_spec):
             # Extract new tag within tag_spec
-            new_tag = template.tags[s][tag_spec_i].copy()
-            for new_idx, idx in zip(np.ndindex(new_tag.shape), product(*tag_spec)):
-                if not len(idx):
-                    idx = (0,)
-                try:
-                    new_uids[new_idx + (i,)] = template.header.SOPInstanceUIDs[idx + (s,)]
-                except KeyError:
-                    pass  # Missing UID is acceptable
+            try:
+                new_tag = template.tags[s][tag_spec_i].copy()
+                for new_idx, idx in zip(np.ndindex(new_tag.shape), product(*tag_spec)):
+                    if not len(idx):
+                        idx = (0,)
+                    try:
+                        new_uids[new_idx + (i,)] = template.header.SOPInstanceUIDs[idx + (s,)]
+                    except KeyError:
+                        pass  # Missing UID is acceptable
+            except AttributeError:
+                pass
         return new_uids
 
 
@@ -2842,10 +2845,10 @@ class Series(np.ndarray):
             raise IndexError('Mask should be 3D')
         if mask.ndim == 2:
             if mask.shape != background.shape[-2:]:
-                raise IndexError('Shape of mask does not match image')
+                raise IndexError(f'Shape of mask {mask.shape} does not match image {background.shape}')
         elif mask.ndim == 3:
             if mask.shape != background.shape[-3:]:
-                raise IndexError('Shape of mask does not match image')
+                raise IndexError(f'Shape of mask {mask.shape} does not match image {background.shape}')
 
         if maskrange is None:
             maskrange = (np.nanmin(mask), np.nanmax(mask))
