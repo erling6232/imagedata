@@ -98,9 +98,9 @@ class DtypeAction(argparse.Action):
 
 def add_argparse_options(parser):
     parser.add_argument('--of', dest="output_format", action=OutputFormatAction,
-                        help="Output format [dicom|itk|nifti|biff|mat|ps] (default: dicom). "
+                        help="Output format [dicom|itk|nifti|biff|mat|ps|pillow] (default: dicom). "
                              "Replaces %%p in output path.",
-                        choices=['dicom', 'itk', 'nifti', 'biff', 'mat', 'ps'],
+                        choices=['dicom', 'itk', 'nifti', 'biff', 'mat', 'ps', 'pillow'],
                         default=[])
     parser.add_argument('--sort', dest="output_sort", action=SortOnAction,
                         help="Sort output file on slice or input order 'tag' (default: slice)",
