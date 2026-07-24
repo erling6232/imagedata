@@ -70,6 +70,12 @@ class WriteNotImplemented(Exception):
     pass
 
 
+class BadShapeGiven(Exception):
+    """Thrown when input_shape is not like (t)x(z).
+    """
+    pass
+
+
 def sort_on_to_str(sort_on):
     if sort_on == SORT_ON_SLICE:
         return "SORT_ON_SLICE"

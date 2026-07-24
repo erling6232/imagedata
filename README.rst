@@ -19,10 +19,11 @@ Imagedata will handle geometry information between the formats.
 The following formats are included:
 
 * DICOM
-* Nifti
+* NIfTI
 * ITK (MetaIO)
 * Matlab
-* PostScript (input only)
+* PDF (write only)
+* Non-medical image formats through the Pillow imaging library
 
 Other formats can be added through a plugin architecture.
 

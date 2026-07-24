@@ -156,6 +156,7 @@ class TestDicomPlugin(unittest.TestCase):
                 input_order='b',
                 opts=self.opts)
 
+
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
     def test_read_dicom_user_defined_TI(self):
         si1 = Series(
@@ -330,7 +331,20 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.shape, (192, 152))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.dcm'),
-                      formats=['dicom'])
+                      formats='dicom')
+            si2 = Series(d, input_format='dicom')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    def test_write_single_file_ext(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            input_format='dicom'
+        )
+        self.assertEqual(si1.shape, (192, 152))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image.dcm'),
+                      formats='dcm')
             si2 = Series(d, input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)

@@ -256,6 +256,7 @@ def write(si, url, opts=None, formats=None):
         output_formats = out_opts['output_format']
     if output_formats is None:
         output_formats = ['dicom']  # Fall-back to dicom output
+    out_opts['output_formats'] = output_formats
     logger.info("{}: Output formats: {}".format(_name, output_formats))
 
     # Determine output dtype
@@ -276,7 +277,7 @@ def write(si, url, opts=None, formats=None):
     written = False
     msg = ''
     for pname, ptype, pclass in get_plugins_list():
-        if ptype in output_formats:
+        if plugin_supports_format(pclass, output_formats):
             logger.debug("{}: Attempt plugin {}".format(_name, ptype))
             # Create plugin to write data in specified format
             writer = pclass()
@@ -321,6 +322,17 @@ def write(si, url, opts=None, formats=None):
     if len(msg) > 0:
         logger.error("{}: {}".format(_name, msg))
     # destination['archive'].close()
+
+
+def plugin_supports_format(pclass, output_formats):
+    if pclass.name in output_formats:
+        return True
+    for ext in pclass.extensions:
+        if ext in output_formats:
+            return True
+        if ext[0] == '.' and ext[1:] in output_formats:
+            return True
+    return False
 
 
 def sorted_plugins_dicom_first(plugins, input_format):

@@ -29,6 +29,23 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |each series/study.     |
 |                         |                         |     |Default: True          |
 +-------------------------+-------------------------+-----+-----------------------+
+|**All Plugins**                                                                  |
++-------------------------+-------------------------+-----+-----------------------+
+|read                     |input_shape              |str  |Set shape of input     |
+|                         |                         |or   |data. Give as string   |
+|                         |                         |iter |'4x5' or as iterable   |
+|                         |                         |     |(4,5) or [4,5].        |
+|                         |                         |     |Default: None          |
++-------------------------+-------------------------+-----+-----------------------+
+|write                    |output_sort              |str  |Which tag will sort    |
+|                         |                         |     |the output images,     |
+|                         |                         |     |'slice' or 'tag'       |
++-------------------------+-------------------------+-----+-----------------------+
+|write                    |output_dir               |str  |Store all images in a  |
+|                         |                         |     |single or multiple     |
+|                         |                         |     |directories, 'single'  |
+|                         |                         |     |or 'multi'             |
++-------------------------+-------------------------+-----+-----------------------+
 |**DICOMPlugin**                                                                  |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |skip_broken_series       |bool |Skip broken series     |
@@ -110,15 +127,6 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |writing.               |
 |                         |                         |     |Default: False         |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |output_sort              |str  |Which tag will sort    |
-|                         |                         |     |the output images,     |
-|                         |                         |     |'slice' or 'tag'       |
-+-------------------------+-------------------------+-----+-----------------------+
-|write                    |output_dir               |str  |Store all images in a  |
-|                         |                         |     |single or multiple     |
-|                         |                         |     |directories, 'single'  |
-|                         |                         |     |or 'multi'             |
-+-------------------------+-------------------------+-----+-----------------------+
 |**ITKPlugin**                                                                    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_sort               |int  |Sort images on         |
@@ -128,10 +136,6 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |formats that do not    |
 |                         |                         |     |provide geometry data  |
 +-------------------------+-------------------------+-----+-----------------------+
-|write                    |output_sort              |str  |Which tag will sort    |
-|                         |                         |     |the output images,     |
-|                         |                         |     |'slice' or 'tag'       |
-+-------------------------+-------------------------+-----+-----------------------+
 |**MatPlugin**                                                                    |
 +-------------------------+-------------------------+-----+-----------------------+
 |read                     |input_sort               |int  |Sort images on         |
@@ -140,10 +144,6 @@ The following plugin options are known at the time of writing:
 |                         |                         |     |Useful for image       |
 |                         |                         |     |formats that do not    |
 |                         |                         |     |provide geometry data  |
-+-------------------------+-------------------------+-----+-----------------------+
-|write                    |output_sort              |str  |Which tag will sort    |
-|                         |                         |     |the output images,     |
-|                         |                         |     |'slice' or 'tag'       |
 +-------------------------+-------------------------+-----+-----------------------+
 |**NiftiPlugin**                                                                  |
 +-------------------------+-------------------------+-----+-----------------------+

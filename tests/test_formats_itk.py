@@ -138,6 +138,17 @@ class TestFileArchiveItk(unittest.TestCase):
             if not os.path.isfile(filename):
                 raise AssertionError('File does not exist: {}'.format(filename))
 
+    def test_write_single_file_ext_not_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'test.mha')
+            a.write(
+                filename,
+                formats='mha'
+            )
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
     # @unittest.skip("skipping test_write_4d_single_directory")
     def test_write_4d_single_directory(self):
         si1 = Series(
@@ -305,7 +316,7 @@ class TestWritePluginItkTag(unittest.TestCase):
             formats.sort_on_to_str(si.sort_on)))
         si.output_dir = 'single'
         with tempfile.TemporaryDirectory() as d:
-            si.write(d, self.opts)
+            si.write(d, self.opts, formats='itk')
 
             # Read back the ITK data and verify that the header was modified
             si2 = Series(

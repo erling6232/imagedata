@@ -330,11 +330,11 @@ class FilesystemArchive(AbstractArchive, ABC):
                 filename = self.transport.join(filename, self.fallback)
         if not filename:
             filename = self.fallback
-        if tag is not None:
-            if '%' in filename:
-                filename = filename % tag
-            else:
-                filename = filename.format(*tag)
+        set_tag = tag if tag is not None else (0,)
+        if '%' in filename:
+            filename = filename % set_tag
+        else:
+            filename = filename.format(*set_tag)
         ext1 = self._get_extension(filename)
         if ext1 not in self.extensions:
             filename += self.default_extension

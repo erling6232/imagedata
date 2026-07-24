@@ -40,8 +40,7 @@ dependencies = [
     "scipy >= 1.2.4",
     "python-magic",
     "python-magic-bin; platform_system=='Windows'",
-    "imageio",
-    "pillow >= 10.0.1",
+    "pillow >= 12.3.0",
     "xnat >= 0.7",
     "matplotlib >= 3.8.0, <3.12",
     "dicom-anonymizer>=1.0.13",
@@ -93,6 +92,7 @@ timeline = "imagedata.image_data:timeline"
 dicomformat = "imagedata.formats.dicomplugin:DICOMPlugin"
 itkformat = "imagedata.formats.itkplugin:ITKPlugin"
 matformat = "imagedata.formats.matplugin:MatPlugin"
+pillowformat = "imagedata.formats.pillowplugin:PillowPlugin"
 niftiformat = "imagedata.formats.niftiplugin:NiftiPlugin"
 filesystemarchive = "imagedata.archives.filesystemarchive:FilesystemArchive"
 zipfilearchive = "imagedata.archives.zipfilearchive:ZipfileArchive"
