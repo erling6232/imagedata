@@ -44,7 +44,7 @@ class ITKPlugin(AbstractPlugin):
     authors = "Erling Andersen"
     version = "2.1.1"
     url = "www.helse-bergen.no"
-    extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff", ".png"]
+    extensions = [".mhd", ".mha"]
 
     def __init__(self, name=None, description=None,
                  authors=None, version=None, url=None):
