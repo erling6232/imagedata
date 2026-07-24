@@ -186,7 +186,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 try:
                     input_shape = tuple(int(_) for _ in opts['input_shape'].split('x'))
                 except ValueError as e:
-                    raise BadShapeGiven(f'Illegal input_shape "{opts['input_shape']}": {e}')
+                    raise BadShapeGiven(f'Illegal input_shape {opts["input_shape"]}: {e}')
                 except AttributeError:
                     input_shape = tuple(opts['input_shape'])
                 # Guess the meaning of input_shape
