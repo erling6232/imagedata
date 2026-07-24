@@ -32,6 +32,26 @@ class Test3DPillowPlugin(unittest.TestCase):
         self.assertEqual(si1.dtype, rgb_dtype)
         self.assertEqual(si1.shape, (512, 512))
 
+    def test_write_pdf(self):
+        si1 = Series(os.path.join('data', 'lena_color.jpg'), input_format='pillow')
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'Image.pdf')
+            si1.write(filename, formats='pdf')
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
+    def test_write_pdf_multiple(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00'),
+            'none',
+            dtype=np.uint8,
+            input_format='dicom')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(d, formats='pdf')
+            filename = os.path.join(d, 'Image_00000.pdf')
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
     def test_write_int64_fails(self):
         with tempfile.TemporaryDirectory() as d:
             si = Series(np.eye(128), dtype=np.int64)
