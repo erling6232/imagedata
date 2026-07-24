@@ -7,10 +7,11 @@ Defines generic functions.
 # Copyright (c) 2017-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
+import math
 import logging
 import numpy as np
 from collections import namedtuple
-from . import NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
+from . import BadShapeGiven, NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
 from ..header import Header
 from ..archives.abstractarchive import AbstractArchive
 
@@ -180,6 +181,30 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             if _ndim > 2:
                 nz = _shape[-3]
             logger.debug('{}: slices {}'.format(_name, nz))
+
+            if 'input_shape' in opts and opts['input_shape']:
+                try:
+                    input_shape = tuple(int(_) for _ in opts['input_shape'].split('x'))
+                except ValueError as e:
+                    raise BadShapeGiven(f'Illegal input_shape "{opts['input_shape']}": {e}')
+                except AttributeError:
+                    input_shape = tuple(opts['input_shape'])
+                # Guess the meaning of input_shape
+                new_shape = None
+                for attempt_shape in [input_shape,
+                                      input_shape + si.shape[-3:],
+                                      input_shape + si.shape[-2:]]:
+                    if math.prod(attempt_shape) == si.size:
+                        new_shape = attempt_shape
+                        break
+                if new_shape is None:
+                    raise BadShapeGiven(f'input_shape {input_shape} does not match {si.shape}')
+                if input_order == 'none' and len(new_shape) > 3:
+                    raise BadShapeGiven(f'input_shape {input_shape} not acceptable for input_order none')
+                if len(new_shape) != len(input_order.split(',')) + 3:
+                    raise BadShapeGiven(f'input_shape {input_shape} does not match input_order {input_order}')
+                logging.warning(f'Modifying input shape from {si.shape} to {new_shape}. Take care!')
+                si = si.reshape(new_shape)
 
         logger.debug('{}: calling _set_tags'.format(_name))
         self._set_tags(image_list, hdr, si)
