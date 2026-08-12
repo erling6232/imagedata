@@ -26,7 +26,8 @@ keywords = [
     "pynetdicom",
     "itk"
 ]
-license = {file = "LICENSE.txt"}
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 dependencies = [
     "pydicom>=2.4.5, <3",
     "pylibjpeg[all]",
