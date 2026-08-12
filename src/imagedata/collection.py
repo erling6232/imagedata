@@ -173,6 +173,8 @@ class IndexedDict(dict):
         super(IndexedDict, self).__init__()
 
     def _item_to_key_(self, item):
+        if len(self) == 0:
+            return [item]
         if isinstance(item, int):
             return [list(self.keys())[item]]
         elif isinstance(item, slice):

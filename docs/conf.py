@@ -12,6 +12,8 @@
 #
 import os
 import sys
+import importlib.metadata
+
 docs = os.path.dirname(__file__)
 root = os.path.dirname(docs)
 sys.path.insert(0, root)
@@ -25,14 +27,7 @@ copyright = '2013-2026, Erling Andersen, Haukeland University Hospital, Bergen, 
 author = 'Erling Andersen'
 
 
-def get_version():
-    """The full version, including alpha/beta/rc tags"""
-
-    version_file = open('../VERSION.txt')
-    return version_file.read().strip()
-
-
-version = get_version()
+version = importlib.metadata.version("imagedata")
 release = version
 
 

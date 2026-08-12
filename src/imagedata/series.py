@@ -128,7 +128,7 @@ class Series(np.ndarray):
         _name: str = '{}.{}'.format(__name__, cls.__new__.__name__)
 
         if opts is None:
-            opts = {}
+            opts = {'template': None, 'geometry': None, 'axes': None}
         elif issubclass(type(opts), argparse.Namespace):
             opts = vars(opts)
         for key, value in kwargs.items():
@@ -136,11 +136,23 @@ class Series(np.ndarray):
         if 'input_options' in opts:
             for key, value in opts['input_options'].items():
                 opts[key] = value
-        if axes is not None and not isinstance(axes, Axis):
-            axes = to_namedtuple(axes)
 
-        template = _get_template(template)
-        geometry = _get_template(geometry)
+        for _ in ['template', 'geometry', 'axes']:
+            if _ not in opts:
+                opts[_] = None
+
+        # Let explicit templates override any opts settings
+        if template is not None:
+            opts['template'] = template
+        if geometry is not None:
+            opts['geometry'] = geometry
+        if axes is not None:
+            opts['axes'] = axes
+
+        opts['template'] = _get_template(opts['template'])
+        opts['geometry'] = _get_template(opts['geometry'])
+        if opts['axes'] is not None and not isinstance(opts['axes'], Axis):
+            opts['axes'] = to_namedtuple(opts['axes'])
 
         if issubclass(type(data), np.ndarray):
             logger.debug('{}: data ({}) is subclass of np.ndarray'.format(_name, type(data)))
@@ -174,13 +186,13 @@ class Series(np.ndarray):
                 obj.header.add_template(data.header)
                 obj.header.add_geometry(data.header)
             else:
-                obj.header.set_default_values(obj.axes if axes is None else axes)
+                obj.header.set_default_values(obj.axes if opts['axes'] is None else opts['axes'])
 
             # obj.header.set_default_values() # Already done in __array_finalize__
-            if axes is not None:
-                obj.header.axes = copy.copy(axes)
-            obj.header.add_template(template)
-            obj.header.add_geometry(geometry)
+            if opts['axes'] is not None:
+                obj.header.axes = copy.copy(opts['axes'])
+            obj.header.add_template(opts['template'])
+            obj.header.add_geometry(opts['geometry'])
             return obj
         logger.debug('{}: data is NOT subclass of Series, type {}'.format(_name, type(data)))
 
@@ -204,9 +216,9 @@ class Series(np.ndarray):
             if np.ndim(data) == 0:
                 Axes = namedtuple('Axes', 'number')
                 obj.header.axes = Axes(UniformAxis('number', 0, 1))
-            obj.header.set_default_values(obj.axes if axes is None else axes)
-            obj.header.add_template(template)
-            obj.header.add_geometry(geometry)
+            obj.header.set_default_values(obj.axes if opts['axes'] is None else opts['axes'])
+            obj.header.add_template(opts['template'])
+            obj.header.add_geometry(opts['geometry'])
             return obj
 
         # Read input, hdr is dict of attributes
@@ -228,8 +240,8 @@ class Series(np.ndarray):
 
         # Copy attributes from hdr dict to newly created obj
         logger.debug('{}: Copy attributes from hdr dict to newly created obj'.format(_name))
-        if axes is not None:
-            obj.axes = copy.copy(axes)
+        if opts['axes'] is not None:
+            obj.axes = copy.copy(['axes'])
         elif hdr.axes is not None:
             obj.axes = hdr.axes
         obj.header.set_default_values(obj.axes)
@@ -239,8 +251,8 @@ class Series(np.ndarray):
         #     __set_attribute(obj.header, attr, __get_attribute(template, attr))
         #     setattr(obj.header, attr, hdr[attr])
         # Store any template and geometry headers,
-        obj.header.add_template(template)
-        obj.header.add_geometry(geometry)
+        obj.header.add_template(opts['template'])
+        obj.header.add_geometry(opts['geometry'])
         # set the new 'input_order' attribute to the value passed
         obj.header.input_order = hdr.input_order
         obj.header.input_format = hdr.input_format
@@ -3250,7 +3262,7 @@ def _get_template(template: Series|Header|PurePath|str|None = None) -> Header|No
     elif issubclass(type(template), Header):
         return template  # Keep header as template
     elif issubclass(type(template), PurePath) or issubclass(type(template), str):
-        _ = Series(template)
+        _ = Series(template, input_format='dicom', headers_only=True)
         return _.header
     else:
         raise ValueError(f'Template should be Series, Header or URL, not {type(template)}')

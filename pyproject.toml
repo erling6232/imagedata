@@ -1,13 +1,13 @@
 [build-system]
-requires = [
-    "setuptools>=78.1.1",
-    "wheel>=0.46.2"
-]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build >= 0.12.1, <0.13.0"]
+build-backend = "uv_build"
+#[build-system]
+#requires = ["setuptools >= 77.0.3"]
+#build-backend = "setuptools.build_meta"
 
 [project]
 name = "imagedata"
-dynamic = ["version"]
+version = "3.9.8.dev0"
 authors = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
 ]
@@ -26,7 +26,8 @@ keywords = [
     "pynetdicom",
     "itk"
 ]
-license = {file = "LICENSE.txt"}
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 dependencies = [
     "pydicom>=2.4.5",
     "pylibjpeg[all]",
