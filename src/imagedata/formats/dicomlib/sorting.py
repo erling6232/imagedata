@@ -349,7 +349,8 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
                 tags[_slice][_idx] = im.tags
                 _done[_idx] = True
             else:
-                raise CannotSort('Duplicate tag')
+                raise CannotSort('Duplicate tag\n' +
+                     "Maybe try accept_duplicate_tag=True?")
 
     # Construct Axes namedtuple
     _new_axes = []
