@@ -9,7 +9,7 @@ import nibabel
 import imagedata.cmdline as cmdline
 import imagedata.formats as formats
 from imagedata.series import Series
-from imagedata.collection import Cohort
+from imagedata.collection import Study, Cohort
 from imagedata.apps.diffusion import read_b_value_file, read_b_vector_file
 
 
@@ -543,6 +543,12 @@ class NIfTITemplate(unittest.TestCase):
                     input_format='nifti',
                     template=os.path.join('data', 'dicom', 'sag_ap.zip'))
         self.assertEqual(self.template.studyInstanceUID, si.studyInstanceUID)
+
+    def test_nifti_study_explicit_template(self):
+        study = Study(os.path.join('data', 'nifti', 'sag_ap.nii.gz'),
+                    input_format='nifti',
+                    template=os.path.join('data', 'dicom', 'sag_ap.zip'))
+        self.assertEqual(self.template.studyInstanceUID, study.studyInstanceUID)
 
 
 if __name__ == '__main__':
