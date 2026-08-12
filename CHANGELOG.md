@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.9.x] - 2026-08-12
+### Fixed
+* Fixed a problem where the collection classes did not honor templates.
+* Series class: Explicit template parameters will override opts settings.
+
 ## [v3.9.5] - 2026-06-23
 ### Changed
 * Updated anonymization documentation.
