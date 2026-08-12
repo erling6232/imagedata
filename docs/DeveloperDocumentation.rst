@@ -101,19 +101,13 @@ Version numbers
 
 Bump patch number:
 
-Edit VERSION.txt.
+Edit pyproject.toml.
 
 Use version number 1.2.9dev0, ..dev1, etc., for development work.
 
 Use version number 1.2.9rc0, etc., for release candidates.
 
 Use version number 1.2.9 for official release.
-
-To label the github storage with VERSION.txt version:
-
-.. code-block:: bash
-
-    make git
 
 Uploading official release
 -----------------------------------
