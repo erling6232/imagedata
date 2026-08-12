@@ -6,10 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
-## [v3.9.x] - 2026-08-12
+## [v3.10.0-rc1] - 2026-08-12
 ### Fixed
 * Fixed a problem where the collection classes did not honor templates.
 * Series class: Explicit template parameters will override opts settings.
+
 ## [v3.10.0-rc0] - 2026-07-24
 ### Added
 * Support for numerous (non-medical) image formats using the `Pillow` plugin.
