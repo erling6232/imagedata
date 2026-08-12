@@ -161,6 +161,7 @@ class DICOMPlugin(AbstractPlugin):
         self.DicomHeaderDict = None
         self.dicomTemplate = None
         self.instanceNumber = 0
+        self.numberOfSlices = None
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         self.serInsUid = None
@@ -771,7 +772,7 @@ class DICOMPlugin(AbstractPlugin):
             _copy_pixels(si, hdr, image_dict)
 
         # Simplify shape
-        self._reduce_shape(si, hdr.axes)
+        si = self._reduce_shape(si, hdr.axes)
         logger.debug('{}: si {}'.format(_name, si.shape))
 
         return si
@@ -1291,6 +1292,7 @@ class DICOMPlugin(AbstractPlugin):
             self._calculate_rescale(si)
             logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
                 _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
+            self.numberOfSlices = si.slices
 
         if 'window' in opts and opts['window'] == 'original':
             raise ValueError('No longer supported: opts["window"] is set')
@@ -1378,6 +1380,7 @@ class DICOMPlugin(AbstractPlugin):
         self._calculate_rescale(si)
         logger.info("{}: Smallest/largest pixel value in series: {}/{}".format(
             _name, self.smallestPixelValueInSeries, self.largestPixelValueInSeries))
+        self.numberOfSlices = si.slices
         self.today = date.today().strftime("%Y%m%d")
         self.now = datetime.now().strftime("%H%M%S.%f")
         # Not used # self.seriesTime = obj.getDicomAttribute(tag_for_keyword("AcquisitionTime"))
@@ -1735,6 +1738,7 @@ class DICOMPlugin(AbstractPlugin):
                 pydicom.valuerep.format_number_as_ds(float(si.orientation[3]))]
         except ValueError:
             ds.ImageOrientationPatient = [0, 0, 1, 0, 0, 1]
+        ds.NumberOfSlices = self.numberOfSlices
         try:
             ds.SeriesNumber = si.seriesNumber
         except ValueError:

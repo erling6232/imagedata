@@ -10,6 +10,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * Fixed a problem where the collection classes did not honor templates.
 * Series class: Explicit template parameters will override opts settings.
+## [v3.10.0-rc0] - 2026-07-24
+### Added
+* Support for numerous (non-medical) image formats using the `Pillow` plugin.
+* readdata.write(): Propagate the `output_formats` to the plugins in `opts`.
+* AbstractPlugin: Added option `input_shape`.
+### Changed
+* ITKPlugin: Support `mhd` and `mha` file formats only.
+* Require Pillow 12.3.
+* Do not explicitly require ImageIO.
+* Command line options: Do not limit `output_format` to specific list.
+
+## [v3.9.8-dev1] - 2026-07-23
+### Fixed
+* Series.__getitem__(): Catch an exception when there is no SOPInstanceUIDs defined.
+
+## [v3.9.8-dev0] - 2026-07-10
+### Fixed
+* Viewer.build_info(): Setting the normalize object was not working with matplotlib 3.11.
+* AbstractPlugin._reduce_shape(): In order to comply with NumPy 2.5, do not set shape directly.
+
+### Changed
+* Matplotlib 3.11 is supported.
+* Viewer.build_info(): Set colormap extremes using cmap.with_extremes().
+* Series.to_rgb(): Set colormap extremes using cmap.with_extremes().
+* AbstractPlugin._reduce_shape(): Modified call, will return the possibly modified instance.
+
+## [v3.9.8-dev0] - 2026-07-21
+### Added
+* ITKPlugin: Also write PNG files.
+
+## [v3.9.7] - 2026-07-08
+Calculated Series did not get new SOPInstanceUIDs.
+### Fixed
+* Header.set_default_values(): Set proper tags based on axes descriptions.
+* Header.add_template(): When keep_uid, keep SOPInstanceUIDs too.
+* Header.add_template(): Set tags from template, if available.
+* Header.set_SOPInstanceUIDs(): Set new SOPInstanceUIDs. Initial release.
+* Instance.get_float(): Catch missing attribute in header.
+* Series.__getitem__(): Reorganized code to better handle slicing of struct dtype. Also handle np.newaxis better.
+* Series.__getitem__(): Include sliced SOPInstanceUIDs in the new object.
+* Series.SOPInstanceUIDs: Generate new UIDs when none are defined.
+
+## [v3.9.6] - 2026-06-30
+## [v3.9.6-dev1] - 2026-06-29
+### Added
+* Series.anonymize(): Added extra_anonymization_rules parameter which is handled
+  by the dicom-anonymizer.
+* Header.anonymize(): Added extra_anonymization_rules parameter.
+### Changed
+* DICOMPlugin: Add DICOM attribute NumberOfSlices when writing.
+
+## [v3.9.6-dev0] - 2026-06-24
+### Added
+* MR Relaxometry color maps `navia` and `lipari` as recommended for T2, T2* and T1
+  relaxometry maps.
+  (Fuderer et al., DOI: 10.1002/mrm.30290)
+* Remove requirement for pydicom and pynetdicom < 3.
+* Depend on dicom-anonymizer >= 1.0.13.
 
 ## [v3.9.5] - 2026-06-23
 ### Changed

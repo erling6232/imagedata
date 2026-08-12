@@ -1,5 +1,6 @@
 import imagedata.axis as axis
 import numpy as np
+import pydicom.datadict
 
 
 def compare_headers(self, hdr, newhdr, uid=True):

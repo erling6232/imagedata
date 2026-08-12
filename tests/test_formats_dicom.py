@@ -1,4 +1,5 @@
 import unittest
+import copy
 import math
 import os.path
 import tempfile
@@ -6,6 +7,8 @@ import numpy as np
 import logging
 import argparse
 import pydicom.filereader
+from dicomanonymizer import keep
+from dicomanonymizer.dicom_anonymization_databases.dicomfields_2024b import U_TAGS
 from pydicom.dataset import Dataset
 
 import imagedata.cmdline as cmdline
@@ -152,6 +155,7 @@ class TestDicomPlugin(unittest.TestCase):
                 input_format='dicom',
                 input_order='b',
                 opts=self.opts)
+
 
     # @unittest.skip("skipping test_read_dicom_user_defined_TI")
     def test_read_dicom_user_defined_TI(self):
@@ -327,7 +331,20 @@ class TestDicomPlugin(unittest.TestCase):
         self.assertEqual(si1.shape, (192, 152))
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image.dcm'),
-                      formats=['dicom'])
+                      formats='dicom')
+            si2 = Series(d, input_format='dicom')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    def test_write_single_file_ext(self):
+        si1 = Series(
+            os.path.join('data', 'dicom', 'time', 'time00', 'Image_00020.dcm'),
+            input_format='dicom'
+        )
+        self.assertEqual(si1.shape, (192, 152))
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image.dcm'),
+                      formats='dcm')
             si2 = Series(d, input_format='dicom')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
@@ -425,6 +442,11 @@ class TestDicomPlugin(unittest.TestCase):
         si.seriesDescription = 'float'
         si.imageType = ['DERIVED', 'SECONDARY']
         si.header.photometricInterpretation = 'MONOCHROME2'
+        tags = {}
+        for s in range(si.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        si.tags = tags
         fsi = si / math.sqrt(2)
         fsi_center = fsi.windowCenter
         fsi_width = fsi.windowWidth
@@ -456,16 +478,54 @@ class TestDicomPlugin(unittest.TestCase):
         eye_copy = eye[0]
         self.assertEqual(eye_seriesInstanceUID, eye_copy.seriesInstanceUID)
 
+    def test_changed_uid_on_operation(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_1 = eye + 1
+        self.assertNotEqual(eye_seriesInstanceUID, eye_1.seriesInstanceUID)
+
+    def test_changed_uid_on_numpy_ufunc(self):
+        eye = Series(np.eye(128, dtype=np.uint16))
+        eye_seriesInstanceUID = eye.seriesInstanceUID
+        eye_1 = np.clip(eye + 1, a_min=0, a_max=255, dtype=np.uint8)
+        self.assertNotEqual(eye_seriesInstanceUID, eye_1.seriesInstanceUID)
+
+    def test_null_SOPInstanceUIDs(self):
+        si = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
+        self.assertIsNotNone(si.header.SOPInstanceUIDs)
+        si1 = si + 1
+        # The Header SOPInstanceUIDs should be nulled out
+        self.assertIsNone(si1.header.SOPInstanceUIDs)
+        # When querying the Series object, new SOPInstanceUIDs should be generated
+        self.assertIsNotNone(si1.SOPInstanceUIDs)
+        self.assertNotEqual(si.SOPInstanceUIDs, si1.SOPInstanceUIDs)
+
+    def test_SOPInstanceUIDs_on_slice_slicing(self):
+        si = Series(os.path.join('data', 'dicom', 'time'), 'time', input_format='dicom')
+        si1 = si[:, 1]
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertIsNotNone(si1.header.SOPInstanceUIDs)
+        for t in range(len(si1.axes.time)):
+            self.assertEqual(si.SOPInstanceUIDs[(t, 1)], si1.SOPInstanceUIDs[(t, 0)])
+
+    def test_SOPInstanceUIDs_on_time_slicing(self):
+        si = Series(os.path.join('data', 'dicom', 'time'), 'time', input_format='dicom')
+        si1 = si[1]
+        self.assertEqual(si.seriesInstanceUID, si1.seriesInstanceUID)
+        self.assertIsNotNone(si1.header.SOPInstanceUIDs)
+        for s in range(si.slices):
+            self.assertEqual(si.SOPInstanceUIDs[(1, s)], si1.SOPInstanceUIDs[(0, s)])
+
     def test_write_keep_uid(self):
         si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'), input_format='dicom')
         # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
-        si1_seriesInstanceUID = si1.seriesInstanceUID
+        si1_seriesInstanceUID = copy.copy(si1.seriesInstanceUID)
         si1_sopinsuid = {}
         for _slice in range(si1.slices):
             si1_sopinsuid[_slice] = {}
             for _tag in si1.tags[0]:
                 si1_sopinsuid[_slice][_tag] = \
-                    si1.SOPInstanceUIDs[_tag + (_slice,)]
+                    copy.copy(si1.SOPInstanceUIDs[_tag + (_slice,)])
                     # si1.getDicomAttribute('SOPInstanceUID', slice=_slice, tag=_tag)
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.dcm'),
@@ -537,6 +597,42 @@ class TestDicomPlugin(unittest.TestCase):
                 input_format='dicom',
                 input_order='b'
             )
+
+    def test_anonymize_set_SOPInstanceUID(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time', 'time00'),
+            input_format='dicom')
+        # Make a copy of SOPInstanceUIDs before they are possibly modified in write()
+        si1_seriesInstanceUID = copy.copy(si1.seriesInstanceUID)
+        si1_sopinsuid = {}
+        for _slice in range(si1.slices):
+            si1_sopinsuid[_slice] = {}
+            for _tag in si1.tags[0]:
+                si1_sopinsuid[_slice][_tag] = \
+                    copy.copy(si1.SOPInstanceUIDs[_tag + (_slice,)])
+        extra_anonymization_rules = {}
+        for tag in U_TAGS:
+            extra_anonymization_rules[tag] = keep
+        si2 = si1.anonymize(extra_anonymization_rules=extra_anonymization_rules)
+        self.assertEqual(si1_seriesInstanceUID, si2.seriesInstanceUID)
+        for _slice in range(si1.slices):
+            for _tag in si1.tags[0]:
+                # si2 SOPInstanceUIDs should be identical to original si1
+                self.assertEqual(
+                    si1_sopinsuid[_slice][_tag],
+                    si2.SOPInstanceUIDs[_tag + (_slice,)]
+        )
+        with tempfile.TemporaryDirectory() as d:
+            si2.write(d, formats=['dicom'], keep_uid=True)
+            si3 = Series(d, input_format='dicom')
+            self.assertEqual(si1_seriesInstanceUID, si3.seriesInstanceUID)
+            for _slice in range(si1.slices):
+                for _tag in si1.tags[0]:
+                    # si1 SOPInstanceUIDs should be identical to si3
+                    self.assertEqual(
+                        si1.SOPInstanceUIDs[_tag + (_slice,)],
+                        si3.SOPInstanceUIDs[_tag + (_slice,)]
+                    )
+
 
     def test_anonymize_4D(self):
         si1 = Series(

@@ -164,8 +164,7 @@ class TestSeries(unittest.TestCase):
             s.sliceLocations = [3, 6]
 
     def test_slicing_dim(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -178,8 +177,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(s_slice.axes[1].name, 'column')
 
     def test_slicing_y(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -204,8 +202,7 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[:,0:2,:], s[:,0:-2,:])
 
     def test_slicing_x(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -230,8 +227,7 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[:,:,0:2], s[:,:,0:-2])
 
     def test_assign_slice_x(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -248,8 +244,7 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(s.slices, 3)
 
     def test_assign_slice(self):
-        a = np.array(range(4*5*6), dtype=np.uint16)
-        a.shape = (4,5,6)
+        a = np.array(range(4*5*6), dtype=np.uint16).reshape(4,5,6)
         s = Series(a)
         s.spacing = (1, 1, 1)
         s.axes = s.axes._replace(slice=axis.UniformLengthAxis('slice', 0, s.shape[0]))
@@ -292,8 +287,7 @@ class TestSeries(unittest.TestCase):
                              axis=(1, 2, 3), where=mask == 1) / np.count_nonzero(mask)
 
     def test_slicing_z(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
         a = np.vstack([a1, a1, a1])
         s = Series(a)
         s.spacing = (1, 1, 1)
@@ -332,11 +326,17 @@ class TestSeries(unittest.TestCase):
         np.testing.assert_array_equal(s[1:2,:,:], s[1:-2,:,:])
         np.testing.assert_array_equal(s[0:2,:,:], s[0:-2,:,:])
 
+    def test_slicing_time(self):
+        si = Series('data/dicom/time', 'time', input_format='dicom')
+        si_tags = si.tags.copy()
+        si1 = si[1:]
+        for s in si.tags:
+            np.testing.assert_array_equal(si1.tags[s], si.tags[s][1:])
+            np.testing.assert_array_equal(si1.tags[s], si_tags[s][1:])
+
     def test_slicing_t(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
@@ -419,10 +419,8 @@ class TestSeries(unittest.TestCase):
         sum = sum[:, np.newaxis]
 
     def test_multiple_ellipses(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
@@ -439,10 +437,8 @@ class TestSeries(unittest.TestCase):
             s_slice = s[...,1:3,...]
 
     def test_ellipsis_first(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.empty([4, 3,128,128])
         for i in range(4):
             a[i] = a2
@@ -466,10 +462,8 @@ class TestSeries(unittest.TestCase):
         self.assertEqual(len(s_slice.tags[0]), len(s.tags[0]))
 
     def test_ellipsis_middle(self):
-        a1 = np.eye(128)
-        a1.shape = (1,128,128)
-        a2 = np.vstack([a1, a1, a1])
-        a2.shape = (1,3,128,128)
+        a1 = np.eye(128).reshape(1,128,128)
+        a2 = np.vstack([a1, a1, a1]).reshape(1,3,128,128)
         a = np.vstack([a2,a2,a2,a2])
         s = Series(a, input_order=formats.INPUT_ORDER_TIME)
         s.spacing = (1, 1, 1)
@@ -684,11 +678,24 @@ class TestSeries(unittest.TestCase):
         for i in range(len(si.axes)):
             self.assertEqual(len(si.axes[i]), si.shape[i])
 
+    def test_get_rgb_slice_color_plane(self):
+        si1 = Series('data/dicom/time/time00')
+        self.assertEqual('dicom', si1.input_format)
+
+        rgb = si1.to_rgb()
+        # Make a slice in RGB Series. Should return a red volume
+        # The slicing refers to the RGB struct
+        red = rgb['R']
+        self.assertEqual(si1.shape, red.shape)
+        self.assertEqual(np.uint8, red.dtype)
+
     def test_get_rgb_voxel(self):
         si1 = Series('data/dicom/time/time00')
         self.assertEqual('dicom', si1.input_format)
 
         rgb = si1.to_rgb()
+        # Make a slice in RGB Series. Should return an RGB slice
+        # The slicing does not refer to the RGB struct
         _slice = rgb[1]
         voxel = _slice[1, 1]
         self.assertEqual(3, len(voxel))
@@ -707,6 +714,14 @@ class TestSeries(unittest.TestCase):
         _slice = rgb[1]
         voxel = _slice[1, 1]
         self.assertEqual(3, len(voxel))
+
+    def test_get_rgb_relaxometry(self):
+        si1 = Series('data/dicom/time/time00', input_format='dicom')
+        t1w = si1.to_rgb("lipari")
+        # t1w.show()
+        t2w = si1.to_rgb("navia")
+        # t2w.show()
+        pass
 
     def test_fuse_mask_3d_bw_uint8(self):
         si1 = Series(np.zeros((4,10,10), dtype=float))

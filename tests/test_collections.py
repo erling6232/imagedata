@@ -1,6 +1,7 @@
 import os.path
 import tempfile
 import unittest
+import numpy as np
 from numpy.random import default_rng
 
 from imagedata import Series, Study, Patient, Cohort
@@ -77,12 +78,16 @@ class TestStudy(unittest.TestCase):
             self.assertEqual(len(study), len(study1))
             for uid in range(len(study)):
                 self.assertEqual(study[uid].shape, study1[uid].shape)
+            self.assertNotEqual(study.patientName, anon_study.patientName)
+            self.assertNotEqual(study.patientID, anon_study.patientID)
+            self.assertNotEqual(study.studyInstanceUID, anon_study.studyInstanceUID)
         abcd_study = study.anonymize(patientName='ABCD')
         with tempfile.TemporaryDirectory() as d:
             abcd_study.write(d, formats=['dicom'])
             study2 = Study(d, input_format='dicom')
             self.assertEqual(len(study), len(study2))
             self.assertEqual('ABCD', study2.patientName)
+            self.assertNotEqual(study.studyInstanceUID, study2.studyInstanceUID)
         dict_study = study.anonymize(**{
             'patientName': 'DEFG',
             'patientID': '126782'
@@ -93,12 +98,23 @@ class TestStudy(unittest.TestCase):
             self.assertEqual(len(study), len(study3))
             self.assertEqual('DEFG', study3.patientName)
             self.assertEqual('126782', study3.patientID)
+            self.assertNotEqual(study.studyInstanceUID, study3.studyInstanceUID)
 
     def test_anonymize_non_dicom_study(self):
         rng = default_rng()
         series1 = Series(rng.standard_normal(24).reshape((2,3,4))*100, dtype=int)
+        tags = {}
+        for s in range(series1.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        series1.tags = tags
         series2 = Series(rng.standard_normal(210).reshape((5,6,7))*100, dtype=int)
         series2.studyInstanceUID = series1.studyInstanceUID
+        tags = {}
+        for s in range(series2.slices):
+            tags[s] = np.empty((1,), dtype=tuple)
+            tags[s][0] = (0,)
+        series2.tags = tags
         study = Study({'1': series1, '2': series2})
         study.studyInstanceUID = series1.studyInstanceUID
 

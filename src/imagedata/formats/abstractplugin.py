@@ -4,13 +4,14 @@ Defines generic functions.
 """
 
 # vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
-# Copyright (c) 2017-2024 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2017-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 from abc import ABCMeta, abstractmethod  # , abstractproperty
+import math
 import logging
 import numpy as np
 from collections import namedtuple
-from . import NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
+from . import BadShapeGiven, NotImageError, shape_to_str, INPUT_ORDER_TIME, SORT_ON_TAG
 from ..header import Header
 from ..archives.abstractarchive import AbstractArchive
 
@@ -24,7 +25,7 @@ class NoOtherInstance(Exception):
 class AbstractPlugin(object, metaclass=ABCMeta):
     """Abstract base class definition for imagedata format plugins.
     Plugins must be a subclass of AbstractPlugin and
-    must define the atttributes set in __init__() and
+    must define the attributes set in __init__() and
     the following methods:
 
     read() method
@@ -127,9 +128,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     scan_files = ['*']
             elif archive.base is not None:
                 raise ValueError('When is archive.base with source[files]')
-            # if scan_files is None or len(scan_files) == 0:
-            #     scan_files = archive.getnames()
-            # logger.debug("AbstractPlugin.read: scan_files {}".format(scan_files))
             for file_handle in archive.getmembers(scan_files):
                 logger.debug("{}: file_handle {}".format(_name, file_handle.filename))
                 if self._need_local_file():
@@ -157,7 +155,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             raise ValueError('No image data read')
         info, si = image_list[0]
         if si is not None:
-            self._reduce_shape(si)
+            si = self._reduce_shape(si)
             logger.debug('{}: reduced si {}'.format(_name, si.shape))
             shape = (len(image_list),) + si.shape
             dtype = si.dtype
@@ -173,7 +171,7 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             logger.debug('{}: si {}'.format(_name, si.shape))
 
             # Simplify shape
-            self._reduce_shape(si)
+            si = self._reduce_shape(si)
             logger.debug('{}: reduced si {}'.format(_name, si.shape))
 
             _shape = si.shape
@@ -184,9 +182,32 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 nz = _shape[-3]
             logger.debug('{}: slices {}'.format(_name, nz))
 
+            if 'input_shape' in opts and opts['input_shape']:
+                try:
+                    input_shape = tuple(int(_) for _ in opts['input_shape'].split('x'))
+                except ValueError as e:
+                    raise BadShapeGiven(f'Illegal input_shape {opts["input_shape"]}: {e}')
+                except AttributeError:
+                    input_shape = tuple(opts['input_shape'])
+                # Guess the meaning of input_shape
+                new_shape = None
+                for attempt_shape in [input_shape,
+                                      input_shape + si.shape[-3:],
+                                      input_shape + si.shape[-2:]]:
+                    if math.prod(attempt_shape) == si.size:
+                        new_shape = attempt_shape
+                        break
+                if new_shape is None:
+                    raise BadShapeGiven(f'input_shape {input_shape} does not match {si.shape}')
+                if input_order == 'none' and len(new_shape) > 3:
+                    raise BadShapeGiven(f'input_shape {input_shape} not acceptable for input_order none')
+                if len(new_shape) != len(input_order.split(',')) + 3:
+                    raise BadShapeGiven(f'input_shape {input_shape} does not match input_order {input_order}')
+                logging.warning(f'Modifying input shape from {si.shape} to {new_shape}. Take care!')
+                si = si.reshape(new_shape)
+
         logger.debug('{}: calling _set_tags'.format(_name))
         self._set_tags(image_list, hdr, si)
-        # logger.debug('AbstractPlugin.read: return  _set_tags: {}'.format(hdr))
 
         if si is not None:
             logger.info("{}: Data shape read: {}".format(_name, shape_to_str(si.shape)))
@@ -285,99 +306,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             raise ValueError("No timeline tags are available. Input order: {}".format(
                 self.input_order))
 
-    '''
-    def getQform(self):
-        """Get Nifti version of the transformation matrix, aka qform
-
-        Input:
-        - self.spacing
-        - self.imagePositions
-        - self.orientation
-        Returns:
-        - transformation matrix as numpy array
-        """
-
-        def normalize_column(x,row):
-            val = np.vdot(x, x)
-
-            if val > 0:
-                x = x / math.sqrt(val)
-            else:
-                shape = x.shape
-                x = np.array([0., 0., 0.])
-                x[row]=1
-                x.shape = shape
-            return x
-
-        #debug = None
-        debug = True
-
-        ds,dr,dc    = self.spacing
-        z,y,x       = self.imagePositions[0]
-        slices      = len(self.imagePositions)
-        T0          = self.imagePositions[0]
-        Tn          = self.imagePositions[slices-1]
-        orient      = self.orientation
-        #print("ds,dr,dc={},{},{}".format(ds,dr,dc))
-        #print("z ,y ,x ={},{},{}".format(z,y,x))
-
-        q = np.eye(4)
-        # Set column 3 and row 3 to zeros, except [3,3]
-        colr=np.array([[orient[3]], [orient[4]], [orient[5]]])
-        colc=np.array([[orient[0]], [orient[1]], [orient[2]]])
-        colr = normalize_column(colr,0)
-        colc = normalize_column(colc,1)
-        k=np.cross(colr, colc, axis=0)
-
-        q[:3, :3] = np.hstack((colr, colc, k))
-        if debug:
-            logger.debug("q")
-            logger.debug( q)
-
-        if debug:
-            logger.debug("determinant(q) {}".format(np.linalg.det(q)))
-        if np.linalg.det(q) < 0:
-            q[:3,2] = -q[:3,2]
-
-        # Scale matrix
-        diagVox = np.eye(3)
-        diagVox[0,0] = dc
-        diagVox[1,1] = dr
-        diagVox[2,2] = ds
-        if debug:
-            logger.debug("diagVox")
-            logger.debug( diagVox)
-            logger.debug("q without scaling {}".format(q.dtype))
-            logger.debug( q)
-        q[:3,:3] = np.dot(q[:3,:3],diagVox)
-        if debug:
-            logger.debug("q with scaling {}".format(q.dtype))
-            logger.debug( q)
-
-        # Add translations
-        q[0,3] = x; q[1,3] = y; q[2,3] = z       # pos x,y,z
-        if debug:
-            logger.debug("q with translations")
-            logger.debug( q)
-        # q now equals dicom_to_patient in spm_dicom_convert
-
-        return q
-    '''
-
-    '''
-    def setQform(self, A):
-        """Set transformationMatrix from Nifti affine A."""
-        #print("setQform:  input\n{}".format(A))
-        M=np.eye(4)
-        M[:3,0]=A[2::-1,2]
-        M[:3,1]=A[2::-1,0]
-        M[:3,2]=A[2::-1,1]
-        M[:3,3]=A[2::-1,3]
-        #print("setQform: output\n{}".format(M))
-        self.transformationMatrix=M
-        return
-    '''
-
     def getPositionForVoxel(self, r, transformation=None):
         """Get patient position for center of given voxel r
 
@@ -393,13 +321,9 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         if transformation is None:
             transformation = self.transformationMatrix
-        # q = self.getTransformationMatrix()
-
-        # V = np.array([[r[2]], [r[1]], [r[0]], [1]])  # V is [x,y,z,1]
 
         newpos = np.dot(transformation, np.hstack((r, [1])))
 
-        # return np.array([newpos[2,0],newpos[1,0],newpos[0,0]])   # z,y,x
         return newpos[:3]
 
     def getVoxelForPosition(self, p, transformation=None):
@@ -417,16 +341,11 @@ class AbstractPlugin(object, metaclass=ABCMeta):
 
         if transformation is None:
             transformation = self.transformationMatrix
-        # q = self.getTransformationMatrix()
-
-        # V = np.array([[p[2]], [p[1]], [p[0]], [1]])    # V is [x,y,z,1]
 
         qinv = np.linalg.inv(transformation)
         r = np.dot(qinv, np.hstack((p, [1])))
 
         # z,y,x
-        # return np.array([int(r[2,0]+0.5),int(r[1,0]+0.5),int(r[0,0]+0.5)], dtype=int)
-        # return int(r+0.5)[:3]
         return (r + 0.5).astype(int)[:3]
 
     @staticmethod
@@ -462,15 +381,16 @@ class AbstractPlugin(object, metaclass=ABCMeta):
         """
 
         if si is None:
-            return
+            return si
         mindim = 2
         while si.ndim > mindim:
             if si.shape[0] == 1:
-                si.shape = si.shape[1:]
+                si = si.reshape(si.shape[1:])
                 if axes is not None:
                     axes = axes[1:]
             else:
                 break
+        return si
 
     def _reorder_to_dicom(self, data, flip=False, flipud=False):
         """Reorder data to internal DICOM format.
@@ -509,12 +429,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     for slice in range(slices):
                         si[d, tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag, d],
                                                                       flip=flip, flipud=flipud)
-                        # if flip:
-                        #    si[d,tag,slice,:,:] = \
-                        #    (data[:,:,slice,tag,d]).T
-                        #    #np.fliplr(data[:,:,slice,tag,d]).T
-                        # else:
-                        #    si[d,tag,slice,:,:] = data[:,:,slice,tag,d]
         elif data.ndim == 4:
             rows, columns, slices, tags = data.shape
             if flipud:
@@ -524,11 +438,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 for slice in range(slices):
                     si[tag, slice, :, :] = self._reorder_slice(data[:, :, slice, tag],
                                                                flip=flip, flipud=flipud)
-                    # if flip:
-                    #    si[tag,slice,:,:] = (data[:,:,slice,tag]).T
-                    #    #si[tag,slice,:,:] = np.fliplr(data[:,:,slice,tag]).T
-                    # else:
-                    #    si[tag,slice,:,:] = data[:,:,slice,tag]
         elif data.ndim == 3:
             rows, columns, slices = data.shape
             if flipud:
@@ -536,22 +445,12 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             si = np.zeros((slices, rows, columns), data.dtype)
             for slice in range(slices):
                 si[slice, :, :] = self._reorder_slice(data[:, :, slice], flip=flip, flipud=flipud)
-                # if flip:
-                #    si[slice,:,:] = (data[:,:,slice]).T
-                #    #si[slice,:,:] = np.fliplr(data[:,:,slice]).T
-                # else:
-                #    si[slice,:,:] = data[:,:,slice]
         elif data.ndim == 2:
             rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows, columns), data.dtype)
             si[:] = self._reorder_slice(data[:], flip=flip, flipud=flipud)
-            # if flip:
-            #    si[:] = (data[:]).T
-            #    #si[:] = np.fliplr(data[:]).T
-            # else:
-            #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logger.debug('{}: shape out {}'.format(_name, si.shape))
@@ -594,11 +493,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                     for slice in range(slices):
                         si[:, :, slice, tag, d] = self._reorder_slice(data[d, tag, slice, :, :],
                                                                       flip=flip, flipud=flipud)
-                        # if flip:
-                        #    si[:,:,slice,tag,d] = \
-                        #    np.fliplr(data[d,tag,slice,:,:]).T
-                        # else:
-                        #    si[:,:,slice,tag,d] = data[d,tag,slice,:,:]
         elif data.ndim == 4:
             tags, slices, rows, columns = data.shape
             if flipud:
@@ -608,10 +502,6 @@ class AbstractPlugin(object, metaclass=ABCMeta):
                 for slice in range(slices):
                     si[:, :, slice, tag] = self._reorder_slice(data[tag, slice, :, :],
                                                                flip=flip, flipud=flipud)
-                    # if flip:
-                    #    si[:,:,slice,tag] = np.fliplr(data[tag,slice,:,:]).T
-                    # else:
-                    #    si[:,:,slice,tag] = data[tag,slice,:,:]
         elif data.ndim == 3:
             slices, rows, columns = data.shape
             if flipud:
@@ -619,20 +509,12 @@ class AbstractPlugin(object, metaclass=ABCMeta):
             si = np.zeros((rows, columns, slices), data.dtype)
             for slice in range(slices):
                 si[:, :, slice] = self._reorder_slice(data[slice, :, :], flip=flip, flipud=flipud)
-                # if flip:
-                #    si[:,:,slice] = np.fliplr(data[slice,:,:]).T
-                # else:
-                #    si[:,:,slice] = data[slice,:,:]
         elif data.ndim == 2:
             rows, columns = data.shape
             if flipud:
                 rows, columns = columns, rows
             si = np.zeros((rows, columns), data.dtype)
             si[:, :] = self._reorder_slice(data[:, :], flip=flip, flipud=flipud)
-            # if flip:
-            #    si[:] = np.fliplr(data[:]).T
-            # else:
-            #    si[:] = data[:]
         else:
             raise ValueError('Dimension %d is not implemented' % data.ndim)
         logger.debug('{}: shape out {}'.format(_name, si.shape))

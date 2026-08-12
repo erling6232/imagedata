@@ -151,7 +151,7 @@ class Header(object):
             slices = len(axes.slice)
         except AttributeError:
             slices = 1
-        tags = (1,)
+        tags = tuple()
         axis_tags = tuple()
         for axis in axes:
             if axis.name not in ('slice', 'row', 'column'):
@@ -171,12 +171,27 @@ class Header(object):
 
         for _slice in range(slices):
             self.imagePositions[_slice] = np.array([_slice, 0, 0])
+
         if self.tags is None:
+            tag_values = []
+            for i in range(len(tags)):
+                if axes[i].name not in ['slice', 'row', 'column']:
+                    tag_values.append(axes[i].values)
+            if len(tag_values) != len(tags):
+                pass
+            assert len(tag_values) == len(tags)
             self.tags = {}
             for _slice in range(slices):
                 _tags = np.empty(tags, dtype=tuple)
-                for tag in np.ndindex(tags):
-                    _tags[tag] = tag
+                try:
+                    for tag in np.ndindex(tags):
+                        _tag_value = tuple()
+                        for i, _t in enumerate(tag):
+                            _tag_value += (tag_values[i][_t],)
+                        _tags[tag] = _tag_value
+                except IndexError:
+                    for tag in np.ndindex(tags):
+                        _tags[tag] = tag
                 self.tags[_slice] = _tags
 
     # noinspection PyPep8Naming
@@ -201,7 +216,7 @@ class Header(object):
 
         return ds
 
-    def anonymize(self, uid_table: dict = {}):
+    def anonymize(self, uid_table: dict = {}, extra_anonymization_rules: dict = {}):
         anonymizer.dictionary = anonymizer.dictionary | uid_table
         _copy = Header()
         _copy.set_default_values(self.axes)
@@ -216,17 +231,35 @@ class Header(object):
             _copy.dicomTemplate = self.dicomTemplate.copy()
             anonymizer.anonymize_dataset(
                 _copy.dicomTemplate,
-                # extra_anonymization_rules=known_uids,
+                extra_anonymization_rules=extra_anonymization_rules,
                 delete_private_tags=True,
                 # base_rules_gen=anonymizer.initialize_actions
             )
-        for tag in header_tags:
-            if tag == 'SOPClassUID':
+
+        tag_SOPClassUID = pydicom.datadict.Tag((0x0008, 0x0016))
+        for tag_name in header_tags:
+            try:
+                tag = pydicom.datadict.Tag(pydicom.datadict.tag_for_keyword(
+                    tag_name[0].upper() + tag_name[1:]))
+            except TypeError:
+                continue
+            VR = pydicom.datadict.dictionary_VR(tag)
+            if VR != 'UI':
+                continue
+            if (tag.group, tag.element) in extra_anonymization_rules:
+                # Take the anonymized tag
+                camel_tag_name = tag_name[0].upper() + tag_name[1:]
+                setattr(_copy, tag_name, getattr(_copy.dicomTemplate, camel_tag_name))
+            elif tag == tag_SOPClassUID:
                 _copy.SOPClassUID = self.SOPClassUID
-            elif tag[-3:] == 'UID':
-                if getattr(self, tag) not in anonymizer.dictionary:
-                    anonymizer.dictionary[getattr(self, tag)] = self.new_uid()
-                setattr(_copy, tag, anonymizer.dictionary[getattr(self, tag)])
+            else:
+                if getattr(self, tag_name) not in anonymizer.dictionary:
+                    anonymizer.dictionary[getattr(self, tag_name)] = self.new_uid()
+                setattr(_copy, tag_name, anonymizer.dictionary[getattr(self, tag_name)])
+
+        if ((0x0008, 0x0018) in extra_anonymization_rules):  # SOPInstanceUID
+            _copy.SOPInstanceUIDs = self.SOPInstanceUIDs.copy()
+            return _copy
         _copy.SOPInstanceUIDs = {}
         for _slice in _copy.tags:
             for _i in range(len(_copy.tags[_slice])):
@@ -250,18 +283,28 @@ class Header(object):
 
         if template is None:
             return
+        do_not_copy = ['seriesInstanceUID', 'tags', 'input_format', 'SOPInstanceUIDs']
         for attr in template.__dict__:
-            if attr in header_tags and attr not in ['seriesInstanceUID', 'tags', 'input_format']:
+            if attr in header_tags and attr not in do_not_copy:
                 value = getattr(template, attr, None)
                 if value is not None:
                     setattr(self, attr, value)
         if 'keep_uid' in template.__dict__:
-            value = getattr(template, 'seriesInstanceUID', None)
-            if value is not None:
-                setattr(self, 'seriesInstanceUID', value)
+            for attr in ['seriesInstanceUID', 'SOPInstanceUIDs']:
+                value = getattr(template, attr, None)
+                if value is not None:
+                    setattr(self, attr, value)
 
         # Make sure tags are set last. Template may be None
-        # self.__set_tags_from_template(template)
+        self.__set_tags_from_template(template)
+
+    def set_SOPInstanceUIDs(self) -> None:
+        """Set SOPInstanceUIDs to this header."""
+        self.SOPInstanceUIDs = {}
+        tags, slices = self.get_tags_and_slices()
+        for s in range(slices):
+            for tag in self.tags[0]:
+                self.SOPInstanceUIDs[tag + (s,)] = self.new_uid()
 
     def get_tags_and_slices(self) -> tuple[tuple[int], int]:
         tags = tuple()

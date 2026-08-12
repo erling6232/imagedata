@@ -1,7 +1,7 @@
 """Read/Write image files using ITK
 """
 
-# Copyright (c) 2013-2025 Erling Andersen, Haukeland University Hospital, Bergen, Norway
+# Copyright (c) 2013-2026 Erling Andersen, Haukeland University Hospital, Bergen, Norway
 
 import os
 import logging
@@ -42,9 +42,9 @@ class ITKPlugin(AbstractPlugin):
     name = "itk"
     description = "Read and write ITK files."
     authors = "Erling Andersen"
-    version = "2.1.0"
+    version = "2.1.1"
     url = "www.helse-bergen.no"
-    extensions = [".mhd", ".mha", ".jpg", ".jpeg", ".tiff"]
+    extensions = [".mhd", ".mha"]
 
     def __init__(self, name=None, description=None,
                  authors=None, version=None, url=None):
@@ -101,7 +101,7 @@ class ITKPlugin(AbstractPlugin):
             # https://blog.kitware.com/itk-python-image-pixel-types/
             reader = itk.imread(f)
             img = itk.GetArrayFromImage(reader)
-            self._reduce_shape(img)
+            img = self._reduce_shape(img)
             logger.info("{}: Data shape read ITK: {}".format(_name, img.shape))
 
             o = reader

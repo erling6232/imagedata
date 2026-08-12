@@ -351,7 +351,40 @@ class Test3DNIfTIPlugin(unittest.TestCase):
             filename = os.path.join(d, 'test.nii.gz')
             a.write(
                 filename,
-                formats=['nifti']
+                formats='nifti'
+            )
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
+    def test_write_single_file_nii_not_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'test.nii')
+            a.write(
+                filename,
+                formats='nii'
+            )
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
+    def test_write_single_file_niigz_not_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'test.nii.gz')
+            a.write(
+                filename,
+                formats='nii'
+            )
+            if not os.path.isfile(filename):
+                raise AssertionError('File does not exist: {}'.format(filename))
+
+    def test_write_single_file_nii_gz_not_directory(self):
+        a = Series(np.eye(128))
+        with tempfile.TemporaryDirectory() as d:
+            filename = os.path.join(d, 'test.nii.gz')
+            a.write(
+                filename,
+                formats='nii.gz'
             )
             if not os.path.isfile(filename):
                 raise AssertionError('File does not exist: {}'.format(filename))

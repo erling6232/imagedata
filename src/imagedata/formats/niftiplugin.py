@@ -183,7 +183,7 @@ class NiftiPlugin(AbstractPlugin):
         hdr.spacing = (float(dz), float(dy), float(dx))
 
         # Simplify shape
-        self._reduce_shape(si)
+        si = self._reduce_shape(si)
 
         sform, scode = info.get_sform(coded=True)
         qform, qcode = info.get_qform(coded=True)

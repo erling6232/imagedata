@@ -131,8 +131,12 @@ class Instance(FileDataset):
         self.tag_index = idx
 
     def get_float(self, tag: str) -> float:
-        if self.data_element(tag).VR == 'TM':
-            time_str = self.data_element(tag).value
+        try:
+            element = self.data_element(tag)
+        except KeyError:
+            raise CannotSort(f'Tag {tag} not found in data')
+        if element.VR == 'TM':
+            time_str = element.value
             try:
                 if '.' in time_str:
                     tm = datetime.strptime(time_str, "%H%M%S.%f")
@@ -147,7 +151,7 @@ class Instance(FileDataset):
             return td.total_seconds()
         else:
             try:
-                return float(self.data_element(tag).value)
+                return float(element.value)
             except ValueError:
                 raise IndexError("Unable to extract value from header.")
 
