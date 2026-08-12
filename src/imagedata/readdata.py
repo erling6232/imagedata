@@ -93,28 +93,33 @@ def read(urls, order=None, opts=None, input_format=None):
 
     # Pre-fetch DICOM template
     pre_hdr = None
-    if 'template' in in_opts and in_opts['template']:
-        logger.debug("{}: template {}".format(_name, in_opts['template']))
-        template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
-        reader = find_plugin('dicom')
-        pre_hdr, _ = reader.read(template_source, None, input_order, in_opts)
-        if len(pre_hdr) != 1:
-            raise ValueError('Template is not a single series')
-        pre_hdr = pre_hdr[next(iter(pre_hdr))]
+    if 'template' in in_opts and in_opts['template'] is not None:
+        if isinstance(in_opts['template'], str) or issubclass(type(in_opts['template']), pathlib.PurePath):
+            logger.debug("{}: template {}".format(_name, in_opts['template']))
+            template_source = _get_sources(in_opts['template'], mode='r', opts=in_opts)
+            reader = find_plugin('dicom')
+            _in_opts = dict(in_opts) | {'input_format': 'dicom', 'headers_only': True}
+            pre_hdr, _ = reader.read(template_source, None, input_order, _in_opts)
+            if len(pre_hdr) != 1:
+                raise ValueError('Template is not a single series')
+            pre_hdr = pre_hdr[next(iter(pre_hdr))]
+        else:
+            pre_hdr = opts['template']
 
     # Pre-fetch DICOM geometry
     geom_hdr = None
-    if 'geometry' in in_opts and in_opts['geometry']:
-        logger.debug("{}: geometry {}".format(_name, in_opts['geometry']))
-        geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
-        reader = find_plugin('dicom')
-        geom_hdr, _ = reader.read(geometry_source, None, input_order, in_opts)
-        if len(geom_hdr) != 1:
-            raise ValueError('Geometry template is not a single series')
-        geom_hdr = geom_hdr[next(iter(geom_hdr))]
-        # if pre_hdr is None:
-        #    pre_hdr = {}
-        # _add_dicom_geometry(pre_hdr, geom_hdr)
+    if 'geometry' in in_opts and in_opts['geometry'] is not None:
+        if isinstance(in_opts['geometry'], str) or issubclass(type(in_opts['geometry']), pathlib.PurePath):
+            logger.debug("{}: geometry {}".format(_name, in_opts['geometry']))
+            geometry_source = _get_sources(in_opts['geometry'], mode='r', opts=in_opts)
+            reader = find_plugin('dicom')
+            _in_opts = dict(in_opts) | {'input_format': 'dicom', 'headers_only': True}
+            geom_hdr, _ = reader.read(geometry_source, None, input_order, _in_opts)
+            if len(geom_hdr) != 1:
+                raise ValueError('Geometry template is not a single series')
+            geom_hdr = geom_hdr[next(iter(geom_hdr))]
+        else:
+            geom_hdr = in_opts['geometry']
 
     # Call reader plugins in turn to read the image data
     plugins = sorted_plugins_dicom_first(get_plugins_list(), input_format)
