@@ -8,7 +8,6 @@ build-backend = "uv_build"
 [project]
 name = "imagedata"
 version = "3.9.8.dev0"
-# dynamic = ["version"]
 authors = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
 ]
