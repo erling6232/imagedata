@@ -69,6 +69,17 @@ class TestStudy(unittest.TestCase):
             si.write(os.path.join(d, '2'), opts={'keep_uid': True})
             study = Study(d, input_format='dicom', opts={'split_acquisitions': True})
 
+    def test_broken_series(self):
+        study = Study('data/dicom/time/time00', input_format='dicom')
+        series = study[0]
+        with tempfile.TemporaryDirectory() as d:
+            series.write(os.path.join(d, 's0'), formats=['dicom'])
+            series.write(os.path.join(d, 's1', '1'), formats=['dicom'], keep_uid=True)
+            series.write(os.path.join(d, 's1', '2'), formats=['dicom'], keep_uid=True)
+            study1 = Study(d, input_format='dicom', skip_broken_series=True)
+            assert len(study1) == 1
+
+
     def test_anonymize_dicom_study(self):
         study = Study('data/dicom/cohort.zip?cohort/P2/S1')
         anon_study = study.anonymize()
