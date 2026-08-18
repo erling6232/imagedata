@@ -580,7 +580,15 @@ class DICOMPlugin(AbstractPlugin):
                     pass
             # Catalog actual tag values keeping other tags fixed
             # Important when sorting acquisition time which differ from slice to slice
-            axes, tags = scan_tags(sorted_dataset_list, sorting[seriesUID], self.input_options)
+            try:
+                axes, tags = scan_tags(sorted_dataset_list, sorting[seriesUID], self.input_options)
+            except CannotSort:
+                if skip_broken_series:
+                    logger.debug(f'{_name}: skip_broken_series continue {seriesUID}')
+                    continue  # Next series
+                else:
+                    logger.debug(f'{_name}: skip_broken_series raise')
+                    raise
             sorted_dataset_list.axes = self._get_axes(sorted_dataset_list)
             header.axes = self._join_axes(sorted_dataset_list, axes)
             header.tags = tags
