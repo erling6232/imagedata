@@ -553,13 +553,13 @@ class DICOMPlugin(AbstractPlugin):
             if sorted_dataset_list is None:
                 raise CannotSort('Cannot sort: {}'.format(message2))
 
-            _: Counter = verify_consistent_slices(sorted_dataset_list, message, opts)
-
-            header = sorted_dataset_list.get_headers()
-            header.sliceLocations = np.array(sorted(sorted_dataset_list.keys()))
-
-            # Determine (automatic) sorting
             try:
+                _: Counter = verify_consistent_slices(sorted_dataset_list, message, opts)
+
+                header = sorted_dataset_list.get_headers()
+                header.sliceLocations = np.array(sorted(sorted_dataset_list.keys()))
+
+                # Determine (automatic) sorting
                 sorting[seriesUID] = determine_sorting(
                     sorted_dataset_list, input_order, self.input_options
                 )

@@ -75,7 +75,8 @@ class TestStudy(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             series.write(os.path.join(d, 's0'), formats=['dicom'])
             series.write(os.path.join(d, 's1', '1'), formats=['dicom'], keep_uid=True)
-            series.write(os.path.join(d, 's1', '2'), formats=['dicom'], keep_uid=True)
+            series[0].write(os.path.join(d, 's1', '1', 'extra.dcm'), formats=['dicom'], keep_uid=True)
+            # series.write(os.path.join(d, 's1', '2'), formats=['dicom'], keep_uid=True)
             study1 = Study(d, input_format='dicom', skip_broken_series=True)
             assert len(study1) == 1
 
