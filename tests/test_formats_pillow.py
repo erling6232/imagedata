@@ -24,7 +24,7 @@ class Test3DPillowPlugin(unittest.TestCase):
         for pname, ptype, pclass in plugins:
             if ptype == 'pillow':
                 self.pillow_plugin = pclass
-        self.assertIsNotNone(self.pillow_plugin)
+        self.assertIsNotNone(self.pillow_plugin, 'Pillow module not found')
 
     def test_read_single_file(self):
         si1 = Series(os.path.join('data', 'lena_color.jpg'), input_format='pillow')
