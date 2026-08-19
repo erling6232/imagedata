@@ -8,8 +8,10 @@
       <excludeFolder url="file://$MODULE_DIR$/venv3.12" />
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/.venv310" />
+      <excludeFolder url="file://$MODULE_DIR$/venv-20260819" />
+      <excludeFolder url="file://$MODULE_DIR$/.uv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (imagedata)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="~/.conda/envs/imagedata" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PackageRequirementsSettings">
