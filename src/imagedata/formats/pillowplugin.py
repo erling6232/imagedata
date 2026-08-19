@@ -54,6 +54,7 @@ class PillowPlugin(AbstractPlugin):
 
         _name: str = '{}.{}'.format(__name__, self._read_image.__name__)
 
+        si = None
         info = {}
 
         if hdr.input_order == 'auto':
