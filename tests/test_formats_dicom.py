@@ -1163,13 +1163,25 @@ class TestDicomPluginSortCriteria(unittest.TestCase):
 
 
     def test_user_redefined_sort(self):
-        si1 = Series(
-            os.path.join('data', 'dicom', 'time', 'time00'),
-            'time',
-            time='InstanceNumber',
-            input_format='dicom')
+        # Prepare time data, extract time only
+        si = Series(
+            os.path.join('data', 'dicom', '6D_TE_TIME_FA.zip'),
+            'te,time,fa',
+            input_format='dicom',
+            opts = {'ignore_series_uid': True}
+        )
+        si_time = si[0, :, 0]
+        self.assertEqual(si_time.input_order, 'time')
         with tempfile.TemporaryDirectory() as d:
-            si1.write(d, formats=['dicom'])
+            si_time.write(d, formats=['dicom'])
+
+            # Now try to read time series, sorting on InstanceNumber
+            si1 = Series(
+                d,
+                'time',
+                time='InstanceNumber',
+                input_format='dicom')
+            self.assertEqual(si1.axes.time.values, [1, 9, 17])
 
 
 class TestDicomSR(unittest.TestCase):
