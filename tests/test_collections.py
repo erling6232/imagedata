@@ -80,6 +80,18 @@ class TestStudy(unittest.TestCase):
             study1 = Study(d, input_format='dicom', skip_broken_series=True)
             assert len(study1) == 1
 
+    def test_read_dicom_user_defined_TI(self):
+        study = Study(
+            os.path.join('data', 'dicom', 'TI'),
+            auto_sort=['ti'],
+            input_format='dicom',
+            ti='InversionTime', ignore_series_uid=True)
+        self.assertEqual(len(study), 1)
+        si1 = study[0]
+        self.assertEqual(si1.input_order, 'ti')
+        self.assertEqual(si1.dtype, np.uint16)
+        self.assertEqual(si1.shape, (5, 1, 384, 384))
+        self.assertEqual(si1.axes.ti.values, [30, 60, 120, 200, 400])
 
     def test_anonymize_dicom_study(self):
         study = Study('data/dicom/cohort.zip?cohort/P2/S1')
