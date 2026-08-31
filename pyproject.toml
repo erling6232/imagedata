@@ -4,7 +4,7 @@ build-backend = "uv_build"
 
 [project]
 name = "imagedata"
-version = "3.10.0.rc2"
+version = "3.10.0.rc3"
 authors = [
     {name = "Erling Andersen", email = "Erling.Andersen@Helse-Bergen.NO"}
 ]
