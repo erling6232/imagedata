@@ -482,12 +482,35 @@ class Test4DNIfTIPlugin(unittest.TestCase):
             input_format='dicom'
         )
         with tempfile.TemporaryDirectory() as d:
+            # Implicit NIfTI filename
             si.write(d, formats=['nifti'])
             nii_bval = read_b_value_file(os.path.join(d, 'Image.bval'))
             self.assertEqual(
                 [0.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
                 nii_bval)
             nii_bvec = read_b_vector_file(os.path.join(d, 'Image.bvec'))
+            a = np.array([[0., 0., 0.],
+                          [0., -0.70640218, -0.7078107],
+                          [-0.70640218,  0., -0.7078107],
+                          [0.70640218, 0., -0.7078107],
+                          [-0.70710397, -0.70710385, -0.00282839],
+                          [0.70710397, -0.70710385, -0.00282839],
+                          [0., -0.70781636, 0.70639646],
+                          [0., -0.70663589, -0.70757741],
+                          [7.0663589e-01, -6.0000000e-08, -7.0757729e-01],
+                          [-7.0663589e-01, 6.0000000e-08, -7.0757729e-01],
+                          [-0.70710641, -0.70710647, -0.00094281],[0.70710641, -0.70710647, -0.00094281],
+                          [0., -0.70757866, 0.70663464]
+                          ])
+            np.testing.assert_array_equal(a, nii_bvec)
+        with tempfile.TemporaryDirectory() as d:
+            # Explicit NIfTI filename
+            si.write(os.path.join(d, 'img.nii.gz'), formats=['nifti'])
+            nii_bval = read_b_value_file(os.path.join(d, 'img.bval'))
+            self.assertEqual(
+                [0.0, 500.0, 500.0, 500.0, 500.0, 500.0, 500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0, 1500.0],
+                nii_bval)
+            nii_bvec = read_b_vector_file(os.path.join(d, 'img.bvec'))
             a = np.array([[0., 0., 0.],
                           [0., -0.70640218, -0.7078107],
                           [-0.70640218,  0., -0.7078107],
