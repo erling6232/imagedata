@@ -403,37 +403,25 @@ class NiftiPlugin(AbstractPlugin):
             _write_b_vectors = _write_b_vectors or input_order in ['bvector', 'dti']
 
         if _write_b_values:
-            archive.set_member_naming_scheme(
-                fallback='Image',
-                level=0,
-                default_extension='.bval',
-                extensions=self.extensions
-            )
-            query = None
-            if destination['files'] is not None and len(destination['files']):
-                query = destination['files'][0]
-            filename = archive.construct_filename(
-                tag=None,
-                query=query
-            )
+            if filename[-4:] == '.nii':
+                filename = filename[:-4] + '.bval'
+            elif filename[-7:] == '.nii.gz':
+                filename = filename[:-7] + '.bval'
+            else:
+                filename = filename + '.bval'
             with archive.new_local_file(filename) as f:
                 logger.debug('{}: write local bval file {}'.format(_name, f.local_file))
                 write_b_value_file(f, si)
 
         if _write_b_vectors:
-            archive.set_member_naming_scheme(
-                fallback='Image',
-                level=0,
-                default_extension='.bvec',
-                extensions=self.extensions
-            )
-            query = None
-            if destination['files'] is not None and len(destination['files']):
-                query = destination['files'][0]
-            filename = archive.construct_filename(
-                tag=None,
-                query=query
-            )
+            if filename[-5:] == '.bval':
+                filename = filename[:-5] + '.bvec'
+            elif filename[-4:] == '.nii':
+                filename = filename[:-4] + '.bvec'
+            elif filename[-7:] == '.nii.gz':
+                filename = filename[:-7] + '.bvec'
+            else:
+                filename = filename + '.bvec'
             with archive.new_local_file(filename) as f:
                 logger.debug('{}: write local bvec file {}'.format(_name, f.local_file))
                 write_b_vector_file(f, si)
