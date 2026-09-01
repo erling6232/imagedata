@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.10.0-rc4] - 2026-09-01
+### Fixed
+* NiftiPlugin.write_numpy_nifti(): Corrected filename creation for .bval and .bvec files. Did not create new filenames when an explicit image filename was set.
+
 ## [v3.10.0-rc3] - 2026-08-31
 ### Added
 * Collections.test_read_dicom_user_defined_TI() to verify series options to Study class.
