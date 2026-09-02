@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.10.0] - 2026-09-02
+### Main changes
+* Support for numerous (non-medical) image formats using the `Pillow` plugin.
+* AbstractPlugin: Added option `input_shape`.
+* Series class: Explicit template parameters will override opts settings.
+* Matplotlib 3.11 is supported.
+
+### Added
+* Collections.test_read_dicom_user_defined_TI() to verify series options to Study class.
+* Support for numerous (non-medical) image formats using the `Pillow` plugin.
+* readdata.write(): Propagate the `output_formats` to the plugins in `opts`.
+* AbstractPlugin: Added option `input_shape`.
+
+### Fixed
+* NiftiPlugin.write_numpy_nifti(): Corrected filename creation for .bval and .bvec files. Did not create new filenames when an explicit image filename was set.
+* Series.test_read_dicom_user_defined_TI() fixed to actually verify redefined sorting.
+* DICOMPlugin._sort_datasets() and test_broken_series(): Ensure that the
+  skip_broken_series flag actually works.
+* Fixed a problem where the collection classes did not honor templates.
+* Series class: Explicit template parameters will override opts settings.
+* Series.__getitem__(): Catch an exception when there is no SOPInstanceUIDs defined.
+* Viewer.build_info(): Setting the normalize object was not working with matplotlib 3.11.
+* AbstractPlugin._reduce_shape(): In order to comply with NumPy 2.5, do not set shape directly.
+
+### Changed
+* ITKPlugin: Support `mhd` and `mha` file formats only.
+* Require Pillow 12.3.
+* Do not explicitly require ImageIO.
+* Command line options: Do not limit `output_format` to specific list.
+* Matplotlib 3.11 is supported.
+* Viewer.build_info(): Set colormap extremes using cmap.with_extremes().
+* Series.to_rgb(): Set colormap extremes using cmap.with_extremes().
+
 ## [v3.10.0-rc4] - 2026-09-01
 ### Fixed
 * NiftiPlugin.write_numpy_nifti(): Corrected filename creation for .bval and .bvec files. Did not create new filenames when an explicit image filename was set.
