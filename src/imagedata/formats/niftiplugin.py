@@ -507,7 +507,7 @@ class NiftiPlugin(AbstractPlugin):
             zooms = (dc, dr, ds)
             for i, input_order in enumerate(dcm.input_order.split(',')):
                 if input_order == 'time':
-                    dt = dcm.timeline[1] - dcm.timeline[0]
+                    dt = dcm.timeline[-1] - dcm.timeline[-2]
                     zooms += (dt,)
                 elif issubclass(type(dcm.axes[i]), UniformAxis):
                     zooms += (dcm.axes[i].step,)
