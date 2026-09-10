@@ -455,7 +455,8 @@ class Test4DNIfTIPlugin(unittest.TestCase):
                 formats.INPUT_ORDER_TIME,
                 input_format='nifti')
         self.assertEqual(si1.shape, si2.shape)
-        np.testing.assert_array_equal(si1, si2)
+        np.testing.assert_array_equal(si2, si1)
+        np.testing.assert_almost_equal(si2.timeline, si1.timeline)
 
     def test_write_4d_nifti_dwi(self):
         si1 = Series(
