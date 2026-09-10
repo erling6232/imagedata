@@ -138,12 +138,12 @@ def sort(args=sys.argv[1:]):
     return 0
 
 
-def dump():
+def dump(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
     parser.add_argument("in_dirs", nargs='+',
                         help="Input directories and files")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     logging.basicConfig(level=args.loglevel)
     logger = logging.getLogger()
 
@@ -492,7 +492,7 @@ def _reduce(cohort):
     return series
 
 
-def conversion():
+def conversion(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     add_argparse_options(parser)
     parser.add_argument("out_name",
@@ -500,7 +500,7 @@ def conversion():
     # parser.add_argument("in_dirs", nargs='+',
     parser.add_argument("in_dirs",
                         help="Input directories and files")
-    args = parser.parse_args()
+    args = parser.parse_args(args)
     logging.basicConfig(level=args.loglevel)
     # if args.version:
     #    print('This is {} version {}'.format(sys.argv[0], __version__))
