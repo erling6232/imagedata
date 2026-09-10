@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.10.1dev0] - 2026-09-10
+### Fixed
+* Corrected handling of output_format to only use provided arguments.
+  Previously, 'dicom' was added automatically.
+
+### Changed
+* NiftiPlugin: Modified calculation of delta time to use difference of last two
+  samples, not first two samples. Some MRI acquitions use extra time between first
+  two samples.
+
 ## [v3.10.0] - 2026-09-02
 ### Main changes
 * Support for numerous (non-medical) image formats using the `Pillow` plugin.
