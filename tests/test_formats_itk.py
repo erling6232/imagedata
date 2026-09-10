@@ -153,11 +153,11 @@ class TestFileArchiveItk(unittest.TestCase):
     def test_write_4d_single_directory(self):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
-            'none',
+            'time',
             input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
-            si2 = Series(d, input_format='itk')
+            si2 = Series(d, 'time', input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
@@ -165,11 +165,29 @@ class TestFileArchiveItk(unittest.TestCase):
     def test_write_4d_single_directory_explicit(self):
         si1 = Series(
             os.path.join('data', 'itk', 'time'),
-            'none',
+            'time',
             input_format='itk')
         with tempfile.TemporaryDirectory() as d:
             si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
             si2 = Series(d, input_format='itk')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    def test_write_4d_dicom_time(self):
+        si1 = Series(os.path.join('data', 'dicom', 'time'), 'time', input_format='dicom')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
+            si2 = Series(d, 'time', input_format='itk')
+        self.assertEqual(si1.dtype, si2.dtype)
+        self.assertEqual(si1.shape, si2.shape)
+
+    def test_write_4d_nifti_time(self):
+        si1 = Series(
+            os.path.join('data', 'nifti', 'time_all', 'time_all_fl3d_dynamic_20190207140517_14.nii.gz'),
+            'time', input_format='nifti')
+        with tempfile.TemporaryDirectory() as d:
+            si1.write(os.path.join(d, 'Image{:05d}.mha'), formats=['itk'])
+            si2 = Series(d, 'time', input_format='itk')
         self.assertEqual(si1.dtype, si2.dtype)
         self.assertEqual(si1.shape, si2.shape)
 
