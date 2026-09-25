@@ -97,6 +97,8 @@ class ObjectList(list):
 class DatasetList(list):
     """DatasetList is list[Instance]"""
 
+    usable: bool = True
+
     def __init__(self):
         super().__init__()
 
