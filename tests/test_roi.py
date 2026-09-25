@@ -73,7 +73,7 @@ class TestDicomROI(unittest.TestCase):
         evidences = None
         report = None
         result = None
-        study = Study(os.path.join('data', 'dicom', 'cor_oblique_roi'),
+        study = Study(os.path.join('data', 'dicom', 'cor_oblique_obj'),
                       input_format='dicom', skip_broken_series=True,
                       accept_duplicate_tag=True)
         for uid in study:
