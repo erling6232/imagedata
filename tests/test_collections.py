@@ -1,4 +1,5 @@
-import os.path
+import os.path, os
+from shutil import copytree
 import tempfile
 import unittest
 import numpy as np
@@ -70,15 +71,14 @@ class TestStudy(unittest.TestCase):
             study = Study(d, input_format='dicom', opts={'split_acquisitions': True})
 
     def test_broken_series(self):
-        study = Study('data/dicom/time/time00', input_format='dicom')
-        series = study[0]
         with tempfile.TemporaryDirectory() as d:
-            series.write(os.path.join(d, 's0'), formats=['dicom'])
-            series.write(os.path.join(d, 's1', '1'), formats=['dicom'], keep_uid=True)
-            series[0].write(os.path.join(d, 's1', '1', 'extra.dcm'), formats=['dicom'], keep_uid=True)
-            # series.write(os.path.join(d, 's1', '2'), formats=['dicom'], keep_uid=True)
-            study1 = Study(d, input_format='dicom', skip_broken_series=True)
-            assert len(study1) == 1
+            si = Series(os.path.join('data', 'dicom', 'cor_oblique'), input_format='dicom')
+            si.write(os.path.join(d, 'good'), formats=['dicom'])
+            copytree(os.path.join('data', 'dicom', 'cor_oblique'),
+                     os.path.join(d, 'bad'))
+            os.remove(os.path.join(d, 'bad', 'Image_00005.dcm'))
+            study = Study(d, input_format='dicom', skip_broken_series=True)
+            assert len(study) == 1
 
     def test_read_dicom_user_defined_TI(self):
         study = Study(
