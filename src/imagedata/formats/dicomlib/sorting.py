@@ -439,6 +439,11 @@ def combine_data_and_header(dataset_dict: DatasetDict, header_dict: SortedHeader
     for seriesUID in header_dict:
         header: Header = header_dict[seriesUID]
         dataset_list: DatasetList = dataset_dict[seriesUID]
-        sorted_data_dict[seriesUID] = SortedData((dataset_list, header))
-        pass
+        sorted_dataset_list: SortedDatasetList = SortedDatasetList()
+        for im in dataset_list:
+            try:
+                sorted_dataset_list[im.SliceLocation].append(im)
+            except AttributeError:
+                sorted_dataset_list[0].append(im)
+        sorted_data_dict[seriesUID] = SortedData((sorted_dataset_list, header))
     return sorted_data_dict
