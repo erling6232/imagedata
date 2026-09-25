@@ -44,7 +44,7 @@ class TestDicomROI(unittest.TestCase):
                     self.process_content(res, _cont)
                     code_meaning = res['CodeMeaning']
                     if res['CodeMeaning'] in result:
-                        print(f'Duplicate {res['CodeMeaning']}')
+                        print(f'Duplicate {res["CodeMeaning"]}')
 
                     if res['CodeMeaning'][:7] == 'Finding':
                         result[res['CodeMeaning']].append(res[res['CodeMeaning']])
