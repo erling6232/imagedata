@@ -202,10 +202,10 @@ class Series(np.ndarray):
         elif isinstance(data, list):
             urls = data
         else:
-            if np.ndim(data) == 0:
-                obj = np.asarray([data], dtype).view(cls)
-            else:
+            if data is None or np.ndim(data) > 0:
                 obj = np.asarray(data, dtype).view(cls)
+            else:  # np.ndim(data) == 0, make a 1D object of the data
+                obj = np.asarray([data], dtype).view(cls)
             # cls.__init_attributes(cls, obj)
             obj.header = Header()
             if input_order == 'auto':
