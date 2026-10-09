@@ -238,6 +238,7 @@ class DICOMPlugin(AbstractPlugin):
         logger.debug('{}: non_imaging_datasets {}'.format(_name, len(non_imaging_dataset_dict)))
 
         sorted_header_dict: SortedHeaderDict = SortedHeaderDict()
+        non_image_header_dict: SortedHeaderDict
         pixel_dict: PixelDict = PixelDict()
 
         if imaging_dataset_dict:
@@ -254,11 +255,13 @@ class DICOMPlugin(AbstractPlugin):
                         pixel_dict[seriesUID] = self._correct_acqtimes_for_dynamic_series(
                             sorted_data_dict[seriesUID], pixel_dict[seriesUID]
                         )
-            for seriesUID in sorted_data_dict:
-                _, header = sorted_data_dict[seriesUID]
-                sorted_header_dict[seriesUID] = header
+            for seriesUID in imaging_dataset_dict:
+                if seriesUID in sorted_data_dict:
+                    _, header = sorted_data_dict[seriesUID]
+                    sorted_header_dict[seriesUID] = header
 
-        if non_imaging_dataset_dict:
+        if True:
+        # if non_imaging_dataset_dict:
             logger.debug('{}: going to _get_non_image_headers {}'.format(_name, sources))
             non_image_header_dict: SortedHeaderDict
             non_image_header_dict = self._get_non_image_headers(non_imaging_dataset_dict, opts)
@@ -549,6 +552,7 @@ class DICOMPlugin(AbstractPlugin):
                 message2 = '{}'.format(e)
                 logger.debug('{}: _sort_dataset_geometry CannotSort: {}'.format(_name, e))
                 if skip_broken_series:
+                    dataset_list.usable = False
                     continue
             if sorted_dataset_list is None:
                 raise CannotSort('Cannot sort: {}'.format(message2))
@@ -625,7 +629,7 @@ class DICOMPlugin(AbstractPlugin):
                 self._extract_non_image_dicom_attributes(series_dataset, hdr, opts=opts)
                 hdr.set_default_values(hdr.axes)
                 sorted_header_dict[seriesUID] = hdr
-            except CannotSort:
+            except (AttributeError, CannotSort):
                 if skip_broken_series:
                     logger.debug(
                         '{}: skip_broken_series continue {}'.format(
@@ -717,9 +721,10 @@ class DICOMPlugin(AbstractPlugin):
 
         def _copy_pixels_from_frames(_si, _hdr, _image_dict):
             _name: str = '{}.{}'.format(__name__, _copy_pixels_from_frames.__name__)
-            assert len(_image_dict) == _si.shape[0], "Do not know how to unpack frames and slices"
             if _si.ndim > 3:
-                for i, im in enumerate(_image_dict):
+                _image_list = _image_dict[next(iter(_image_dict))]
+                assert len(_image_list) == _si.shape[0], "Do not know how to unpack frames and slices"
+                for i, im in enumerate(_image_list):
                     try:
                         logger.debug("{}: get shape {}".format(_name, _si.shape))
                         _si[i] = im.get_pixels_with_shape(_si.shape[1:])
@@ -728,10 +733,11 @@ class DICOMPlugin(AbstractPlugin):
                         raise
                     del im
             else:
+                assert len(_image_dict) == _si.shape[0], "Do not know how to unpack frames and slices"
                 try:
-                    im = image_dict[next(iter(image_dict))][0]
+                    im = _image_dict[next(iter(_image_dict))][0]
                 except TypeError:
-                    im = image_dict[0]
+                    im = _image_dict[0]
                 try:
                     logger.debug("{}: get shape {}".format(_name, _si.shape))
                     _si[...] = im.get_pixels_with_shape(_si.shape)
@@ -812,20 +818,25 @@ class DICOMPlugin(AbstractPlugin):
             return
         # Construct axes. Required to determine matrix shape
         if len(series) > 1:
-            descriptions = []
-            for im in series:
-                ss = im.SegmentSequence
-                # ars = ss[0].AnatomicRegionSequence
-                # code_value = ars[0].CodeValue
-                # spccs = ss[0].SegmentedPropertyCategoryCodeSequence
-                sptcs = ss[0].SegmentedPropertyTypeCodeSequence
-                code_value = sptcs[0].CodeValue
-                code_meaning = sptcs[0].CodeMeaning
-                descriptions.append('{}:{}'.format(code_value, code_meaning))
+            if 'SegmentSequence' in dataset:
+                descriptions = []
+                for im in series:
+                    ss = im.SegmentSequence
+                    # ars = ss[0].AnatomicRegionSequence
+                    # code_value = ars[0].CodeValue
+                    # spccs = ss[0].SegmentedPropertyCategoryCodeSequence
+                    sptcs = ss[0].SegmentedPropertyTypeCodeSequence
+                    code_value = sptcs[0].CodeValue
+                    code_meaning = sptcs[0].CodeMeaning
+                    descriptions.append('{}:{}'.format(code_value, code_meaning))
+                slices = dataset.NumberOfFrames
+            else:
+                descriptions = [dataset.SeriesDescription]
+                slices = len(series)
             hdr.axes = namedtuple('Axes', [
                 'text', 'slice', 'row', 'column'
             ])(VariableAxis('text', descriptions),
-               UniformLengthAxis('slice', 0, dataset.NumberOfFrames, 1),
+               UniformLengthAxis('slice', 0, slices, 1),
                UniformLengthAxis('row', 1, dataset.Rows, 1),  # dataset.PixelSpacing[0]
                UniformLengthAxis('column', 2, dataset.Columns, 1))  # dataset.PixelSpacing[1]
             hdr.input_order = 'text'

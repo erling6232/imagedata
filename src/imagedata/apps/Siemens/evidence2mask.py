@@ -28,7 +28,7 @@ def _xyz_to_zyx(polygon):
 
 def _get_measurement_points(output, point=True, zyx=False):
     if output.VR == "UN":
-        meas_data_points = np.fromstring(output.value, dtype='float32')
+        meas_data_points = np.frombuffer(output.value, dtype='float32')
     else:
         meas_data_points = np.array(output.value)
     if point:

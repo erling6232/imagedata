@@ -71,7 +71,9 @@ class ROI(object, metaclass=ABCMeta):
             mode:
                 bool for binary image, np.uint8 for 8-bit grayscale image
         """
-        if len(shape) == 3:
+        if len(shape) == 2:
+            ny, nx = shape
+        elif len(shape) == 3:
             nz, ny, nx = shape
         elif len(shape) == 4:
             nt, nz, ny, nx = shape
