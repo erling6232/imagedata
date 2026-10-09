@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * DICOMPlugin: Failed imaging datasets are retried as non-imaging dataset
 
+## [v3.10.1dev1] - 2026-10-09
+### Changed
+* Series.__new__(): Handle None input as ndim=0 data.
+* XnatTransport._search_scans(): Match scans by scan.series_description, scan.type or scan.id
+
 ## [v3.10.1dev0] - 2026-09-10
 ### Fixed
 * Corrected handling of output_format to only use provided arguments.

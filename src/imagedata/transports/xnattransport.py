@@ -282,8 +282,10 @@ class XnatTransport(AbstractTransport):
             if scan.series_description is None:
                 continue
             # if scan.quality == 'usable' and fnmatch.fnmatch(scan.id, scan_id):
-            if scan.quality == 'usable' and fnmatch.fnmatch(scan.series_description, scan_id):
-                object_list.append(scan)
+            if scan.quality == 'usable':
+                if fnmatch.fnmatch(scan.series_description, scan_id) or \
+                    fnmatch.fnmatch(scan.type, scan_id) or fnmatch.fnmatch(scan.id, scan_id):
+                    object_list.append(scan)
         return object_list
 
     def open(self, path, mode='r'):
