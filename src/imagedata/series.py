@@ -2324,7 +2324,7 @@ class Series(np.ndarray):
         except ValueError:
             ipp = np.array([0, 0, 0])
         if ipp.shape == (3, 1):
-            ipp.shape = (3,)
+            ipp = ipp.reshape((3,))
         z, y, x = ipp[:]
         origin = np.array([x, y, z])
 
