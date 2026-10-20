@@ -667,15 +667,14 @@ class DICOMPlugin(AbstractPlugin):
                     )
                 except TypeError:
                     pass
-                except Exception:
+                except Exception as e:
                     if skip_broken_series:
-                        logger.debug(
-                            '{}: skip_broken_series continue {}'.format(
-                                _name, seriesUID
-                            ))
+                        logger.debug(f'Skipping SerInsUID {header.seriesInstanceUID}, ' +
+                                     f'series {header.seriesNumber} {header.seriesDescription}:\n  {e}')
                         continue
                     else:
-                        logger.debug('{}: skip_broken_series raise'.format(_name))
+                        e.args = (f'SerInsUID {header.seriesInstanceUID}, ' +
+                                  f'series {header.seriesNumber} {header.seriesDescription}',) + e.args
                         raise
 
             if si is not None:
