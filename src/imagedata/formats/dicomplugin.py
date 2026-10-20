@@ -504,7 +504,7 @@ class DICOMPlugin(AbstractPlugin):
             sorting[seriesUID] = determine_sorting(sorted_dataset_list)
 
             Catalog tag values
-            tag_values, shape = scan_tags(seriesUID)
+            tag_values, shape, new_input_order = scan_tags(seriesUID)
             Sort the tags and index the images
                 shape = ()
                 axes = ()
@@ -585,7 +585,7 @@ class DICOMPlugin(AbstractPlugin):
             # Catalog actual tag values keeping other tags fixed
             # Important when sorting acquisition time which differ from slice to slice
             try:
-                axes, tags = scan_tags(sorted_dataset_list, sorting[seriesUID], self.input_options)
+                axes, tags, new_input_order = scan_tags(sorted_dataset_list, sorting[seriesUID], self.input_options)
             except CannotSort:
                 if skip_broken_series:
                     logger.debug(f'{_name}: skip_broken_series continue {seriesUID}')
@@ -594,6 +594,8 @@ class DICOMPlugin(AbstractPlugin):
                     logger.debug(f'{_name}: skip_broken_series raise')
                     raise
             sorted_dataset_list.axes = self._get_axes(sorted_dataset_list)
+            if new_input_order:
+                header.input_order = new_input_order
             header.axes = self._join_axes(sorted_dataset_list, axes)
             header.tags = tags
             header.SOPInstanceUIDs = self._get_sop_ins_uids(sorted_dataset_list)
