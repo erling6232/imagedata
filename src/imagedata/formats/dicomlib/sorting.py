@@ -238,7 +238,8 @@ def _determine_tag_position(axes: list[list],
     return new_tag
 
 
-def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_options: dict) -> tuple[tuple, dict]:
+def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_options: dict) ->(
+        tuple)[tuple, dict, str]:
     def _minimum_tag(tags: list, tag: int) -> Any:
         minimum = 1e9
         for _, _tag in tags:
@@ -305,7 +306,7 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
             for _axis in _axes:
                 shape += (len(_axis),)
                 if len(shape) > len(new_input_order_list):
-                    new_input_order_list.append('none')
+                    new_input_order_list.append('duplicate')
 
         # Verify exact same shape per slice
         if previous_shape is None:
@@ -359,7 +360,7 @@ def scan_tags(sorted_dataset_list: SortedDatasetList, input_order: str, input_op
     Axes = namedtuple('Axes', new_input_order_list)
     axes = Axes._make(_new_axes)
 
-    return axes, tags
+    return axes, tags, ",".join(new_input_order_list)
 
 
 def scan_duplicate_tags(dataset_list: DatasetList, axes: list) -> list:
