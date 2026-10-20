@@ -264,6 +264,21 @@ class Instance(FileDataset):
             si: numpy array of given shape
         """
 
+        def _expand_image(si: np.ndarray, shape: tuple):
+            # Assume that pixels can be expanded to match si shape
+            # Place the pixels in the upper left corner of the matrix
+            assert len(shape) == si.ndim, \
+                f'Dimension of matrix ({shape}) differ from pixel shape ({si.shape})'
+            if all(map(lambda x, y: x >= y, shape, si.shape)):
+                _ = np.zeros(shape, si.dtype)
+                roi = ()
+                for d in si.shape:
+                    roi += (slice(d),)
+                _[roi] = si
+                return _
+            else:
+                raise ValueError(f'could not broadcast input array from shape {si.shape} into shape {shape}')
+
         _name: str = '{}.{}'.format(__name__, self.get_pixels_with_shape.__name__)
         _use_float = False
         try:
@@ -295,16 +310,8 @@ class Instance(FileDataset):
                 else:
                     # This happens only when images in a series have varying shape
                     # Place the pixels in the upper left corner of the matrix
-                    assert len(shape) == len(pixels.shape), \
-                        "Shape of matrix ({}) differ from pixel shape ({})".format(
-                            shape, pixels.shape)
                     # Assume that pixels can be expanded to match si shape
-                    si = np.zeros(shape, pixels.dtype)
-                    roi = []
-                    for d in pixels.shape:
-                        roi.append(slice(d))
-                    roi = tuple(roi)
-                    si[roi] = pixels
+                    si = _expand_image(pixels, shape)
             else:
                 si = pixels
         except UnboundLocalError:
@@ -324,6 +331,10 @@ class Instance(FileDataset):
                     si = float(self.RescaleSlope) * si + float(self.RescaleIntercept)
             else:
                 raise
+        # Verify shape of si
+        if si.shape != shape:
+            # Assume that pixels can be expanded to match si shape
+            si = _expand_image(si, shape)
         return si
 
     def copy_attributes_to_header(self, hdr: Header):
