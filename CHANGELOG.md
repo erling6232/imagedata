@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.10.1rc1] - 2026-10-20
+### Changed
+* DICOMPlugin: Improved exception messages including series info.
+* DICOMPlugin: When duplicate axis values are found, the axis type is set to
+  'duplicate'. The input_order is also set to 'duplicate'.
+* DICOMPlugin: Remove deprecated setting of numpy shape.
+* Series: Remove deprecated setting of numpy shape.
+
 ## [v3.10.1rc0] - 2026-10-09
 ### Main changes
 * Attempt to input imaging DICOM datasets as non-image DICOM datasets
