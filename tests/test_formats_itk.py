@@ -326,7 +326,7 @@ class TestWritePluginItkTag(unittest.TestCase):
         si.orientation = np.array([0, 0, 1, 0, 1, 0])
         for slice in range(si.shape[1]):
             si.imagePositions = {
-                slice: si.getPositionForVoxel(np.array([slice, 0, 0])).reshape((3, 1))
+                slice: si.getPositionForVoxel(np.array([slice, 0, 0])).reshape((3,))
             }
 
         si.sort_on = formats.SORT_ON_TAG
