@@ -12,7 +12,7 @@ imagedata
 
 Imagedata is a python library to read and write medical image data into numpy arrays.
 Imagedata will handle multi-dimensional data.
-In particular, imagedata will read and sort DICOM 3D and 4D series based on
+In particular, imagedata will read and sort DICOM 3D and multi-dimensional series based on
 defined tags.
 Imagedata will handle geometry information between the formats.
 
@@ -62,13 +62,16 @@ Sorting of DICOM slices is considered a major task. Imagedata will sort slices i
 Volumes may be sorted on a number of DICOM tags:
 
 * 'time': Dynamic time series, sorted on acquisition time
+* 'triggertime': Dynamic time series, sorted on trigger time
 * 'b': Diffusion weighted series, sorted on diffusion b value
+* 'bvector': Diffusion weighted series, sorted on diffusion b vector
+* 'dti': Diffusion weighted series, sorted on diffusion b value and b vector
 * 'fa': Flip angle series, sorted on flip angle
 * 'te': Sort on echo time TE
 
 In addition, volumes can be sorted on user defined tags.
 
-Non-DICOM formats usually don't specify the labelling of the 4D data.
+Non-DICOM formats usually don't specify the labelling of the multi-dimensional data.
 In this case, you can specify the sorting manually.
 
 Viewing
@@ -148,7 +151,7 @@ Addressing
   
   2D: a[rows, columns]
   
-  RGB: a[..., rgb]
+  RGB: a[rgb][...]
   
 patientID, patientName, patientBirthDate
   Identifies patient
