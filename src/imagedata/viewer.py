@@ -1155,9 +1155,10 @@ def build_info(im, colormap, norm, colorbar, window, level):
         lut = 256
         logger.warning('{}: Displaying real part of complex values.'.format(_name))
         im = np.real(im)
-    elif im.color:
+    elif im.color or im.header.color:
         lut = 256
-        im = im.view(dtype=np.uint8).reshape(im.shape + (3,))
+        _new_shape = im.shape + (3,) if im.shape[-1] != 3 else im.shape
+        im = im.view(dtype=np.uint8).reshape(_new_shape)
     else:
         lut = (np.nanmax(im).item()) + 1
     if im_colormap is None:

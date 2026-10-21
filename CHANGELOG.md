@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 <!--next-version-placeholder-->
+## [v3.10.1dev4] - 2026-10-21
+### Fixed
+* Viewer.build_info: Improve detection of color images, including header.color attribute.
+### Changed
+* Series.slices: Return single slice when no slice axis is defined. Do not attempt to extract
+  number of slices from image shape.
+
 ## [v3.10.1rc1] - 2026-10-20
 ### Changed
 * DICOMPlugin: Improved exception messages including series info.

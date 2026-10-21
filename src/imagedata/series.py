@@ -1113,13 +1113,14 @@ class Series(np.ndarray):
         try:
             return len(self.axes.slice)
         except AttributeError:
-            if self.ndim < 3:
-                # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
-                # raise ValueError("{}D dataset has no slices".format(self.ndim))
-                return 1
-            # logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
-            #     self.ndim, self.shape, self.shape[-3 - _color]))
-            return self.shape[-3]
+            return 1
+            # if self.ndim < 3:
+            #     # logger.debug("Series.slices: {}D dataset has no slices".format(self.ndim))
+            #     # raise ValueError("{}D dataset has no slices".format(self.ndim))
+            #     return 1
+            # # logger.debug("Series.slices: {}D dataset slice from shape ({}) {}".format(
+            # #     self.ndim, self.shape, self.shape[-3 - _color]))
+            # return self.shape[-3]
 
     @slices.setter
     def slices(self, nslices):
