@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!--next-version-placeholder-->
 ## [v3.10.1dev4] - 2026-10-21
+### Fixed
 * Viewer.build_info: Improve detection of color images, including header.color attribute.
+### Changed
 * Series.slices: Return single slice when no slice axis is defined. Do not attempt to extract
   number of slices from image shape.
 
