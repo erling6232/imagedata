@@ -1,0 +1,35 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: imagedata
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Erling
+    family-names: Andersen
+    email: Erling.Andersen@Helse-Bergen.NO
+    affiliation: Haukeland University Hospital
+    orcid: 'https://orcid.org/0000-0001-8268-1206'
+identifiers:
+  - type: doi
+    value: 10.21105/joss.04133
+    description: >-
+      Imagedata: A Python library to handle medical image
+      data in NumPy array subclass Series
+repository-code: 'https://github.com/erling6232/imagedata'
+url: 'https://imagedata.readthedocs.io/'
+abstract: >-
+  Imagedata is a python library to read and write medical
+  image data into numpy arrays. Imagedata will handle
+  multi-dimensional data. In particular, imagedata will read
+  and sort DICOM 3D and 4D series based on defined tags.
+  Imagedata will handle geometry information between the
+  formats.
+keywords:
+  - DICOM
+  - NIfTI
+  - NumPy
+license: MIT
