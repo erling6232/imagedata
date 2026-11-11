@@ -33,3 +33,18 @@ keywords:
   - NIfTI
   - NumPy
 license: MIT
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Andersen"
+    given-names: "Erling"
+    email: Erling.Andersen@Helse-Bergen.NO
+    affiliation: Haukeland University Hospital
+    orcid: 'https://orcid.org/0000-0001-8268-1206'
+  doi: "10.21105/joss.04133"
+  journal: "Journal of Open Source Software"
+  volume: 7
+  issue: 73
+  start: 4133
+  title: "Imagedata: A Python library to handle medical image data in NumPy array subclass Series"
+  year: 2022
